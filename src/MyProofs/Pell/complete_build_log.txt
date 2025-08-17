@@ -1,0 +1,73 @@
+src/MyProofs/Pell/PellComplete.lean:69:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:77:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:84:8: warning: declaration uses 'sorry'
+src/MyProofs/Pell/PellComplete.lean:111:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:116:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:121:8: warning: This simp argument is unused:
+  pell_solvable_mod
+
+Hint: Omit it from the simp argument list.
+  simp ̵[̵p̵e̵l̵l̵_̵s̵o̵l̵v̵a̵b̵l̵e̵_̵m̵o̵d̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+src/MyProofs/Pell/PellComplete.lean:159:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:170:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:174:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:178:2: error: no goals to be solved
+src/MyProofs/Pell/PellComplete.lean:190:15: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:191:13: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:191:19: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:191:23: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:192:21: error: unknown constant 'Nat.mul_le_mul''
+src/MyProofs/Pell/PellComplete.lean:184:18: error: unsolved goals
+r : ℕ
+hr : 2 = r * r
+h : ¬r < 2
+this✝ : r ≥ 2
+this : 4 ≤ r ^ (r * r)
+⊢ False
+src/MyProofs/Pell/PellComplete.lean:189:14: warning: This simp argument is unused:
+  h
+
+Hint: Omit it from the simp argument list.
+  simp ̵[̵h̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+src/MyProofs/Pell/PellComplete.lean:208:15: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:209:13: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:209:19: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:209:23: error: unknown identifier 'r'
+src/MyProofs/Pell/PellComplete.lean:210:21: error: unknown constant 'Nat.mul_le_mul''
+src/MyProofs/Pell/PellComplete.lean:212:8: error: tactic 'rewrite' failed, did not find instance of the pattern in the target expression
+  3
+r : ℕ
+hr : 3 = r * r
+h : ¬r < 2
+this✝ : r ≥ 2
+this : r ^ 2 ≥ 4
+⊢ False
+src/MyProofs/Pell/PellComplete.lean:207:14: warning: This simp argument is unused:
+  h
+
+Hint: Omit it from the simp argument list.
+  simp ̵[̵h̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+src/MyProofs/Pell/PellComplete.lean:246:4: warning: declaration uses 'sorry'
+PellComplete.is_pell_solution (D : ℕ) (x y : ℤ) : Prop
+PellComplete.pell_multiply (D : ℕ) (x₁ y₁ x₂ y₂ : ℤ) : ℤ × ℤ
+PellComplete.pell_multiplication_preserves_solution (D : ℕ) (x₁ y₁ x₂ y₂ : ℤ) (h₁ : is_pell_solution D x₁ y₁)
+  (h₂ : is_pell_solution D x₂ y₂) :
+  match pell_multiply D x₁ y₁ x₂ y₂ with
+  | (x₃, y₃) => is_pell_solution D x₃ y₃
+PellComplete.BinaryQuadraticForm.{u_1} (R : Type u_1) [Ring R] : Type u_1
+PellComplete.eval_form.{u_1} {R : Type u_1} [Ring R] (f : BinaryQuadraticForm R) (x y : R) : R
+PellComplete.discriminant.{u_1} {R : Type u_1} [Ring R] (f : BinaryQuadraticForm R) : R
+PellComplete.not_square_2 : ¬IsSquare 2
+PellComplete.not_square_3 : ¬IsSquare 3
+PellComplete.pell_2_solution : is_pell_solution 2 3 2
+PellComplete.pell_3_solution : is_pell_solution 3 2 1
+PellComplete.pell_5_solution : is_pell_solution 5 9 4
+PellComplete.pell_7_solution : is_pell_solution 7 8 3
+Pell.Solution₁ (d : ℤ) : Type
+Pell.exists_of_not_isSquare {d : ℤ} (h₀ : 0 < d) (hd : ¬IsSquare d) : ∃ x y, x ^ 2 - d * y ^ 2 = 1 ∧ y ≠ 0

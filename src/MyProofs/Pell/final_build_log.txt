@@ -1,0 +1,35 @@
+src/MyProofs/Pell/PellFinal.lean:108:8: warning: This simp argument is unused:
+  pell_solvable_mod
+
+Hint: Omit it from the simp argument list.
+  simp ̵[̵p̵e̵l̵l̵_̵s̵o̵l̵v̵a̵b̵l̵e̵_̵m̵o̵d̵]̵
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+src/MyProofs/Pell/PellFinal.lean:146:2: error: no goals to be solved
+src/MyProofs/Pell/PellFinal.lean:157:2: error: no goals to be solved
+src/MyProofs/Pell/PellFinal.lean:161:2: error: no goals to be solved
+src/MyProofs/Pell/PellFinal.lean:176:24: error: unknown constant 'Nat.mul_le_mul''
+src/MyProofs/Pell/PellFinal.lean:220:4: error: type mismatch
+  not_square_2
+has type
+  ¬IsSquare 2 : Prop
+but is expected to have type
+  ¬IsSquare ↑2 : Prop
+src/MyProofs/Pell/PellFinal.lean:233:50: warning: unused variable `h`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+PellFinal.is_pell_solution (D : ℕ) (x y : ℤ) : Prop
+PellFinal.pell_multiply (D : ℕ) (x₁ y₁ x₂ y₂ : ℤ) : ℤ × ℤ
+PellFinal.BinaryQuadraticForm.{u_1} (R : Type u_1) [Ring R] : Type u_1
+PellFinal.eval_form.{u_1} {R : Type u_1} [Ring R] (f : BinaryQuadraticForm R) (x y : R) : R
+PellFinal.discriminant.{u_1} {R : Type u_1} [Ring R] (f : BinaryQuadraticForm R) : R
+PellFinal.not_square_2 : ¬IsSquare 2
+PellFinal.pell_2_solution : is_pell_solution 2 3 2
+PellFinal.pell_3_solution : is_pell_solution 3 2 1
+PellFinal.pell_5_solution : is_pell_solution 5 9 4
+PellFinal.pell_7_solution : is_pell_solution 7 8 3
+PellFinal.exists_nontrivial_solution (D : ℕ) (h₀ : 0 < D) (h : ¬IsSquare ↑D) : ∃ x y, is_pell_solution D x y ∧ y ≠ 0
+Pell.Solution₁ (d : ℤ) : Type
+Pell.exists_of_not_isSquare {d : ℤ} (h₀ : 0 < d) (hd : ¬IsSquare d) : ∃ x y, x ^ 2 - d * y ^ 2 = 1 ∧ y ≠ 0
+PellFinal.pell_form_discriminant (D : ℕ) : discriminant (pell_form D) = 4 * ↑D
+PellFinal.pell_solution_iff_form_one (D : ℕ) (x y : ℤ) : is_pell_solution D x y ↔ eval_form (pell_form D) x y = 1

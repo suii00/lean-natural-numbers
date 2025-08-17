@@ -1,0 +1,67 @@
+src/MyProofs/Hensel/HenselFinal.lean:31:4: error: failed to compile definition, compiler IR check failed at 'HenselLemma.eval_mod'. Error: depends on declaration 'Polynomial.map', which has no executable code; consider marking definition as 'noncomputable'
+src/MyProofs/Hensel/HenselFinal.lean:40:15: error: Application type mismatch: In the application
+  eval_mod f 1 x
+the argument
+  x
+has type
+  ZMod p : Type
+but is expected to have type
+  ZMod (?m.993 ^ 1) : Type
+src/MyProofs/Hensel/HenselFinal.lean:40:49: error: Application type mismatch: In the application
+  eval_mod (derivative f) 1 x
+the argument
+  x
+has type
+  ZMod p : Type
+but is expected to have type
+  ZMod (?m.3391 ^ 1) : Type
+src/MyProofs/Hensel/HenselFinal.lean:57:46: error: type mismatch
+  aₙ
+has type
+  ZMod (p ^ n) : Type
+but is expected to have type
+  ZMod p : Type
+src/MyProofs/Hensel/HenselFinal.lean:72:42: error: type mismatch
+  aₖ
+has type
+  ZMod (p ^ k) : Type
+but is expected to have type
+  ZMod p : Type
+src/MyProofs/Hensel/HenselFinal.lean:74:34: error: type mismatch
+  a₂ₖ
+has type
+  ZMod (p ^ (2 * k)) : Type
+but is expected to have type
+  ZMod (p ^ k) : Type
+src/MyProofs/Hensel/HenselFinal.lean:88:4: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselFinal.lean:97:8: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselFinal.lean:101:8: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselFinal.lean:105:8: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselFinal.lean:110:4: error: type mismatch
+  sqrt2_mod_7_power (n + 1)
+has type
+  ZMod (7 ^ (n + 1)) : Type
+but is expected to have type
+  ZMod (7 ^ n) : Type
+src/MyProofs/Hensel/HenselFinal.lean:115:20: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselFinal.lean:140:6: error: type mismatch
+  gₙ
+has type
+  (ZMod (p ^ n))[X] : Type
+but is expected to have type
+  (ZMod p)[X] : Type
+src/MyProofs/Hensel/HenselFinal.lean:141:6: error: type mismatch
+  hₙ
+has type
+  (ZMod (p ^ n))[X] : Type
+but is expected to have type
+  (ZMod p)[X] : Type
+src/MyProofs/Hensel/HenselFinal.lean:159:14: error: type expected, got
+  (primes : List ℕ)
+src/MyProofs/Hensel/HenselFinal.lean:180:4: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselFinal.lean:190:18: error: type mismatch
+  a
+has type
+  ZMod p : Type
+but is expected to have type
+  ZMod (p ^ (seq 0).fst) : Type

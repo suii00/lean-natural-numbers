@@ -1,0 +1,10 @@
+name = "simple_proof"
+version = "0.1.0"
+defaultTargets = ["SimpleProof"]
+
+[[lean_lib]]
+name = "SimpleProof"
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"

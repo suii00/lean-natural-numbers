@@ -1,0 +1,50 @@
+src/MyProofs/Hensel/HenselFixed.lean:56:29: warning: unused variable `h`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+src/MyProofs/Hensel/HenselFixed.lean:64:89: error: type mismatch
+  a
+has type
+  ZMod p : Type
+but is expected to have type
+  ZMod (p ^ 1) : Type
+src/MyProofs/Hensel/HenselFixed.lean:77:35: error: Application type mismatch: In the application
+  map (Int.castRingHom (ZMod p))
+the argument
+  Int.castRingHom (ZMod p)
+has type
+  ℤ →+* ZMod p : Type
+but is expected to have type
+  ℤ →+* ZMod (p ^ 1) : Type
+src/MyProofs/Hensel/HenselFixed.lean:99:4: warning: unused variable `n`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+src/MyProofs/Hensel/HenselFixed.lean:129:0: warning: automatically included section variable(s) unused in theorem 'HenselLemmaFixed.hensel_factorization_simple':
+  hp
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit hp in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+src/MyProofs/Hensel/HenselFixed.lean:153:6: error: type mismatch
+  eval x (map (Int.castRingHom (ZMod p)) f) = 0
+has type
+  Prop : Type
+but is expected to have type
+  Type ?u.20928 : Type (?u.20928 + 1)
+src/MyProofs/Hensel/HenselFixed.lean:171:38: warning: unused variable `f`
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+src/MyProofs/Hensel/HenselFixed.lean:180:2: error: no goals to be solved
+HenselLemmaFixed.hensel_lemma_basic {p : ℕ} [hp : Fact (Nat.Prime p)] (f : ℤ[X]) (a : ZMod p)
+  (h_root : is_simple_root f p a) (n : ℕ) (hn : n ≥ 1) : ∃ aₙ, is_liftable f p n aₙ ∧ sorry
+src/MyProofs/Hensel/HenselFixed.lean:194:7: error: unknown identifier 'hensel_quadratic_lifting'
+HenselLemmaFixed.sqrt2_mod7_correct : 3 ^ 2 = 2
+HenselLemmaFixed.sqrt2_mod49_correct : 10 ^ 2 = 2
+HenselLemmaFixed.sqrt2_mod343_correct : 108 ^ 2 = 2
+HenselLemmaFixed.hensel_factorization_simple {p : ℕ} [hp : Fact (Nat.Prime p)] (f g h : ℤ[X]) (n : ℕ) (hf : f = g * h) :
+  map (Int.castRingHom (ZMod (p ^ n))) f =
+    map (Int.castRingHom (ZMod (p ^ n))) g * map (Int.castRingHom (ZMod (p ^ n))) h
+HenselLemmaFixed.multi_prime_hensel_simple.{u_1} (prime_list : List ℕ) (h_primes : ∀ p ∈ prime_list, Nat.Prime p)
+  (f : ℤ[X]) (roots : (p : ℕ) → p ∈ prime_list → (_ : ZMod p) × sorry) :
+  ∃ M, M = prime_list.prod ∧ ∃ x, eval x (map (Int.castRingHom (ZMod M)) f) = 0
+HenselLemmaFixed.newton_exists {p : ℕ} [hp : Fact (Nat.Prime p)] (f : ℤ[X]) (a : ZMod p)
+  (h_root : is_simple_root f p a) : ∃ x, eval x (map (Int.castRingHom (ZMod p)) f) = 0

@@ -1,0 +1,347 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "Lean Proof Project",
+    "description": "Complete workflow system for Lean theorem proving projects",
+    "rootPath": "",
+    "leanVersion": "4.12.0",
+    "mathlibVersion": "v4.21.0",
+    "lastUpdated": "2025-08-06"
+  },
+  "workflow": {
+    "enabled": true,
+    "autoInitialize": true,
+    "debugMode": false,
+    "logLevel": "INFO"
+  },
+  "git": {
+    "autoCommit": {
+      "enabled": true,
+      "verifyProofFirst": true,
+      "includeDifficultyTag": true,
+      "customCommitTemplate": "Complete Lean proof: {proofName} [{difficulty}]\n\n- Verified proof correctness with lake check\n- Difficulty level: {difficulty}\n- File: {filePath}\n- Completion time: {timestamp}\n\n🎯 Proof successfully completed and verified.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>"
+    },
+    "autoPush": {
+      "enabled": false,
+      "strategy": "on-success",
+      "includeTags": true,
+      "remoteName": "origin",
+      "maxRetries": 3,
+      "retryInterval": 30,
+      "requiresVerification": true,
+      "allowForcePush": false,
+      "protectedBranches": ["main", "master"]
+    },
+    "branches": {
+      "mainBranch": "main",
+      "developmentBranch": "develop",
+      "featureBranchPrefix": "proof/",
+      "autoMergeStrategy": "manual"
+    }
+  },
+  "errorTracking": {
+    "enabled": true,
+    "autoRecord": true,
+    "patternLearning": true,
+    "recoveryRecommendations": true,
+    "categories": {
+      "syntax": { "weight": 1.0, "priority": "high" },
+      "type": { "weight": 1.2, "priority": "high" },
+      "tactic": { "weight": 1.1, "priority": "medium" },
+      "import": { "weight": 0.9, "priority": "medium" },
+      "mathlib": { "weight": 1.3, "priority": "high" },
+      "logic": { "weight": 1.0, "priority": "medium" },
+      "performance": { "weight": 0.8, "priority": "low" },
+      "other": { "weight": 0.7, "priority": "low" }
+    },
+    "retention": {
+      "maxLogAge": 90,
+      "maxPatterns": 100,
+      "cleanupInterval": 7
+    }
+  },
+  "reporting": {
+    "daily": {
+      "enabled": true,
+      "autoGenerate": false,
+      "includeCharts": true,
+      "recipients": []
+    },
+    "weekly": {
+      "enabled": true,
+      "autoGenerate": false,
+      "includeCharts": true,
+      "recipients": []
+    },
+    "monthly": {
+      "enabled": true,
+      "autoGenerate": false,
+      "includeCharts": true,
+      "recipients": []
+    },
+    "components": {
+      "gitStats": true,
+      "proofStats": true,
+      "errorAnalysis": true,
+      "performanceMetrics": true,
+      "trendAnalysis": true,
+      "recommendations": true
+    }
+  },
+  "difficulty": {
+    "autoClassification": true,
+    "useAdvancedAnalysis": true,
+    "taxonomyVersion": "1.0.0",
+    "levels": {
+      "beginner": {
+        "scoreRange": [0, 15],
+        "color": "#28a745",
+        "icon": "🟢",
+        "description": "Basic proofs and definitions"
+      },
+      "intermediate": {
+        "scoreRange": [15, 40],
+        "color": "#17a2b8",
+        "icon": "🔵",
+        "description": "Standard mathematical theorems"
+      },
+      "advanced": {
+        "scoreRange": [40, 80],
+        "color": "#fd7e14",
+        "icon": "🟠",
+        "description": "Complex mathematical theories"
+      },
+      "expert": {
+        "scoreRange": [80, 150],
+        "color": "#dc3545",
+        "icon": "🔴",
+        "description": "Research-level proofs"
+      },
+      "research": {
+        "scoreRange": [150, 999],
+        "color": "#6f42c1",
+        "icon": "🟣",
+        "description": "Cutting-edge research formalization"
+      }
+    },
+    "tags": {
+      "autoTag": true,
+      "includeCategory": true,
+      "includeTimestamp": true,
+      "customPrefix": "proof",
+      "namingPattern": "{prefix}-{proofName}-{difficulty}-{category}-{timestamp}"
+    }
+  },
+  "github": {
+    "enabled": false,
+    "authentication": {
+      "method": "token",
+      "tokenPath": "",
+      "useSystemCredentials": true
+    },
+    "repositories": {
+      "origin": {
+        "url": "",
+        "type": "primary",
+        "autoSync": false
+      },
+      "backup": {
+        "url": "",
+        "type": "backup",
+        "autoSync": false
+      }
+    },
+    "actions": {
+      "onPush": {
+        "runTests": true,
+        "generateReport": true,
+        "notifySlack": false
+      },
+      "onPullRequest": {
+        "runFullAnalysis": true,
+        "requireApproval": true
+      }
+    },
+    "backup": {
+      "enabled": true,
+      "frequency": "daily",
+      "retentionDays": 30,
+      "includeBranches": ["main", "develop"],
+      "includeTags": true
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "channels": {
+      "console": {
+        "enabled": true,
+        "level": "INFO"
+      },
+      "file": {
+        "enabled": true,
+        "level": "INFO",
+        "rotation": "daily"
+      },
+      "email": {
+        "enabled": false,
+        "smtp": {
+          "server": "",
+          "port": 587,
+          "useSSL": true,
+          "username": "",
+          "password": ""
+        },
+        "recipients": []
+      },
+      "slack": {
+        "enabled": false,
+        "webhook": "",
+        "channel": "#lean-proofs",
+        "username": "Lean Workflow Bot"
+      },
+      "teams": {
+        "enabled": false,
+        "webhook": ""
+      }
+    },
+    "events": {
+      "proofCompleted": true,
+      "errorOccurred": true,
+      "buildFailed": true,
+      "reportGenerated": false,
+      "milestoneReached": true
+    }
+  },
+  "performance": {
+    "monitoring": {
+      "enabled": true,
+      "interval": 300,
+      "metrics": ["buildTime", "testDuration", "errorRate", "memoryUsage"]
+    },
+    "optimization": {
+      "cacheEnabled": true,
+      "parallelBuilds": true,
+      "maxConcurrency": 4,
+      "timeoutSeconds": 600
+    },
+    "thresholds": {
+      "buildTimeWarning": 60,
+      "buildTimeError": 300,
+      "errorRateWarning": 10,
+      "errorRateError": 25,
+      "memoryWarningMB": 1024,
+      "memoryErrorMB": 2048
+    }
+  },
+  "security": {
+    "enabled": true,
+    "signCommits": false,
+    "requireSignedCommits": false,
+    "scanForSecrets": true,
+    "allowedFilePatterns": ["*.lean", "*.md", "*.json", "*.toml"],
+    "blockedPatterns": ["*.key", "*.pem", "*.p12", "password", "secret", "token"],
+    "validation": {
+      "maxFileSize": 10485760,
+      "maxCommitSize": 52428800,
+      "allowLargeFiles": false
+    }
+  },
+  "integrations": {
+    "vscode": {
+      "enabled": true,
+      "extensionId": "leanprover.lean4",
+      "autoConfig": true,
+      "settingsSync": false
+    },
+    "ci": {
+      "provider": "github-actions",
+      "configPath": ".github/workflows/lean.yml",
+      "autoSetup": false,
+      "matrixBuild": true
+    },
+    "documentation": {
+      "generator": "lean-doc",
+      "autoGenerate": false,
+      "outputPath": "docs/",
+      "includeSource": true
+    }
+  },
+  "maintenance": {
+    "autoCleanup": {
+      "enabled": true,
+      "interval": "weekly",
+      "cleanTempFiles": true,
+      "cleanLogs": true,
+      "cleanCache": false
+    },
+    "updates": {
+      "checkInterval": "daily",
+      "autoUpdate": false,
+      "updateChannel": "stable",
+      "backupBeforeUpdate": true
+    },
+    "health": {
+      "checkInterval": "daily",
+      "repairAttempts": 3,
+      "alertThreshold": 5
+    }
+  },
+  "advanced": {
+    "features": {
+      "experimentalAnalysis": false,
+      "aiAssistance": false,
+      "cloudSync": false,
+      "collaboration": false
+    },
+    "customization": {
+      "allowCustomScripts": true,
+      "scriptPath": "scripts/",
+      "customTemplates": true,
+      "templatePath": "templates/"
+    },
+    "debugging": {
+      "verboseLogging": false,
+      "traceExecution": false,
+      "profilePerformance": false,
+      "saveDebugFiles": false
+    }
+  },
+  "paths": {
+    "workflow": ".lean-workflow/",
+    "core": ".lean-workflow/core/",
+    "automation": ".lean-workflow/automation/",
+    "errorTracking": ".lean-workflow/error-tracking/",
+    "reporting": ".lean-workflow/reporting/",
+    "github": ".lean-workflow/github/",
+    "tagging": ".lean-workflow/tagging/",
+    "config": ".lean-workflow/config/",
+    "logs": ".lean-workflow/logs/",
+    "reports": ".lean-workflow/reports/",
+    "metadata": ".lean-workflow/metadata/",
+    "templates": ".lean-workflow/templates/",
+    "hooks": ".lean-workflow/hooks/",
+    "scripts": ".lean-workflow/scripts/"
+  },
+  "compatibility": {
+    "minLeanVersion": "4.0.0",
+    "maxLeanVersion": "5.0.0",
+    "minMathlibVersion": "4.0.0",
+    "supportedOS": ["windows", "linux", "macos"],
+    "requiredTools": ["git", "lake", "lean"],
+    "optionalTools": ["code", "gh", "docker"]
+  },
+  "metadata": {
+    "created": "2025-08-06",
+    "lastModified": "2025-08-06",
+    "schemaVersion": "1.0.0",
+    "configHash": "",
+    "environment": {
+      "platform": "",
+      "architecture": "",
+      "powershellVersion": "",
+      "gitVersion": "",
+      "leanVersion": "",
+      "lakeVersion": ""
+    }
+  }
+}

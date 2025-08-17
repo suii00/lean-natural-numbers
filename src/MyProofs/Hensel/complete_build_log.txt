@@ -1,0 +1,22 @@
+src/MyProofs/Hensel/HenselComplete.lean:52:8: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselComplete.lean:83:8: warning: declaration uses 'sorry'
+src/MyProofs/Hensel/HenselComplete.lean:109:0: warning: automatically included section variable(s) unused in theorem 'HenselComplete.factor_preservation':
+  hp
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit hp in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+src/MyProofs/Hensel/HenselComplete.lean:128:8: warning: declaration uses 'sorry'
+HenselComplete.hensel_lemma_exists {p : ℕ} [hp : Fact (Nat.Prime p)] (f : ℤ[X]) (a : ZMod p)
+  (h_root : is_simple_root f a) (n : ℕ) : n ≥ 1 → ∃ aₙ, is_liftable f n aₙ
+HenselComplete.sqrt2_exists_mod_7_power (n : ℕ) : n ≥ 1 → ∃ x, x ^ 2 = 2
+HenselComplete.factor_preservation {p : ℕ} [hp : Fact (Nat.Prime p)] (f g h : ℤ[X]) (n : ℕ) (hf : f = g * h) :
+  map (Int.castRingHom (ZMod (p ^ n))) f =
+    map (Int.castRingHom (ZMod (p ^ n))) g * map (Int.castRingHom (ZMod (p ^ n))) h
+HenselComplete.multi_prime_roots (prime_list : List ℕ) (h_primes : ∀ p ∈ prime_list, Nat.Prime p) (f : ℤ[X]) :
+  (∀ p ∈ prime_list, ∃ x, eval x (map (Int.castRingHom (ZMod p)) f) = 0) → ∃ M, M = prime_list.prod ∧ M > 0
+HenselComplete.newton_root_exists {p : ℕ} [hp : Fact (Nat.Prime p)] (f : ℤ[X]) (a : ZMod p)
+  (h_root : is_simple_root f a) : ∃ x, eval x (map (Int.castRingHom (ZMod p)) f) = 0
+3 ^ 2 = 2 : Prop
+10 ^ 2 = 2 : Prop
+108 ^ 2 = 2 : Prop
