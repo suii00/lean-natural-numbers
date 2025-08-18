@@ -1,0 +1,180 @@
+確認しました — `BourbakiUltimate.txt` を拝見して現状の `admit`（`sorry`）箇所を踏まえた **優先対応プラン + その場で差し替え可能なコード片** を用意しました。ファイル参照：
+
+---
+
+# 要点（先に読む）
+
+1. 最短ルートは **まず代数計算系（addition / tangent）を潰す** → それで `enhanced_add_points` 中の `admit` を関数呼び出しで置き換えられる。
+2. `enhanced_eq_original` はケース分け（`cases` / `split_ifs` / `simp`）で多くが `rfl` に持っていける。
+3. `kernel_card_eq_degree` / 同種写像の深い定理群（次数=核の位数等）は「外部定理を参照 or 後回し」するのが現実的（高度すぎるので段階的に証明するか、mathlib 相当の補題を使う）。
+
+まずは次の順で作業してください（優先度高→低）：
+
+1. ファイル先頭に `import Mathlib.Tactic.Polyrith` を追加（`FieldSimp` は既にある）。
+2. `addition_formula_complete` の `admit` を置き換え（下にコード例）。
+3. `tangent_addition_formula` の `admit` を置き換え（下にコード例）。
+4. `enhanced_add_points` 内の `admit` を上の補題呼び出しに差し替え。
+5. `enhanced_eq_original` を `cases`/`split_ifs`/`simp` で全ケース解消。
+6. `kernel_card_eq_degree` / `degree_one_isomorphism_complete` は別ブランチで段階的に着手（下に戦術案を示す）。
+
+---
+
+# 必須インポート（ファイル先頭）
+
+```lean
+import Mathlib.Tactic
+import Mathlib.Tactic.FieldSimp
+import Mathlib.Tactic.Polyrith  -- ← 追加必須
+```
+
+---
+
+# 代数計算（最重要） — 置き換え例
+
+以下は `addition_formula_complete` と `tangent_addition_formula` にそのまま貼れる**実用的な雛形**です。まずは `ring_nf` ベースで試し、もし残るなら `polyrith [h1', h2']` を試してください。
+
+```lean
+-- 1) addition_formula_complete の代替実装（貼り替え）
+lemma addition_formula_complete (E : EllipticCurve ℚ) 
+    (x1 y1 x2 y2 : ℚ) 
+    (h1 : y1^2 = x1^3 + E.a * x1 + E.b)
+    (h2 : y2^2 = x2^3 + E.a * x2 + E.b)
+    (hne : x1 ≠ x2) :
+    let slope := (y2 - y1) / (x2 - x1)
+    let x3 := slope^2 - x1 - x2
+    let y3 := slope * (x1 - x3) - y1
+    y3^2 = x3^3 + E.a * x3 + E.b := by
+  -- 固定
+  intro slope x3 y3
+  set u := x2 - x1 with hu
+  set v := y2 - y1 with hv
+  have hu0 : u ≠ 0 := by
+    simpa [hu] using hne
+  have slope_def : slope = v / u := by simp [slope, hu, hv]
+
+  -- 前提を 0 の形に
+  have h1' : y1^2 - (x1^3 + E.a * x1 + E.b) = 0 := by simpa [*] using h1
+  have h2' : y2^2 - (x2^3 + E.a * x2 + E.b) = 0 := by simpa [*] using h2
+
+  -- メイン：分母を払って展開 → 簡約
+  -- まず分母処理
+  field_simp [slope_def, hu0]  -- u ≠ 0 を用いて分母を払う
+  -- 展開と簡約
+  simp only [x3, y3, slope_def, hv, hu, pow_two] at *
+  -- ここで曲線式 h1', h2' を使って置換
+  -- try ring_nf first:
+  try
+    ring_nf at *
+  -- fallback to polyrith if ring_nf leaves something (polyrith may be slower)
+  try
+    polyrith [h1', h2']
+
+  -- 最後に目標を解消
+  simp [h1, h2]  -- 不要なら消す
+  -- もしまだゴールが残るなら ring_nf をもう一度
+  ring_nf
+  done
+```
+
+```lean
+-- 2) tangent_addition_formula の代替実装（貼り替え）
+lemma tangent_addition_formula (E : EllipticCurve ℚ) 
+    (x y : ℚ) (h : y^2 = x^3 + E.a * x + E.b) (hy : y ≠ 0) :
+    let slope := (3 * x^2 + E.a) / (2 * y)
+    let x3 := slope^2 - 2 * x
+    let y3 := slope * (x - x3) - y
+    y3^2 = x3^3 + E.a * x3 + E.b := by
+  intro slope x3 y3
+  set u := 2 * y with hu
+  have hu0 : u ≠ 0 := by simpa [hu] using by apply mul_ne_zero (by norm_num : (2:ℚ) ≠ 0) hy
+  have slope_def : slope = (3 * x^2 + E.a) / u := by simp [slope, hu]
+
+  have h' : y^2 - (x^3 + E.a * x + E.b) = 0 := by simpa [*] using h
+
+  field_simp [slope_def, hu0]
+  simp only [x3, y3, slope_def, pow_two] at *
+  try ring_nf at *
+  try polyrith [h']
+  simp [h]  -- optional
+  ring_nf
+  done
+```
+
+> 注: `try ...` は pseudo-tactic（実際の Lean では `try` の使い方に注意）が気になる場合、`by` ブロックを段階的に手で実行して `ring_nf` → 失敗なら `polyrith [h1',h2']` と順に試してください。
+
+---
+
+# enhanced\_add\_points の `admit` を消す方針（コード差し替え例）
+
+`enhanced_add_points` の中で新点を作る `Point.affine x3 y3 (by ... admit)` という構造が見えます。`admit` 部分は**上で作った補題を呼ぶ**だけで済みます。
+
+差し替え例（`Point.affine x3 y3 (by ...)` 内）：
+
+```lean
+-- 一例：2点が異なる case の内部（x1 ≠ x2 の branch）で
+Point.affine x3 y3 (by
+  have h_curve : y3^2 = x3^3 + E.a * x3 + E.b := 
+    addition_formula_complete E x1 y1 x2 y2 h1 h2 (by simpa using h_eq_neq)
+  -- ここで Point.affine の証明は h_curve を使うだけ
+  simpa [pow_two] using h_curve
+)
+```
+
+倍加 branch も同様に `tangent_addition_formula` を呼び出す。
+
+---
+
+# enhanced\_eq\_original の削り方（具体戦術）
+
+`enhanced_eq_original` は「実装が同じ」なので、**全ケース分岐**して `simp` で解くのが簡単です。雛形：
+
+```lean
+theorem enhanced_eq_original (E : EllipticCurve ℚ) (P Q : Point ℚ E) :
+    enhanced_add_points E P Q = add_points E P Q := by
+  cases P <;> cases Q
+  -- 4 case を順に解く
+  -- case: infinity, * などは rfl
+  any_goals { simp [enhanced_add_points, add_points] }
+  -- affine/affine の時は if 分岐を潰す
+  all_goals {
+    split_ifs <;>
+    simp [enhanced_add_points, add_points]
+  }
+```
+
+必要なら `simp` に `add_points` の補題名を列挙してあげてください。
+
+---
+
+# kernel\_card\_eq\_degree / degree\_one\_isomorphism\_complete の扱い（現実的な選択肢）
+
+これらは **同種写像理論の深い命題**です。対応案：
+
+* **最短（実務）**: `admit` を残すが `local attribute [instance]` などで「この lemma が利用される箇所を限定」する。あるいは `@[axiom]` 的に受け入れる（注意：soundness リスク）。
+* **正攻法**: Mathlib の `isogeny` / `finite_map` 系を調べ、既成補題（kernel の位数 = degree）を引用して補題を立てる。これは文献補助や mathlib の深い参照が必要。
+* **段階的証明**:
+
+  1. kernel が有限であること（定義にあるが明示） → `φ.kernel.Finite` を活用。
+  2. 「核の位数 ≤ degree」 と「degree ≤ kernel の位数」の二不等式を別々に示す（それぞれ比較的短い補題に分ける）。
+  3. 結合して等号を得る。
+
+（もし希望なら `degree_one_isomorphism_complete` を証明するための詳細な中間補題リストを今すぐ作ります。）
+
+---
+
+# その他の実務的 Tips
+
+* 大きな恒等式は必ず `have h1' : ... = 0` の形でストックして `polyrith` に渡す。
+* `polyrith` を使うときはインポート忘れ厳禁。`polyrith [h1', h2']` と前提を最小限に限定する。
+* `field_simp` を当てる前に `set u := ... with hu` で分母を名付け、`have hu0 : u ≠ 0` を作る。
+* `simp` と `simpa` 警告は `simp` に寄せて統一する（`simpa` は不要な場面で使われがち）。
+
+---
+
+# 次に私ができること（選べます）
+
+* A) 上記の置き換えを **そのままファイル差分（patch）形式**で作成して提示する。
+* B) `addition_formula_complete` と `tangent_addition_formula` を私が直接完全化した Lean コード（長めの計算ステップを含む）を生成する（ただし非常に長くなる可能性有）。
+* C) `kernel_card_eq_degree` の段階的証明プラン（中間補題一覧＋各補題のスケルトン）を即作成する。
+
+どれを出力してほしいか教えてください（要望がなければ A を先に出します）。

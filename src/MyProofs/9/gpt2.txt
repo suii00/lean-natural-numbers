@@ -1,0 +1,192 @@
+いい選択です — 以下に **B（加法・接線公式を完全化するための誘導＋ヒント）** と **C（`kernel_card_eq_degree` を正攻法で証明するための段階的プラン＋Leanスケルトン）** をまとめます。
+前提条件として、あなたのファイルでは多くが ℚ 上で扱われているようなので（char 0 ⇒ 全て可分）、その仮定で書きます。もし別の基底体（特に正の特徴）が必要なら後で注意点を追加します。
+
+# B — addition / tangent の完全化（誘導・ヒント）
+
+## 全体方針（要点）
+
+1. 証明を**小さな補題**に分割する（「分母除去」「展開」「差を 0 にする」）。
+2. 分母は `set u := x₂ - x₁` のように名付けて `have hu : u ≠ 0` を作る → `field_simp [...]`。
+3. 前提（点が曲線上にある）を `h1' : y1^2 - (x1^3 + a*x1 + b) = 0` の形で保持し、最終段で `ring_nf` または `polyrith [h1', h2']` を使う。
+4. もし `ring_nf` で落ちない場合のみ `polyrith` を使う（遅い）。
+
+---
+
+## 推奨の補題分割（テンプレ）
+
+* `have denom_ok : x2 - x1 ≠ 0`
+* `have slope_def : λ = (y2 - y1) / (x2 - x1)`
+* `lemma y3_sq_expand : y3^2 = ...` （右辺を λ, x1,x2,y1,y2 で展開）
+* `lemma x3_cubic_expand : x3^3 + a*x3 + b = ...`
+* `lemma add_formula_diff_zero : (y3^2) - (x3^3 + a*x3 + b) = 0` → `ring_nf` / `polyrith` で処理
+* 最後に `simpa` で `on_curve x3 y3` に戻す
+
+分割するとデバッグが楽で、`have` に名前を付けて中間結果を `#print` で確認できます。
+
+---
+
+## 典型的な Lean タクティック順（実践）
+
+```lean
+set u := x2 - x1 with hu
+set v := y2 - y1 with hv
+have hu0 : u ≠ 0 := by simpa [hu] using hne  -- hne: x1 ≠ x2
+
+have slope_def : slope = v / u := by simp [slope, hu, hv]
+
+have h1' : y1^2 - (x1^3 + a*x1 + b) = 0 := by simpa [*] using h1
+have h2' : y2^2 - (x2^3 + a*x2 + b) = 0 := by simpa [*] using h2
+
+-- 分母を払う
+field_simp [slope_def, hu0] at *
+simp only [x3_def, y3_def, slope_def, pow_two] at *
+-- ここで ring_nf を試す
+ring_nf at *
+-- 失敗したら polyrith を限定的に使う
+polyrith [h1', h2']
+```
+
+**ヒント**
+
+* `simp only` と `simp` の使い分け：まず `simp only` で不要な展開を避け、小さく整形してから `ring_nf` を当てると安定します。
+* 中間式を `have tmp : ... := by ring_nf` として残すと、どこで失敗したか追跡しやすい。
+* 分母を完全に消したい場合は、両辺に `u^6` を掛ける（手動での分母払い）という古典手法も使えます（自動化が重い時の最終手段）。
+
+---
+
+## polyrith を使う際の注意
+
+* `polyrith` に渡す前提は **最小化**する（余計な前提があると爆発する）。
+* 事前に `h1'` や `h2'` を `= 0` 形にしておく。
+* `import Mathlib.Tactic.Polyrith` を忘れない。
+
+---
+
+## デバッグ小技
+
+* `#check` / `#print` で定義を確認。
+* `by` ブロックを段階的に実行して `ring_nf` → 失敗なら `polyrith` に切り替え。
+* `trace_state`（または `set_option trace.simp true`）で `simp` の挙動を観察。
+* 大きすぎる `simp` 呼び出しは避け、必要な補題のみ明示的に渡す。
+
+---
+
+# C — `kernel_card_eq_degree`（同種写像の核の位数 = 次数）証明誘導
+
+前提（ここで仮定する）：基底体は char 0（例：ℚ）なので全ての有限準同型は **可分（separable）**。この仮定の下では「次数 = 核の位数」が成り立ちます。
+（※正の特徴だと inseparable 部分が入り、等号が成り立たない場合がある — 注意）
+
+## 高レベルの数学的アイデア（要点）
+
+1. φ : E → E' を isogeny（群準同型かつ有限）とする。
+2. 任意の点 $Q \in E'(\bar{k})$ に対する逆像 φ⁻¹(Q) は **kernel(φ)** のある元による平行移動（= コセット）である → したがって任意のファイバーの位数は核の位数に等しい。
+3. 「次数 (degree)」は一般に **一般点（generic point）上のファイバーの代数的次数**（multiplicity を含む）を数える概念。可分なら multiplicity = 1 となり、ファイバーの幾何的点の個数 = degree。
+4. よって可分の場合、degree = |fiber| = |kernel|。
+
+要するに：
+`degree(φ) = size_of_generic_fiber = |ker φ|`（可分なら）
+
+---
+
+## 証明を分けるべき補題（順序と狙い）
+
+1. **補題 A — kernel は有限である**
+
+   * 定義から `φ` は有限写像なので kernel（φ⁻¹(0)）は有限集合になるはず。
+   * Lean では `Finite` インスタンスを作る・活用する。
+
+2. **補題 B — 任意の点 Q に対して φ⁻¹(Q) は ker のコセットである**
+
+   * 群準同型性を使う：もし P ∈ φ⁻¹(Q) なら φ⁻¹(Q) = P + ker(φ)。
+   * これは核の元を足す作用がファイバー上で自明かつ遷移的に作用することを示すだけ。
+   * したがって `|φ⁻¹(Q)| = |ker φ|`（有限なら）。
+
+3. **補題 C — degree(φ) は一般点上のファイバーの幾何的点個数（multiplicity を含む）に等しい**
+
+   * 代数幾何の定義に沿う。mathlib で degree が定義されているなら、その定義を調べて「generic fiber の次数と一致する」補題を引用。
+   * 可分性の仮定で multiplicity = 1 を示す（separable ⇒ simple points）。
+
+4. **結論**
+
+   * 補題 B と C を組み合わせる：degree = size of generic fiber = |ker φ|。
+
+---
+
+## Leanでのスケルトン（疑似コード）
+
+```lean
+-- 前提：E,E' : EllipticCurve k で k は char 0（可分性仮定）
+variable {k : Type*} [Field k] [CharZero k]  -- 例示
+
+-- 補題 A: ker φ is finite
+theorem ker_finite (φ : Isogeny k E E') : (ker φ).Finite := by
+  -- φ が有限 map であることから直接得る（mathlib の finite_map 系）
+  -- ここは mathlib の finite/finite_type 補題を組み合わせる必要あり
+  admit  -- 詳細な API 次第
+
+-- 補題 B: fiber is coset of kernel
+theorem fiber_is_coset (φ : Isogeny k E E') (Q : E'.kpoints) (P : E.kpoints) (hP : φ P = Q) :
+  φ ⁻¹' Q = { x | x = P + g ∧ g ∈ ker φ } := by
+  -- 群準同型性を利用して等式を示す（集合等式か Fintype 等で扱う）
+  -- 実装上は ∀ x, φ x = Q ↔ ∃ g ∈ ker φ, x = P + g
+  intros x
+  constructor
+  · intro hx
+    use x - P
+    -- show x - P ∈ ker and x = P + (x - P)
+    simp [← sub_eq_add_neg]
+    -- etc.
+  · intro ⟨g, g_in_ker, hx⟩
+    simp [hx]
+    -- φ (P + g) = φ P + φ g = Q + 0 = Q
+    -- done
+  done
+
+-- 補題 C: degree equals size of generic fiber (可分なら)
+theorem degree_eq_fiber_card (φ : Isogeny k E E') [Separable φ] :
+  degree φ = (size_of_generic_fiber φ) := by
+  -- これは代数幾何の定義依存。mathlib の degree 定義を参照して補題を引っ張る
+  admit
+
+-- 結論
+theorem kernel_card_eq_degree (φ : Isogeny k E E') [Separable φ] :
+  (card (ker φ)) = degree φ := by
+  -- combine B と C; use that generic fiber cardinality = |ker φ| by translation invariance
+  have h₁ := ker_finite φ
+  have h₂ := degree_eq_fiber_card φ
+  -- fiber_is_coset gives fiber size = |ker φ|
+  -- conclude equality
+  admit
+```
+
+> 注意：上の `admit` 部分は **mathlib の定義と API に依存**します。`degree` がどのモジュールでどう定義されているか（スキーマ的定義か、関数体の拡張次数か）を確認して、対応する補題を引けるようにしてください。
+
+---
+
+## 実装上の実務ヒント（Leanで進める際）
+
+* まずは **定義を確認**：`#print` や `#check` で `Isogeny` / `degree` / `ker` がどう定義されているかを見る。
+* `ker` が `Subgroup` 型か `Set` 型か、`degree` が `Nat` か `Cardinal` かを把握する（型の不一致で詰まることが多い）。
+* 「ファイバー = コセット」 は純粋に群論的なので最初に形式化してしまう（独立して使える補題になる）。
+* `degree` と一般ファイバーの等号は代数幾何の重い部分なので、**mathlib が既に持っている補題を引用する**のが実務的（自前で再証明するのは大工事）。
+* 可分性（Separable）仮定は明示的に入れる。char 0 を仮定するのが簡単。
+
+---
+
+## 正の特徴（char p）の注意点（短く）
+
+* inseparable 成分があると、degree > |ker φ| となることがある（multiplicity）。
+* char p の場合は `φ = φ_sep ∘ φ_ins` の分解や Frobenius を考える必要がある。
+  → まずは char 0 に限定して証明を完成させることを推奨します。
+
+---
+
+# 最後に：次アクション（私が手伝えること）
+
+どちらか選んでください（複数可）：
+
+* 1. B の `addition_formula_complete` と `tangent_addition_formula` を **完全な Lean コード（長め）** として作成して提示する。
+* 2. C の `kernel_card_eq_degree` の **詳細な補題一覧＋各補題に対する具体的 Lean パッチ（admit を段階的に削る形）** を作る。
+* 3. B と C の両方を一気に作る（かなり長くなります）。
+
+あなたが「まずどれを先にやりたいか」を言ってくれたら、すぐに該当パッチ／スケルトンを生成します（今回は char 0 前提で作ります）。
