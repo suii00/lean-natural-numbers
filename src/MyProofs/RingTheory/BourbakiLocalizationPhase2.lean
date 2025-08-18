@@ -7,7 +7,7 @@ import Mathlib.Algebra.Ring.Basic
 import Mathlib.Tactic
 
 -- Phase 1の基礎理論をインポート
-import MyProofs.Ring.BourbakiLocalization
+import MyProofs.RingTheory.BourbakiLocalization
 
 /-
   ======================================================================
@@ -20,7 +20,7 @@ set_option maxRecDepth 3000
 
 open Classical BourbakiLocalization
 
-namespace BourbakiLocalizationPhase2
+namespace BourbakiRingTheoryPhase2
 
 /-
   ======================================================================
@@ -219,7 +219,7 @@ theorem integer_to_rational_functoriality (p : ℕ) (hp : Nat.Prime p) :
   use ext
   exact hcomm
 
-end BourbakiLocalizationPhase2
+end BourbakiRingTheoryPhase2
 
 /-
   ======================================================================  

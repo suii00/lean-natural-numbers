@@ -17,7 +17,7 @@ set_option maxRecDepth 3000
 
 open Classical
 
-namespace BourbakiLocalization
+namespace BourbakiRingTheory
 
 /-
   ======================================================================
@@ -201,7 +201,7 @@ theorem localization_functorial_basic (R₁ R₂ : Type*) [CommRing R₁] [CommR
   use g
   exact hg_comm.symm
 
-end BourbakiLocalization
+end BourbakiRingTheory
 
 /-
   ======================================================================  
