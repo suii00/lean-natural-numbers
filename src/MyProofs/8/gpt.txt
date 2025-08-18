@@ -1,0 +1,131 @@
+拝見しました。`BourbakiUltimate.txt` の中で **admit/sorry を最速で潰せる箇所**は主に次の3つです：
+
+1. `AlgebraicAutomation.addition_formula_complete`（一般和）
+2. `AlgebraicAutomation.tangent_addition_formula`（倍加）
+3. `EllipticCurveComplete.enhanced_eq_original`（定義一致）
+
+以下、**そのまま差し替えやすい最小パッチ**を置きます。ポイントは「分母を先に消す → 等式を 0=0 の形にする → `polyrith` に前提を渡す」です。
+
+---
+
+# 1) 一般和：`addition_formula_complete` の admit を削除
+
+```lean
+lemma addition_formula_complete (E : EllipticCurve ℚ) 
+    (x₁ y₁ x₂ y₂ : ℚ) 
+    (h₁ : y₁^2 = x₁^3 + E.a * x₁ + E.b)
+    (h₂ : y₂^2 = x₂^3 + E.a * x₂ + E.b)
+    (hne : x₁ ≠ x₂) :
+    let slope := (y₂ - y₁) / (x₂ - x₁)
+    let x₃ := slope^2 - x₁ - x₂
+    let y₃ := slope * (x₁ - x₃) - y₁
+    y₃^2 = x₃^3 + E.a * x₃ + E.b := by
+  classical
+  -- 変数の固定
+  intro slope x₃ y₃
+  -- u,v := 分母・分子 を導入
+  set u := x₂ - x₁ with hu
+  set v := y₂ - y₁ with hv
+  have hu0 : u ≠ 0 := by
+    -- x₁ ≠ x₂ から u ≠ 0
+    have : x₂ ≠ x₁ := by simpa [ne_comm] using hne
+    simpa [hu, sub_eq, sub_eq_add_neg] using sub_ne_zero.mpr this
+  have λdef : slope = v / u := by simpa [slope, hu, hv]
+
+  -- 目標を 0 = 0 に変形して polyrith を使いやすくする
+  have h1' : y₁^2 - (x₁^3 + E.a * x₁ + E.b) = 0 := by simpa [h₁]
+  have h2' : y₂^2 - (x₂^3 + E.a * x₂ + E.b) = 0 := by simpa [h₂]
+
+  -- 分母を一掃して多項式化
+  have : (y₃^2 - (x₃^3 + E.a * x₃ + E.b)) = 0 := by
+    -- 定義展開 → 分母クリア → 正規化
+    have := rfl
+    field_simp [λdef, hu0] at this ⊢
+    -- ここで x₃,y₃ の定義も展開しておく
+    simp [x₃, y₃, λdef, pow_two, pow_three] at this ⊢
+    -- 「曲線上条件」h1', h2' を使って整理
+    -- （差を作ってから）polyrith に前提を渡す
+    -- 重要：polyrith は 0=0 の多項式関係に強い
+    polyrith [h1', h2']
+  -- 元の形へ戻す
+  simpa using by
+    -- 上で示した差が 0 なら元の等式
+    have := this
+    linarith
+```
+
+**解説**
+
+* `u := x₂ - x₁` と `v := y₂ - y₁` を `set` で名前付け → `field_simp [hu0]` が効く。
+* `h₁, h₂` は **差が 0** の形（`h1'`,`h2'`）にして `polyrith [h1', h2']` に渡す。
+* `polyrith` は「前提の多項式等式の線形結合で 0 を作る」のが得意。
+
+---
+
+# 2) 倍加：`tangent_addition_formula` の admit を削除
+
+```lean
+lemma tangent_addition_formula (E : EllipticCurve ℚ) 
+    (x y : ℚ) (h : y^2 = x^3 + E.a * x + E.b) (hy : y ≠ 0) :
+    let slope := (3 * x^2 + E.a) / (2 * y)
+    let x₃ := slope^2 - 2 * x
+    let y₃ := slope * (x - x₃) - y
+    y₃^2 = x₃^3 + E.a * x₃ + E.b := by
+  classical
+  intro slope x₃ y₃
+  set u := 2 * y with hu
+  have hu0 : u ≠ 0 := by
+    simpa [hu] using mul_ne_zero (by norm_num : (2:ℚ) ≠ 0) hy
+  have λdef : slope = (3 * x^2 + E.a) / u := by simpa [hu, slope]
+
+  have h' : y^2 - (x^3 + E.a * x + E.b) = 0 := by simpa [h]
+
+  have : (y₃^2 - (x₃^3 + E.a * x₃ + E.b)) = 0 := by
+    field_simp [λdef, hu0] at *
+    simp [x₃, y₃, λdef, pow_two, pow_three] at *
+    polyrith [h']
+  simpa using by linarith
+```
+
+---
+
+# 3) `enhanced_eq_original` の admit を削除（定義一致を機械で展開）
+
+`add_points` の実装と分岐が本当に同形なら、`cases` と `split_ifs`、`simp` で落ちます。
+
+```lean
+theorem enhanced_eq_original (E : EllipticCurve ℚ) (P Q : Point ℚ E) :
+  enhanced_add_points E P Q = add_points E P Q := by
+  classical
+  cases P <;> cases Q <;> 
+    -- 4 つの大ケースを同時に解く
+    simp [enhanced_add_points, add_points] <;>
+    -- if 文をすべて分岐
+    try { first | split_ifs <;> simp [*] } <;> 
+    -- 係数体上の簡約
+    try { field_simp? } <;> 
+    -- もう一度 if を潰す
+    try { split_ifs <;> simp [*] }
+```
+
+> もし `add_points` の定義がモジュール外なら、`simp [EllipticCurve.add_points]` が通らない可能性があります。その場合は公開されている補題（`infinity_add`, `add_infinity`, `add_affine_affine` 等）を `simp` に噛ませるか、あなたの `enhanced_add_points` を **既存の構成に wrap** して `rfl` を狙うのが安定です。
+
+---
+
+# 4) うまくいかないときのチェックリスト
+
+* `field_simp` の **分母≠0 仮定**が用意できているか（`hu0` など）。
+* ゴールを **差が 0** の形にしてから `polyrith` しているか。
+* `simp [pow_two, pow_three, <定義>]` → `ring_nf` の順番を入れ替えてみる。
+* `polyrith [h1', h2']` の**前提リストを必要最小限**にする（多すぎると遅い）。
+* それでも重いときは、`have : ... = 0 := by ... ring_nf` で途中式を確定し、最後に `polyrith` を当てる。
+
+---
+
+# 5) 残りの admit の扱い（同種写像）
+
+`IsogenyTheoryComplete.degree_one_isomorphism_complete` の admit は、\*\*理論的背景（|ker φ|=deg φ、deg=1 ⇒ isomorphism）\*\*を自前で立てる必要があり、ここは **後回し推奨**。先に上の3箇所を消すと、「群演算 → Descent」への道が開けます。
+
+---
+
+必要なら、このパッチをあなたのファイルに合わせて**差分形式**で再構成します。今のモジュール名や `add_points` の実装公開状況が分かれば、`simp` のキーも調整します。
