@@ -83,12 +83,21 @@ theorem pell_2_third_solution : is_pell_solution 2 99 70 := by
   unfold is_pell_solution
   norm_num
 
--- 乗法が解を保存することの証明（概念的）
+-- 乗法が解を保存することの証明（完全実装）
 theorem pell_multiplication_preserves_solution (D : ℕ) (x₁ y₁ x₂ y₂ : ℤ)
     (h₁ : is_pell_solution D x₁ y₁) (h₂ : is_pell_solution D x₂ y₂) :
     let (x₃, y₃) := pell_multiply D x₁ y₁ x₂ y₂
     is_pell_solution D x₃ y₃ := by
-  sorry
+  -- 定義を展開
+  simp only [is_pell_solution] at h₁ h₂ ⊢
+  simp only [pell_multiply]
+  -- 代数的展開による証明
+  -- (x₁*x₂ + D*y₁*y₂)² - D*(x₁*y₂ + y₁*x₂)²
+  -- = (x₁² - D*y₁²)*(x₂² - D*y₂²) = 1*1 = 1
+  have expand : (x₁ * x₂ + ↑D * y₁ * y₂) ^ 2 - ↑D * (x₁ * y₂ + y₁ * x₂) ^ 2 = 
+    (x₁^2 - ↑D * y₁^2) * (x₂^2 - ↑D * y₂^2) := by ring
+  rw [expand, h₁, h₂]
+  norm_num
 
 /-
   ======================================================================
@@ -165,12 +174,44 @@ example : IsSquare (4 : ℕ) := ⟨2, by norm_num⟩
 
 example : IsSquare (9 : ℕ) := ⟨3, by norm_num⟩
 
--- 基本的な非完全平方数（概念的証明）
+-- 基本的な非完全平方数（完全証明）
 lemma not_square_2 : ¬IsSquare (2 : ℕ) := by
-  sorry
+  -- 直接証明: 可能な値を全て確認
+  intro ⟨k, hk⟩
+  have h : k * k = 2 := hk.symm
+  -- k ≤ 2 でなければならない（k > 2 なら k² ≥ 9 > 2）
+  have bound : k ≤ 2 := by
+    by_contra hcon
+    push_neg at hcon
+    have : k ≥ 3 := hcon
+    have : k * k ≥ 3 * 3 := Nat.mul_le_mul this this
+    simp at this
+    rw [h] at this
+    norm_num at this
+  -- k ∈ {0, 1, 2} を個別に確認
+  interval_cases k
+  · norm_num at h  -- 0² = 0 ≠ 2
+  · norm_num at h  -- 1² = 1 ≠ 2
+  · norm_num at h  -- 2² = 4 ≠ 2
 
 lemma not_square_3 : ¬IsSquare (3 : ℕ) := by
-  sorry
+  -- 直接証明: 可能な値を全て確認
+  intro ⟨k, hk⟩
+  have h : k * k = 3 := hk.symm
+  -- k ≤ 2 でなければならない（k > 2 なら k² ≥ 9 > 3）
+  have bound : k ≤ 2 := by
+    by_contra hcon
+    push_neg at hcon
+    have : k ≥ 3 := hcon
+    have : k * k ≥ 3 * 3 := Nat.mul_le_mul this this
+    simp at this
+    rw [h] at this
+    norm_num at this
+  -- k ∈ {0, 1, 2} を個別に確認
+  interval_cases k
+  · norm_num at h  -- 0² = 0 ≠ 3
+  · norm_num at h  -- 1² = 1 ≠ 3
+  · norm_num at h  -- 2² = 4 ≠ 3
 
 /-
   ======================================================================
@@ -221,10 +262,10 @@ def has_finite_continued_fraction_period (D : ℕ) : Prop :=
   ¬IsSquare D → ∃ period : List ℕ, period.length > 0
 
 -- 周期の存在（概念的証明）
-theorem continued_fraction_period_exists (D : ℕ) (h : ¬IsSquare D) :
+theorem continued_fraction_period_exists (D : ℕ) (_ : ¬IsSquare D) :
     has_finite_continued_fraction_period D := by
   simp [has_finite_continued_fraction_period]
-  intro
+  intro _
   use [1]  -- 概念的な周期
   norm_num
 
