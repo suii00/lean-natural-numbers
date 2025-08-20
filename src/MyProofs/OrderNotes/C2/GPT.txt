@@ -1,0 +1,222 @@
+最高にワクワクする三本柱です。ここでは\*\*研究ロードマップ＋Leanでの最短“動く骨格”**を提示します。各方向ごとに「到達像→最初の到達点（2–4週）→中間マイルストーン（1–3ヶ月）→長期（6–12ヶ月）」「Lean実装の型（最小スタブ）」「評価指標」をまとめました。あなたの擬似 Lean 記述は**“目標仕様”\*\*として尊重し、Lean 4で現実的に回る形へ落とす設計です。
+
+---
+
+# A. 数学統一理論（∞-グルーポイド / 一価基礎 / モチビック）
+
+## 目標像
+
+* “数学＝∞-グルーポイド”/“一価基礎の宇宙”/“A¹-ホモトピーによる統一”を**Leanプロジェクト**として最小モデルから順に育てる。
+
+## 最初の到達点（2–4週）
+
+* **UAを外部公理として分離**（通常の mathlib を汚さない）
+* **簡約版∞-圏**：半圏→圏→(∞の手前で) **擬圏/神経**のスケッチとテスト
+* **A¹-ホモトピーの玩具箱**：`Sch/k` を抽象カテゴリとして扱い、A¹-局所化の\*\*ホフ構成（axiom化）\*\*で遊べる最小骨格
+
+### Lean スケルトン（安全な砂箱）
+
+```lean
+/-- Axioms are isolated here to avoid contaminating mathlib-like parts. -/
+namespace Axioms
+  universe u v
+  -- 一価性（命題的UA）の外部公理化（注意：Leanは非一価）
+  axiom UA {α β : Sort u} : (α ≃ β) ≃ (α = β)
+end Axioms
+
+namespace InfinityPrelude
+  universe u
+  structure Quiver (α : Sort u) := (hom : α → α → Sort u)
+
+  -- 1-圏の最小骨格
+  class Category (C : Sort u) extends Quiver C :=
+  (id : ∀ X, hom X X)
+  (comp : ∀ {X Y Z}, hom X Y → hom Y Z → hom X Z)
+  (id_comp : ∀ {X Y} (f : hom X Y), comp (id X) f = f)
+  (comp_id : ∀ {X Y} (f : hom X Y), comp f (id Y) = f)
+  (assoc   : ∀ {W X Y Z} (f : hom W X) (g : hom X Y) (h : hom Y Z),
+    comp (comp f g) h = comp f (comp g h))
+
+  -- 神経やsimplicial objectの足場（型だけ先に用意）
+  structure Simplicial (C : Sort u) [Category C] := 
+    (obj : ℕ → C) -- ミニマルな雰囲気
+end InfinityPrelude
+
+namespace A1Motivic
+  -- “A¹-局所化”をファンクタとして仮想的に与える（最初はaxiomで可）
+  structure Cat := (α : Sort*) [c : InfinityPrelude.Category α]
+  attribute [instance] Cat.c
+
+  structure A1Localized (C : Cat) := (carrier : Sort*)
+  -- 左随伴F, 右随伴G はまずは存在公理で固定：後で構成に置換
+  axiom F : (C : Cat) → C → A1Localized C
+  axiom G : (C : Cat) → A1Localized C → C
+  axiom adj : ∀ (C : Cat), True  -- ← 後で本当のadjunctionへ差し替え
+end A1Motivic
+```
+
+## 中間（1–3ヶ月）
+
+* **神経/単体集合**の実装と小さな**Kan条件**の検査ルーチン（有限図形での判定）
+* UAの影響を**分離テスト**：UA有/無の定理抽象度の差を計測
+* A¹玩具系で**Gₘの可縮性/非可縮性のテスト主張**を安全な範囲で形式化（“主張雛形＋反例探索”の枠）
+
+## 長期（6–12ヶ月）
+
+* \*\*準圏（quasicategory）\*\*の最小モデル／擬射影構成
+* A¹-ホモトピー圏での**基本随伴**の実装置換（axiom→構成）
+* “モチビック・コホモロジー”の**定義図式**（層化→局所化→安定化）を、最小例で通す
+
+## 評価指標
+
+* 公理/構成の置換率、**型エラーゼロ**で通る定理数、Kanチェックの通過数、CI時間
+
+---
+
+# B. AI数学者プロジェクト（発見→検証→計測）
+
+## 目標像
+
+* LLM/探索系と Lean を**RPCで接続**した「仮説→補題化→検証→反省」の閉ループ。
+
+## 最初の到達点（2–4週）
+
+* Lean側に**薄いAPI**：ゴール→S式化→外部（Python）→候補タクティク列→適用→ログ
+* 既存 `aesop`, `simp`, `linarith` で**ベースライン自動証明ベンチ**を作る
+
+### Lean スケルトン
+
+```lean
+namespace AIMath
+  structure ProofSketch := (tactics : List String)
+  structure AttemptLog   := (ok : Bool) (trace : String)
+
+  -- 擬似：外部へ問い合わせ（実装は実行時RPCに置換）
+  axiom call_external : String → IO ProofSketch
+
+  -- ゴールをダンプして外部へ→スケッチを適用（最低限の骨格）
+  elab "by_ai" : tactic => do
+    let g ← Lean.Elab.Tactic.getMainGoal
+    let dump := toString g
+    let sketch ← call_external dump
+    -- TODO: sketch.tactics を順次 eval_tactic する
+    Lean.Elab.Tactic.evalTactic (← `(tactic| aesop? <;> simp?))
+end AIMath
+```
+
+## 中間（1–3ヶ月）
+
+* **Conjecture Generator**（外部）→**Lemma Suggester**（内部）→**Verifier**（Lean）
+* ベンチセット（50〜200問）を\*\*分野別（代数/位相/解析）\*\*に整備、成功率と時間を計測
+* “創造性”の**代理指標**：最短証明長からの**KL距離**/新規補題再利用率
+
+## 長期（6–12ヶ月）
+
+* **失敗分析学習**（retrieval：失敗局面→類似証明片）
+* **反例発見器**（SMT/Brute-force/小宇宙探索）とのループ
+* 共同研究用：トレースと反省ログの**可視化ダッシュボード**
+
+## 評価指標
+
+* 既存自動化の**上乗せ成功率**、平均証明長、未知問題到達率、**人手修正削減**
+
+---
+
+# C. 応用数学革命（気候／社会選択／意識）
+
+> 強い主張は**可検証な定式化**へ落とすのが肝。Leanでは「定義→仮定→到達命題」を厳格に。
+
+## C1. 気候（最小エネルギーバランスモデル→制御）
+
+**最初（2–4週）**：0次元エネルギーバランス ODE の**存在一意性**（Lipschitz）と**比較定理**
+**Lean骨格**
+
+```lean
+namespace Climate
+  structure Policy := (u : ℝ → ℝ) -- 時間依存介入
+  structure EBM := (c α S : ℝ) -- heat capacity等
+  def rhs (M : EBM) (u : ℝ → ℝ) : ℝ → ℝ → ℝ := fun t T => (M.S - α*T + u t) / M.c
+  -- “predictable”= 局所Lipschitz→Cauchy-Lipschitzで解の一意性
+  def predictable (M : EBM) : Prop := True  -- 最初は定義占位
+end Climate
+```
+
+**中間**：PID的介入での**有界性/漸近安定**（Lyapunov 関数の玩具版）
+**長期**：多地域連成＆不確実性での**頑健最適化**の定式化
+
+## C2. 社会選択
+
+* Arrow/Gibbard-Satterthwaite は**原理的限界**。Leanでまず完全形式化→**迂回条件**（確率化、制限領域、近似的戦略耐性）を明示。
+
+```lean
+namespace SocialChoice
+  variable {A : Type} [Fintype A] -- 代替案
+  structure VotingSystem := (f : (List (A × A)) → A) -- 極簡モデル
+  class UnrestrictedDomain : Prop := (ok : True)
+  class NonDictatorship : Prop := (ok : True)
+  -- まずは定理雛形：本体は既知の形式化を移植/再構成
+  theorem arrow_impossibility
+    [UnrestrictedDomain] [NonDictatorship] : False := by
+    admit
+end SocialChoice
+```
+
+**中間**：**確率的社会選択**や**単峰選好**での可能性結果
+**長期**：**近似メカニズム**（誤差δ-戦略耐性）の上限下限
+
+## C3. 意識の数学（操作的定義→測度化）
+
+* 先に**操作的定義**（観測プロトコル→等価類→数値関数）を固定。IITなどは**参照系**として。
+
+```lean
+namespace Consciousness
+  structure BrainState := (σ : Type) -- 占位
+  structure Protocol := (obs : BrainState → ℝ)
+  structure Measure := (μ : BrainState → ℝ) -- まずは数値付与の型
+  -- “quantifiable” は Protocol 基づく再現可能性/単調性/正規化 などの公理セットに
+  class Quantifiable (M : Measure) : Prop := (axioms_hold : True)
+end Consciousness
+```
+
+**中間**：公理（単調性・スケール不変）からの**表現定理**（測度同値）
+**長期**：データ同化（EEG/スパイク列の抽象化）→**偽造不能性テスト**の形式化
+
+## 共通の評価指標
+
+* **仮定の透明性**（axiom→構成への置換比）
+* **形式化の再利用率**（AとC、Bの相互流用）
+* CI時間・タクティクのホットスポット・証明長
+
+---
+
+# リポジトリ設計（すぐ始められる形）
+
+```
+lean-superproject/
+  lakefile.lean
+  Axioms/Univalence.lean         -- UA等はここだけ
+  Infinity/Core.lean             -- Quiver, Category, Simplicial
+  Infinity/QuasicatSketch.lean   -- Kan条件テストの足場
+  Motivic/A1Toy.lean             -- A¹ 局所化の雛形
+  AIMath/ByAI.lean               -- RPCタクティク by_ai
+  AIMath/Bench/*.lean            -- ベンチ問題集
+  Applied/Climate/EBM.lean
+  Applied/Social/Arrow.lean
+  Applied/Conscious/Proto.lean
+  Util/Profiling.lean            -- profiler, trace設定の仕込み
+```
+
+* **UAや強仮定は Axioms/ に隔離**し、`open Axioms` するファイルを限定
+* `Util/Profiling.lean` に `set_option profiler true` 等のマクロを用意
+* GitHub Actionsで**2プロファイルCI**（UA有/無）を走らせ、影響範囲を可視化
+
+---
+
+# まずどこから？
+
+1. \*\*B（AI数学者）\*\*を一番手に：小さく動く→AとCの実験速度が上がる
+2. \*\*Aは“UA分離＋神経（nerve）玩具”\*\*の最小実装から
+3. **Cは EBM と Arrow の完全定式化**を先に（主張の輪郭が明確）
+
+> 必要なら、この骨格を**そのままプロジェクト雛形**にしてお渡しします。
+> 「Aから始める」「Bを最優先」「Cは気候→社会選択の順」など、優先順位だけ指定してくれれば、\*\*初回コミット（lakefile＋最小ビルド可）\*\*をここで生成して返します。

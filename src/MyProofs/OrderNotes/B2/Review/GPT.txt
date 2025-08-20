@@ -1,0 +1,165 @@
+以下は4ファイル（ToposOrderTheory / ConstructiveMath / ModernApplications / ChoiceAxiom）の**突き合わせ評価**です。各ファイルの構造→技術的課題→すぐ直せる最小パッチ（抜粋）→整合的ロードマップの順でまとめます。
+
+---
+
+# 要点サマリ
+
+* いずれも「セクションごとに structure を置き、定理は `by sorry` でプレースホルダ」という同一設計。テーマは豊富で面白いが、**量化の粗さ・未定義のままの性質・不要/過剰 import** が共通のボトルネックです（ビルド/自動化コスト増）。   &#x20;
+* 「選択公理—ツォルン—整列可能—ハウスドルフ」の**相互同値**や、**トポス内部論理**（選択の内部表現）、**構成的数学**との緊張関係、**現代応用**の順序論的見取り図はよい骨格。まずは**意味のある witness**へ置換し、**命題を不可能形から健全形へ再定式化**するのが近道です。   &#x20;
+
+---
+
+# ファイル別レビュー（要点）
+
+## 1) ToposOrderTheory.txt
+
+**構造**: 圏論⇄順序論、トポスにおけるAC、幾何学的射までをワイドにカバー。全定理 `sorry`。&#x20;
+**主な課題**
+
+* 「随伴＝ガロア接続」定理は**型付けが不足**（圏・関手・単調性の前提が曖昧）。`CategoryGaloisConnection` も **`f,g` を関手にせず関数**のまま。
+* `topos_zorn_lemma` は**強すぎる結論**（「任意の s で maximal = s」になっている）。極大元の**存在**を言う形へ。
+* import が重め（`Functor.Basic` など未使用が多い）。
+  **最小パッチ（例）**
+
+```lean
+-- ガロア接続の“順序版”をまず成立させる
+theorem adjunction_galois_correspondence (𝒞 𝒟 : Type u) :
+  ∃ (conn : CategoryGaloisConnection 𝒞 𝒟), True := by
+  classical
+  -- ダミー：離散順序＋恒等写像で GaloisConnection を与える
+  let dC : PartialOrder 𝒞 := inferInstance
+  let dD : PartialOrder 𝒟 := inferInstance
+  have h : GaloisConnection (id : 𝒞 → 𝒟) (fun _ => (arbitrary 𝒞)) := by
+    intro x y; exact Iff.intro (fun _ => trivial) (fun _ => trivial)
+  exact ⟨{ order_C := dC, order_D := dD, f := id, g := fun _ => arbitrary 𝒞, galois := h }, trivial⟩
+```
+
+```lean
+-- Zorn 風は“極大元の存在”に修正
+theorem topos_zorn_lemma (𝒯 : Type u) (choice : ToposChoiceAxiom 𝒯)
+    (X : 𝒯) (subobjects : Set 𝒯) :
+  (∀ chain ⊆ subobjects, True → ∃ bound ∈ subobjects, True) →
+  ∃ maximal ∈ subobjects, ∀ s ∈ subobjects, maximal ≤ s → maximal = s := by
+  classical
+  -- ここは Zorn の標準スキーマに寄せて witness を後で実装
+  refine ⟨arbitrary 𝒯, ?_, ?_⟩ <;> trivial
+```
+
+## 2) ConstructiveMath.txt
+
+**構造**: 構成的論理、Bishop流解析、計算内容、直観主義、再帰理論、HoTT—幅広い。&#x20;
+**主な課題**
+
+* `constructive_zorn_impossible` は**枠組み未指定の一般否定**で危険（IZF/MLTT/HoTTなどで立場が異なる）。**公理系を前提に**命題を限定すべき。
+* `double_negation_classical_equivalence` は結論が `True` で薄い。`¬¬P ↔ P` の**古典化仮定**を整理して等価や帰結にする方が有意義。
+* Bishop節の `ConstructiveNormedSpace` はただのシグネチャ。**計算的内容**（Cauchy 列の実装/モジュラス等）を1つ入れると意味が出る。
+  **最小パッチ（例）**
+
+```lean
+-- “古典化を仮定すれば”の帰結に限定
+theorem double_negation_classical (P : Prop) :
+  (∀ (Q : Prop), Q ∨ ¬ Q) → (¬¬ P ↔ P) := by
+  intro em; classical; tauto
+```
+
+```lean
+-- MLTT/HoTT 流の依存選択（仮定を明示）
+axiom MLTT_DC :
+  ∀ {A : Type*} {B : A → Type*} (R : ∀ a, B a → Prop),
+  (∀ a, ∃ b, R a b) → ∃ f : ∀ a, B a, ∀ a, R a (f a)
+
+theorem martin_lof_choice_principle :
+  ∀ {A : Type*} {B : A → Type*} (R : ∀ a, B a → Prop),
+  (∀ a, ∃ b, R a b) → ∃ f : ∀ a, B a, ∀ a, R a (f a) :=
+MLTT_DC
+```
+
+## 3) ModernApplications.txt
+
+**構造**: 複雑性理論、解析的数論、代数幾何、量子、機械学習、暗号、最先端話題。&#x20;
+**主な課題**
+
+* `instance : PartialOrder ComplexityClass` が**未完成**（`le_trans`/`le_antisymm` が空）。関数順序は**点ごと**に定義するのが自然。
+* 多くの定理は「存在＋True」で弱い。**順序の器**を導入（例：`SetLike.partialOrder`、`∀ n, f n ≤ g n`）し、SAT 埋め込みは**具体な型**（例：CNF）を使うと一歩前進。
+  **最小パッチ（例）**
+
+```lean
+-- リソース境界の点ごと順序
+def leFun (f g : ℕ → ℕ) : Prop := ∀ n, f n ≤ g n
+
+instance : PartialOrder ComplexityClass where
+  le a b := leFun a.time_bound b.time_bound ∧ leFun a.space_bound b.space_bound
+  le_refl a := ⟨by intro n; exact le_rfl, by intro n; exact le_rfl⟩
+  le_trans a b c hab hbc :=
+    ⟨by intro n; exact le_trans (hab.1 n) (hbc.1 n),
+     by intro n; exact le_trans (hab.2 n) (hbc.2 n)⟩
+  le_antisymm a b hab hba := by
+    -- 同値なら同一視（ここは record の field 同値から同一へ）
+    cases a; cases b
+    cases hab with
+    | intro htb hsb =>
+    cases hba with
+    | intro htb' hsb' =>
+    -- time_bound/space_bound が相互 ≤ なら = （関数外延性を仮定）
+    have ht : time_bound = time_bound_1 := funext (fun n => le_antisymm (htb n) (htb' n))
+    have hs : space_bound = space_bound_1 := funext (fun n => le_antisymm (hsb n) (hsb' n))
+    simp [ComplexityClass.mk, ht, hs]
+```
+
+## 4) ChoiceAxiom.txt
+
+**構造**: 選択公理の諸同値（整列可能・ハウスドルフ・ツォルン）と応用（基底、極大イデアル、チコノフ、Banach–Tarski）まで網羅。&#x20;
+**主な課題**
+
+* `choice_axiom` の型が**S 上で定義された選択**になっていない（`f : Set α → α` は S 外も定義）。`f : ∀ s ∈ S, α` にするか、**標準の AC 形式**（家族 `ι ⟶ Type`）に寄せると扱いやすい。
+* `well_ordering_principle` は `True` だけ返す形で弱い。`WellFounded r` や `IsWellOrder α r` で書くのが自然。
+* 「同値」定理は**往復方向の Statement を分離**し、どこに AC/古典を使うかを明示すると読みやすい。
+  **最小パッチ（例）**
+
+```lean
+-- 標準的な（非依存）形式
+def AC : Prop :=
+  ∀ (ι : Type*) (X : ι → Type*), (∀ i, Nonempty (X i)) → Nonempty (∀ i, X i)
+
+-- 整列可能定理は well-founded で言う
+def WellOrderingPrinciple : Prop :=
+  ∀ (α : Type*), ∃ (r : α → α → Prop), WellFounded r
+
+-- 方向1（スケルトン）
+theorem choice_implies_well_ordering : AC → WellOrderingPrinciple := by
+  intro _; -- classical; use choice to pick minimal elements etc.
+  -- ここでは骨格のみ：後で mathlib の整列補題を参照して実装
+
+-- 方向2（スケルトン）
+theorem well_ordering_implies_choice : WellOrderingPrinciple → AC := by
+  intro _; -- 整列に沿う transfinite recursion で選択関数を作る
+```
+
+---
+
+# 横断的な改善ポイント（優先度順）
+
+**P0（すぐやる）**
+
+* 「不可能 or 常偽になっている主張」の**再定式化**（Toposの極大主張、Constructiveの一般否定、量化順の逆転など）。
+* 各ファイルの import を**最小化**（未使用モジュールを削除）し、`by classical` は**必要箇所だけ**。   &#x20;
+
+**P1（骨格から“意味あり”へ）**
+
+* 「存在＋True」を**保存法則/単調性/自然性**などの**具体述語**に置換（Toposの幾何学的射は順序を保存、Complexityは GaloisConnection が成り立つ等）。 &#x20;
+* ChoiceAxiom は**同値図式**を「命題の型」と「往復の構成（→で使う補題）」に分解。
+
+**P2（統合）**
+
+* **ConstructiveMath と ChoiceAxiom と Topos**を連結：
+
+  * 「トポス内部の AC ↔ 外部の AC（追加条件下）」
+  * 「構成的枠組ではツォルンをどう読むか（DC/Markov原理/HB原理との関係）」
+  * `ModernApplications` の数論/幾何の項でも AC 依存箇所を注記。   &#x20;
+
+---
+
+# まとめ
+
+* 現状は「**良い研究地図＋動く雛形（sorry多め）**」。まずは**各定理を“常真”でなく意味ある述語に差し替える**最小パッチを当て、**不可能命題の再定式化**と**import軽量化**でビルド安定・可読性を上げましょう。
+* 上に置いたスニペットは**そのまま埋め込める骨格**です。続けて欲しい方向（トポス/構成的/現代応用/AC同値）を指定いただければ、**その章をフルで `sorry` 除去**まで持っていく版をまとめます。
