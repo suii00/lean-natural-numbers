@@ -1,0 +1,78 @@
+## 📚 ブルバキ流Lean証明課題システム - 新しい挑戦
+
+あなたの環論での優れた成果を踏まえ、次の発展課題を提案します。
+
+## 🎯 **課題選択肢**
+
+### **課題A: 体拡大論での分離可能性定理**
+```lean
+-- 分離可能拡大の特徴付け
+theorem separable_extension_characterization {K L : Type*} [Field K] [Field L] [Algebra K L] :
+    Algebra.IsSeparable K L ↔ 
+    ∀ (E : Type*) [Field E] [Algebra K E] [Algebra L E] [IsScalarTower K L E],
+      Function.Injective (TensorProduct.lmul' K : L ⊗[K] L →ₐ[K] E)
+
+-- 核心概念: 分離可能性、テンソル積、体同型
+```
+
+### **課題B: ガロア理論基本定理**
+```lean
+-- ガロア対応の双射性
+theorem galois_correspondence {K L : Type*} [Field K] [Field L] [Algebra K L] 
+    [IsGalois K L] :
+    ∃ (φ : {E // K ≤ E ∧ E ≤ L} ≃ Subgroup (L ≃ₐ[K] L)),
+      ∀ E H, φ ⟨E, _⟩ = fixingSubgroup E ∧ 
+             φ.symm H = fixedField H
+
+-- 核心概念: 体の塔、自己同型群、固定体
+```
+
+### **課題C: 局所化の普遍性質**
+```lean
+-- 局所化の函手性
+theorem localization_functoriality {R S : Type*} [CommRing R] [CommRing S]
+    (f : R →+* S) (M : Submonoid R) (N : Submonoid S) 
+    (h : M.map f ≤ N) :
+    ∃! (g : Localization M →+* Localization N),
+      g.comp (algebraMap R (Localization M)) = 
+      (algebraMap S (Localization N)).comp f
+
+-- 核心概念: 局所化、普遍性質、可逆化
+```
+
+### **課題D: スペクトラム位相論**
+```lean
+-- 素スペクトラムの位相的性質
+theorem prime_spectrum_compact {R : Type*} [CommRing R] :
+    CompactSpace (PrimeSpectrum R) ∧
+    ∀ (I : Ideal R), IsClosed (PrimeSpectrum.zeroLocus I) ∧
+    ∀ (f : R), IsOpen (PrimeSpectrum.basicOpen f)
+
+-- 核心概念: Zariski位相、素スペクトラム、代数幾何
+```
+
+### **課題E: ホモロジー代数でのExt函手**
+```lean
+-- Ext函手の長完全系列
+theorem ext_long_exact_sequence {R : Type*} [Ring R] 
+    {A B C : Type*} [AddCommGroup A] [AddCommGroup B] [AddCommGroup C]
+    [Module R A] [Module R B] [Module R C] (f : A →ₗ[R] B) (g : B →ₗ[R] C)
+    (h : LinearMap.ker g = LinearMap.range f) :
+    ∃ (δ : ∀ n, Ext R n C A →ₗ[R] Ext R (n+1) B A),
+      ExactSequence [Ext R n C A, Ext R (n+1) B A, Ext R (n+1) C A]
+
+-- 核心概念: 導来函手、ホモロジー代数、完全系列
+```
+
+## ❓ **どの課題に挑戦しますか？**
+
+各課題の特徴：
+- **課題A**: 体論の深い理論、テンソル積の応用
+- **課題B**: 代数学の最高峰、群作用と体拡大の統合
+- **課題C**: 可換環論の核心、普遍性質の実装
+- **課題D**: 代数幾何への入門、位相と代数の融合
+- **課題E**: 現代代数学の基盤、圏論的視点
+
+または、これまでの**環論の課題を完璧に仕上げる**ことも選択可能です。
+
+あなたの関心と理解度に最も適した課題を選んでください。
