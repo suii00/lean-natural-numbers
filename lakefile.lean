@@ -1,12 +1,17 @@
 import Lake
 open Lake DSL
 
-package myproject
+package «myproject» {}
 
 require mathlib from git
- "https://github.com/leanprover-community/mathlib4" @ "v4.22.0"
+  "https://github.com/leanprover-community/mathlib4" @ "v4.22.0"
 
+lean_lib MyProofs {
+  srcDir := "src"  -- Changed from 'src' to 'srcDir'
+}
 
 @[default_target]
-lean_lib MyProofs where
-  srcDir := "src"
+lean_exe myexe {
+  root := `MyProofs.Main
+  srcDir := "src"  -- Add this line
+}

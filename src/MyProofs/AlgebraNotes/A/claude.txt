@@ -1,67 +1,125 @@
-## 📋 提出課題分析：群の第一同型定理
+# 🎓 代数構造論：群の第一同型定理 - 補題分割版
 
-### 習得概念の評価
-- ✅ **完全理解：** 
-  - 群の公理的定義（結合律、単位元、逆元）
-  - 群準同型写像の定義と基本性質
-  - 核（kernel）と像（range）の定義
-  - Leanの基本的な証明構造
+## 📋 メイン定理の分解構造
 
-- ⚠️ **要注意：** 
-  - 商群の構成における同値関係の扱い
-  - `rangeKerLift`の内部構造の理解
-  - well-defined性の証明における細部
+群の第一同型定理を以下の **7つの基本補題** に分割し、段階的に構築していきます：
 
-- ❌ **要補強：** 
-  - ブルバキ流の構造的アプローチがやや表面的
-  - 普遍性による特徴付けの欠如
-  - 同型定理の深い意味（構造保存の本質）
-
-### 証明手法の診断
-- **使用された戦略：** Mathlibの既存定理に依存した証明
-- **ブルバキ的視点：** 商集合による構成的アプローチを示しているが、より抽象的な普遍性の観点が不足
-- **改善提案：** 函手的視点や普遍的性質による特徴付けを追加
-
-## 🚀 次への扉：3つの発展方向
-
-どの方向に進んで代数構造の理解を深めたいですか？
-
-### A. **同分野深化型：第二・第三同型定理**
 ```lean
--- 第二同型定理（ダイヤモンド同型定理）
-theorem second_isomorphism_theorem {G : Type*} [Group G] 
-    (H K : Subgroup G) [H.Normal] :
-    H ⊔ K ⧸ H ≃* K ⧸ (H ⊓ K)
-
--- 第三同型定理（対応定理）
-theorem third_isomorphism_theorem {G : Type*} [Group G]
-    (H K : Subgroup G) [H.Normal] [K.Normal] (h : H ≤ K) :
-    G ⧸ K ≃* (G ⧸ H) ⧸ (K.map (QuotientGroup.mk' H))
+-- メイン定理
+theorem first_isomorphism_theorem {G H : Type*} [Group G] [Group H]
+    (f : GroupHom G H) :
+    Nonempty (GroupIso (G ⧸ f.ker) (Set.range f.toFun))
 ```
 
-### B. **分野横断型：位相群の連続準同型**
+---
+
+## 🔧 補題1：核の正規部分群性
+
 ```lean
--- 位相群における第一同型定理
-theorem topological_first_isomorphism {G H : Type*} 
-    [TopologicalSpace G] [Group G] [TopologicalGroup G]
-    [TopologicalSpace H] [Group H] [TopologicalGroup H]
-    (φ : G →* H) (hφ : Continuous φ) :
-    ∃ ψ : (G ⧸ MonoidHom.ker φ) →* MonoidHom.range φ,
-      Continuous ψ ∧ Function.Bijective ψ
+lemma kernel_normal {G H : Type*} [Group G] [Group H] (f : GroupHom G H) :
+    f.ker.Normal
 ```
 
-### C. **応用統合型：環の準同型定理への拡張**
-```lean
--- 環における第一同型定理
-theorem ring_first_isomorphism {R S : Type*} [Ring R] [Ring S]
-    (φ : R →+* S) :
-    Nonempty (R ⧸ RingHom.ker φ ≃+* RingHom.range φ)
+**概念的意義**: 準同型写像の核は常に正規部分群となる  
+**ブルバキ的視点**: 群準同型の構造が自動的に生成する対称性  
+**証明の核心**: `g⁻¹ * ker * g ⊆ ker` の普遍的成立
 
--- 加群への一般化
-theorem module_first_isomorphism {R M N : Type*} [Ring R] 
-    [AddCommGroup M] [Module R M] [AddCommGroup N] [Module R N]
-    (φ : M →ₗ[R] N) :
-    Nonempty (M ⧸ LinearMap.ker φ ≃ₗ[R] LinearMap.range φ)
+---
+
+## 🔧 補題2：商群の良定義性
+
+```lean
+lemma quotient_group_well_defined {G H : Type*} [Group G] [Group H] 
+    (f : GroupHom G H) :
+    ∀ (g₁ g₂ : G), g₁ * f.ker = g₂ * f.ker → f g₁ = f g₂
 ```
 
-どの方向に進まれますか？また、特に**普遍性**や**函手性**といったブルバキ流の抽象的概念についてより深く学びたい分野があれば教えてください。
+**概念的意義**: 同値類上での写像の一意性  
+**ブルバキ的視点**: 商構造における代表元独立性  
+**証明戦略**: `g₁⁻¹ * g₂ ∈ ker ↔ f(g₁⁻¹ * g₂) = 1`
+
+---
+
+## 🔧 補題3：誘導写像の存在
+
+```lean
+lemma induced_map_exists {G H : Type*} [Group G] [Group H] (f : GroupHom G H) :
+    ∃ (φ : G ⧸ f.ker → Set.range f.toFun), 
+    ∀ g : G, φ (QuotientGroup.mk g) = ⟨f g, Set.mem_range_self g⟩
+```
+
+**概念的意義**: 商群から像への自然な写像の構成  
+**ブルバキ的視点**: 普遍的性質による写像の一意的決定  
+**構造的美**: 交換図式 `G → H` と `G → G/ker → im(f)` の一致
+
+---
+
+## 🔧 補題4：誘導写像の準同型性
+
+```lean
+lemma induced_map_is_hom {G H : Type*} [Group G] [Group H] (f : GroupHom G H) :
+    let φ := classical_induced_map f
+    ∀ (x y : G ⧸ f.ker), φ (x * y) = φ x * φ y
+```
+
+**概念的意義**: 商群の演算と像の演算の構造保存  
+**ブルバキ的視点**: 群構造の射影による保存  
+**技術的要点**: 商群での演算の代表元独立性
+
+---
+
+## 🔧 補題5：誘導写像の単射性
+
+```lean
+lemma induced_map_injective {G H : Type*} [Group G] [Group H] (f : GroupHom G H) :
+    let φ := classical_induced_map f
+    Function.Injective φ
+```
+
+**概念的意義**: 異なる同値類は異なる像を持つ  
+**ブルバキ的視点**: 商構造の最小性（余分な同一視なし）  
+**証明の核心**: `φ(gker) = φ(hker) → f(g) = f(h) → g⁻¹h ∈ ker`
+
+---
+
+## 🔧 補題6：誘導写像の全射性
+
+```lean
+lemma induced_map_surjective {G H : Type*} [Group G] [Group H] (f : GroupHom G H) :
+    let φ := classical_induced_map f
+    Function.Surjective φ
+```
+
+**概念的意義**: 像の各元素が商群の元素と対応  
+**ブルバキ的視点**: 構造射の範囲の完全一致  
+**自明性の美**: 構成により自動的に成立
+
+---
+
+## 🔧 補題7：群同型の構成
+
+```lean
+lemma construct_group_iso {G H : Type*} [Group G] [Group H] (f : GroupHom G H) :
+    GroupIso (G ⧸ f.ker) (Set.range f.toFun)
+```
+
+**概念的意義**: 前6補題の統合による同型写像の完成  
+**ブルバキ的視点**: 普遍的構成による必然的同型  
+**美的調和**: 準同型 → 核 → 商 → 像 の完璧な循環
+
+---
+
+## 🎯 学習戦略の提案
+
+### 段階的アプローチ
+1. **補題1-2**: 商群の基礎理論の確立
+2. **補題3-4**: 誘導写像の構成と性質
+3. **補題5-6**: 双射性の証明
+4. **補題7**: 最終統合
+
+### ブルバキ的思考法
+- 各補題で**普遍的性質**を意識する
+- **構造保存**の概念を各段階で確認
+- **必然性**（なぜそうなるべきか）を理解する
+
+**どの補題から始めますか？** 各補題の詳細な証明戦略と、関連する概念の説明をお提供いたします。
