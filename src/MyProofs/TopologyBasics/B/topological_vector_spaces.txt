@@ -1,0 +1,65 @@
+/-!
+# 局所凸空間論 - 関数解析の基礎
+
+ブルバキ第5巻「位相ベクトル空間論」の核心概念
+フィルター理論と線形構造の融合
+
+## 数学的背景
+位相ベクトル空間論はブルバキ数学の頂点の一つであり、
+解析学・幾何学・代数学の統一的基盤を提供する。
+-/
+
+import Mathlib.Topology.Basic
+import Mathlib.Topology.Algebra.Module.Basic
+import Mathlib.Analysis.LocallyConvex.Basic
+import Mathlib.Analysis.Seminorm
+
+namespace BourbakiTopologicalVectorSpaces
+
+variable {𝕜 : Type*} [NontriviallyNormedField 𝕜] 
+variable {E F : Type*} [AddCommGroup E] [Module 𝕜 E] [TopologicalSpace E]
+
+/-- 位相ベクトル空間の定義 -/
+class BourbakiTopologicalVectorSpace (𝕜 E : Type*) 
+    [NontriviallyNormedField 𝕜] [AddCommGroup E] [Module 𝕜 E] [TopologicalSpace E] : Prop where
+  continuous_add : Continuous (fun p : E × E => p.1 + p.2)
+  continuous_smul : Continuous (fun p : 𝕜 × E => p.1 • p.2)
+
+/-- 半ノルムによる局所凸位相の定義 -/
+def LocallyConvexTopology (p : Seminorm 𝕜 E) : TopologicalSpace E :=
+  TopologicalSpace.generateFrom {s | ∃ (x : E) (r : ℝ), r > 0 ∧ s = {y | p (y - x) < r}}
+
+/-- 連続線形写像のなす空間 -/
+def ContinuousLinearMaps (E F : Type*) 
+    [AddCommGroup E] [Module 𝕜 E] [TopologicalSpace E]
+    [AddCommGroup F] [Module 𝕜 F] [TopologicalSpace F] : Type* :=
+  {f : E →ₗ[𝕜] F // Continuous f.toFun}
+
+/-- ハーン・バナッハ定理の位相的版 -/
+theorem hahn_banach_topological 
+    [BourbakiTopologicalVectorSpace 𝕜 E] [LocallyConvexSpace 𝕜 E]
+    (M : Submodule 𝕜 E) (f : M →L[𝕜] 𝕜) :
+    ∃ F : E →L[𝕜] 𝕜, F.comp M.subtype = f := by
+  sorry
+
+/-- 双対空間の弱位相 -/
+def WeakTopology (E' : Type*) [AddCommGroup E'] [Module 𝕜 E'] 
+    (σ : E' → E →L[𝕜] 𝕜) : TopologicalSpace E' :=
+  TopologicalSpace.generateFrom 
+    {s | ∃ (x : E) (U : Set 𝕜), IsOpen U ∧ s = {φ | (σ φ) x ∈ U}}
+
+/-- アラオグル定理：単位球の弱*コンパクト性 -/
+theorem alaoglu_theorem [BourbakiTopologicalVectorSpace 𝕜 E] [LocallyConvexSpace 𝕜 E] :
+    ∃ (K : Set (E →L[𝕜] 𝕜)), IsCompact K := by
+  sorry
+
+/-- 局所凸空間における連続性の特徴付け -/
+theorem continuous_iff_seminorm_continuous 
+    [LocallyConvexSpace 𝕜 E] [LocallyConvexSpace 𝕜 F]
+    (T : E →ₗ[𝕜] F) :
+    Continuous T.toFun ↔ 
+    ∀ q : Seminorm 𝕜 F, ∃ (I : Finset (Seminorm 𝕜 E)) (C : ℝ), 
+      ∀ x, q (T x) ≤ C * (I.sup' ⟨_, Finset.nonempty_range_succ⟩ (fun p => p x)) := by
+  sorry
+
+end BourbakiTopologicalVectorSpaces

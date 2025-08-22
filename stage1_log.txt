@@ -1,5 +1,0 @@
-=== Stage 1 Status Record ===
-Timestamp: 2025年 8月  6日 水曜日 20:28:30    
-Lakefile status: mathlib v4.3.0 already present
-Dependencies in manifest:
-7

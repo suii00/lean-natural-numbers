@@ -1,4 +1,0 @@
-mathlib: running post-update hooks
-No files to download
-Decompressing 3972 file(s)
-unpacked in 75 ms
