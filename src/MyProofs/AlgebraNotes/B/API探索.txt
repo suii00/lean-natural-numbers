@@ -1,0 +1,31 @@
+● 🎯 特に重要APIの調査開始
+
+  以下の順序で調査をお願いします：
+
+  1. Subgroup.subgroupOf の正確な型定義
+
+  -- 調査項目
+  #check @Subgroup.subgroupOf
+  -- 期待: {G : Type*} [Group G] (H S : Subgroup G) : Subgroup S
+  -- または: {G : Type*} [Group G] (H S : Subgroup G) : Subgroup G
+
+  2. Subgroup.Normal.inf_normal の存在確認
+
+  -- 調査項目
+  #check @Subgroup.Normal.inf_normal
+  -- または類似の名前
+  #check @Subgroup.inf_normal
+  #check @Subgroup.Normal.inf
+  -- 期待: H.Normal → (H ⊓ K).Normal (何らかの条件下で)
+
+  3. 既存の第二同型定理実装
+
+  -- 調査項目
+  #check @Subgroup.quotientInfEquivProdNormalQuotient
+  #check @QuotientGroup.quotientInfEquivProdNormalQuotient
+  #check @second_isomorphism_theorem
+  #check @Subgroup.second_isomorphism
+  -- 期待: 何らかの形で H ⊔ K ⧸ H ≃* K ⧸ (H ⊓ K) が実装済み
+
+  この3つが分かれば、残りの技術的問題は解決できます。特に Subgroup.subgroupOf
+  の型が分かれば、現在の型エラーの大部分が解決されるはずです。

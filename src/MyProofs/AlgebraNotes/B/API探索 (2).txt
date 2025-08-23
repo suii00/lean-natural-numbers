@@ -1,0 +1,37 @@
+● 🔍 第二同型定理で使用する主要API名リスト
+
+  1. 部分群演算
+
+  - Subgroup.closure - 部分群の生成
+  - Subgroup.inclusion - 包含写像 H ≤ K から H →* K
+  - le_sup_left / le_sup_right - 上確界での包含関係
+  - inf_le_left / inf_le_right - 下確界での包含関係
+
+  2. 商群API
+
+  - QuotientGroup.mk - 商群への標準射影
+  - QuotientGroup.lift - 普遍性
+  - QuotientGroup.quotientKerEquivRange - 第一同型定理
+  - Subgroup.subgroupOf - 部分群の制限
+
+  3. 正規部分群
+
+  - Subgroup.Normal.of_commGroup - 可換群での正規性
+  - Subgroup.Normal.conj_mem - 共役による正規性
+
+  4. MonoidHom
+
+  - MonoidHom.comp - 準同型写像の合成
+  - MonoidHom.ker - 核
+  - MonoidHom.range - 像
+  - MonoidHom.mem_ker - 核のメンバーシップ
+
+  5. 集合演算
+
+  - Set.mem_union_left / Set.mem_union_right - 和集合
+  - Subgroup.subset_closure - 閉包への包含
+
+  特に調べてほしいAPI:
+  1. ⊔ 記号の一般群での代替 (Subgroup.closure?)
+  2. Subgroup.Normal.of_commGroup の存在確認
+  3. 第二同型定理の既存実装 (Subgroup.quotientInfEquivProdNormalQuotient?)
