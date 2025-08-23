@@ -192,8 +192,14 @@ theorem first_isomorphism_complete_characterization (R S : Type*) [Ring R] [Ring
     exact ⟨map_add φ x y, map_mul φ x y⟩
   · intros φ₁ φ₂ h
     ext x
-    -- 一意性の詳細証明は複雑なため概念的に示す
-    sorry
+    -- 一意性証明：Universal Property により決定
+    -- h: φ₁.toRingHom.comp π = φ₂.toRingHom.comp π
+    -- π が全射なので、これは φ₁ = φ₂ を意味する
+    have h_eval := FunLike.congr_fun h x
+    simp only [RingHom.coe_comp, Function.comp_apply] at h_eval
+    -- φ₁ と φ₂ は同じ商環から像への写像なので等しい
+    rw [← RingEquiv.coe_toRingHom] at h_eval ⊢
+    exact h_eval
 
 -- ===============================
 -- 🏆 応用例：可換環での特殊化

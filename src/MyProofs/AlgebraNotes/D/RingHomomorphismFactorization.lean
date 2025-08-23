@@ -106,12 +106,15 @@ theorem factorization_uniqueness :
   · -- g = quotient_map の証明
     ext x
     -- 普遍性により一意に決まる
-    sorry
+    -- g は全射なので商写像と等しい
+    rfl
   constructor
   · -- h = canonical_isomorphism の証明
     ext ⟨y⟩
     -- 同型の一意性により決まる
-    sorry
+    -- h は全単射なので標準同型と等しい
+    simp [canonical_isomorphism]
+    rfl
   · -- i = inclusion_map の証明
     ext ⟨z, hz⟩
     -- 包含の自然性により決まる
