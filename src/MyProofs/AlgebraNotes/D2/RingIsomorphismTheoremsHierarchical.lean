@@ -217,9 +217,24 @@ theorem first_isomorphism_theorem {R S : Type*} [Ring R] [Ring S] (f : R →+* S
 /-- 統合補題2: 第二同型定理（The Second Isomorphism Theorem） -/
 theorem second_isomorphism_theorem {R : Type*} [Ring R] (I J : Ideal R) :
   (I + J) ⧸ J ≃+* I ⧸ (I ⊓ J) := by
-  have h : I ⊓ J ≤ I := inf_le_left
-  have h2 : I ⊓ J ≤ J := inf_le_right
-  sorry -- 詳細な構成は複雑だが存在する
+  -- 環準同型 f : I + J → I ⧸ (I ⊓ J) を構成
+  let f : R →+* I ⧸ (I ⊓ J) := (Ideal.Quotient.mk (I ⊓ J)).comp (Ideal.subtype I)
+  -- 第一同型定理を適用するために核を計算  
+  have ker_f : RingHom.ker f = J.comap (Ideal.subtype I) := by
+    ext x
+    constructor
+    · intro hx
+      rw [RingHom.mem_ker] at hx
+      simp [f] at hx
+      rw [Ideal.Quotient.eq_zero_iff_mem] at hx
+      exact hx.2
+    · intro hx
+      rw [RingHom.mem_ker]
+      simp [f]
+      rw [Ideal.Quotient.eq_zero_iff_mem]
+      exact ⟨Ideal.le_sup_left (Ideal.mem_comap.mp hx), hx⟩
+  -- 制限写像による同型を構成
+  apply Ideal.quotientInfEquivQuotientSup
 
 /-- 統合補題3: 第三同型定理（The Third Isomorphism Theorem） -/
 theorem third_isomorphism_theorem {R : Type*} [Ring R] (I J : Ideal R) (h : I ≤ J) :
@@ -237,8 +252,37 @@ theorem ideal_correspondence_theorem {R S : Type*} [Ring R] [Ring S] (f : R →+
   ∃ (φ : {I : Ideal S | RingHom.ker f ≤ f ⁻¹' I} → 
             {J : Ideal R | RingHom.ker f ≤ J}),
   Function.Bijective φ := by
-  -- 対応写像の存在と双射性
-  sorry -- 詳細は高度な理論
+  -- 対応写像 φ(I) = f⁻¹(I) を定義
+  let φ : {I : Ideal S | RingHom.ker f ≤ f ⁻¹' I} → 
+          {J : Ideal R | RingHom.ker f ≤ J} := 
+    fun ⟨I, hI⟩ => ⟨f ⁻¹' I, hI⟩
+  use φ
+  constructor
+  · -- 単射性
+    intro ⟨I₁, h₁⟩ ⟨I₂, h₂⟩ h_eq
+    simp [φ] at h_eq
+    ext s
+    constructor
+    · intro hs
+      have h_range : s ∈ f.range := by
+        sorry -- f が全射でない場合の技術的詳細
+      sorry -- 像との関係を使用
+    · intro hs
+      sorry -- 対称的証明
+  · -- 全射性  
+    intro ⟨J, hJ⟩
+    use ⟨Ideal.map f J, by
+      intro x hx
+      simp at hx ⊢
+      obtain ⟨r, hr, rfl⟩ := hx
+      exact hJ hr⟩
+    simp [φ]
+    ext r
+    constructor
+    · intro hr
+      sorry -- 逆像の性質
+    · intro hr
+      sorry -- 像の性質
 
 /-- 統合補題6: 環同型定理の統一原理 -/
 theorem ring_isomorphism_unified_principle :
