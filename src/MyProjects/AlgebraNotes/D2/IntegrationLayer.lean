@@ -7,8 +7,8 @@ Goal: "環論同型定理統合層の実装と全体ビルド確認"
 -/
 
 import Mathlib.RingTheory.Ideal.Quotient.Operations
-import MyProofs.AlgebraNotes.D2.RingIsomorphismFoundation
--- import MyProofs.AlgebraNotes.D2.RingIsomorphismCore -- エラーのため一時的にコメントアウト
+import MyProjects.AlgebraNotes.D2.RingIsomorphismFoundation
+-- import MyProjects.AlgebraNotes.D2.RingIsomorphismCore -- エラーのため一時的にコメントアウト
 
 namespace IntegrationLayer
 
