@@ -103,7 +103,7 @@ Cover various fields available in mathlib, including but not limited to:
 
 ### Module Organization
 ```
-src/MyProofs/
+src/MyProjects/
 ├── BasicNotes/           -- 基礎的な論理と集合論 (beginner-friendly)
 ├── AlgebraNotes/         -- 代数学の定理 (basic to advanced)
 ├── NumberTheoryNotes/    -- 数論の定理 (various difficulty levels)

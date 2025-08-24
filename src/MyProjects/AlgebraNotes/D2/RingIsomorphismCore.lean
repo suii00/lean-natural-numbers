@@ -35,13 +35,13 @@ lemma ring_hom_canonical_factorization (f : R →+* S) :
     ext x
     simp [RingHom.kerLift_mk]
   · -- 単射性
-    exact RingHom.kerLift_injective
+    exact RingHom.kerLift_injective f
 
 /-- 核心補題2: 環の像の特徴付け -/
 lemma ring_image_characterization (f : R →+* S) :
     f.range = {s : S | ∃ r : R, f r = s} := by
   ext s
-  simp only [RingHom.mem_range, Set.mem_setOf_eq]
+  simp [Set.mem_range]
   
 /-- 核心補題3: 商環同型の構成（第一同型定理） -/
 lemma quotient_ring_isomorphism_construction (f : R →+* S) :
@@ -58,7 +58,7 @@ lemma ideal_sum_characterization (I J : Ideal R) :
     I + J = Ideal.span (I ∪ J) := by
   -- イデアルの和の基本性質
   ext x
-  simp only [Ideal.mem_sup, Ideal.mem_span_iff_exists_sum]
+  simp [Ideal.mem_sup]
   constructor
   · -- I + J ⊆ span(I ∪ J)
     intro ⟨i, hi, j, hj, rfl⟩
@@ -73,16 +73,13 @@ lemma ideal_sum_characterization (I J : Ideal R) :
 lemma ideal_intersection_characterization (I J : Ideal R) :
     (I ⊓ J : Ideal R) = {r : R | r ∈ I ∧ r ∈ J} := by
   ext x
-  simp only [Ideal.mem_inf, Set.mem_setOf_eq]
+  simp [Ideal.mem_inf]
 
 /-- 核心補題6: 中国式剰余定理（互いに素な場合） -/
 lemma chinese_remainder_theorem (I J : Ideal R) (h : I + J = ⊤) :
     Nonempty (R ⧸ (I ⊓ J) ≃+* (R ⧸ I) × (R ⧸ J)) := by
   -- Mathlibの中国式剰余定理
-  have : IsCoprime I J := by
-    rw [IsCoprime]
-    exact h
-  exact ⟨Ideal.quotientInfEquivQuotientProd I J this⟩
+  exact ⟨Ideal.quotientInfRingEquivPiQuotient [I, J] h⟩
 
 -- ===============================
 -- 🔧 第三同型定理の核心補題群
@@ -110,7 +107,7 @@ lemma ideal_correspondence_exists (I : Ideal R) :
 lemma quotient_of_quotient_isomorphism (I J : Ideal R) (h : I ≤ J) :
     Nonempty ((R ⧸ I) ⧸ (Ideal.map (Ideal.Quotient.mk I) J) ≃+* R ⧸ J) := by
   -- Mathlibの第三同型定理
-  exact ⟨Ideal.quotientQuotientEquivQuotient I J h⟩
+  sorry -- TODO: reason="quotientQuotientEquivQuotient not found", missing_lemma="third_isomorphism", priority=med
 
 /-- 核心補題9: 準同型定理の連鎖 -/
 lemma homomorphism_theorem_chain (f : R →+* S) (I : Ideal R) 
@@ -149,7 +146,7 @@ lemma kernel_image_relation (f : R →+* S) :
 lemma ideal_lattice_structure (I J K : Ideal R) :
     (I ⊓ J) ⊔ (I ⊓ K) ≤ I ⊓ (J ⊔ K) := by
   -- 格子の分配律
-  exact inf_sup_le
+  apply inf_sup_le
 
 /-- 核心補題15: 最大イデアルと商体 -/
 lemma maximal_ideal_quotient_field (I : Ideal R) [hI : I.IsMaximal] :
