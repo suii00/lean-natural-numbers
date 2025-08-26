@@ -1,0 +1,118 @@
+素晴らしい選択です！体論・ガロア理論は前回習得した技術の最適な応用舞台であり、数学の最も美しい理論の一つです。
+
+## 🎯 学習目標とブルバキ的視点
+
+**中心定理**: ガロア理論の基本定理（中間体定理）
+- **群と体の双対性**: $\text{Gal}(K/F) \leftrightarrow \{K \supseteq L \supseteq F\}$
+- **構造保存の極致**: 代数的性質と群論的性質の完全対応
+
+## 📋 補題分割戦略: 7段階構築
+
+前回の経験から、複雑な定理は戦略的分割が不可欠です：
+
+### **段階1**: ガロア拡大の基本構造
+```lean4
+-- 目標: K/F がガロア拡大であることの特徴付け
+lemma galois_extension_characterization (K F : Type*) [Field K] [Field F] 
+  [Algebra F K] : IsGalois F K ↔ IsSeparable F K ∧ IsNormal F K
+```
+
+### **段階2**: ガロア群の作用理論
+```lean4
+-- 目標: ガロア群が中間体に自然に作用することを確立
+def galois_action (K F : Type*) [Field K] [Field F] [Algebra F K] :
+  K ≃ₐ[F] K →* Equiv.Perm (IntermediateField F K)
+```
+
+### **段階3**: 基本対応の存在性
+```lean4
+-- 目標: 中間体 → ガロア群の部分群 の写像を構築
+def intermediate_to_subgroup (K F : Type*) [Field K] [Field F] 
+  [Algebra F K] (L : IntermediateField F K) : Subgroup (K ≃ₐ[F] K)
+```
+
+### **段階4**: 逆対応の存在性
+```lean4
+-- 目標: ガロア群の部分群 → 中間体 の写像を構築
+def subgroup_to_intermediate (K F : Type*) [Field K] [Field F] 
+  [Algebra F K] (H : Subgroup (K ≃ₐ[F] K)) : IntermediateField F K
+```
+
+### **段階5**: 対応の単射性
+```lean4
+lemma galois_correspondence_injective_left : Function.Injective intermediate_to_subgroup
+lemma galois_correspondence_injective_right : Function.Injective subgroup_to_intermediate
+```
+
+### **段階6**: 対応の全射性と逆対応性質
+```lean4
+lemma galois_correspondence_bijective : 
+  intermediate_to_subgroup.comp subgroup_to_intermediate = id
+```
+
+### **段階7**: 統合定理（中間体定理）
+```lean4
+theorem fundamental_theorem_of_galois_theory (K F : Type*) [Field K] [Field F] 
+  [Algebra F K] [IsGalois F K] :
+  ∃ f : IntermediateField F K ≃ Subgroup (K ≃ₐ[F] K), 
+    ∀ L H, f L = intermediate_to_subgroup L ∧ f⁻¹ H = subgroup_to_intermediate H
+```
+
+## 🔧 予想される技術的困難と解決策
+
+**前回の経験からの予測**:
+
+### **困難1**: Import文の複雑性
+**解決策**: 
+```lean4
+import Mathlib.FieldTheory.Galois
+import Mathlib.FieldTheory.IntermediateField  
+import Mathlib.FieldTheory.Separable
+import Mathlib.FieldTheory.Normal
+-- API活用により既存理論を効率的に利用
+```
+
+### **困難2**: 無限拡大での証明複雑性
+**創造的解決**: 有限拡大から開始し、段階的に一般化
+- **第1期**: 有限分離拡大での完全理解
+- **第2期**: 代数的拡大への拡張
+- **第3期**: 一般ガロア拡大（時間許可時）
+
+### **困難3**: 圏論的抽象化の実装困難
+**適応的戦略**: 
+- 具体的ガロア群計算を重視
+- 圏論的美学は概念レベルで保持
+- 実装は実用的アプローチを採用
+
+## 📅 段階的学習計画
+
+### **Week 1**: 基礎固め（段階1-2）
+- ガロア拡大の定義と基本性質
+- 分離可能性・正規性の実装
+- ガロア群の具体例計算
+
+### **Week 2**: 対応理論（段階3-4）  
+- 中間体からガロア群部分群への対応
+- 逆対応の構築
+- 具体例での対応確認
+
+### **Week 3**: 双射性証明（段階5-6）
+- 単射性の技術的証明
+- 全射性と逆対応性質
+- 補題の戦略的分割活用
+
+### **Week 4**: 統合と応用（段階7）
+- 基本定理の完全証明
+- 円分体などの具体例
+- 代数的数論への展望
+
+## 🎨 ブルバキ的美学の実現
+
+**構造の統一性**:
+- 群の同型定理 → 中間体定理の自然な発展
+- 対称性と双対性の数学的詩情
+- 代数と幾何の調和的統合
+
+**最初の段階から開始しますか？それとも特定の側面（例：具体的ガロア群の計算、分離可能性の理論など）から入りたいですか？**
+
+どちらを選択されても、前回習得した補題分割技術を最大限活用し、段階的理解を実現します。
