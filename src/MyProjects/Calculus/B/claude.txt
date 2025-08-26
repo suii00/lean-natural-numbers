@@ -1,0 +1,110 @@
+## 解答評価と分岐課題
+
+### 提出解答の評価
+
+**完成度：88%**
+
+優れた解答です！以下の観点で評価します：
+
+- **構文の正確性（25/25%）**：完璧なエラーフリーコード、適切なimport文の選択
+- **証明の論理的妥当性（33/35%）**：段階的な補題構築が素晴らしい、頂点での微分のみ未完成
+- **タクティクの適切な使用（23/25%）**：`ring`、`norm_num`、`simp`を効果的に活用
+- **数学的理解（7/15%）**：2次関数の本質を理解し、頂点での性質にも挑戦
+
+特に評価できる点：
+- TDD精神で段階的に証明を構築
+- 具体例での検証を含む
+- 頂点での微分という発展的性質への挑戦
+
+### 分岐課題（数学Ⅲレベル）：三角関数の微分
+
+---
+
+## 次の課題：正弦関数の微分と加法定理の活用
+
+### 問題文（高校生向け）
+
+正弦関数 sin(x) の微分が cos(x) になることをLeanで証明しましょう。また、この結果を使って sin(2x) の微分を求めます。これは数学Ⅲの三角関数の微分の基本定理を、Leanの厳密な論理で証明する課題です。
+
+### 数学的背景
+- **高校での学習内容**：数学Ⅲ「三角関数の微分」、sin'(x) = cos(x)、合成関数の微分法則
+- **Leanでの表現**：`Real.sin`、`Real.cos`関数と連鎖律（chain rule）の適用
+
+### Lean定義
+
+```lean
+-- 必要なimport文
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+import Mathlib.Analysis.Calculus.Deriv.Comp
+
+-- 課題1: sin(x)の微分はcos(x)（基本確認）
+theorem sin_deriv_basic : 
+  ∀ x : ℝ, deriv Real.sin x = Real.cos x := by
+  sorry
+
+-- 課題2: sin(ax)の微分はa*cos(ax)
+theorem sin_ax_deriv (a : ℝ) :
+  ∀ x : ℝ, deriv (fun x => Real.sin (a * x)) x = a * Real.cos (a * x) := by
+  sorry
+
+-- 課題3: sin(2x)の微分は2*cos(2x)（具体例）
+theorem sin_2x_deriv :
+  ∀ x : ℝ, deriv (fun x => Real.sin (2 * x)) x = 2 * Real.cos (2 * x) := by
+  sorry
+
+-- 課題4: sin²(x)の微分は2*sin(x)*cos(x) = sin(2x)
+theorem sin_squared_deriv :
+  ∀ x : ℝ, deriv (fun x => (Real.sin x) ^ 2) x = 2 * Real.sin x * Real.cos x := by
+  sorry
+
+-- チャレンジ課題: 三角関数の恒等式の確認
+theorem sin_squared_deriv_identity :
+  ∀ x : ℝ, deriv (fun x => (Real.sin x) ^ 2) x = Real.sin (2 * x) := by
+  sorry
+```
+
+### 証明のヒント
+
+1. **基本定理の活用**：`Real.deriv_sin`という定理がmathlibに存在します
+2. **連鎖律の適用**：合成関数 f(g(x)) の微分は f'(g(x)) * g'(x)
+3. **Leanでの連鎖律**：`deriv.comp`または`deriv_within_comp`を使用
+4. **べき乗の微分**：前の課題で学んだ`deriv_pow`を活用
+
+### 期待される重要な補題
+
+```lean
+-- 連鎖律の明示的な使用例
+lemma chain_rule_example (f g : ℝ → ℝ) (x : ℝ) 
+  (hf : DifferentiableAt ℝ f (g x))
+  (hg : DifferentiableAt ℝ g x) :
+  deriv (f ∘ g) x = deriv f (g x) * deriv g x := by
+  sorry
+
+-- 倍角の公式の確認
+lemma double_angle : ∀ x : ℝ, 
+  Real.sin (2 * x) = 2 * Real.sin x * Real.cos x := by
+  sorry
+```
+
+### 大学レベルへの発展
+
+- **複素関数論**：オイラーの公式 e^(ix) = cos(x) + i*sin(x) を通じた三角関数の理解
+- **フーリエ解析**：三角関数系の直交性と微分作用素の固有関数としての役割
+- **微分方程式**：y'' + y = 0 の解としての sin, cos の特徴付け
+
+### 追加チャレンジ
+
+1. **効率性**：最小限のタクティクで証明を完成
+2. **一般化**：sin(ax + b) の微分への拡張
+3. **他の三角関数**：cos, tan の微分も証明
+
+提出フォーマット：
+```lean
+-- あなたの証明をここに記述
+theorem sin_deriv_basic : 
+  ∀ x : ℝ, deriv Real.sin x = Real.cos x := by
+  -- 証明
+```
+
+この課題では、数学Ⅲの核心である三角関数の微分を扱います。前回の2次関数での成功を踏まえ、より高度な関数への挑戦です！
