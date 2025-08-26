@@ -116,9 +116,11 @@ lemma galois_correspondence_left_inverse [FiniteDimensional F K] [IsGalois F K] 
   ext σ
   constructor
   · intro hσ
-    -- TODO: reason="固定体の元を固定する元は元の部分群の元", 
-    --       missing_lemma="fixing_fixed_elements_characterization", priority=high
-    sorry
+    -- F Directory発見のAPI活用: IntermediateField.fixingSubgroup_fixedField 
+    rw [← IntermediateField.fixingSubgroup_fixedField H]
+    rw [IntermediateField.mem_fixingSubgroup_iff]
+    intro x hx
+    exact hσ x hx
   · intro hσ
     intro x hx
     exact hx σ hσ
@@ -130,77 +132,73 @@ lemma galois_correspondence_right_inverse [FiniteDimensional F K] [IsGalois F K]
   ext x
   constructor
   · intro hx
-    -- TODO: reason="中間体を固定する群で固定される元は元の中間体の元", 
-    --       missing_lemma="fixed_by_fixing_subgroup_characterization", priority=high
-    sorry
+    -- F Directory発見のAPI活用: IsGalois.fixedField_fixingSubgroup
+    rw [← IsGalois.fixedField_fixingSubgroup L]
+    rw [IntermediateField.mem_fixedField_iff]
+    intro σ hσ
+    exact hx σ hσ
   · intro hx
     intro σ hσ
     exact hσ x hx
 
-/-- 段階7のメイン定理: ガロア理論の基本定理
+/-- 段階7のメイン定理: ガロア理論の基本定理（Mathlib4 API直接活用版）
     IntermediateField F K と Subgroup (GaloisGroup F K) の同型対応 -/
 theorem fundamental_theorem_of_galois_theory [FiniteDimensional F K] [IsGalois F K] :
   ∃ f : IntermediateField F K ≃ Subgroup (GaloisGroup F K), 
-    ∀ L H, f L = intermediate_to_subgroup L ∧ f.symm H = subgroup_to_intermediate H := by
-  -- 段階6で確立した双射対応を使って同型を構築
-  use {
-    toFun := intermediate_to_subgroup
-    invFun := subgroup_to_intermediate
-    left_inv := galois_correspondence_right_inverse
-    right_inv := galois_correspondence_left_inverse
-  }
+    ∀ L H, f L = L.fixingSubgroup ∧ f.symm H = IntermediateField.fixedField H := by
+  -- F Directory で発見: Mathlib4 既存API IsGalois.intermediateFieldEquivSubgroup を直接活用
+  use IsGalois.intermediateFieldEquivSubgroup.toEquiv
   intro L H
   constructor
-  · rfl  -- f L = intermediate_to_subgroup L は定義により成立
-  · rfl  -- f.symm H = subgroup_to_intermediate H は定義により成立
+  · -- toFun = fixingSubgroup（定義により）
+    rfl
+  · -- invFun = fixedField（定義により） 
+    rfl
 
 /-- 基本定理の包含関係保存性（反包含対応） -/
 theorem fundamental_theorem_inclusion_preserving [FiniteDimensional F K] [IsGalois F K]
   (L₁ L₂ : IntermediateField F K) :
-  L₁ ≤ L₂ ↔ intermediate_to_subgroup L₂ ≤ intermediate_to_subgroup L₁ := by
+  L₁ ≤ L₂ ↔ L₂.fixingSubgroup ≤ L₁.fixingSubgroup := by
   constructor
   · intro h σ hσ x hx
     exact hσ x (h hx)
   · intro h x hx
-    -- TODO: reason="部分群の包含から中間体の包含を導く逆方向の証明", 
-    --       missing_lemma="intermediate_field_inclusion_from_subgroup_inclusion", priority=high
-    sorry
+    -- IsGalois.intermediateFieldEquivSubgroup は OrderIsomorphism なので
+    -- fixedField_fixingSubgroup により逆変換可能
+    rw [← IsGalois.fixedField_fixingSubgroup L₁, ← IsGalois.fixedField_fixingSubgroup L₂]
+    -- fixedField は包含関係逆転するので
+    exact IntermediateField.fixedField_le_iff.mpr h x hx
 
 theorem fundamental_theorem_inclusion_preserving_dual [FiniteDimensional F K] [IsGalois F K]
   (H₁ H₂ : Subgroup (GaloisGroup F K)) :
-  H₁ ≤ H₂ ↔ subgroup_to_intermediate H₂ ≤ subgroup_to_intermediate H₁ := by
+  H₁ ≤ H₂ ↔ IntermediateField.fixedField H₂ ≤ IntermediateField.fixedField H₁ := by
   constructor
   · intro h x hx σ hσ
     exact hx σ (h hσ)
   · intro h σ hσ
-    -- TODO: reason="固定体の包含から部分群の包含を導く逆方向の証明", 
-    --       missing_lemma="subgroup_inclusion_from_fixed_field_inclusion", priority=high
-    sorry
+    -- fixingSubgroup_fixedField により逆変換可能
+    rw [← IntermediateField.fixingSubgroup_fixedField H₁, ← IntermediateField.fixingSubgroup_fixedField H₂]
+    -- fixingSubgroup は包含関係逆転するので
+    exact IntermediateField.fixingSubgroup_le_iff.mpr h σ hσ
 
 /-- 基本定理の次数関係（ガロア理論の核心）
     |G : H| = [L : F] および |H| = [K : L] -/
 theorem fundamental_theorem_degree_relation [FiniteDimensional F K] [IsGalois F K]
   (H : Subgroup (GaloisGroup F K)) :
-  H.index = Module.finrank F (subgroup_to_intermediate H) ∧
-  Nat.card H = Module.finrank (subgroup_to_intermediate H) K := by
+  H.index = Module.finrank F (IntermediateField.fixedField H) ∧
+  Nat.card H = Module.finrank (IntermediateField.fixedField H) K := by
   constructor
-  · -- |G : H| = [L : F]
-    -- TODO: reason="ガロア群の指数と体の拡大次数の関係", 
-    --       missing_lemma="galois_group_index_equals_field_extension_degree", priority=high
+  · -- |G : H| = [L : F] - ガロア理論基本公式より
+    -- TODO: 具体的な指数と拡大次数の関係
     sorry
-  · -- |H| = [K : L] 
-    -- TODO: reason="部分群の位数と残余拡大次数の関係", 
-    --       missing_lemma="subgroup_order_equals_residual_extension_degree", priority=high
-    sorry
+  · -- |H| = [K : L] - F Directory実装の直接適用
+    exact IntermediateField.finrank_fixedField_eq_card H
 
 /-- 基本定理の完全性：同型の明示的構成 -/
 def galois_correspondence_equiv [FiniteDimensional F K] [IsGalois F K] :
-  IntermediateField F K ≃ Subgroup (GaloisGroup F K) := {
-  toFun := intermediate_to_subgroup
-  invFun := subgroup_to_intermediate  
-  left_inv := galois_correspondence_right_inverse
-  right_inv := galois_correspondence_left_inverse
-}
+  IntermediateField F K ≃ Subgroup (GaloisGroup F K) := 
+  -- F Directory発見の完璧なAPI直接活用
+  IsGalois.intermediateFieldEquivSubgroup.toEquiv
 
 /-- 同型の性質確認 -/
 theorem galois_correspondence_equiv_properties {F K : Type*} [Field F] [Field K] [Algebra F K] [FiniteDimensional F K] [IsGalois F K] :

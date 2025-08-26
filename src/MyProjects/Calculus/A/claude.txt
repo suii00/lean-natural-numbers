@@ -1,0 +1,100 @@
+## 解答評価と分岐課題
+
+### 提出解答の評価
+
+**完成度：95%**
+
+素晴らしい解答です！以下の観点で高く評価できます：
+
+- **構文の正確性（25/25%）**：完全にエラーフリーで、適切なimport文を使用
+- **証明の論理的妥当性（35/35%）**：基本証明と詳細証明の両方を提供し、論理的に完璧
+- **タクティクの適切な使用（25/25%）**：`exact`、`rw`、`funext`など適切なタクティクを効率的に使用
+- **数学的理解（10/15%）**：基本的な理解は完璧、さらに複合的な定数関数や和・積への拡張も実装
+
+特に評価できる点：
+- 複数のアプローチで証明を実装
+- 定数関数の微分可能性も証明
+- 発展的な定理（複合関数、和、積）への自主的な拡張
+
+### 分岐課題（レベル2：高校応用）
+
+完成度が高いため、レベル2（高校応用）の範囲内で、より実践的な微分の課題を提供します。
+
+---
+
+## 次の課題：線形関数の微分と接線
+
+### 問題文（高校生向け）
+
+線形関数 f(x) = ax + b の微分が定数 a になることを証明し、さらにこの結果を使って点 (x₀, f(x₀)) における接線の方程式を導出しましょう。これは「一次関数の傾きは一定」という高校の知識をLeanで厳密化する課題です。
+
+### 数学的背景
+- **高校での学習内容**：数学Ⅱ「微分法」における一次関数の微分と接線の方程式
+- **Leanでの表現**：線形関数の微分可能性と導関数の値、そして接線の定義
+
+### Lean定義
+
+```lean
+-- 必要なimport文
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.Deriv.Add
+import Mathlib.Analysis.Calculus.Deriv.Mul
+
+-- 課題1: 線形関数の微分
+theorem linear_deriv (a b : ℝ) :
+  ∀ x : ℝ, deriv (fun x : ℝ => a * x + b) x = a := by
+  sorry
+
+-- 課題2: 線形関数は全域で微分可能
+theorem linear_differentiable (a b : ℝ) :
+  Differentiable ℝ (fun x : ℝ => a * x + b) := by
+  sorry
+
+-- 課題3: 接線の方程式の係数を求める
+theorem tangent_line_linear (a b x₀ : ℝ) :
+  let f := fun x : ℝ => a * x + b
+  let tangent_slope := deriv f x₀
+  let tangent_intercept := f x₀ - tangent_slope * x₀
+  tangent_slope = a ∧ tangent_intercept = b := by
+  sorry
+```
+
+### 証明のヒント
+
+1. **線形関数の分解**：`a * x + b` を `(fun x => a * x)` と `(fun x => b)` の和として扱う
+2. **微分の線形性**：`deriv_add` と `deriv_mul_const` を組み合わせる
+3. **接線の考え方**：微分係数が接線の傾きであることを利用
+
+### 期待される重要な補題
+
+```lean
+-- これらの補題を証明または利用してください
+lemma deriv_id : ∀ x : ℝ, deriv (fun x => x) x = 1 := by sorry
+
+lemma deriv_mul_const_id (a : ℝ) : 
+  ∀ x : ℝ, deriv (fun x => a * x) x = a := by sorry
+```
+
+### 大学レベルへの発展
+
+- **アフィン変換**：より一般的な線形変換 T(x) = Ax + b（Aは行列）への拡張
+- **微分の線形性**：微分作用素Dの線形性 D(af + bg) = aD(f) + bD(g) の一般理論
+- **接線と線形近似**：Taylor展開の1次近似としての接線の理解
+
+---
+
+### チャレンジ要素
+
+この課題には以下の追加チャレンジがあります：
+
+1. **効率性**：最小限のタクティクで証明を完成させる
+2. **一般化**：n次多項式への拡張を考える
+3. **応用**：実際の接線の方程式 y = ax₀ + b を導出する
+
+提出フォーマット：
+```lean
+-- あなたの証明をここに記述
+theorem linear_deriv (a b : ℝ) :
+  ∀ x : ℝ, deriv (fun x : ℝ => a * x + b) x = a := by
+  -- 証明
+```
