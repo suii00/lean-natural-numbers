@@ -1,0 +1,150 @@
+## 解答評価と分岐課題
+
+### 提出解答の評価
+
+**完成度：62%**
+
+段階的アプローチで大幅な改善を達成しました！
+
+- **構文の正確性（20/25%）**：基本定理は完璧、連鎖律関連で型エラー
+- **証明の論理的妥当性（20/35%）**：5/8の証明を完成、基礎は確実に理解
+- **タクティクの適切な使用（15/25%）**：`deriv_const_mul`の成功的な活用
+- **数学的理解（7/15%）**：指数関数の基本性質を確実に把握
+
+**特に評価できる点**：
+- 14.3%→62.5%という飛躍的な改善
+- mathlib APIの体系的な発見と活用
+- 段階的設計による確実な実装
+
+**技術的課題の分析**：
+- `deriv.comp`の使用法が主要な障壁
+- 型推論での`DifferentiableAt`の扱い
+- 連鎖律の一般形への拡張が困難
+
+### 分岐課題B（完成度60-89%）：応用レベル - 連鎖律マスター編
+
+---
+
+## 次の課題：連鎖律の段階的習得 - 線形変換から始める
+
+### 問題文（高校生向け）
+
+連鎖律（合成関数の微分法則）を、最も簡単な線形関数の合成から始めて段階的にマスターしましょう。f(g(x))の微分が f'(g(x))・g'(x) になることを、具体例を通じて確実に理解し、Leanでの実装方法を習得します。
+
+### 数学的背景
+- **高校での学習内容**：数学Ⅲ「合成関数の微分」、連鎖律の基本
+- **Leanでの表現**：`deriv.comp`の正しい使い方を具体例で学習
+
+### Lean定義（超段階的アプローチ）
+
+```lean
+-- 必要なimport文
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.Deriv.Comp
+import Mathlib.Analysis.SpecialFunctions.Exp
+
+-- ========= レベル1: 線形関数の合成 =========
+
+-- 準備: 恒等関数と定数倍の微分
+theorem deriv_id_explicit : ∀ x : ℝ, deriv (fun x => x) x = 1 := by
+  intro x
+  exact deriv_id x
+
+theorem deriv_const_mul_id (c : ℝ) : 
+  ∀ x : ℝ, deriv (fun x => c * x) x = c := by
+  sorry
+
+-- 課題1: (2x)の2乗の微分 = 8x
+theorem deriv_comp_linear_square :
+  ∀ x : ℝ, deriv (fun x => (2 * x) ^ 2) x = 8 * x := by
+  intro x
+  -- ヒント: (2x)^2 = 4x^2 として直接計算も可能
+  -- または連鎖律: d/dx[(2x)^2] = 2(2x) * 2 = 8x
+  sorry
+
+-- ========= レベル2: 簡単な非線形合成 =========
+
+-- 課題2: (x + 1)^2 の微分 = 2(x + 1)
+theorem deriv_x_plus_one_squared :
+  ∀ x : ℝ, deriv (fun x => (x + 1) ^ 2) x = 2 * (x + 1) := by
+  intro x
+  -- ヒント: 内側の関数 g(x) = x + 1 の微分は 1
+  -- 外側の関数 f(u) = u^2 の微分は 2u
+  sorry
+
+-- 課題3: √(2x + 1) の微分 = 1/√(2x + 1)
+theorem deriv_sqrt_linear (hx : ∀ x : ℝ, 0 < 2 * x + 1) :
+  ∀ x : ℝ, deriv (fun x => Real.sqrt (2 * x + 1)) x = 1 / Real.sqrt (2 * x + 1) := by
+  intro x
+  -- ヒント: √u の微分は 1/(2√u)、2x+1 の微分は 2
+  sorry
+
+-- ========= レベル3: 指数関数との合成（目標）=========
+
+-- 課題4: e^(2x) の微分（再挑戦用の明示的方法）
+theorem exp_2x_deriv_explicit :
+  ∀ x : ℝ, deriv (fun x => Real.exp (2 * x)) x = 2 * Real.exp (2 * x) := by
+  intro x
+  -- 方法1: 変形して計算
+  have h1 : (fun x => Real.exp (2 * x)) = Real.exp ∘ (fun x => 2 * x) := by rfl
+  rw [h1]
+  -- 方法2: HasDerivAtを使う
+  -- have : HasDerivAt (fun x => Real.exp (2 * x)) (2 * Real.exp (2 * x)) x
+  sorry
+
+-- ========= ヘルパー定理: 連鎖律の明示的形式 =========
+
+-- 連鎖律を手動で適用する補助定理
+theorem manual_chain_rule (f g : ℝ → ℝ) (x : ℝ)
+  (hf : DifferentiableAt ℝ f (g x))
+  (hg : DifferentiableAt ℝ g x) :
+  deriv (f ∘ g) x = deriv f (g x) * deriv g x := by
+  -- これが基本的な連鎖律の形
+  exact deriv.comp x hf hg
+
+-- 具体例での適用
+example : deriv (Real.exp ∘ (fun x => 2 * x)) 1 = 2 * Real.exp 2 := by
+  have h1 : DifferentiableAt ℝ Real.exp (2 * 1) := Real.differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => 2 * x) 1 := by
+    apply DifferentiableAt.const_mul
+    exact differentiableAt_id
+  rw [manual_chain_rule Real.exp (fun x => 2 * x) 1 h1 h2]
+  rw [Real.deriv_exp, deriv_const_mul_id]
+  ring
+```
+
+### 成功のための型ヒント
+
+```lean
+-- 型を明確にする方法
+example (x : ℝ) : 
+  (fun y : ℝ => Real.exp (2 * y)) = Real.exp ∘ (fun y : ℝ => 2 * y) := by
+  rfl
+
+-- DifferentiableAtの構築
+example (x : ℝ) : DifferentiableAt ℝ (fun y => 2 * y) x := by
+  apply DifferentiableAt.const_mul
+  exact differentiableAt_id
+```
+
+### 大学レベルへの発展
+
+- **多変数関数の連鎖律**：∇(f∘g) = (∇f)∘g · Jg
+- **逆関数の微分**：(f^(-1))'(y) = 1/f'(f^(-1)(y))
+- **陰関数定理**：F(x,y)=0で定まるy=f(x)の微分
+
+### 学習戦略
+
+1. **具体から抽象へ**：特定の関数で成功してから一般化
+2. **型の可視化**：各段階で型を明示的に確認
+3. **分解と再構築**：合成関数を部品に分けて理解
+
+提出フォーマット：
+```lean
+-- 各課題を順番に解いて提出
+theorem deriv_const_mul_id (c : ℝ) : 
+  ∀ x : ℝ, deriv (fun x => c * x) x = c := by
+  -- あなたの証明
+```
+
+この課題で連鎖律の本質を確実に理解し、指数関数への適用も成功させましょう！
