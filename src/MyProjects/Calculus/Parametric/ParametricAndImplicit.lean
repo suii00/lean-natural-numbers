@@ -8,6 +8,7 @@ import Mathlib.Data.Set.Operations
 import Mathlib.Topology.Defs.Basic
 import Mathlib.Order.Interval.Set.Defs
 import Mathlib.Topology.Order.OrderClosed
+import Mathlib.Analysis.Calculus.Deriv.MeanValue
 
 namespace ParametricAndImplicit
 
@@ -45,9 +46,36 @@ theorem parametric_deriv_formula_advanced {f g : ℝ → ℝ} (t : ℝ)
   · -- 条件3: f が構成した近傍で単射
     -- deriv f t ≠ 0 から平均値定理により局所単射性を導出
     intro x hx y hy hxy
-    -- TODO: reason="平均値定理による単射性証明が複雑", missing_lemma="mean_value_injectivity", priority=high
-    -- 実装方針: exists_hasDerivAt_eq_slope と hf' : deriv f t ≠ 0 を組み合わせ
-    sorry
+    -- 背理法：x ≠ y を仮定して矛盾を導く  
+    by_contra h_ne
+    -- x ≠ y なので x < y または y < x
+    cases' lt_or_gt_of_ne h_ne with h_order h_order
+    · -- Case 1: x < y の場合
+      have h_cont : ContinuousOn f (Set.Icc x y) := by
+        -- TODO: reason="fの連続性を近傍微分可能性から導出", missing_lemma="continuousOn_of_differentiableAt", priority=med  
+        sorry
+      have h_diff : ∀ z ∈ Set.Ioo x y, HasDerivAt f (deriv f z) z := by
+        -- TODO: reason="近傍内でのHasDerivAt証明", missing_lemma="hasDerivAt_of_differentiableAt_neighborhood", priority=med
+        sorry
+      obtain ⟨c, hc_mem, hc_eq⟩ := exists_hasDerivAt_eq_slope f (deriv f) h_order h_cont h_diff
+      have h_slope_zero : (f y - f x) / (y - x) = 0 := by
+        rw [hxy, sub_self, zero_div]
+      have h_deriv_zero : deriv f c = 0 := by
+        rw [hc_eq, h_slope_zero]
+      have h_deriv_ne_zero : deriv f c ≠ 0 := by
+        -- TODO: reason="導関数の連続性による非零性の保存", missing_lemma="deriv_continuous_at_ne_zero", priority=high
+        sorry
+      exact h_deriv_ne_zero h_deriv_zero
+    · -- Case 2: y < x の場合 (対称的に同じ論法)
+      have h_cont : ContinuousOn f (Set.Icc y x) := by sorry
+      have h_diff : ∀ z ∈ Set.Ioo y x, HasDerivAt f (deriv f z) z := by sorry
+      obtain ⟨c, hc_mem, hc_eq⟩ := exists_hasDerivAt_eq_slope f (deriv f) h_order h_cont h_diff
+      have h_slope_zero : (f x - f y) / (x - y) = 0 := by
+        rw [← hxy, sub_self, zero_div]
+      have h_deriv_zero : deriv f c = 0 := by
+        rw [hc_eq, h_slope_zero]
+      have h_deriv_ne_zero : deriv f c ≠ 0 := by sorry
+      exact h_deriv_ne_zero h_deriv_zero
   · -- 条件4: 構成した集合が開集合
     -- Set.Ioo は標準的な開区間なので開集合
     exact isOpen_Ioo
