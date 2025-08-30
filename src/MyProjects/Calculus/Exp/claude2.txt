@@ -1,0 +1,138 @@
+共通問題として挙げられた微分関連のAPIについて、詳細に調査し解決策を提供いたします。続いて、具体的な使用例とエラーパターンを調査します。取得した情報に基づいて、詳細な解決策ガイドを作成いたします。## **📋 Mathlib 4 微分API 共通問題解決ガイド**
+
+### **🚨 問題1: `deriv_mul` のパターンマッチング失敗**
+
+**原因分析:**
+- 積の微分公式 `deriv_mul` は適切な微分可能性の仮定が必要
+- 型推論の失敗による引数の不一致
+- 暗黙の型パラメータの解決不能
+
+**解決策:**
+
+```lean
+-- ❌ 失敗例
+have h : deriv (f * g) = deriv f * g + f * deriv g := deriv_mul  -- エラー
+
+-- ✅ 正しい使用法
+example (f g : ℝ → ℝ) (x : ℝ) (hf : DifferentiableAt ℝ f x) (hg : DifferentiableAt ℝ g x) :
+    deriv (f * g) x = deriv f x * g x + f x * deriv g x :=
+  deriv_mul hf hg
+```
+
+### **🚨 問題2: `HasDerivAt` API の型適用エラー**
+
+**原因分析:**
+- 基底体 𝕜 (NontriviallyNormedField) の型推論失敗
+- ベクトル空間構造の暗黙引数の不明確さ
+- フィルター引数の混乱
+
+**解決策:**
+
+```lean
+-- ❌ 型エラーの例
+have h : HasDerivAt f (2*x) x := sorry  -- xが束縛されていない
+
+-- ✅ 正しい型指定
+example (x : ℝ) : HasDerivAt (fun t ↦ t^2) (2*x) x := by
+  simp [hasDerivAt_pow]
+
+-- ✅ 明示的な型パラメータ
+example (f : ℝ → ℝ) (f' x : ℝ) : HasDerivAt f f' x ↔ 
+    Tendsto (fun h ↦ (f (x + h) - f x) / h) (𝓝[≠] 0) (𝓝 f') :=
+  hasDerivAt_iff_tendsto_slope
+```
+
+### **🚨 問題3: Mathlib API の正確な使用法の把握不足**
+
+**主要APIの正しい理解:**
+
+**1. 微分可能性の階層:**
+```lean
+DifferentiableAt ℝ f x      -- 微分可能
+  ↕ (iff)
+∃ f', HasDerivAt f f' x     -- 導関数が存在
+  ↕ (deriv)  
+deriv f x                   -- 導関数値（存在しなければ0）
+```
+
+**2. 重要な定理の正しい適用:**
+- **積の公式**: `deriv_mul (hf : DifferentiableAt ℝ f x) (hg : DifferentiableAt ℝ g x)`
+- **合成の公式**: `HasDerivAt.comp`
+- **基本関数**: `hasDerivAt_pow`, `hasDerivAt_sin`, `deriv_exp`
+
+### **💡 実用的な解決パターン**
+
+**パターン1: 型推論エラー対策**
+```lean
+-- 明示的な型注釈を使用
+have f : ℝ → ℝ := fun t ↦ t^2
+have hf : DifferentiableAt ℝ f x := differentiableAt_pow
+```
+
+**パターン2: `simp`タクティクの活用**
+```lean
+example (x : ℝ) : deriv (fun t ↦ t^3 + 2*t^2 + t + 1) x = 3*x^2 + 4*x + 1 := by
+  simp [deriv_add, deriv_const_mul, deriv_pow, deriv_const]
+```
+
+**パターン3: 段階的な証明**
+```lean
+-- 複雑な合成関数は段階的に処理
+rw [deriv_comp]
+· -- 内側の関数の微分可能性
+· -- 外側の関数の微分可能性  
+```
+
+### **🔧 エラーメッセージ別対処法**
+
+| エラーメッセージ | 対処法 |
+|------------------|--------|
+| `failed to synthesize instance` | 必要なtypeclassインスタンスを明示 |
+| `type mismatch` | 型注釈を追加、引数の型を確認 |
+| `application type mismatch` | 関数適用の引数順序と型を確認 |
+| `pattern matching failed` | 引数の条件（微分可能性など）を確認 |
+
+### **🎯 ベストプラクティス**
+
+**1. 事前準備:**
+- 微分可能性の証明を先に行う
+- 必要な型クラスインスタンスを確認
+- 定義域の制約を明確化
+
+**2. デバッグ手法:**
+- `#check` でAPI の型シグネチャを確認
+- `#synth` で型クラスインスタンスの存在確認
+- 段階的な型注釈の追加
+
+**3. 効率的な実装:**
+```lean
+-- 再利用可能な補題の定義
+lemma my_deriv_lemma (x : ℝ) : deriv (fun t ↦ t^2 * Real.sin t) x = 
+  2*x * Real.sin x + x^2 * Real.cos x := by simp [deriv_mul, deriv_pow, deriv_sin]
+```
+
+### **🔗 重要なインポート**
+
+```lean
+import Mathlib.Analysis.Calculus.Deriv.Basic    -- 基本定義
+import Mathlib.Analysis.Calculus.Deriv.Mul     -- 積の微分
+import Mathlib.Analysis.Calculus.FDeriv.Basic  -- Fréchet微分との関係
+```
+
+### **📈 高度なテクニック**
+
+**条件付き微分:**
+```lean
+-- 集合上での微分可能性
+DifferentiableWithinAt ℝ f s x
+HasDerivWithinAt f f' s x
+```
+
+**高階微分:**
+```lean
+iteratedDeriv n f x  -- n階導関数
+```
+
+このガイドに従うことで、Mathlib 4の微分APIに関する主要な問題を体系的に解決できます。特に型推論の問題を理解し、適切な前提条件を設定することが重要です。
+
+何か具体的なエラーケースや特定の関数の微分についてご質問がありましたら、お気軽にお聞かせください！

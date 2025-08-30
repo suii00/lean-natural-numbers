@@ -1,0 +1,287 @@
+-- Mathlib 4における指数関数の微分と連鎖律（deriv.comp）
+-- 学習目標: 指数関数でderiv.compによる連鎖律適用をマスターする
+
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.Deriv.Comp
+import Mathlib.Analysis.SpecialFunctions.Exp.Basic
+import Mathlib.Analysis.SpecialFunctions.Exp.Deriv
+
+/-!
+# 指数関数の微分と連鎖律 - 完全学習ガイド
+
+## 1. 基本的な指数関数の微分
+
+### Real.expの微分
+Mathlib 4では、Real.exp（自然指数関数 e^x）の微分が基本として定義されています。
+-/
+
+-- 基本定理: e^x の微分は e^x 自身
+example (x : ℝ) : deriv Real.exp x = Real.exp x := by
+  exact deriv_exp x
+
+-- HasDerivAtを使った表現
+example (x : ℝ) : HasDerivAt Real.exp (Real.exp x) x := by
+  exact hasDerivAt_exp x
+
+/-!
+## 2. 連鎖律（Chain Rule）の基本概念
+
+### deriv.compの基本形
+`deriv.comp`は合成関数の微分を計算するための主要なツールです。
+-/
+
+-- 連鎖律の基本定理
+theorem chain_rule_basic {f g : ℝ → ℝ} {x : ℝ} 
+  (hf : DifferentiableAt ℝ f (g x)) (hg : DifferentiableAt ℝ g x) :
+  deriv (f ∘ g) x = deriv f (g x) * deriv g x := by
+  exact deriv.comp hf hg
+
+/-!
+## 3. 指数関数での連鎖律の実践例
+
+### 例1: e^(2x) の微分
+最も基本的な例から始めましょう。
+-/
+
+-- e^(2x) の微分を計算
+example (x : ℝ) : deriv (fun x => Real.exp (2 * x)) x = 2 * Real.exp (2 * x) := by
+  -- 内側関数 g(x) = 2x, 外側関数 f(u) = e^u として考える
+  have h1 : DifferentiableAt ℝ Real.exp (2 * x) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => 2 * x) x := differentiableAt_id.const_mul 2
+  
+  -- 連鎖律を適用
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_const_mul]
+
+-- より一般的な形: e^(ax + b)
+theorem deriv_exp_linear (a b : ℝ) (x : ℝ) :
+  deriv (fun x => Real.exp (a * x + b)) x = a * Real.exp (a * x + b) := by
+  have h1 : DifferentiableAt ℝ Real.exp (a * x + b) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => a * x + b) x := by
+    exact (differentiableAt_id.const_mul a).add_const b
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_add, deriv_const_mul, deriv_const]
+  ring
+
+/-!
+### 例2: e^(x²) の微分
+2次関数を指数に持つ場合
+-/
+
+example (x : ℝ) : deriv (fun x => Real.exp (x^2)) x = 2 * x * Real.exp (x^2) := by
+  have h1 : DifferentiableAt ℝ Real.exp (x^2) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => x^2) x := differentiableAt_pow
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_pow]
+  ring
+
+-- より一般的な多項式の場合
+theorem deriv_exp_polynomial {n : ℕ} (x : ℝ) :
+  deriv (fun x => Real.exp (x^n)) x = (n : ℝ) * x^(n-1) * Real.exp (x^n) := by
+  have h1 : DifferentiableAt ℝ Real.exp (x^n) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => x^n) x := differentiableAt_pow
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_pow]
+  ring
+
+/-!
+### 例3: e^(sin x) の微分
+三角関数との合成
+-/
+
+example (x : ℝ) : deriv (fun x => Real.exp (Real.sin x)) x = 
+  Real.cos x * Real.exp (Real.sin x) := by
+  have h1 : DifferentiableAt ℝ Real.exp (Real.sin x) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ Real.sin x := differentiableAt_sin
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_sin]
+
+/-!
+## 4. 複雑な合成関数の例
+
+### 例4: e^(e^x) の微分（二重合成）
+-/
+
+example (x : ℝ) : deriv (fun x => Real.exp (Real.exp x)) x = 
+  Real.exp x * Real.exp (Real.exp x) := by
+  have h1 : DifferentiableAt ℝ Real.exp (Real.exp x) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ Real.exp x := differentiableAt_exp
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp]
+
+-- 三重合成の例: e^(e^(e^x))
+example (x : ℝ) : deriv (fun x => Real.exp (Real.exp (Real.exp x))) x = 
+  Real.exp x * Real.exp (Real.exp x) * Real.exp (Real.exp (Real.exp x)) := by
+  -- 段階的に連鎖律を適用
+  have outer : DifferentiableAt ℝ Real.exp (Real.exp (Real.exp x)) := differentiableAt_exp
+  have middle : DifferentiableAt ℝ (fun x => Real.exp (Real.exp x)) x := by
+    exact differentiableAt_exp.comp differentiableAt_exp
+  
+  rw [deriv.comp outer middle]
+  simp [deriv_exp]
+  
+  -- 内側の微分も同様に計算
+  have h1 : DifferentiableAt ℝ Real.exp (Real.exp x) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ Real.exp x := differentiableAt_exp
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp]
+  ring
+
+/-!
+## 5. HasDerivAtを使った証明パターン
+
+### より厳密な証明手法
+-/
+
+-- HasDerivAtを使った e^(f(x)) の微分公式
+theorem hasDerivAt_exp_comp {f : ℝ → ℝ} {x f' : ℝ} 
+  (hf : HasDerivAt f f' x) :
+  HasDerivAt (fun x => Real.exp (f x)) (f' * Real.exp (f x)) x := by
+  exact (hasDerivAt_exp (f x)).comp x hf
+
+-- 具体例での使用
+example (x : ℝ) : HasDerivAt (fun x => Real.exp (3 * x^2 + 2 * x + 1)) 
+  ((6 * x + 2) * Real.exp (3 * x^2 + 2 * x + 1)) x := by
+  apply hasDerivAt_exp_comp
+  
+  -- 内側関数の微分を証明
+  have : HasDerivAt (fun x => 3 * x^2 + 2 * x + 1) (6 * x + 2) x := by
+    exact ((hasDerivAt_pow 2 x).const_mul 3).add ((hasDerivAt_id x).const_mul 2).add_const 1
+  
+  exact this
+
+/-!
+## 6. 実用的なタクティク活用法
+
+### simpとringの活用
+-/
+
+-- 自動化された証明
+example (a b c : ℝ) (x : ℝ) : 
+  deriv (fun x => Real.exp (a * x^2 + b * x + c)) x = 
+  (2 * a * x + b) * Real.exp (a * x^2 + b * x + c) := by
+  -- differentiabilityを自動で証明
+  have h1 : DifferentiableAt ℝ Real.exp (a * x^2 + b * x + c) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => a * x^2 + b * x + c) x := by simp [differentiableAt_pow]
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_add, deriv_const_mul, deriv_pow, deriv_const]
+  ring
+
+/-!
+## 7. エラーハンドリングと注意点
+
+### よくある間違いと対処法
+-/
+
+-- 間違い1: differentiabilityの証明を忘れる
+example (x : ℝ) : deriv (fun x => Real.exp (x^2)) x = 2 * x * Real.exp (x^2) := by
+  -- これらの証明が必要
+  have h1 : DifferentiableAt ℝ Real.exp (x^2) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => x^2) x := differentiableAt_pow
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp, deriv_pow]
+  ring
+
+-- 間違い2: 合成の順序を間違える
+-- f(g(x))の場合、外側がf、内側がgであることに注意
+
+/-!
+## 8. 高度な応用例
+
+### 対数と指数の合成
+-/
+
+-- e^(log x) の微分 (x > 0)
+example {x : ℝ} (hx : 0 < x) : 
+  deriv (fun x => Real.exp (Real.log x)) x = 1 := by
+  -- log と exp は逆関数なので e^(log x) = x
+  have : ∀ y > 0, Real.exp (Real.log y) = y := Real.exp_log
+  
+  -- 関数の等式を使って簡単に証明
+  simp [this hx, deriv_id'']
+
+-- より複雑な例: e^(x * log x) (x > 0)
+example {x : ℝ} (hx : 0 < x) : 
+  deriv (fun x => Real.exp (x * Real.log x)) x = 
+  (Real.log x + 1) * Real.exp (x * Real.log x) := by
+  have h1 : DifferentiableAt ℝ Real.exp (x * Real.log x) := differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => x * Real.log x) x := by
+    exact (differentiableAt_id.mul (differentiableAt_log hx.ne'))
+  
+  rw [deriv.comp h1 h2]
+  simp [deriv_exp]
+  
+  -- x * log(x) の微分
+  rw [deriv_mul differentiableAt_id (differentiableAt_log hx.ne')]
+  simp [deriv_id'', deriv_log hx.ne']
+  ring
+
+/-!
+## 9. 学習チェックポイント
+
+### 自己確認用の演習問題
+-/
+
+-- 演習1: e^(-x²) の微分
+theorem exercise1 (x : ℝ) : 
+  deriv (fun x => Real.exp (-x^2)) x = -2 * x * Real.exp (-x^2) := by
+  sorry -- 練習用
+
+-- 演習2: e^(sin(2x)) の微分
+theorem exercise2 (x : ℝ) : 
+  deriv (fun x => Real.exp (Real.sin (2 * x))) x = 
+  2 * Real.cos (2 * x) * Real.exp (Real.sin (2 * x)) := by
+  sorry -- 練習用
+
+-- 演習3: x * e^x の微分（積の法則と連鎖律の組み合わせ）
+theorem exercise3 (x : ℝ) : 
+  deriv (fun x => x * Real.exp x) x = (1 + x) * Real.exp x := by
+  sorry -- 練習用
+
+/-!
+## 10. 実践的なタクティク戦略
+
+### 効率的な証明パターン
+-/
+
+-- パターン1: simp_rw での一括処理
+example (x : ℝ) : deriv (fun x => Real.exp (2 * x + 1)) x = 2 * Real.exp (2 * x + 1) := by
+  simp_rw [deriv.comp differentiableAt_exp ((differentiableAt_id.const_mul 2).add_const 1)]
+  simp [deriv_exp, deriv_add, deriv_const_mul, deriv_const]
+
+-- パターン2: have文での段階的証明
+example (x : ℝ) : deriv (fun x => Real.exp (x^3)) x = 3 * x^2 * Real.exp (x^3) := by
+  have outer_diff : DifferentiableAt ℝ Real.exp (x^3) := differentiableAt_exp
+  have inner_diff : DifferentiableAt ℝ (fun x => x^3) x := differentiableAt_pow
+  have inner_deriv : deriv (fun x => x^3) x = 3 * x^2 := by simp [deriv_pow]
+  
+  rw [deriv.comp outer_diff inner_diff, deriv_exp, inner_deriv]
+  ring
+
+/-!
+## 学習のポイント
+
+### 重要な学習目標の達成確認
+
+1. **基本理解**: e^x の微分が e^x であることを理解できているか
+2. **連鎖律の概念**: deriv.comp の使用方法を理解できているか  
+3. **differentiabilityの証明**: 必要な可微分性の条件を証明できているか
+4. **実用的な計算**: 複雑な合成関数でも体系的に微分できるか
+5. **タクティクの使い分け**: simp, ring, rw等を効果的に使えるか
+
+### 次のステップ
+- 積分との関係（Fundamental Theorem of Calculus）
+- 多変数関数での偏微分
+- より高次の微分
+- 微分方程式への応用
+
+これらのスキルをマスターすることで、Lean 4での解析学的計算が大幅に向上します。
+-/

@@ -1,0 +1,50 @@
+🎯 残りTODO解決に必要なMathlib API
+
+  TODO 1: 近傍内での微分可能性拡張
+
+  Priority: Medium問題: DifferentiableAt ℝ f t から ∀ s ∈ neighborhood, DifferentiableAt ℝ f s へ拡張
+
+  必要なAPI:
+  1. 連続性に関する定理
+    - DifferentiableAt.continuousAt : 微分可能性から連続性
+    - ContinuousAt.continuousOn : 点での連続性から近傍での連続性
+  2. 微分可能性の拡張
+    - differentiableOn_of_continuousAt のような定理
+    - または differentiableAt_of_not_false 系の補題
+
+  調べてほしいAPI:
+  - Mathlib.Analysis.Calculus.Deriv.Basic から DifferentiableAt の近傍拡張補題
+  - Mathlib.Topology.Continuity.Basic から連続性に関する近傍定理
+
+  TODO 2: 平均値定理による単射性証明
+
+  Priority: High問題: deriv f t ≠ 0 と平均値定理から Set.InjOn f neighborhood を導出
+
+  必要なAPI:
+  1. 平均値定理
+    - exists_hasDerivAt_eq_slope : 平均値定理の基本形
+    - exists_deriv_eq : 導関数版の平均値定理
+  2. 単射性の証明パターン
+    - InjOn.intro : 単射性の構成的証明
+    - eq_of_deriv_ne_zero のような補題
+
+  調べてほしいAPI:
+  - Mathlib.Analysis.Calculus.MeanValue から平均値定理の変形
+  - Mathlib.Data.Set.Function から InjOn の構成的証明補題
+
+  具体的な調査リクエスト:
+
+  1. 微分可能性の拡張について:
+  -- この形の定理が存在するか調査
+  theorem differentiableAt_of_neighborhood (f : ℝ → ℝ) (t : ℝ)
+    (hf : DifferentiableAt ℝ f t) :
+    ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f s
+
+  2. 平均値定理の単射性応用について:
+  -- この形の定理が存在するか調査
+  theorem injOn_of_deriv_ne_zero (f : ℝ → ℝ) (s : Set ℝ)
+    (hf : ∀ x ∈ s, HasDerivAt f (deriv f x) x)
+    (h_deriv : ∀ x ∈ s, deriv f x ≠ 0) :
+    Set.InjOn f s
+
+  これらのAPI、または類似の定理を見つけていただければ、完全な構成的証明が可能になります！

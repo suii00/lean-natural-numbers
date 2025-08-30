@@ -1,0 +1,239 @@
+-- 14個のsorry解決戦略 - Mathlib 4 API活用ガイド
+-- 優先度別実装戦略と必要API
+
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.FDeriv.Basic
+import Mathlib.Topology.ContinuousOn
+import Mathlib.Analysis.Calculus.MeanValue
+
+/-!
+# Phase A: 🔴 高優先度 (2個) - 導関数連続性API
+
+Lines 218, 313: hf から導関数の連続性を導出
+必要API: DifferentiableAt ℝ f t → ContinuousAt (deriv f) t
+-/
+
+-- 解決戦略: Mathlib 4の既存APIを活用
+theorem differentiableAt_to_continuousAt_deriv {f : ℝ → ℝ} {t : ℝ}
+  (hf : DifferentiableAt ℝ f t) :
+  ContinuousAt (deriv f) t := by
+  -- 実装方法1: 直接的API検索
+  -- exact DifferentiableAt.continuousAt_deriv hf  -- 候補API
+  
+  -- 実装方法2: 合成による構築
+  have h1 : HasDerivAt f (deriv f t) t := by
+    exact DifferentiableAt.hasDerivAt hf
+  -- h1から連続性を導出
+  sorry -- TODO: HasDerivAtから連続性への標準的変換を使用
+
+-- 検索すべきMathlib API候補:
+#check DifferentiableAt.continuousAt_deriv -- 理想的なAPI
+#check HasDerivAt.continuousAt -- 代替API
+#check ContinuousAt.comp_of_continuousAt -- 合成規則
+
+/-!
+# Phase B: 🟡 中優先度 (7個) - 核心API発見
+
+## B1: ContinuousAt → eventually DifferentiableAt (4個)
+Lines 71, 151, 188, 286
+
+核心定理: ContinuousAt (deriv f) t → ∀ᶠ z in nhds t, DifferentiableAt ℝ f z
+-/
+
+theorem continuousAt_deriv_to_eventually_differentiableAt {f : ℝ → ℝ} {t : ℝ}
+  (h_cont : ContinuousAt (deriv f) t)
+  (h_diff_at_t : DifferentiableAt ℝ f t) : -- 追加仮定が必要
+  ∀ᶠ z in nhds t, DifferentiableAt ℝ f z := by
+  -- 実装戦略1: 連続性と微分可能性の局所性を活用
+  
+  -- Step 1: 導関数の連続性から近傍での有界性
+  obtain ⟨δ, hδ_pos, hδ_bound⟩ := 
+    Metric.continuousAt_iff.mp h_cont 1 zero_lt_one
+  
+  -- Step 2: 平均値定理による微分可能性拡張
+  have key_lemma : ∀ z ∈ Metric.ball t δ, 
+    ∃ c ∈ Set.Ioo (min t z) (max t z), 
+    HasDerivAt f (deriv f c) c := by
+      intro z hz
+      -- 平均値定理の適用
+      sorry -- TODO: 区間での平均値定理
+  
+  -- Step 3: 近傍での微分可能性
+  rw [eventually_nhds_iff]
+  use Metric.ball t (δ / 2)
+  constructor
+  · exact Metric.isOpen_ball
+  constructor  
+  · exact Metric.mem_ball_self (by linarith [hδ_pos])
+  · intro z hz
+    -- key_lemmaから微分可能性を導出
+    sorry -- TODO: HasDerivAtから DifferentiableAt
+
+-- 検索すべきAPI:
+#check eventually_of_continuousAt
+#check Metric.continuousAt_iff
+#check exists_hasDerivAt_eq_slope -- 平均値定理
+#check HasDerivAt.differentiableAt
+
+/-!
+## B2: ContinuousAt の近傍拡張 (3個)
+Lines 146, 183, 281
+
+定理: ContinuousAt (deriv f) t → ContinuousAt (deriv f) z (z が近傍内)
+-/
+
+theorem continuousAt_nhd_extension {f : ℝ → ℝ} {t z : ℝ}
+  (h_cont : ContinuousAt (deriv f) t)
+  (h_close : z ∈ Set.Ioo (t - 1) (t + 1))
+  (h_diff_on : DifferentiableOn ℝ f (Set.Ioo (t - 1) (t + 1))) :
+  ContinuousAt (deriv f) z := by
+  -- 実装戦略: 微分の連続性の局所性定理
+  
+  -- Step 1: 区間での微分可能性から連続性
+  have h1 : ∀ x ∈ Set.Ioo (t - 1) (t + 1), DifferentiableAt ℝ f x := by
+    intro x hx
+    exact DifferentiableOn.differentiableAt h_diff_on 
+      (Set.isOpen_Ioo.mem_nhds hx)
+  
+  -- Step 2: C¹関数の性質を活用
+  have h2 : ContinuousOn (deriv f) (Set.Ioo (t - 1) (t + 1)) := by
+    -- 各点での微分可能性から区間での連続性
+    sorry -- TODO: DifferentiableOn → ContinuousOn (deriv f)
+  
+  -- Step 3: ContinuousOnからContinuousAtへ
+  exact ContinuousOn.continuousAt h2 (Set.isOpen_Ioo.mem_nhds h_close)
+
+-- 検索すべきAPI:
+#check DifferentiableOn.continuousOn_deriv
+#check ContinuousOn.continuousAt
+#check DifferentiableAt.continuousAt_deriv
+
+/-!
+# Phase C: 🟢 低優先度 (5個) - 技術的詳細
+
+## C1: δ-近傍技術 (4個)
+Lines 98, 241, 257, 334
+-/
+
+-- Line 98: δ < 1 の場合の処理
+theorem delta_bound_technique {f : ℝ → ℝ} {t δ : ℝ} 
+  (hδ_pos : 0 < δ) (hδ_small : δ < 1) :
+  Set.Ioo (t - δ) (t + δ) ⊆ Set.Ioo (t - 1) (t + 1) := by
+  -- 基本的な集合包含
+  intro x hx
+  constructor
+  · linarith [hx.1, hδ_small]
+  · linarith [hx.2, hδ_small]
+
+-- Lines 241, 334: δ-近傍の構成
+theorem delta_neighborhood_construction {f : ℝ → ℝ} {t : ℝ}
+  (h_cont : ContinuousAt (deriv f) t) :
+  ∃ δ > 0, ∀ z ∈ Set.Ioo (t - δ) (t + δ), 
+    ContinuousAt (deriv f) z := by
+  -- 連続性の均等性を活用
+  obtain ⟨δ₁, hδ₁_pos, hδ₁⟩ := 
+    Metric.continuousAt_iff.mp h_cont (1/2) (by norm_num)
+  
+  use min δ₁ (1/2)
+  constructor
+  · exact lt_min hδ₁_pos (by norm_num)
+  · intro z hz
+    -- 近傍での連続性拡張
+    sorry -- TODO: 前述のcontinuousAt_nhd_extensionを適用
+
+-- Line 257: Case 1 と同じ近傍内微分可能性
+theorem case1_neighborhood_differentiable {f : ℝ → ℝ} {t z : ℝ}
+  (h_same_nhd : z ∈ Set.Ioo (t - 1) (t + 1))
+  (h_case1 : DifferentiableAt ℝ f t ∧ ContinuousAt (deriv f) t) :
+  ∀ᶠ w in nhds z, DifferentiableAt ℝ f w := by
+  -- Case 1の結果を同じ近傍内の点に適用
+  have h_diff_z : DifferentiableAt ℝ f z := by
+    -- h_same_nhdと連続性から導出
+    sorry -- TODO: continuousAt_deriv_to_eventually_differentiableAtを活用
+  
+  -- zでの微分可能性から近傍での微分可能性
+  sorry -- TODO: 微分可能性の連続性
+
+/-!
+## C2: より弱い仮定 (1個)
+Line 64: より弱い仮定からの導出
+-/
+
+theorem weaker_assumption_derivation {f : ℝ → ℝ} {t : ℝ}
+  (h_weak : ∃ᶠ z in nhds t, DifferentiableAt ℝ f z) :
+  -- より強い条件への拡張
+  ∃ δ > 0, DifferentiableOn ℝ f (Set.Ioo (t - δ) (t + δ)) := by
+  -- frequently から eventually への変換
+  rw [Filter.frequently_iff] at h_weak
+  push_neg at h_weak
+  
+  -- 近傍での微分可能性の密度から連続性
+  obtain ⟨δ, hδ_pos, hδ_dense⟩ := 
+    dense_differentiable_points_lemma h_weak
+  
+  use δ, hδ_pos
+  -- 密度から区間での微分可能性
+  sorry -- TODO: 密度引数による微分可能性拡張
+
+-- 補助補題: 微分可能点の密度
+lemma dense_differentiable_points_lemma {f : ℝ → ℝ} {t : ℝ}
+  (h : ∀ U ∈ nhds t, (U ∩ {z | ¬DifferentiableAt ℝ f z}).Nonempty → False) :
+  ∃ δ > 0, ∀ z ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f z := by
+  sorry -- TODO: トポロジー的議論
+
+/-!
+# 実装優先順位と戦略
+
+## Phase A実装 (即時実行):
+1. `differentiableAt_to_continuousAt_deriv` の実装
+   - 検索API: `DifferentiableAt.continuousAt_deriv`
+   - 代替案: `HasDerivAt.continuousAt`を使用
+
+## Phase B実装 (核心開発):
+1. `continuousAt_deriv_to_eventually_differentiableAt`
+   - 平均値定理を活用
+   - 検索API: `exists_hasDerivAt_eq_slope`
+
+2. `continuousAt_nhd_extension`
+   - C¹関数の局所性を活用
+   - 検索API: `DifferentiableOn.continuousOn_deriv`
+
+## Phase C実装 (最終調整):
+1. 基本的な集合論・位相論的性質
+2. より技術的な近傍構成
+
+# 必要なMathlib API調査リスト
+
+最優先調査対象:
+1. `DifferentiableAt.continuousAt_deriv`
+2. `DifferentiableOn.continuousOn_deriv` 
+3. `exists_hasDerivAt_eq_slope`
+4. `HasDerivAt.continuousAt`
+5. `ContinuousOn.continuousAt`
+
+次優先調査対象:
+6. `eventually_of_continuousAt`
+7. `Metric.continuousAt_iff`
+8. `Filter.frequently_iff`
+9. `DifferentiableAt.hasDerivAt`
+10. `HasDerivAt.differentiableAt`
+
+# 検索コマンド例
+
+```bash
+# Mathlib 4 ドキュメントでの検索
+grep -r "continuousAt.*deriv" Mathlib/Analysis/Calculus/
+grep -r "DifferentiableAt.*continuousAt" Mathlib/Analysis/Calculus/
+grep -r "eventually.*DifferentiableAt" Mathlib/Analysis/Calculus/
+```
+
+# API発見の代替戦略
+
+存在しないAPIに対する構築方法:
+1. より基本的な定理の合成
+2. 特殊化からの一般化
+3. 双対性の活用
+4. 近似による構築
+
+この戦略により、14個のsorryを段階的に解決できます。
+-/

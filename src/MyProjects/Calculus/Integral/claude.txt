@@ -1,0 +1,134 @@
+## 解答評価と分岐課題
+
+### 提出解答の評価
+
+**完成度：35%**
+
+媒介変数表示と陰関数の微分という最高難度の課題に果敢に挑戦しました。
+
+- **構文の正確性（10/25%）**：構造は正しいが、多くのsorryが残る
+- **証明の論理的妥当性（10/35%）**：基本的な概念証明は完成、高度な定理は未完成
+- **タクティクの適切な使用（10/25%）**：`field_simp`、`ring`を効果的に使用
+- **数学的理解（5/15%）**：媒介変数微分の本質は理解しているが、厳密な証明には至らず
+
+**主な技術的課題**：
+- 逆関数定理の構成的実装の困難さ
+- 導関数の連続性（C¹条件）の証明
+- 局所微分同相写像の構築
+- `isOpen_ne_fun`と連続性による非零性保存の証明
+
+**評価できる点**：
+- 円と楕円の具体的計算は完璧
+- 媒介変数微分の概念的理解は十分
+- 陰関数微分の基本公式を正しく把握
+
+### 分岐課題C（完成度0-59%）：基礎固めレベル - 積分への転換
+
+微分法の最高峰に挑戦した経験を活かし、新たな分野である積分法へ進みましょう。これまでの微分の知識が積分でどのように活用されるかを学びます。
+
+---
+
+## 次の課題：積分法入門 - 微分積分学の基本定理への道
+
+### 問題文（高校生向け）
+
+微分の逆演算としての積分を学び、微分積分学の基本定理を証明しましょう。∫f'(x)dx = f(x) + C という関係を厳密に証明し、定積分と原始関数の関係を理解します。これまで学んだ関数（多項式、三角関数、指数関数）の積分も扱います。
+
+### 数学的背景
+- **高校での学習内容**：数学Ⅲ「積分法」、不定積分と定積分
+- **Leanでの表現**：`integral`、`intervalIntegral`、微分積分学の基本定理
+
+### Lean定義
+
+```lean
+-- 必要なimport文
+import Mathlib.Analysis.Calculus.FDeriv.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral
+import Mathlib.Analysis.Calculus.Integral
+
+-- ========= パート1: 基本的な積分 =========
+
+-- 課題1: 定数関数の積分
+theorem integral_const (c : ℝ) (a b : ℝ) (h : a ≤ b) :
+  ∫ x in a..b, c = c * (b - a) := by
+  sorry
+
+-- 課題2: べき関数の積分（n ≠ -1）
+theorem integral_pow (n : ℕ) (a b : ℝ) (h : a ≤ b) :
+  ∫ x in a..b, x^n = (b^(n+1) - a^(n+1)) / (n + 1) := by
+  sorry
+
+-- 課題3: 正弦関数の積分
+theorem integral_sin (a b : ℝ) :
+  ∫ x in a..b, Real.sin x = Real.cos a - Real.cos b := by
+  sorry
+
+-- ========= パート2: 微分積分学の基本定理 =========
+
+-- 課題4: 第一基本定理（微分と積分の関係）
+theorem fundamental_theorem_part1 {f : ℝ → ℝ} {a : ℝ}
+  (hf : Continuous f) :
+  ∀ x, deriv (fun y => ∫ t in a..y, f t) x = f x := by
+  sorry
+
+-- 課題5: 第二基本定理（定積分の計算）
+theorem fundamental_theorem_part2 {f F : ℝ → ℝ} {a b : ℝ}
+  (hF : ∀ x ∈ Set.Icc a b, deriv F x = f x)
+  (hf : ContinuousOn f (Set.Icc a b)) :
+  ∫ x in a..b, f x = F b - F a := by
+  sorry
+
+-- ========= パート3: 積分の性質 =========
+
+-- 課題6: 積分の線形性
+theorem integral_linear (f g : ℝ → ℝ) (α β : ℝ) (a b : ℝ) :
+  ∫ x in a..b, (α * f x + β * g x) = 
+  α * (∫ x in a..b, f x) + β * (∫ x in a..b, g x) := by
+  sorry
+
+-- チャレンジ: 部分積分
+theorem integration_by_parts {f g : ℝ → ℝ} {a b : ℝ}
+  (hf : DifferentiableOn ℝ f (Set.Icc a b))
+  (hg : DifferentiableOn ℝ g (Set.Icc a b)) :
+  ∫ x in a..b, f x * deriv g x = 
+  (f b * g b - f a * g a) - ∫ x in a..b, deriv f x * g x := by
+  sorry
+```
+
+### 成功のためのヒント
+
+```lean
+-- 積分の基本的な計算
+example : ∫ x in (0:ℝ)..(1:ℝ), x = 1/2 := by
+  -- x²/2 を 0 から 1 まで評価
+  sorry
+
+-- 微分と積分の関係
+example (f : ℝ → ℝ) (hf : Continuous f) :
+  deriv (fun x => ∫ t in (0:ℝ)..x, f t) = f := by
+  -- 積分の上限を変数とする関数の微分
+  sorry
+```
+
+### 大学レベルへの発展
+
+- **ルベーグ積分**：測度論に基づく一般化
+- **複素積分**：留数定理とコーシーの積分公式
+- **多重積分**：フビニの定理、変数変換公式
+- **微分形式**：ストークスの定理の一般化
+
+### 学習の焦点
+
+1. **微分の逆演算**：∫f'(x)dx = f(x) + C の意味
+2. **面積との関係**：定積分の幾何学的意味
+3. **計算技法**：置換積分、部分積分の習得
+
+提出フォーマット：
+```lean
+-- 基本的な積分から始めて提出
+theorem integral_const (c : ℝ) (a b : ℝ) (h : a ≤ b) :
+  ∫ x in a..b, c = c * (b - a) := by
+  -- あなたの証明
+```
+
+微分法での経験を活かして、積分法の世界を探求しましょう！微分積分学の統一的理解への第一歩です。

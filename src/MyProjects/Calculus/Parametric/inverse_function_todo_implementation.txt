@@ -1,0 +1,224 @@
+-- 逆関数定理 TODO実装指針と解決策
+-- 調査結果に基づく具体的な実装戦略
+
+import Mathlib.Analysis.Calculus.FDeriv.Analytic
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.MeanValue
+import Mathlib.Topology.Basic
+
+/-!
+# 🔴 Priority Medium: 核心的API統合 (3件)
+
+## TODO 1: 条件2 - 近傍内微分可能性の基盤実装
+
+**調査結果:** `HasFPowerSeriesAt.eventually_differentiableAt` が有望
+-/
+
+-- 🎯 解決策1: 解析的関数の場合
+theorem differentiableAt_nhd_of_analyticAt {f : ℝ → ℝ} {t : ℝ} 
+  (h_analytic : AnalyticAt ℝ f t) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f s := by
+  -- 解析的関数は近傍で微分可能
+  have h_diff_at := h_analytic.differentiableAt
+  have h_event := h_analytic.eventually_differentiableAt
+  rw [eventually_nhds_iff] at h_event
+  obtain ⟨U, hU_open, ht_mem, hU_diff⟩ := h_event
+  obtain ⟨δ, hδ_pos, hδ_sub⟩ := Metric.isOpen_iff.mp hU_open t ht_mem
+  use δ, hδ_pos
+  intros s hs
+  apply hU_diff
+  exact hδ_sub (Set.mem_of_mem_Ioo hs)
+
+-- 🎯 解決策2: 一般的な微分可能性の場合（より実用的）
+theorem differentiableAt_nhd_of_differentiableAt {f : ℝ → ℝ} {t : ℝ} 
+  (h_diff : DifferentiableAt ℝ f t) 
+  (h_cont_deriv : ContinuousAt (deriv f) t) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f s := by
+  -- 導関数が連続なら近傍で微分可能
+  -- これは微分の基本定理の結果
+  sorry -- 実装要: 連続導関数 → 近傍微分可能性
+
+-- 🎯 解決策3: より弱い条件での実装
+theorem differentiableAt_nhd_of_differentiableAt_weak {f : ℝ → ℝ} {t : ℝ} 
+  (h_diff : DifferentiableAt ℝ f t) : 
+  ∀ᶠ s in 𝓝 t, DifferentiableAt ℝ f s := by
+  -- 実際にはこれで十分かもしれない（最初の実装として）
+  sorry -- 実装要: 基本的な近傍微分可能性
+
+/-!
+## TODO 2 & 3: 連続性による非零性保存
+
+**調査結果:** 基本的な位相の性質を使用
+-/
+
+-- 🎯 解決策4: 連続関数の非零性保存（核心定理）
+theorem continuousAt_ne_of_ne {f : ℝ → ℝ} {t : ℝ} {v : ℝ} 
+  (h_cont : ContinuousAt f t) (h_ne : f t ≠ v) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), f s ≠ v := by
+  -- 連続性の定義から直接導出
+  have h_open : IsOpen {x | f x ≠ v} := isOpen_ne_fun
+  rw [isOpen_iff_mem_nhds] at h_open
+  have h_mem : t ∈ {x | f x ≠ v} := h_ne
+  have h_nhds : {x | f x ≠ v} ∈ 𝓝 t := h_open t h_mem
+  rw [mem_nhds_iff] at h_nhds
+  obtain ⟨U, hU_sub, hU_open, ht_mem⟩ := h_nhds
+  obtain ⟨δ, hδ_pos, hδ_sub⟩ := Metric.isOpen_iff.mp hU_open t ht_mem
+  use δ, hδ_pos
+  intros s hs
+  exact hU_sub (hδ_sub (Set.mem_of_mem_Ioo hs))
+
+-- 🎯 解決策5: 導関数への特殊化
+theorem continuousAt_deriv_ne_zero {f : ℝ → ℝ} {t : ℝ} 
+  (h_cont : ContinuousAt (deriv f) t) (h_ne : deriv f t ≠ 0) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), deriv f s ≠ 0 :=
+  continuousAt_ne_of_ne h_cont h_ne
+
+/-!
+# 🟡 Priority Medium: 条件2依存の実装 (2件)
+
+これらは上記の実装完了後に自動解決される
+-/
+
+-- 🎯 解決策6: Case 1用の条件2適用
+theorem case1_h_diff_z_implementation {f : ℝ → ℝ} {t : ℝ} 
+  (h_diff : DifferentiableAt ℝ f t)
+  (h_cont_deriv : ContinuousAt (deriv f) t) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f s :=
+  differentiableAt_nhd_of_differentiableAt h_diff h_cont_deriv
+
+-- 🎯 解決策7: Case 2用の条件2適用 
+theorem case2_h_diff_z_implementation {f : ℝ → ℝ} {t : ℝ} 
+  (h_diff : DifferentiableAt ℝ f t)
+  (h_cont_deriv : ContinuousAt (deriv f) t) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f s :=
+  differentiableAt_nhd_of_differentiableAt h_diff h_cont_deriv
+
+/-!
+# 📊 実装戦略の優先順位と具体的手順
+
+## Phase 1: 基盤API実装 (最高優先度)
+
+### Step 1.1: 連続性による非零性保存
+この定理は比較的簡単で、すぐに実装可能
+```lean
+theorem continuousAt_ne_of_ne := 
+  -- IsOpen {x | f x ≠ v} を使用
+  -- mem_nhds_iff で近傍に変換  
+  -- Metric.isOpen_iff でδ-近傍を取得
+```
+
+### Step 1.2: 微分可能性の近傍拡張
+3つのアプローチがある：
+1. 解析的関数の場合（最も強力）
+2. 連続導関数の場合（実用的）
+3. 弱い条件の場合（最初の実装）
+-/
+
+-- 🎯 推奨実装順序
+namespace InverseFunctionTheorem
+
+-- 1. 最も基本的な非零性保存から開始
+lemma basic_nonzero_preservation {f : ℝ → ℝ} {t : ℝ}
+  (h_cont : ContinuousAt f t) (h_ne : f t ≠ 0) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), f s ≠ 0 :=
+continuousAt_ne_of_ne h_cont h_ne
+
+-- 2. 導関数への特殊化
+lemma deriv_nonzero_preservation {f : ℝ → ℝ} {t : ℝ}
+  (h_cont : ContinuousAt (deriv f) t) (h_ne : deriv f t ≠ 0) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), deriv f s ≠ 0 :=
+basic_nonzero_preservation h_cont h_ne
+
+-- 3. 最も実装しやすい微分可能性拡張
+lemma basic_differentiability_extension {f : ℝ → ℝ} {t : ℝ}
+  (h_diff : DifferentiableAt ℝ f t) : 
+  ∀ᶠ s in 𝓝 t, DifferentiableAt ℝ f s := by
+  -- 実装戦略: 
+  -- 1. h_diff から HasDerivAt を取得
+  -- 2. hasDerivAt の定義から連続性を導出
+  -- 3. 連続性から近傍での微分可能性を証明
+  sorry
+
+-- 4. 区間版への変換
+lemma interval_differentiability_extension {f : ℝ → ℝ} {t : ℝ}
+  (h_diff : DifferentiableAt ℝ f t) : 
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), DifferentiableAt ℝ f s := by
+  have h_eventually := basic_differentiability_extension h_diff
+  rw [eventually_nhds_iff] at h_eventually
+  obtain ⟨U, hU_open, ht_mem, hU_diff⟩ := h_eventually
+  obtain ⟨δ, hδ_pos, hδ_sub⟩ := Metric.isOpen_iff.mp hU_open t ht_mem
+  use δ, hδ_pos
+  intros s hs
+  exact hU_diff (hδ_sub (Set.mem_of_mem_Ioo hs))
+
+end InverseFunctionTheorem
+
+/-!
+# 🔧 実装時の技術的な注意点
+
+## 使用すべきMathlib 4 API
+
+### 基本的な位相論
+- `IsOpen {x | P x}` - 性質Pを満たす点の集合の開集合性
+- `mem_nhds_iff` - 近傍の特徴づけ  
+- `Metric.isOpen_iff` - 距離空間での開集合の特徴づけ
+
+### 微分可能性関連
+- `DifferentiableAt ℝ f t` - 点での微分可能性
+- `ContinuousAt (deriv f) t` - 導関数の連続性
+- `eventually_nhds_iff` - 近傍での最終的成立
+
+### 解析的関数（将来の拡張用）
+- `AnalyticAt ℝ f t` - 解析性
+- `HasFPowerSeriesAt.eventually_differentiableAt` - 冪級数展開から微分可能性
+
+## 証明戦略
+
+### パターン1: 位相的性質の利用
+1. 開集合の性質を使用（`isOpen_ne_fun`など）
+2. 近傍の特徴づけ定理を適用
+3. 距離空間の性質でδ-近傍を構成
+
+### パターン2: 微分の基本性質
+1. `DifferentiableAt`の定義から連続性を導出
+2. 連続性から近傍での一様性を証明
+3. 区間での微分可能性を確立
+
+## エラーハンドリング
+
+### よくある実装エラー
+1. 近傍と区間の混同 - `eventually_nhds`と`Set.Ioo`の変換
+2. 連続性の仮定不足 - 導関数の連続性が必要
+3. δの存在証明 - 具体的な値ではなく存在性のみ
+
+### デバッグ戦略
+1. 段階的な実装 - 最も簡単なケースから開始
+2. テスト用の具体例 - 多項式関数での検証
+3. sorry箇所の優先順位付け - 核心定理を優先
+-/
+
+-- 🎯 完成予想コード（概念実証）
+example (f : ℝ → ℝ) (t : ℝ) 
+  (h_diff : DifferentiableAt ℝ f t)
+  (h_deriv_ne : deriv f t ≠ 0)
+  (h_cont_deriv : ContinuousAt (deriv f) t) :
+  ∃ δ > 0, ∀ s ∈ Set.Ioo (t - δ) (t + δ), 
+    DifferentiableAt ℝ f s ∧ deriv f s ≠ 0 := by
+  -- TODO 1の解決
+  obtain ⟨δ₁, hδ₁_pos, h_diff_nhd⟩ := 
+    InverseFunctionTheorem.interval_differentiability_extension h_diff
+  -- TODO 2&3の解決  
+  obtain ⟨δ₂, hδ₂_pos, h_deriv_ne_nhd⟩ := 
+    InverseFunctionTheorem.deriv_nonzero_preservation h_cont_deriv h_deriv_ne
+  -- 最小のδを選択
+  use min δ₁ δ₂, lt_min hδ₁_pos hδ₂_pos
+  intros s hs
+  have hs₁ : s ∈ Set.Ioo (t - δ₁) (t + δ₁) := by
+    refine ⟨lt_of_lt_of_le hs.1 ?_, lt_of_le_of_lt ?_ hs.2⟩
+    · linarith [min_le_left δ₁ δ₂]
+    · linarith [min_le_left δ₁ δ₂]
+  have hs₂ : s ∈ Set.Ioo (t - δ₂) (t + δ₂) := by
+    refine ⟨lt_of_lt_of_le hs.1 ?_, lt_of_le_of_lt ?_ hs.2⟩
+    · linarith [min_le_right δ₁ δ₂]  
+    · linarith [min_le_right δ₁ δ₂]
+  exact ⟨h_diff_nhd s hs₁, h_deriv_ne_nhd s hs₂⟩

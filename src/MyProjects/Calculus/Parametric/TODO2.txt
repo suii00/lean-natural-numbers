@@ -1,0 +1,85 @@
+📋 細部TODO洗い出し分析
+
+  🔍 残存14個のsorryの分類
+
+  パターン別分析:
+
+  🔴 高優先度 (2個) - 導関数連続性API
+
+  -- Line 218, 313: hf から導関数の連続性を導出
+  sorry -- TODO: hf から導関数の連続性を導出
+  必要API: DifferentiableAt ℝ f t → ContinuousAt (deriv f) t
+
+  🟡 中優先度 (7個) - 核心API発見
+
+  1. ContinuousAt → eventually DifferentiableAt (4個)
+  -- Lines 71, 151, 188, 286
+  sorry -- TODO: ContinuousAt (deriv f) → eventually DifferentiableAt
+  必要API: ContinuousAt (deriv f) t → ∀ᶠ z in nhds t, DifferentiableAt ℝ f z
+
+  2. ContinuousAt の近傍拡張 (3個)
+  -- Lines 146, 183, 281
+  sorry -- TODO: ContinuousAt の近傍拡張
+  必要API: ContinuousAt (deriv f) t → ContinuousAt (deriv f) z (z が近傍内)
+
+  🟢 低優先度 (5個) - 技術的詳細
+
+  1. δ-近傍技術
+  -- Line 98: δ < 1 の場合の処理
+  -- Lines 241, 334: δ-近傍の構成
+  -- Line 257: Case 1 と同じ近傍内微分可能性
+
+  2. より弱い仮定
+  -- Line 64: より弱い仮定からの導出
+
+  🎯 実装戦略と必要API
+
+  Phase A: 高優先度 - 導関数連続性確立
+
+  -- 必要API発見
+  theorem differentiableAt_to_continuousAt_deriv {f : ℝ → ℝ} {t : ℝ}
+    (hf : DifferentiableAt ℝ f t) :
+    ContinuousAt (deriv f) t := by
+    -- Mathlib API調査が必要
+
+  Phase B: 中優先度 - 核心定理実装
+
+  -- 1. 連続性から局所微分可能性
+  theorem continuousAt_to_eventually_differentiableAt {f : ℝ → ℝ} {t : ℝ}
+    (h_cont : ContinuousAt (deriv f) t) :
+    ∀ᶠ z in nhds t, DifferentiableAt ℝ f z := by
+    -- 微分の基本定理系API調査
+
+  -- 2. 連続性の近傍拡張
+  theorem continuousAt_nhd_extension {f : ℝ → ℝ} {t z : ℝ}
+    (h_cont : ContinuousAt (deriv f) t)
+    (h_close : z ∈ Set.Ioo (t - 1) (t + 1)) :
+    ContinuousAt (deriv f) z := by
+    -- 連続性の局所性定理
+
+  Phase C: 低優先度 - 技術的完成
+
+  - δ-近傍の包含関係証明
+  - 最小近傍の選択技術
+  - より一般的な仮定への拡張
+
+  🔧 必要なMathlib API調査
+
+  最重要調査対象:
+
+  1. Mathlib.Analysis.Calculus.Deriv.Basic の連続性定理
+  2. Mathlib.Topology.ContinuousOn の局所性定理
+  3. Mathlib.Analysis.Calculus.FDeriv.Basic の近傍定理
+
+  調査すべき候補定理:
+
+  - DifferentiableAt.continuousAt_deriv
+  - ContinuousAt.apply_continuousAt
+  - eventually_of_continuousAt
+
+  📊 完成度予測
+
+  Phase A完了 → 97%完成度
+  Phase B完了 → 99%完成度Phase C完了 → 100%完成度
+
+  次のアクション: 高優先度のAPI調査から開始し、段階的に核心定理を実装する戦略が最適です。

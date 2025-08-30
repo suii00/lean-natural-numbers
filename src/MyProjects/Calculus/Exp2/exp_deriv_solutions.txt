@@ -1,0 +1,191 @@
+-- 指数関数微分課題の完全解法
+-- deriv.compによる連鎖律の正しい適用方法
+
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.Deriv.Comp
+import Mathlib.Analysis.SpecialFunctions.Exp.Deriv
+
+/-!
+# 課題解法の詳細解説
+
+重要なポイント：
+1. `deriv.comp`の正しい使用法
+2. 可微分性の証明順序
+3. 内側と外側の微分の計算
+-/
+
+-- 課題6の解法
+theorem exp_const_mul_deriv (c : ℝ) :
+  ∀ x : ℝ, deriv (fun x => Real.exp (c * x)) x = c * Real.exp (c * x) := by
+  intro x
+  
+  -- Step 1: 可微分性を証明
+  have h_inner : DifferentiableAt ℝ (fun x => c * x) x :=
+    DifferentiableAt.const_mul differentiableAt_id c
+  have h_outer : DifferentiableAt ℝ Real.exp (c * x) := 
+    Real.differentiableAt_exp
+  
+  -- Step 2: 連鎖律を適用
+  -- 重要: deriv.compの正しい引数順序
+  rw [deriv.comp h_outer h_inner]
+  
+  -- Step 3: 各部分の微分を計算
+  rw [Real.deriv_exp]  -- 外側: d/dx[exp(u)] = exp(u)
+  rw [deriv_const_mul] -- 内側: d/dx[c*x] = c
+  
+  -- Step 4: 簡略化
+  rw [deriv_id'']  -- d/dx[x] = 1
+  ring
+
+-- 課題7の解法
+theorem exp_const_add_deriv (c : ℝ) :
+  ∀ x : ℝ, deriv (fun x => Real.exp (x + c)) x = Real.exp (x + c) := by
+  intro x
+  
+  -- Step 1: 可微分性を証明
+  have h_inner : DifferentiableAt ℝ (fun x => x + c) x :=
+    DifferentiableAt.add differentiableAt_id (differentiableAt_const)
+  have h_outer : DifferentiableAt ℝ Real.exp (x + c) := 
+    Real.differentiableAt_exp
+  
+  -- Step 2: 連鎖律を適用
+  rw [deriv.comp h_outer h_inner]
+  
+  -- Step 3: 各部分の微分を計算
+  rw [Real.deriv_exp]       -- 外側: d/dx[exp(u)] = exp(u)
+  rw [deriv_add]            -- 内側: d/dx[x + c] = d/dx[x] + d/dx[c]
+  rw [deriv_id'', deriv_const]  -- d/dx[x] = 1, d/dx[c] = 0
+  
+  -- Step 4: 簡略化
+  ring
+
+-- 課題8の解法（一般形）
+theorem my_chain_rule_exp (f : ℝ → ℝ) (x : ℝ)
+  (hf : DifferentiableAt ℝ f x) :
+  deriv (fun x => Real.exp (f x)) x = Real.exp (f x) * deriv f x := by
+  
+  -- Step 1: 外側の可微分性を証明
+  have h_outer : DifferentiableAt ℝ Real.exp (f x) := 
+    Real.differentiableAt_exp
+  
+  -- Step 2: 連鎖律を適用
+  rw [deriv.comp h_outer hf]
+  
+  -- Step 3: 外側の微分を計算
+  rw [Real.deriv_exp]
+  
+  -- Step 4: 乗法の順序を調整
+  ring
+
+/-!
+# 解法の詳細解説
+
+## なぜ前のコードが失敗したのか？
+
+### 問題1: deriv.compの引数順序
+```lean
+-- ❌ 間違った順序や不完全な適用
+rw [deriv.comp]  -- 引数が足りない
+
+-- ✅ 正しい使用法
+rw [deriv.comp h_outer h_inner]
+```
+
+### 問題2: 微分公式の適用順序
+連鎖律の後に、個別の微分公式を順次適用する必要があります：
+1. `Real.deriv_exp`: exp(u)の微分
+2. `deriv_const_mul`: c*xの微分  
+3. `deriv_add`: x+cの微分
+
+## 重要なLemmaの理解
+
+### deriv.comp の正確な型シグネチャ
+```lean
+deriv.comp : 
+  DifferentiableAt 𝕜 g (f x) → 
+  DifferentiableAt 𝕜 f x → 
+  deriv (g ∘ f) x = deriv g (f x) * deriv f x
+```
+
+引数の順序：
+1. 外側関数の可微分性
+2. 内側関数の可微分性
+-/
+
+-- 補助定理: より直接的な証明方法
+theorem exp_comp_deriv_direct (f : ℝ → ℝ) (x : ℝ) 
+  (hf : DifferentiableAt ℝ f x) :
+  deriv (Real.exp ∘ f) x = Real.exp (f x) * deriv f x := by
+  exact deriv.comp Real.differentiableAt_exp hf ▸ Real.deriv_exp (f x)
+
+-- 応用例：より複雑な関数
+theorem exp_squared_deriv (x : ℝ) :
+  deriv (fun x => Real.exp (x^2)) x = 2 * x * Real.exp (x^2) := by
+  have hf : DifferentiableAt ℝ (fun x => x^2) x := differentiableAt_pow
+  rw [my_chain_rule_exp (fun x => x^2) x hf]
+  rw [deriv_pow]
+  ring
+
+-- 三角関数との合成例
+theorem exp_sin_deriv (x : ℝ) :
+  deriv (fun x => Real.exp (Real.sin x)) x = Real.cos x * Real.exp (Real.sin x) := by
+  have hf : DifferentiableAt ℝ Real.sin x := differentiableAt_sin
+  rw [my_chain_rule_exp Real.sin x hf]
+  rw [Real.deriv_sin]
+  ring
+
+/-!
+# 学習ポイントのまとめ
+
+## 成功の鍵
+
+1. **正確な型理解**: `DifferentiableAt`の証明が先
+2. **順序の重要性**: 外側→内側の順でderiv.compに渡す
+3. **段階的適用**: 連鎖律→個別公式→簡略化の順序
+
+## よくあるエラーとその対処法
+
+### エラー1: "failed to synthesize instance"
+```lean
+-- 原因: 可微分性の証明が不足
+-- 解決: DifferentiableAt の証明を明示的に提供
+```
+
+### エラー2: "type mismatch" 
+```lean
+-- 原因: 合成関数の表記が不適切
+-- 解決: fun記法での正確な関数定義
+```
+
+### エラー3: "tactic 'rw' failed"
+```lean
+-- 原因: lemmaの適用順序が間違い
+-- 解決: 段階的なrw適用
+```
+
+## 次のステップ
+
+この理解をベースに以下に挑戦：
+1. 高次微分への拡張
+2. 多変数関数への応用
+3. 微分方程式での活用
+4. 最適化問題での利用
+
+これらの課題をマスターすることで、Lean 4での解析的計算能力が大幅に向上します。
+-/
+
+-- 検証用のテスト
+example : deriv (fun x => Real.exp (3 * x)) 2 = 3 * Real.exp 6 := by
+  rw [exp_const_mul_deriv]
+
+example : deriv (fun x => Real.exp (x + 5)) 1 = Real.exp 6 := by
+  rw [exp_const_add_deriv]
+
+-- 自動化された証明の例
+example (c : ℝ) (x : ℝ) : 
+  deriv (fun x => Real.exp (c * x + 1)) x = c * Real.exp (c * x + 1) := by
+  have h1 : DifferentiableAt ℝ Real.exp (c * x + 1) := Real.differentiableAt_exp
+  have h2 : DifferentiableAt ℝ (fun x => c * x + 1) x := by
+    exact (differentiableAt_id.const_mul c).add differentiableAt_const
+  rw [deriv.comp h1 h2, Real.deriv_exp, deriv_add, deriv_const_mul, deriv_id'', deriv_const]
+  ring
