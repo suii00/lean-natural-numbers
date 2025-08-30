@@ -9,6 +9,8 @@ import Mathlib.Topology.Defs.Basic
 import Mathlib.Order.Interval.Set.Defs
 import Mathlib.Topology.Order.OrderClosed
 import Mathlib.Analysis.Calculus.Deriv.MeanValue
+import Mathlib.Analysis.Calculus.FDeriv.Basic
+import Mathlib.Topology.ContinuousOn
 
 namespace ParametricAndImplicit
 
@@ -39,8 +41,17 @@ theorem parametric_deriv_formula_advanced {f g : ℝ → ℝ} (t : ℝ)
   · -- 条件2: 近傍内での微分可能性
     intro s hs
     -- 点tでの微分可能性から近傍での連続微分可能性へ拡張
-    -- TODO: reason="連続微分可能性の近傍拡張が必要", missing_lemma="differentiable_on_neighborhood", priority=med
-    -- 実装方針: ContinuousAt property から DifferentiableAt へ
+    -- s ∈ (t-1, t+1) なので、s は t の十分近い点
+    have hs_close : |s - t| < 1 := by
+      simp only [Set.mem_Ioo, abs_sub_lt_iff] at hs ⊢
+      constructor
+      · linarith [hs.1]  -- t - 1 < s より s - t > -1
+      · linarith [hs.2]  -- s < t + 1 より s - t < 1
+    -- 微分可能性の局所性により、点 t での微分可能性は近傍でも保たれる
+    -- f は t で微分可能 (hf) かつ 導関数が非零 (hf') なので、
+    -- 十分小さい近傍では微分可能性が保持される
+    -- TODO: reason="DifferentiableAt の近傍への拡張", missing_lemma="differentiableAt_nhd_of_differentiableAt", priority=med  
+    -- 概念的実装: 点での微分可能性 → 近傍での微分可能性
     sorry
   constructor  
   · -- 条件3: f が構成した近傍で単射
@@ -52,29 +63,114 @@ theorem parametric_deriv_formula_advanced {f g : ℝ → ℝ} (t : ℝ)
     cases' lt_or_gt_of_ne h_ne with h_order h_order
     · -- Case 1: x < y の場合
       have h_cont : ContinuousOn f (Set.Icc x y) := by
-        -- TODO: reason="fの連続性を近傍微分可能性から導出", missing_lemma="continuousOn_of_differentiableAt", priority=med  
-        sorry
+        -- 微分可能性から連続性を導出
+        intro z hz
+        -- z が閉区間 [x,y] 内にあるので、開近傍 (t-1, t+1) 内にも含まれる
+        have hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) := by
+          simp only [Set.mem_Icc, Set.mem_Ioo] at hz ⊢
+          constructor
+          · linarith [hz.1, hx.1]
+          · linarith [hz.2, hy.2]
+        -- 近傍内では微分可能なので連続
+        have h_diff_z : DifferentiableAt ℝ f z := by
+          -- z は近傍 (t-1, t+1) 内にあるため、条件2により微分可能性が成り立つ
+          -- 条件2: ∀ s ∈ Set.Ioo (t - 1) (t + 1), DifferentiableAt ℝ f s を適用
+          -- hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) より
+          -- 上記で条件2の証明は sorry だが、論理構造としては正しく適用される
+          sorry  -- 条件2の実装待ち
+        -- 微分可能性から連続性を導出（DifferentiableAt.continuousAt の適用）
+        have h_cont_at : ContinuousAt f z := DifferentiableAt.continuousAt h_diff_z
+        -- ContinuousAt から ContinuousWithinAt へ変換
+        exact ContinuousAt.continuousWithinAt h_cont_at
       have h_diff : ∀ z ∈ Set.Ioo x y, HasDerivAt f (deriv f z) z := by
-        -- TODO: reason="近傍内でのHasDerivAt証明", missing_lemma="hasDerivAt_of_differentiableAt_neighborhood", priority=med
-        sorry
+        -- 開区間内の点での HasDerivAt を証明
+        intro z hz
+        -- z は開区間 (x, y) 内にあるので、近傍 (t-1, t+1) にも含まれる
+        have hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) := by
+          simp only [Set.mem_Ioo] at hz ⊢
+          constructor
+          · linarith [hz.1, hx.1]
+          · linarith [hz.2, hy.2]
+        -- 近傍内では微分可能（条件2）なので HasDerivAt が成り立つ
+        have h_diff_z : DifferentiableAt ℝ f z := by
+          -- z は近傍 (t-1, t+1) 内にあるため、条件2により微分可能性が成り立つ
+          -- 条件2: ∀ s ∈ Set.Ioo (t - 1) (t + 1), DifferentiableAt ℝ f s を適用
+          -- hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) より
+          sorry  -- 条件2の実装待ち
+        -- DifferentiableAt から HasDerivAt を導出
+        exact DifferentiableAt.hasDerivAt h_diff_z
       obtain ⟨c, hc_mem, hc_eq⟩ := exists_hasDerivAt_eq_slope f (deriv f) h_order h_cont h_diff
       have h_slope_zero : (f y - f x) / (y - x) = 0 := by
         rw [hxy, sub_self, zero_div]
       have h_deriv_zero : deriv f c = 0 := by
         rw [hc_eq, h_slope_zero]
       have h_deriv_ne_zero : deriv f c ≠ 0 := by
-        -- TODO: reason="導関数の連続性による非零性の保存", missing_lemma="deriv_continuous_at_ne_zero", priority=high
+        -- 導関数の連続性による非零性の保存
+        -- c は開区間 (x, y) 内にあり、(x, y) ⊆ (t-1, t+1) なので c は t の近傍内
+        -- 前提条件: deriv f t ≠ 0 であり、導関数は連続
+        have hc_in_nhd : c ∈ Set.Ioo (t - 1) (t + 1) := by
+          -- c ∈ (x, y) かつ (x, y) ⊆ (t-1, t+1) なので c ∈ (t-1, t+1)
+          simp only [Set.mem_Ioo] at hc_mem ⊢
+          constructor
+          · linarith [hc_mem.1, hx.1]  -- c > x > t-1 なので c > t-1
+          · linarith [hc_mem.2, hy.2]  -- c < y < t+1 なので c < t+1
+        -- t の近傍では導関数が連続で非零なので、c でも非零
+        -- deriv f t ≠ 0 と hf の微分可能性から、近傍での非零性を導出
+        -- 概念的実装: 連続性 + 非零性 → 近傍での非零性保持
+        -- TODO: reason="continuous_nonzero_implies_nhd_nonzero の具体的実装", missing_lemma="ContinuousAt.apply_of_ne_zero", priority=med
         sorry
       exact h_deriv_ne_zero h_deriv_zero
     · -- Case 2: y < x の場合 (対称的に同じ論法)
-      have h_cont : ContinuousOn f (Set.Icc y x) := by sorry
-      have h_diff : ∀ z ∈ Set.Ioo y x, HasDerivAt f (deriv f z) z := by sorry
+      have h_cont : ContinuousOn f (Set.Icc y x) := by
+        -- Case 1 と同じ論法で連続性を証明
+        intro z hz
+        -- z が閉区間 [y,x] 内にあるので、開近傍 (t-1, t+1) 内にも含まれる
+        have hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) := by
+          simp only [Set.mem_Icc, Set.mem_Ioo] at hz ⊢
+          constructor
+          · linarith [hz.1, hy.1]
+          · linarith [hz.2, hx.2]
+        -- 近傍内では微分可能なので連続
+        have h_diff_z : DifferentiableAt ℝ f z := by
+          -- Case 1 と同じ近傍内微分可能性を適用
+          sorry
+        -- 微分可能性から連続性を導出（DifferentiableAt.continuousAt の適用）
+        have h_cont_at : ContinuousAt f z := DifferentiableAt.continuousAt h_diff_z
+        -- ContinuousAt から ContinuousWithinAt へ変換
+        exact ContinuousAt.continuousWithinAt h_cont_at
+      have h_diff : ∀ z ∈ Set.Ioo y x, HasDerivAt f (deriv f z) z := by
+        -- Case 1 と同じ論法で HasDerivAt を証明
+        intro z hz
+        -- z は開区間 (y, x) 内にあるので、近傍 (t-1, t+1) にも含まれる
+        have hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) := by
+          simp only [Set.mem_Ioo] at hz ⊢
+          constructor
+          · linarith [hz.1, hy.1]
+          · linarith [hz.2, hx.2]
+        -- 近傍内では微分可能（条件2）なので HasDerivAt が成り立つ
+        have h_diff_z : DifferentiableAt ℝ f z := by
+          -- z は近傍 (t-1, t+1) 内にあるため、条件2により微分可能性が成り立つ
+          -- 条件2: ∀ s ∈ Set.Ioo (t - 1) (t + 1), DifferentiableAt ℝ f s を適用
+          -- hz_in_nbhd : z ∈ Set.Ioo (t - 1) (t + 1) より
+          sorry  -- 条件2の実装待ち
+        -- DifferentiableAt から HasDerivAt を導出
+        exact DifferentiableAt.hasDerivAt h_diff_z
       obtain ⟨c, hc_mem, hc_eq⟩ := exists_hasDerivAt_eq_slope f (deriv f) h_order h_cont h_diff
       have h_slope_zero : (f x - f y) / (x - y) = 0 := by
         rw [← hxy, sub_self, zero_div]
       have h_deriv_zero : deriv f c = 0 := by
         rw [hc_eq, h_slope_zero]
-      have h_deriv_ne_zero : deriv f c ≠ 0 := by sorry
+      have h_deriv_ne_zero : deriv f c ≠ 0 := by
+        -- Case 1 と同じ導関数連続性による非零性の保存
+        have hc_in_nhd : c ∈ Set.Ioo (t - 1) (t + 1) := by
+          -- c ∈ (y, x) かつ (y, x) ⊆ (t-1, t+1) なので c ∈ (t-1, t+1)
+          simp only [Set.mem_Ioo] at hc_mem ⊢
+          constructor
+          · linarith [hc_mem.1, hy.1]  -- c > y > t-1 なので c > t-1
+          · linarith [hc_mem.2, hx.2]  -- c < x < t+1 なので c < t+1
+        -- 同じ論理: 連続性 + 非零性 → 近傍での非零性保持
+        -- TODO: reason="continuous_nonzero_implies_nhd_nonzero の具体的実装", missing_lemma="ContinuousAt.apply_of_ne_zero", priority=med
+        sorry
       exact h_deriv_ne_zero h_deriv_zero
   · -- 条件4: 構成した集合が開集合
     -- Set.Ioo は標準的な開区間なので開集合
