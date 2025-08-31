@@ -2,6 +2,8 @@
 -- Goal: "claude.txtの全課題に解答し、困難な問題をTODO指定する"
 
 import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.IntegrationByParts
 
 namespace IntegralExploreComplete
 
@@ -28,25 +30,32 @@ theorem integral_sin_theorem (a b : ℝ) :
 -- 公式: ∫[a,b] sin x dx = [-cos x]_{a}^{b} = cos a - cos b
 integral_sin
 
--- 課題4: 第一基本定理（TODO 高優先度）
+-- 課題4: 第一基本定理（完成 ✅）
 theorem fundamental_theorem_part1 {f : ℝ → ℝ} {a : ℝ}
   (hf : Continuous f) :
   ∀ x, deriv (fun y => ∫ t in a..y, f t) x = f x := by
   intro x
-  -- TODO: reason="Mathlibの微分積分学基本定理APIの正確な名前が必要", 
-  -- missing_lemma="MeasureTheory.deriv_integral_right", priority=high
-  -- library_search候補: deriv_integral_right, deriv_integral_of_continuous
-  sorry
+  -- API: intervalIntegral.deriv_integral_right
+  apply intervalIntegral.deriv_integral_right
+  · -- IntervalIntegrable f volume a x
+    exact hf.intervalIntegrable _ _
+  · -- StronglyMeasurableAtFilter f (nhds x) volume
+    exact hf.stronglyMeasurable.stronglyMeasurableAtFilter
+  · -- ContinuousAt f x  
+    exact hf.continuousAt
 
--- 課題5: 第二基本定理（TODO 高優先度）
+-- 課題5: 第二基本定理（部分実装、高優先度TODO）
 theorem fundamental_theorem_part2 {f F : ℝ → ℝ} {a b : ℝ}
   (hF : ∀ x ∈ Set.Icc a b, deriv F x = f x)
   (hf : ContinuousOn f (Set.Icc a b)) :
   ∫ x in a..b, f x = F b - F a := by
-  -- TODO: reason="第二基本定理の証明は複数のMathlib定理の組み合わせが必要", 
-  -- missing_lemma="integral_eq_sub_of_hasDerivAt", priority=high
-  -- library_search候補: integral_hasDerivAt, integral_eq_sub_of_deriv
+  -- API発見: intervalIntegral.integral_eq_sub_of_hasDerivAt
+  -- 課題: deriv条件をHasDerivAt条件に変換が必要
+  -- 構造は理解済み、詳細実装は高度
   sorry
+  -- TODO: reason="deriv F x = f x から HasDerivAt F (f x) x への変換が複雑"
+  -- missing_lemma="Differentiable.hasDerivAt または similar", priority=high
+  -- note="API発見済み、構造理解済み、変換技法のみ残課題"
 
 -- 課題6: 積分の線形性（TODO 中優先度）
 theorem integral_linear {f g : ℝ → ℝ} (α β : ℝ) (a b : ℝ) 
@@ -161,6 +170,7 @@ theorem substitution_concept (u : ℝ → ℝ) (f : ℝ → ℝ) (a b : ℝ) :
 - integral_const_theorem: 定数関数の積分
 - integral_pow_theorem: べき関数の積分  
 - integral_sin_theorem: 正弦関数の積分
+- fundamental_theorem_part1: 第一基本定理 ✅ NEW!
 - 具体的計算例: x², x⁴, sin, cos の積分
 - 教育用実装: 概念説明と学習支援
 
@@ -172,10 +182,11 @@ theorem substitution_concept (u : ℝ → ℝ) (f : ℝ → ℝ) (a b : ℝ) :
 4. 線形性の証明
 
 == claude.txt対応状況 ==
-課題1-3: 完全実装済み ✅
-課題4-7: 適切なTODO分類済み（高・中・低優先度）
+課題1-4: 完全実装済み ✅ (fundamental_theorem_part1 追加!)
+課題5-7: 適切なTODO分類済み（API発見、構造理解完了）
 教育例: 動作確認済み具体例完備
 学習概念: 段階的理解を支援
+進歩率: 57% (4/7 完成)
 -/
 
 end IntegralExploreComplete
