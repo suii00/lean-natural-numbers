@@ -1,0 +1,48 @@
+Miscellaneous:
+  --help -h          display this message
+  --features -f      display features compiler provides (eg. LLVM support)
+  --version -v       display version number
+  --githash          display the git commit hash number used to build this binary
+  --run              call the 'main' definition in a file with the remaining arguments
+  --o=oname -o       create olean file
+  --i=iname -i       create ilean file
+  --c=fname -c       name of the C output file
+  --bc=fname -b      name of the LLVM bitcode file
+  --stdin            take input from stdin
+  --root=dir         set package root directory from which the module name of the input file is calculated
+                     (default: current working directory)
+  --trust=num -t     trust level (default: max) 0 means do not trust any macro,
+                     and type check all imported modules
+  --quiet -q         do not print verbose messages
+  --memory=num -M    maximum amount of memory that should be used by Lean
+                     (in megabytes)
+  --timeout=num -T   maximum number of memory allocations per task
+                     this is a deterministic way of interrupting long running tasks
+  --threads=num -j   number of threads used to process lean files
+  --tstack=num -s    thread stack size in Kb
+  --server           start lean in server mode
+  --worker           start lean in server-worker mode
+  --plugin=file      load and initialize Lean shared library for registering linters etc.
+  --load-dynlib=file load shared library to make its symbols available to the interpreter
+  --deps             just print dependencies of a Lean input
+  --print-prefix     print the installation prefix for Lean and exit
+  --print-libdir     print the installation directory for Lean's built-in libraries and exit
+  --profile          display elaboration/type checking time for each definition/theorem
+  --stats            display environment statistics
+  -D name=value      set a configuration option (see set_option command)
+True : Prop
+Output: True : Prop (expected)
+trivial : True
+Output: trivial : True (mathlib tactic loaded)
+stage3_test_level2.lean:2:0: error: object file '.\.lake/packages\mathlib\.lake\build\lib\Mathlib\Init\Data\Ordering\Basic.olean' of module Mathlib.Init.Data.Ordering.Basic does not exist
+stage3_test_level2.lean:5:29: error: unexpected token '+'; expected ':=', 'where' or '|'
+stage3_test_level2.lean:7:24: error: unknown tactic
+stage3_test_level2.lean:7:20: error: unsolved goals
+x✝ : Sort ?u.14
+Even : x✝
+⊢ ?m.23
+stage3_test_level2.lean:9:7: error: unknown identifier 'Nat.add_zero'
+stage3_test_level2.lean:9:0: error: unknown constant 'sorryAx'
+stage3_test_level2.lean:10:7: error: unknown identifier 'Even'
+stage3_test_level2.lean:10:0: error: unknown constant 'sorryAx'
+Cause: Mathlib dependencies need building

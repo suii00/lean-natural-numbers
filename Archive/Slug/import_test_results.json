@@ -1,0 +1,49 @@
+﻿{
+    "Successful":  3,
+    "Timestamp":  "2025-08-06 20:55:40",
+    "TotalTests":  5,
+    "Results":  [
+                    {
+                        "Errors":  {
+
+                                   },
+                        "Import":  "",
+                        "Success":  true
+                    },
+                    {
+                        "Errors":  [
+                                       "temp_20554034.lean:1:0: error: unknown package \u0027Std\u0027",
+                                       "temp_20554034.lean:3:27: error: unknown identifier \u0027trivial\u0027",
+                                       "temp_20554034.lean:3:27: error: unknown constant \u0027sorryAx\u0027",
+                                       "temp_20554034.lean:3:8: error: (kernel) unknown constant \u0027sorryAx\u0027"
+                                   ],
+                        "Import":  "import Std",
+                        "Success":  false
+                    },
+                    {
+                        "Errors":  [
+                                       "temp_20554041.lean:1:0: error: unknown package \u0027Mathlib\u0027",
+                                       "temp_20554041.lean:3:33: error: unknown tactic",
+                                       "temp_20554041.lean:3:29: error: unsolved goals"
+                                   ],
+                        "Import":  "import Mathlib.Tactic.Basic",
+                        "Success":  false
+                    },
+                    {
+                        "Errors":  [
+                                       "temp_20554047.lean:1:0: error: unknown package \u0027Mathlib\u0027",
+                                       "temp_20554047.lean:3:30: error: unexpected token \u0027+\u0027; expected \u0027:=\u0027, \u0027where\u0027 or \u0027|\u0027"
+                                   ],
+                        "Import":  "import Mathlib.Data.Nat.Basic",
+                        "Success":  false
+                    },
+                    {
+                        "Errors":  [
+                                       "temp_20554054.lean:1:0: error: unknown package \u0027Mathlib\u0027",
+                                       "temp_20554054.lean:3:30: error: unexpected token \u0027+\u0027; expected \u0027:=\u0027, \u0027where\u0027 or \u0027|\u0027"
+                                   ],
+                        "Import":  "import Mathlib.Data.Int.Basic",
+                        "Success":  false
+                    }
+                ]
+}
