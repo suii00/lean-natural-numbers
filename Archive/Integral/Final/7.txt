@@ -1,0 +1,85 @@
+7とガウス積分の指針を詳細に教えて下さい。
+
+
+了解です。ここでは実装をいじらず、課題7（広義積分）とガウス積分準備を安全・確実に通すための詳細な指針だけをまとめます。既にご提示の intervalIntegral 系 API に合わせた作りにしています。
+
+— 課題7（広義積分 ∫₁ᴿ 1/x² → 1 の tendsto 版）
+
+狙い
+
+関数 g(R) := ∫ x in 1..R, 1/x² が R → ∞ で 1 に収束することを Filter.Tendsto で示す。
+一番堅牢なのは FTC2 で明示式 g(R) = 1 − 1/R を作り、右辺の極限で示す。
+構成（おすすめの流れ）
+
+まず、全 R に対して（少なくとも R ≠ 0 の範囲で）評価式を作る
+F(x) := − 1/x とおいて、uIcc 1 R 上で HasDerivAt F (1/x²) x を示す。
+可積分性（IntervalIntegrable (fun x => 1/x²) volume 1 R）は Icc 1 R 上の連続性から inv₀でとる（1/x² は 0 を避ける限り連続）。
+以上で hF: ∀ R, ∫ x in 1..R, 1/x² = 1 - 1/R を（R≠0 として）作る。実務では R が atTop 向きなので eventually R ≥ 1 の世界だけ見れば十分です。
+右辺の極限 1 - 1/R → 1 を示す
+tendsto_inv_atTop_zero : Tendsto (fun R => (1:ℝ)/R) atTop (𝓝 0) が使える。
+したがって tendsto_const_nhds.sub h0 で fun R => 1 - (1 / R) の収束がわかる。
+左辺に戻す
+congr'（目標が「関数が eventually 等しい」場合に使う）を使っても良いが、環境によって Filter.eventually_of_forall が見つからないケースがあるので、次の手をおすすめ：
+g(R) = 1 − 1/R の恒等式 hF を “for all R” で用意しておき、最後に “simpa [hF R]” で書き換え。
+もしくは “h_tendsto.congr' (eventually_atTop.2 ⟨N, ∀ R ≥ N, by simp [hF R]⟩)” を使う（Filter.eventually_atTop.2 が使える環境ならこちらもOK）。
+Lean スケッチ
+
+HasDerivAt: (Real.hasDerivAt_inv hxne).neg から “−1/x の微分 = 1/x²” を得る（simpa [one_div, pow_two]）。
+IntervalIntegrable: continuous_const.div ((continuous_id).pow 2) → .intervalIntegrable _ _。
+右辺極限: h0 : Tendsto (fun R => (1:ℝ)/R) atTop (𝓝 0); have h_tendsto := (tendsto_const_nhds.sub h0)。
+結合: “simpa [hF] using h_tendsto”。（congr' 不使用）
+エラーでハマりやすい点（回避策）
+
+Filter.eventually_of_forall が知らないと言われる → 使わずに simpa [hF] 路線へ。
+Set.uIcc vs Set.Icc の扱い → hderiv 内で have h12 : (1:ℝ) ≤ R := … がないと進みにくい。atTop なら eventually R ≥ 1 を使って “以降” の議論とするか、全 R で成り立つ hF を（intervalIntegral の向きに注意して）作る（ただし R < 1 時は向き反転するので注意）。
+integral_eq_sub_of_hasDerivAt の被積分関数の形は微分側と完全一致させる（1/x² で統一）。変形を混ぜない。
+— ガウス積分準備（非負性＋正値性＋有界性）
+
+狙い
+
+非負性：∫_{−R}^{R} e^{−x²} ≥ 0
+正値性：R > 0 のとき ∫_{−R}^{R} e^{−x²} > 0
+有界性：簡単な上界（例えば ≤ 2R）か、環境にあるなら √π の上界
+推奨の実装方針（環境差が少ない順）
+A) 簡易上界 2R（常に使える）
+
+上界：∀ x, exp(−x²) ≤ 1 → ∫{−R}^{R} exp(−x²) ≤ ∫{−R}^{R} 1 = 2R
+
+Real.exp_le_one_iff.mpr (by have : -x² ≤ 0; …) で評価。
+単調性は intervalIntegral の比較版を使う（環境に応じて integral_mono_ae 相当を区間に引き下ろすか、… ≤ ∫ const を直接示す）
+定数積分は intervalIntegral.integral_const（= (b − a) • c）で得て、a=−R, b=R のとき 2R に簡約。
+非負性：exp(−x²) ≥ 0（自明）→ 0 ≤ ∫_{−R}^{R} exp(−x²)
+
+intervalIntegral.integral_nonneg_of_ae を使うか、exp_pos _ から ≥0 を作る。
+正値性（R > 0）：区間内に measure > 0 の部分があり、そこで integrand > 0
+
+例えば [0, min R 1] に制限すれば、exp(−x²) ≥ exp(−1) より正の下界 → 正の積分。
+度量的な “AE positivity + positive measure set” で intervalIntegral.integral_pos_of_ae_nonneg_of_ae_pos系に相当するものを使うか、単に “exp(−x²) ≥ 0 かつ区間長 > 0” から弱い正値（≥0）を出して、“strict” にはこの下界評価で補う。
+B) √π の上界に寄せる（環境次第で）
+
+Real.integral_gaussian = Real.sqrt Real.pi のような定理があるなら、非負性と単調性の組み合わせで “部分区間の積分 ≤ 全実線積分 = √π” を出す。
+ただし該当定理名や補題（例えば “区間積分が全体積分以下”）が環境差で異なることが多いので、まずは A) の 2R 上界で堅牢に通すのが安心。
+Lean スケッチ
+
+非負性: have h_nonneg : ∀ x, 0 ≤ Real.exp (-(x^2)) := by intro x; exact (Real.exp_pos _).le
+
+区間積分への引き下ろしは intervalIntegral の非負性の補題（integral_nonneg_of_ae など）に従う。
+正値性: [0, min R 1] 上で exp(-x^2) ≥ exp(-1) を示す → 下界評価で > 0
+
+have hxle : -1 ≤ -x^2 := by … から exp の単調性で評価。
+∫ ≥ 長さ * 下界 のやり方は環境の補題に依存しますが、最悪 “単に > 0 の補題” を用意して入れることも可能です。
+上界: ∀ x, exp(-x^2) ≤ 1 → ∫ ≤ ∫ 1 = 2R
+
+右辺は intervalIntegral.integral_const で (R - (-R)) * 1 = 2R に簡約。
+API 参考（環境差があっても概ね同名）
+
+非負性: intervalIntegral.integral_nonneg_of_ae（または MeasureTheory.integral_nonneg の区間版）
+単調性: intervalIntegral.integral_mono_ae, …_mono_interval（必要なら measure を restrict して一般版から引き下ろし）
+定数積分: intervalIntegral.integral_const
+逆数の極限: tendsto_inv_atTop_zero
+函数差の極限: tendsto_const_nhds.sub
+避けると良いもの
+
+Filter.eventually_of_forall が見つからない環境があるため、congr' による “eventual equality” は避け、式の恒等（hF R = …）を simpa [hF] で消す。
+uIcc と Icc の取り扱いの混在（ハマりやすい）。hderiv 中で確実に “uIcc 1 R = Icc 1 R（R≥1）” に正規化してから処理するか、全 R に対する hF を構成し最後に tendsto だけ使う。
+この方針で組むと、環境差があっても畳みやすく、課題7とガウス準備が安定して通せます。必要であれば、どちらの上界（2R or √π）に寄せるか選んでいただければ、その側に完全一致する Lean ブロックも用意します。

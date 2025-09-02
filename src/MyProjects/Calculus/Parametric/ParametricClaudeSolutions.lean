@@ -5,6 +5,7 @@ import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 import Mathlib.Analysis.SpecialFunctions.Sqrt
 import Mathlib.Analysis.Calculus.Deriv.Pow
 
+--\author{CODEX (OpenAI)}
 /-!
   媒介変数表示・陰関数・極座標などに関する、claude.txt の課題に
   一つずつ対応する Lean 定理群のファイルです。

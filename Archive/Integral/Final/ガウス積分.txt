@@ -1,0 +1,50 @@
+以下は、このファイルの「ガウス積分（有界性）」を Lean で実装するための方針です。目的を小さく分解し、Lean での証明パターンと使う道具を明確にしています。
+
+ゴール
+
+正値: 0 < ∫ x in -R..R, exp (-x^2)（R > 0）
+上界: ∫ x in -R..R, exp (-x^2) ≤ 2R
+基本観察
+
+非負・連続: exp (-x^2) > 0 かつ連続 ⇒ 有界区間で IntervalIntegrable
+単調性（上界）: -x^2 ≤ 0 なので exp (-x^2) ≤ 1 ⇒ 積分は区間長に抑えられる
+偶関数: exp (-x^2) は偶関数 ⇒ 対称区間の積分は 2 * ∫_{0}^{R} に還元可能（使わなくても可）
+厳密正: R > 0 のとき、区間長が正で被積分関数が a.e. 正なら積分は厳密に正
+実装手順（Lean）
+
+可積分性を先に確保
+連続性から: Real.continuous_exp.comp (continuous_neg.comp ((continuous_id).pow 2))
+hI : IntervalIntegrable (fun x => Real.exp (-x^2)) volume (-R) R
+上界 ≤ 2R
+点別評価: have h_le_one : ∀ x, Real.exp (-x^2) ≤ 1 := by have h : -x^2 ≤ 0 := ...; simpa [Real.exp_zero] using (Real.exp_le_one_iff.mpr h)
+定数関数の可積分性: intervalIntegral.integral_const
+区間上の単調性（intervalIntegral の単調性補題）で
+∫ exp(-x^2) ≤ ∫ 1 = 1 * (R - (-R)) = 2R
+正値 0 < ∫
+最も堅い方法: 部分区間 [0, r]（r := min R 1）で下界を持つ
+[0,1] 上で exp(-x^2) ≥ exp(-1)（単調性）を示す
+単調性から ∫_{0}^{r} exp(-x^2) ≥ ∫_{0}^{r} exp(-1) = exp(-1) * r
+R > 0 ⇒ r = min R 1 > 0 ⇒ 右辺が正 ⇒ ∫_{-R}^{R} ... ≥ ∫_{0}^{r} ... > 0
+もう一つの方法: a.e. 非負かつ a.e. 正、区間長 > 0 を使う「厳密正の補題」
+intervalIntegral.integral_pos_of_ae_nonneg_of_ae_pos 系の補題（a.e. 非負と a.e. 正＋長さ > 0 で 0 < ∫）
+ただし補題名はバージョン差があるため、前者の「定数下界」で実装するほうが安定
+使う主な補題・道具
+
+非負・上界
+Real.exp_pos, Real.exp_le_one_iff, sq_nonneg, intervalIntegral.integral_const
+intervalIntegral の単調性（integral_mono_* あるいは integral_mono_of_nonneg 系）
+可積分性
+Continuous.intervalIntegrable
+偶関数を使う簡略化（任意）
+∫ x in -R..R, f x = 2 * ∫ x in 0..R, f x（f が偶関数のとき）
+intervalIntegral の対称性系（integral_comp_neg など）を組み合わせ
+よくあるハマりどころ
+
+intervalIntegral の a.e. 語は Ioc a b に対する制限測度で評価される点（Icc/Ioc のズレに注意）
+「厳密正」を a.e. 正＋長さ > 0 で出す補題は何種類かあるため、定数下界で押し切るのが実装しやすい
+exp ≤ 1 は Real.exp_le_one_iff の向きに注意（x ≤ 0 → exp x ≤ 1）
+次の拡張（任意）
+
+偶関数性で ∫_{-R}^{R} = 2 ∫_{0}^{R} に落としてから、単調収束を使い R → ∞ での広義積分の存在を証明
+値の計算 ∫_ℝ exp(-x^2) = √π は Fubini/極座標などが必要で重め（mathlib の測度論・多変数積分が関与）
+この方針であれば、現在の骨子をほぼそのまま整理し、補題呼び出しを安定なものに置き換えるだけで定理 gaussian_bounded が通ります。必要なら、この定理部分を私のほうでリファクタして実装まで進めます。

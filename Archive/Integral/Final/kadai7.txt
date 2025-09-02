@@ -1,0 +1,36 @@
+以下の方針で「sorry/adiit」を外せます。R→∞に向かうとき、区間積分を閉形式で評価してから、極限に流す構成です。
+
+証明方針
+
+評価用原始関数の設定: F x := -(x)⁻¹（導関数が 1/x^2）。0で特異なので x ≠ 0 が必要。
+区間制限: R ≥ 1 上では uIcc 1 R = Icc 1 R ⊆ (0, ∞) なので HasDerivAt と連続性が通る。
+FToC による評価: R ≥ 1 なら
+∫ x in 1..R, 1/x^2 = F R - F 1 = 1 - 1/R を得る。
+事実の「最終的同値」化: atTop では「十分大きい R」で R ≥ 1 が成り立つ（eventually）。よって
+∫_1^R 1/x^2 = 1 - 1/R が「最終的に」成り立つ。
+極限の計算: Tendsto (fun R => 1 - 1/R) atTop (𝓝 1) は
+tendsto_inv_atTop_zero と tendsto_const_nhds、tendsto.sub から従う。
+まとめ: Tendsto.congr'（最終的一致による極限の置換）で、積分関数の極限を閉形式の極限に置き換えて結論。
+Lean スケルトン（置き換えイメージ）
+
+位置: FinalKadaiPractical.lean:120 付近のコメントブロックをアンコメントして差し替え
+
+主要補題と流れのみ示します（細部の simp は省略）
+
+lemma integral_one_div_sq_eval (hR : 1 ≤ R) : ∫ x in (1:ℝ)..R, 1/x^2 = 1 - 1/R を用意
+
+F x := -(x)⁻¹
+hderiv : ∀ x ∈ Set.uIcc (1:ℝ) R, HasDerivAt F (1/x^2) x
+hx0 : x ≠ 0 は x ≥ 1 から従う
+(hasDerivAt_id x).inv と const_mul で導関数を 1/x^2 に整形
+hint : IntervalIntegrable (fun x => 1/x^2) volume 1 R
+continuous on [1,R] から
+intervalIntegral.integral_eq_sub_of_hasDerivAt で = 1 - 1/R
+theorem improper_integral_simple : Filter.Tendsto (fun R : ℝ => ∫ x in (1:ℝ)..R, 1/x^2) Filter.atTop (𝓝 1):
+
+have h_ev : ∀ᶠ R in atTop, ∫_1^R 1/x^2 = 1 - 1/R
+eventually に R ≥ 1 を選び、上の評価補題を適用
+have h_lim : Filter.Tendsto (fun R => 1 - 1/R) atTop (𝓝 1)
+tendsto_const_nhds.sub (by simpa [one_div] using tendsto_inv_atTop_zero)
+exact (Filter.Tendsto.congr' h_ev).2 h_lim
+この方針で、ゼロの特異点を避けるための区間制限と、最終的一致での極限の置換を明示的に使うので、安定して sorry を外せます。必要であれば、このスケルトンを実コード化して挿入しますか？

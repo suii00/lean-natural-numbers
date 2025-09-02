@@ -1,0 +1,141 @@
+## 解答評価と分岐課題
+
+### 提出解答の評価
+
+**完成度：100%**
+
+完璧です！積分法の基礎を完全にマスターしました！
+
+- **構文の正確性（25/25%）**：すべてのコードが完全動作、エラーゼロ
+- **証明の論理的妥当性（35/35%）**：7/7の課題をすべて完成、論理的に完璧
+- **タクティクの適切な使用（25/25%）**：`intervalIntegral`のAPIを完璧に活用
+- **数学的理解（15/15%）**：微分積分学の基本定理を深く理解し、部分積分まで実装
+
+**特に優れた点**：
+- mathlibのAPIを的確に発見・活用（`integral_pow`、`integral_sin`など）
+- 微分積分学の基本定理の両方向を正確に実装
+- 積分の線形性を`calc`で美しく証明
+- 部分積分の一般形を`HasDerivAt`で正確に定式化
+- 具体例での検証も完璧
+
+### 分岐課題A（完成度90-100%）：挑戦レベル - 微分積分学の統合
+
+---
+
+## 最終統合課題：微分積分学の完全マスター
+
+### 問題文（高校生向け）
+
+これまで学んだ微分と積分のすべての技法を統合し、高度な応用問題を解きましょう。置換積分、部分積分、有理関数の積分、そして面積・体積計算への応用まで、微分積分学の全体像を完成させます。
+
+### 数学的背景
+- **高校での学習内容**：数学Ⅲの総まとめ、微分積分の応用
+- **Leanでの表現**：置換積分定理、回転体の体積、曲線の長さ
+
+### Lean定義
+
+```lean
+-- 必要なimport文
+import Mathlib.Analysis.SpecialFunctions.Integrals
+import Mathlib.MeasureTheory.Integral.IntervalIntegral
+import Mathlib.Analysis.Calculus.Deriv.Comp
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+
+-- ========= パート1: 置換積分 =========
+
+-- 課題1: 置換積分の基本定理
+theorem substitution_integral {f g : ℝ → ℝ} {a b : ℝ}
+  (hg : DifferentiableOn ℝ g (Set.Icc a b))
+  (hf : ContinuousOn f (g '' Set.Icc a b))
+  (hg' : ContinuousOn (deriv g) (Set.Icc a b)) :
+  ∫ x in a..b, f (g x) * deriv g x = ∫ u in g a..g b, f u := by
+  sorry
+
+-- 課題2: 具体例 ∫ 2x * e^(x²) dx の計算
+theorem integral_exp_squared (a b : ℝ) :
+  ∫ x in a..b, 2 * x * Real.exp (x^2) = Real.exp (b^2) - Real.exp (a^2) := by
+  -- ヒント: u = x² と置換
+  sorry
+
+-- ========= パート2: 有理関数の積分 =========
+
+-- 課題3: 1/(1+x²) の積分（逆正接関数）
+theorem integral_one_over_one_plus_sq (a b : ℝ) :
+  ∫ x in a..b, 1 / (1 + x^2) = Real.arctan b - Real.arctan a := by
+  sorry
+
+-- 課題4: 部分分数分解による積分
+theorem integral_rational_decomposition :
+  ∫ x in (1:ℝ)..(2:ℝ), 1 / (x * (x + 1)) = 
+  Real.log 2 - Real.log (3/2) := by
+  -- ヒント: 1/(x(x+1)) = 1/x - 1/(x+1)
+  sorry
+
+-- ========= パート3: 面積と体積 =========
+
+-- 課題5: 放物線 y = x² と直線 y = x で囲まれる面積
+theorem area_between_curves :
+  ∫ x in (0:ℝ)..(1:ℝ), (x - x^2) = 1/6 := by
+  sorry
+
+-- 課題6: y = √x を x軸周りに回転させた回転体の体積
+theorem volume_of_revolution :
+  Real.pi * ∫ x in (0:ℝ)..(1:ℝ), x = Real.pi / 2 := by
+  -- V = π∫[√x]² dx = π∫x dx
+  sorry
+
+-- ========= パート4: 広義積分 =========
+
+-- 課題7: 広義積分 ∫₁^∞ 1/x² dx = 1
+theorem improper_integral_convergence :
+  ∃ (L : ℝ), L = 1 ∧ 
+  ∀ ε > 0, ∃ M > 1, |∫ x in (1:ℝ)..M, 1/x^2 - L| < ε := by
+  sorry
+
+-- ========= チャレンジ: ガウス積分の準備 =========
+
+-- ガウス積分への道（概念的）
+theorem gaussian_integral_prep :
+  ∃ (value : ℝ), value^2 = Real.pi ∧
+  -- ∫_{-∞}^{∞} e^(-x²) dx = √π の準備
+  ∀ R > 0, ∫ x in (-R)..R, Real.exp (-x^2) < value + 1 := by
+  sorry
+```
+
+### 統合的な理解のために
+
+```lean
+-- 微分と積分の相互関係
+example (f : ℝ → ℝ) (hf : Differentiable ℝ f) :
+  ∀ x, deriv (fun y => ∫ t in (0:ℝ)..y, deriv f t) x = deriv f x := by
+  -- 微分→積分→微分で元に戻る
+  sorry
+
+-- 積分と微分の順序交換（ライプニッツの積分規則の準備）
+example (f : ℝ × ℝ → ℝ) (a b : ℝ) :
+  -- d/dx ∫_a^b f(x,t) dt = ∫_a^b ∂f/∂x(x,t) dt
+  ∃ (formula : Prop), formula := by
+  use True
+```
+
+### 大学レベルへの完全な橋渡し
+
+- **フーリエ解析**：三角関数系での展開
+- **ラプラス変換**：微分方程式の解法
+- **変分法**：汎関数の極値問題
+- **ベクトル解析**：グリーンの定理、発散定理
+
+### 数学Ⅲの完成として
+
+1. **技法の統合**：すべての微分・積分技法を組み合わせて使用
+2. **応用力**：面積、体積、物理問題への適用
+3. **理論的理解**：極限、連続性、微分可能性の深い理解
+
+提出フォーマット：
+```lean
+-- 挑戦したい課題から選んで提出
+theorem substitution_integral {f g : ℝ → ℝ} {a b : ℝ}
+  -- あなたの証明
+```
+
+これは高校数学Ⅲの微分積分法の集大成です。すべての技法を統合して、大学数学への確かな橋を架けましょう！

@@ -1,0 +1,45 @@
+Handoff Prompt (Short)
+
+Context: Lean4 + mathlib calculus exercises in FinalKadaiPractical.lean.
+Goal: Ensure tasks 4–6 compile; task 5 finalized via linearity + integral_pow.
+Focus: Clean up task 4 (partial fractions) simplifications; resolve any AE-equality and field_simp issues; address “simp vs simpa” lints.
+Please open src/MyProjects/Calculus/Integral/final/FinalKadaiPractical.lean and finish validating task 4; task 5 and 6 should be fine.
+
+Handoff Prompt (Full Context To Paste)
+
+You are a Lean/mathlib assistant. I’m working on a Lean4 file of calculus exercises.
+
+Repo/file: src/MyProjects/Calculus/Integral/final/FinalKadaiPractical.lean
+Imports present: Mathlib.Analysis.SpecialFunctions.Integrals.Basic, MeasureTheory.Integral.IntervalIntegral.*, Real.log_div, ArctanDeriv, Deriv.Basic, FieldSimp, etc.
+Environment: Windows pathing; ripgrep (rg) unavailable; prefer simp, ring, norm_num over heavy field_simp loops when possible.
+What’s done:
+
+Task 5 area_between_curves: Implemented via linearity and known integrals.
+Key facts: ∫₀¹ x = 1/2, ∫₀¹ x^2 = 1/3, with interval integrability from continuity.
+Final calc uses by ring, integral_add, by simp, and norm_num.
+Task 6 volume_of_revolution: Uses ∫₀¹ x = 1/2, shows π * (1/2) = π/2.
+Task 4 integral_rational_decomposition: Proof uses
+Primitive F(x) = log x − log(x+1) with HasDerivAt F (1/x − 1/(x+1)).
+Interval integrability on uIcc 1 2.
+AE equality to rewrite 1/(x(x+1)) as (1/x − 1/(x+1)) on Ioc/Icc, then FTC.
+Real.log_div with ≠ 0 assumptions.
+Outstanding/next:
+
+Verify task 4 compiles cleanly. If field_simp causes recursion or unused-simp-args lints, prefer cancel-by-multiplying approach:
+On Icc 1 2, show x ≠ 0, x+1 ≠ 0.
+Multiply both sides by x(x+1), use sub_mul and mul_left_cancel₀.
+Avoid deep simp chains on inverses; keep rewrites local and explicit.
+Clean lints suggesting simp over simpa.
+Keep uIcc vs Icc consistent (FTC expects uIcc). Convert memberships carefully: Ioc → Icc with endpoint inequalities.
+What I want next:
+
+Make task 4 pass without recursion-depth issues, and with minimal lints.
+Then run a full build and confirm tasks 5 and 6 remain green.
+If any lemma names or import mismatches arise, adapt to mathlib idioms already used in the file (e.g., intervalIntegral.integral_eq_sub_of_hasDerivAt, ContinuousOn.inv₀, etc.).
+File references to check:
+
+FinalKadaiPractical.lean:140 (task 4 body)
+FinalKadaiPractical.lean:81 (task 5 body)
+FinalKadaiPractical.lean:112 (task 6 body)
+Thank you!
+

@@ -1,0 +1,26 @@
+以下に、課題1〜7およびガウス積分の準備問題について、それぞれ1つの「お詫び」に相当するLeanファイルを提供します。mathlibのFTC定理と標準的な積分公式を用いています。内容はあなたが提供した`claude_final.txt`のアウトラインに沿って構成し、各記述は簡潔かつ自己完結的なものにしています。
+
+追加したファイル:
+
+FinalKadaiSolutions.lean
+
+内容一覧
+
+課題1（置換積分の典型解）: integral_exp_squared — ∫ 2x·e^(x²) = e^(x²)|ₐᵇ （FTC2を使用）
+課題2（arctan）: integral_one_over_one_plus_sq — ∫ 1/(1+x²) = arctan b - arctan a
+課題3（部分分数分解）: integral_rational_decomposition — ∫₁² 1/(x(x+1)) = log 2 − log(3/2)
+課題4（面積計算）: area_between_curves — ∫₀¹ (x − x²) = 1/6
+課題5（回転体の体積）: volume_of_revolution — π∫₀¹ x = π/2
+課題6（広義積分の収束性）: improper_integral_convergence — ∫₁ᴹ 1/x² → 1 （原始関数−1/xを用いたε–M証明）
+ガウス積分の準備: gaussian_integral_prep — 選択値 = √π、∫_{-R}^{R} e^(−x²) ≤ √π + 1 をすべてのR>0に対して成立させる（標準的なガウス積分の結果と単調性に依存）
+備考
+
+インポート元: Mathlib.Analysis.SpecialFunctions.Integrals(.Basic)、FTC定理（FundThmCalculus）、導関数（Deriv.Basic）、三角関数の導関数
+ガウス積分の準備について:
+Real.integral_gaussian関数を使用します（古典的な結果: ∫ℝ e^(−x²) = √π）。使用しているmathlibのバージョンで定数や名称が若干異なる場合でも、対応可能です。
+証明の概要では、∫_{-R}^{R} e^(−x²) ≤ √π という単調性に基づく上限を示しており、したがって厳密には √π + 1 より小さい値となります。
+`claude_final.txt`のコードブロックと完全に同じ名称・形式にしたい場合（例えば完全な一般化置換定理など）、課題1をお好みのAPIスタイルに合わせた一般形 ∫ f(g(x))g'(x) = ∫ f の形式にアップグレードできます。
+以下のいずれかの対応をご希望ですか？
+
+・`claude_final.txt`の各ブロックと完全に一致する形で定理名と記述を調整すること（一般化置換定理を含む）
+・お使いのmathlibバージョンに基づいてローカルでビルドを実行し、定理名の些細な違いがあれば調整すること
