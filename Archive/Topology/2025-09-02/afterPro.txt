@@ -1,0 +1,33 @@
+両方ともやってみてください
+
+
+追加で2点とも実装しました。Aの同値形と、Cの指数法則＋評価写像の連続性です。
+
+変更点
+
+src/MyProjects/Topology/A/TopologyA.lean:15
+追加入門: Mathlib.Topology.ContinuousMap.Basic, Mathlib.Topology.CompactOpen
+src/MyProjects/Topology/A/TopologyA.lean:53
+continuous_iff_proj_continuous: 一般の h : Z → X × Y に対し
+Continuous h ↔ Continuous (π₁ ∘ h) ∧ Continuous (π₂ ∘ h) を追加
+src/MyProjects/Topology/A/TopologyA.lean:103
+exponential_law: noncomputable def として
+C(X × Y, Z) ≃ₜ C(X, C(Y, Z)) を Homeomorph.curry で実装
+要件: [LocallyCompactSpace X] [LocallyCompactSpace Y]
+src/MyProjects/Topology/A/TopologyA.lean:109
+continuous_eval: 評価写像 (f, y) ↦ f y の連続性
+形式: Continuous (fun p : C(Y, Z) × Y => p.1 p.2)
+要件: [LocallyCompactPair Y Z]
+実装: ContinuousEval.continuous_eval のラッパ
+既存のA/B
+
+A: product_universal_property と図式版 product_diagram_commutes はそのまま。
+B: topological_ring_hom_continuous で加法・積の像の連続性を証明済み。
+注記
+
+指数法則の Homeomorph は mathlib の Homeomorph.curry を使用するため、X と Y の両方に局所コンパクト性が必要です。
+評価写像の連続性は ContinuousEval インスタンスに依存し、[LocallyCompactPair Y Z] を仮定します。
+次の一手
+
+Cの具体例（たとえば X = Y = ℝ）で exponential_law の適用例を付けますか？
+Aの同値を Continuous h ↔ ... から、↔ の両方向を使う具体的リファクタ例へ展開しますか？

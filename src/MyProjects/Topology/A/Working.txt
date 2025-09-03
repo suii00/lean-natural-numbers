@@ -1,0 +1,51 @@
+ニコラ・ブルバキの『数学原論』の順序対の集合と射（射影）化による構造化の精神に従ってください。このmdファイルを元にleanファイルを作成してください。課題はA, B, Cいずれかか、すべてか選んでください。
+
+
+作業AとBを選び、Lean実装を追加しました。Bourbakiの射影（π₁, π₂）を既存モジュールから再利用し、普遍性と構造的連続性を命題として整理しています。
+
+追加ファイル
+
+src/MyProjects/Topology/A/TopologyA.lean:1
+A: 積の普遍性
+
+定理: product_universal_property
+内容: Continuous (fun z => (f z, g z)) ↔ Continuous f ∧ Continuous g
+証明: 射影の連続性との合成（→）、および hf.prodMk hg（←）
+補題: product_diagram_commutes
+内容: h : Z → X × Y が連続なら (π₁ ∘ h) と (π₂ ∘ h) はともに連続
+証明: continuous_fst.comp hc, continuous_snd.comp hc を simpa [Function.comp, π₁, π₂] で整理
+B: 位相環における連続準同型の構造的定理
+
+定理: topological_ring_hom_continuous
+前提: [TopologicalRing R] [TopologicalRing S], f : R →+* S, Continuous f
+結論:
+Continuous (fun r : R => f (r + r))
+Continuous (fun p : R × R => f (p.1 * p.2))
+証明: continuous_id.add continuous_id と continuous_fst.mul continuous_snd の連続性を hf.comp で合成
+インポート
+
+Mathlib.Topology.Basic, Mathlib.Topology.Constructions.SumProd
+Mathlib.Topology.Algebra.Group.Basic, Mathlib.Topology.Algebra.Ring
+既存射影の再利用: import MyProjects.Topology.BourbakiProductAndHom
+次の候補
+
+C（指数法則・評価写像の連続性）の実装を追加しましょうか？ContinuousMap のカリー化・アンカリー化の homeomorph を用いる実装にできます。
+Aの同値を「h : T → X × Y についての記述」としても用意可能です（Continuous h ↔ Continuous (π₁ ∘ h) ∧ Continuous (π₂ ∘ h) の形）。
+1 file changed
+
+Undo
+
+View changes
+TopologyA.lean
++79
+-0
+
+両方ともやってみてください
+
+
+I’m going to extend the Lean module to add (1) the equivalence form for the product universal property and (2) the exponential law and evaluation continuity for C(Y,Z).
+
+Shell
+
+
+$ bash -lc 'grep -R "namespace ContinuousMap" -n $(fd -t f 2>/dev/null || echo .) | head -n 20'

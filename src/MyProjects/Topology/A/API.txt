@@ -1,0 +1,35 @@
+使うAPIを教えて下さい。
+Mathlib.Topology.Instances.Real
+error: no such file or directory (error code: 2)
+
+
+以下がこの環境で使える正しい import と関連APIです。あなたのリポジトリには Mathlib.Topology.Instances.Real は存在せず、代わりに配下の Real/Lemmas.lean があるので、次のいずれかを使ってください。
+
+使うべきモジュール: import Mathlib.Topology.Instances.Real.Lemmas
+場所: .lake/packages/mathlib/Mathlib/Topology/Instances/Real/Lemmas.lean
+効果: ℝ に関する位相的事実や補題が入り、[LocallyCompactSpace ℝ] などの実例が解決するようになります。
+代替の安定案: import Mathlib.Topology.Algebra.Ring.Real
+場所: .lake/packages/mathlib/Mathlib/Topology/Algebra/Ring/Real.lean
+効果: ℝ のトポロジー（局所コンパクトなど）を直接提供。Instances 階層が無い環境でも通りやすいです。
+TopologyA.lean の最小 import 例
+
+一般位相・直積・ContinuousMap/compact-open
+import Mathlib.Topology.Basic
+import Mathlib.Topology.Constructions.SumProd
+import Mathlib.Topology.ContinuousMap.Basic
+import Mathlib.Topology.CompactOpen
+群/環の位相
+import Mathlib.Topology.Algebra.Group.Basic
+import Mathlib.Topology.Algebra.Ring.Basic（TopologicalRing は廃止、IsTopologicalRing を使用）
+ℝ のインスタンス（本環境で有効な方）
+import Mathlib.Topology.Instances.Real.Lemmas
+もしくは import Mathlib.Topology.Algebra.Ring.Real
+関連APIの所在
+
+直積の射影・連続性: Mathlib.Topology.Constructions.SumProd
+continuous_fst, continuous_snd, Continuous.prodMk
+連続写像の空間/指数法則: Mathlib.Topology.CompactOpen
+C(X, Y), Homeomorph.curry, ContinuousEval（評価の連続性）
+直積前合成: Mathlib.Topology.ContinuousMap.Basic
+ContinuousMap.prodMap, @[simp] prodMap_apply
+ファイルは既に Mathlib.Topology.Instances.Real.Lemmas に差し替え済みです。もし ℝ の局所コンパクト性がなお解決しない場合は、上記の代替 Mathlib.Topology.Algebra.Ring.Real を追加で import してください。

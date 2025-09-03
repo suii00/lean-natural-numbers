@@ -1,0 +1,108 @@
+アップロードありがとうございます。PDF「TopologyA の数学的解説 ― 順序対・射影・指数法則」と、対応するコード断片（`TopologyA.lean` 相当）を拝見しました。以下、**内容の要約**と、あなたの「Optional next steps」を**そのまま成果に直結する導入手順**として解説します。&#x20;
+
+---
+
+## 1) 何が入ったか（要点のマップ）
+
+* **積位相の普遍性（射影 π₁, π₂）**
+  「`h : Z → X×Y` が連続 ⇔ `π₁ ∘ h` と `π₂ ∘ h` がどちらも連続」が核。PDFの定理 1・2 に対応し、Lean 側では
+  `continuous_iff_proj_continuous` とその図式版（`product_diagram_commutes`）で実装済みです。証明は `continuous_fst/snd` と成分からペアを作る `prodMk` で閉じています。&#x20;
+
+* **位相環における連続準同型の構造補題**
+  環演算の連続性と合成で連続性が持ち上がる（例：`r ↦ f(r+r)`、`(p₁,p₂) ↦ f(p₁*p₂)`）。これは代数構造と位相の整合を端的に示す部分です。Lean では `topological_ring_hom_continuous` にまとまっています。&#x20;
+
+* **指数法則（コンパクト開位相）と評価の連続性**
+  局所コンパクトな $X,Y$ の下で $C(X×Y,Z) \cong C(X,C(Y,Z))$ を `Homeomorph.curry` として実装。`@[simp]` により \*\*β-簡約が“見たまま”\*\*に落ちるので `ext x y; simp` が正攻法になります。評価写像 `ev : C(Y,Z)×Y→Z` は `(Y,Z)` が `LocallyCompactPair` なら連続です。Lean では `exponential_law` と `continuous_eval`、さらに `exponential_law_toEquiv_apply` 等の `simp` 補題が入っています。&#x20;
+
+* **前合成とカリー化の整合性（左右・束ね版/点ごと版）**
+  $F\circ(\varphi×\mathrm{id})$ をカリー化すると $(\mathrm{curry}\ F)\circ\varphi$ と一致（第1変数側）。第2変数側も、$\psi:Y'→Y$ に対して **点ごと版**（`@[simp]`）と **束ね版**（`C(X,C(Y',Z))` 上の等式）が整っており、どちらも `ext; simp` で回ります。Lean では `curry_comp` / `curry_comp_right_apply` / `curry_comp_right` が該当。&#x20;
+
+* **ext; simp 自動化**
+  β-簡約（curry/uncurry）、`prodMap_apply`、評価の β-簡約が `@[simp]` 化されているので、指数法則まわりはほぼ **`ext x y; simp` 一撃**。&#x20;
+
+---
+
+## 2) 「Optional next steps」をこう落とし込む（短期導入プラン）
+
+### 2.1 README/ドキュメントに “How to use” を短く載せる
+
+`src/MyProjects/Topology/A/claude_topologyA_en.md` に、\*\*分割・正規パターン・右側前合成（束ね版）\*\*の 3 点を 10 行程度で明記すると、合流者が迷いません。たとえば：
+
+````markdown
+### How to use
+
+- **Split continuity into components** with  
+  `continuous_iff_proj_continuous : Continuous h ↔ Continuous (π₁ ∘ h) ∧ Continuous (π₂ ∘ h)`.  
+  Use `.mp` to decompose a goal, or `.mpr` plus `hf.prodMk hg` to build maps into products.
+
+- **Canonical rewrite pattern** for exponential law:
+  ```lean
+  ext x y; simp   -- beta rules for curry/uncurry + eval + prodMap_apply
+````
+
+* **Right-variable precomposition (bundled)** under `[LocallyCompactPair Y Z]`:
+
+  ```lean
+  lemma curry_comp_right (ψ : C(Y', Y)) (F : C(X × Y, Z)) :
+    (exponential_law …).toEquiv (F.comp (ContinuousMap.prodMap (ContinuousMap.id _) ψ))
+      = (ContinuousMap.compRightContinuousMap ψ).comp ((exponential_law …).toEquiv F)
+  ```
+
+````
+
+この内容は現在の API と一致しており、そのまま貼って動作します。:contentReference[oaicite:12]{index=12}
+
+### 2.2 `simp` をさらに通しやすく（必要ならローカル補題）
+- すでに `exponential_law_*_apply`, `eval_apply`, `prodMap_apply` は `@[simp]` 済み。もし将来の証明で `simp` が止まる箇所が出たら、**該当ファイル内だけ** `local attribute [simp]` を補う方針で進めると安全です。:contentReference[oaicite:13]{index=13}
+
+### 2.3 A の同値の運用ラッパを README/Docstring に
+- 使い方を docstring に**具体例つき**で固定（「`.mp` で割る／`.mpr` と `prodMk` で戻す」の 2 パターン）。  
+- README にも同じ 2 パターンを 3〜5 行で反復掲載。:contentReference[oaicite:14]{index=14}
+
+### 2.4 右変数側「前合成」の**完全束ね版**（二重チェック）
+- すでに `curry_comp_right`（bundled equality）が入っています。`ContinuousMap.compRightContinuousMap` の使用により、`[LocallyCompactPair Y Z]` の前提下で「**各 \(x\) で `_.comp ψ` を束ねて扱う**」設計が確立しています。README では **必要仮定**を2行で明示してください。:contentReference[oaicite:15]{index=15}
+
+---
+
+## 3) 超短い実戦レシピ（貼るだけで効くサンプル）
+
+**分割（A の同値）**：
+```lean
+-- Goal: Continuous h
+have h₁ : Continuous (π₁ ∘ h) := ...
+have h₂ : Continuous (π₂ ∘ h) := ...
+exact (continuous_iff_proj_continuous (X:=X) (Y:=Y) (Z:=Z) h).mpr ⟨h₁, h₂⟩
+````
+
+**指数法則の書き換え**：
+
+```lean
+ext x y; simp   -- curry/uncurry・評価・prodMap の β-簡約で自動的に正規形へ
+```
+
+**右側前合成（bundled）**：
+
+```lean
+-- under [LocallyCompactPair Y Z]
+have := curry_comp_right (ψ : C(Y',Y)) (F : C(X×Y,Z))
+-- 以降は `ext x y; simp` で常に同型化→β-簡約→終了
+```
+
+これらはすべて現在の `TopologyA.lean` の API と `@[simp]` 群に沿っています。
+
+---
+
+## 4) 前提の見える化（ドキュメントへの固定）
+
+* `exponential_law` は **`[LocallyCompactSpace X] [LocallyCompactSpace Y]`** を要します。
+* `continuous_eval` と、右側“束ね前合成”の連続性は **`[LocallyCompactPair Y Z]`** に依拠します。
+  PDF でも前提の整理が章末で強調されているので、そのまま README の該当節に流用すると親切です。
+
+---
+
+### まとめ
+
+* PDF は **Bourbaki 的な枠組み**を Lean の補題群に落とし込み、`ext; simp` を主軸に**機械的簡約**できる設計を明確にしています。
+* コード側は、その目標に沿って **A（分割）・C（指数法則・評価）・前合成の整合性**をすでに実装済みで、**README の “How to use” を 10 行程度**追記するだけで、利用者目線の完成度が一気に上がります。
+
+必要なら、上記の README 追記ブロックをあなたのレポ構成（章番号・英語/日本語）に合わせて微修正した原文をお渡しします。
