@@ -1,0 +1,34 @@
+追加した内容
+
+src/MyProjects/Topology/BourbakiProductAndHom.lean
+積の射について：π₁とπ₂を定義し、連続性（continuous_π₁およびcontinuous_π₂）を証明する。
+積写像の連続性：射影を用いて (f × g) : X × Y → Z × W の連続性（continuous_prod_map）を証明する。これはブルバキの「順序対＋射（射影）」という概念に沿った実装である。
+群準同型の合成：groupHomComp : (G →* H) → (H →* K) → (G →* K) という関数と、関連する簡略化定理（simp lemma）を提供する。
+位相群の連続性：topological_group_hom_continuous_inv では、f が連続である場合、g ↦ f g⁻¹ も連続であることを証明する。
+ファイル参照情報
+
+src/MyProjects/Topology/BourbakiProductAndHom.lean:1
+備考
+
+積に関する結果は、あなたのA方向の要求（射影によって構成される (f × g) の連続性）に対応しています。
+群に関する項目はBとCの要件を満たしています：準同型の合成と位相群における連続性の証明です。
+mathlibの既存の構造と定理を再利用しつつ、射影を中心に構成を整理することで、ブルバキの構造化アプローチに準拠しています。
+この内容をトップレベルのインポートに組み込み、ビルドを実行して検証しましょうか？
+
+
+What I added
+
+src/MyProjects/Topology/BourbakiProductAndHom.lean
+Projections for products: defines π₁, π₂ and proves continuous_π₁, continuous_π₂.
+Product map continuity: proves continuous_prod_map for (f × g) : X × Y → Z × W using projections, matching the Bourbaki “ordered pairs + morphisms (projections)” spirit.
+Group hom composition: groupHomComp : (G →* H) → (H →* K) → (G →* K) with a simp lemma.
+Topological group continuity: topological_group_hom_continuous_inv showing g ↦ f g⁻¹ is continuous if f is.
+File References
+
+src/MyProjects/Topology/BourbakiProductAndHom.lean:1
+Notes
+
+The product result aligns with your A-direction: continuity of (f × g) constructed via projections.
+The group items cover B and C: composition of homomorphisms and continuity in topological groups.
+I reused mathlib’s structures and lemmas while organizing around projections to reflect the Bourbaki structuration.
+Would you like me to wire this into a top-level import and run a build to verify?

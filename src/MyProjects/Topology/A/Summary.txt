@@ -1,0 +1,37 @@
+内容サマリ
+
+構造化対象 TopPair: 台集合 E とその位相 τ を持つ順序対。
+射影 π₁, π₂: TopPair からそれぞれ台集合・位相を取り出す準同型（概念上の射影）。
+構造保存射 Hom: 連続写像を「射」として定義（ブルバキの「構造を保つ写像」）。
+恒等射・合成: Hom.id, Hom.comp を定義（圏の組成）。
+直積 X ⨯ Y: 台集合は X.E × Y.E、位相は積位相（局所インスタンスから導出）。
+射影射 proj₁, proj₂: 直積から各因子への連続な射影。
+対写像 pair f g: Z → X × Y（連続性は f, g の連続性から構成）。
+直積の普遍性:
+proj₁_pair, proj₂_pair: 合成で三角が可換になることを証明。
+existsUnique_lift_to_prod: 可換条件を満たす上げ写像が一意に存在することを証明。
+機能形（関数直積）の同値:
+product_universal_property
+Continuous (fun z => (f z, g z)) ↔ (Continuous f ∧ Continuous g)
+を、TopPair に付随する局所インスタンスで示しています。
+使い方（例）
+
+既存の型に位相が入っている場合:
+def X : TopPair := ⟨α, ‹TopologicalSpace α›⟩
+def Y : TopPair := ⟨β, ‹TopologicalSpace β›⟩
+連続写像から Hom を作る:
+⟨f, hf⟩ : TopPair.Hom X Y（hf : Continuous f）
+直積普遍性の利用:
+TopPair.existsUnique_lift_to_prod f g で上げ写像の存在一意性
+TopPair.product_universal_property f g で ⟨f, g⟩ の連続性同値
+ブルバキ的ポイント
+
+構造体を順序対 (E, τ) と見なし、π₁, π₂ を明示化。
+射は「構造を保つ写像」＝連続写像（射影との可換化で表現）。
+直積は「射影が連続となる最弱構造」としての普遍性を可換図式で表現。
+次の発展（ご要望あれば実装します）
+
+位相環・位相群に拡張して、準同型まわりの連続性補題を追加。
+C(X, Y)（連続写像空間）と評価写像の連続性、指数法則（条件付き）を Bourbaki 的に整理。
+より「集合族 τ ⊆ 𝒫(E)」に忠実な定式化（公理で閉じた族としての位相）に置き換える実装。
+他にも、claude_topologyA.md に書かれていた他の方向（位相環や指数法則）もこのスタイルで追加できます。どこまで含めたいか教えてください。

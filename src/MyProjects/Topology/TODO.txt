@@ -1,0 +1,26 @@
+”次の候補
+
+Topology 配下の他ファイルから本モジュールを import して一貫化
+積の普遍性（円板図式）を Lean で表現する補題を追加
+位相群の例（実数加法群など）で動作例を付与”
+
+
+
+
+ご提示いただいた3つのテーマを網羅した将来の作業用スケルトンファイルを追加しました。
+
+新規ファイル: src/MyProjects/Topology/BourbakiProductAndHom_Skeleton.lean
+ファイルの内容
+
+unification モジュールをインポート
+src/MyProjects/Topology/ContinuousComposition.lean、
+src/MyProjects/Topology/FilterContinuity.lean、
+src/MyProjects/Topology/FundamentalGroupFunctor.lean の各ファイルにおいて、
+import MyProjects.Topology.BourbakiProductAndHom を追加する箇所を示すコメント付きTODOを追加
+普遍性に関する「普遍性同値性」命題のテンプレートコメント
+continuous_prod_map を再利用した最小限の動作例
+ℝ × ℝ を用いた具体的な検証例（恒等式を使用）
+[IsTopologicalGroup H] を前提とした topological_group_hom_continuous_inv のパラメトリックな使用例
+コンパイルエラーなく正常に動作します（「sorry」エラーは発生せず）。
+また、後で証明を記述したりインポートを接続したりする箇所には、明確なTODOマーカーを残してあります。
+インポートを一元管理するため、小規模な "All.lean" 再エクスポートファイルも作成しましょうか？
