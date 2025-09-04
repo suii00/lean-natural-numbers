@@ -291,17 +291,7 @@ section StoneCechSkeleton
 
 variable (X : Type*) [TopologicalSpace X]
 
--- Provide typeclass instances for the carrier `βX` stored inside a compactification.
-instance instTopologicalSpace_beta (S : StoneCechCompactification X) :
-    TopologicalSpace S.βX := S.instTopβX
-
-instance instCompactSpace_beta (S : StoneCechCompactification X) :
-    CompactSpace S.βX := S.instCompβX
-
-instance instT2Space_beta (S : StoneCechCompactification X) :
-    T2Space S.βX := S.instT2βX
-
-structure StoneCechCompactification where
+structure StoneCechCompactification (X : Type*) [TopologicalSpace X] where
   βX : Type*
   instTopβX : TopologicalSpace βX
   instCompβX : CompactSpace βX
@@ -311,6 +301,16 @@ structure StoneCechCompactification where
   universal :
     ∀ (K : Type*) (_ : TopologicalSpace K) (_ : CompactSpace K) (_ : T2Space K),
       ∀ f : ContinuousMap X K, ∃! F : ContinuousMap βX K, F.comp ι = f
+
+-- Provide typeclass instances for the carrier `βX` stored inside a compactification.
+instance instTopologicalSpace_beta (S : StoneCechCompactification X) :
+    TopologicalSpace S.βX := S.instTopβX
+
+instance instCompactSpace_beta (S : StoneCechCompactification X) :
+    CompactSpace S.βX := S.instCompβX
+
+instance instT2Space_beta (S : StoneCechCompactification X) :
+    T2Space S.βX := S.instT2βX
 
 /-!
 Convenience API: abstract lifting and its `simp`-friendly consequences from the
@@ -323,7 +323,7 @@ noncomputable def StoneCechCompactification.lift
     (S : StoneCechCompactification X)
     (K : Type*) [TopologicalSpace K] [CompactSpace K] [T2Space K]
     (f : ContinuousMap X K) : ContinuousMap S.βX K :=
-  Classical.choose (S.universal K _ _ _ f)
+  Classical.choose (S.universal K (inferInstance) (inferInstance) (inferInstance) f)
 
 @[simp] lemma StoneCechCompactification.lift_comp
     {X : Type*} [TopologicalSpace X]
@@ -332,7 +332,8 @@ noncomputable def StoneCechCompactification.lift
     (f : ContinuousMap X K) :
     (S.lift K f).comp S.ι = f := by
   classical
-  simpa using (Classical.choose_spec (S.universal K _ _ _ f)).1
+  simpa [StoneCechCompactification.lift]
+    using (Classical.choose_spec (S.universal K (inferInstance) (inferInstance) (inferInstance) f)).1
 
 @[simp] lemma StoneCechCompactification.lift_comp_apply
     {X : Type*} [TopologicalSpace X]
@@ -342,7 +343,7 @@ noncomputable def StoneCechCompactification.lift
     ((S.lift K f).comp S.ι) x = f x := by
   classical
   have := S.lift_comp (K:=K) f
-  simpa using congrArg (fun (h : ContinuousMap X K) => h x) this
+  exact congrArg (fun (h : ContinuousMap X K) => h x) this
 
 lemma StoneCechCompactification.lift_unique
     {X : Type*} [TopologicalSpace X]
@@ -352,8 +353,12 @@ lemma StoneCechCompactification.lift_unique
     (hG : G.comp S.ι = f) :
     G = S.lift K f := by
   classical
-  have h := (Classical.choose_spec (S.universal K _ _ _ f)).2
-  exact h G hG |> Eq.symm
+  have huniq :=
+    (Classical.choose_spec (S.universal K (inferInstance) (inferInstance) (inferInstance) f)).2
+  -- huniq : ∀ y, (y.comp S.ι = f) → y = Classical.choose (...)
+  have : G = Classical.choose (S.universal K (inferInstance) (inferInstance) (inferInstance) f) :=
+    huniq G hG
+  simpa [StoneCechCompactification.lift] using this
 
 /-!
 Trivial compactification: when `X` is already compact Hausdorff, we can take
@@ -420,13 +425,12 @@ noncomputable def StoneCechCompactification.fromMathlib :
         continuous_stoneCechExtend (α := X) (β := K) (g := fun x => f x) f.continuous⟩
     refine ⟨F, ?comp, ?uniq⟩
     · -- β-rule: extension comp unit = original
-      -- Use the function-level statement then evaluate at points.
-      have hfun : (stoneCechExtend (α := X) (β := K)
-          (g := fun x => f x) (hg := f.continuous)) ∘ stoneCechUnit = (fun x => f x) := by
-        simpa using (stoneCechExtend_extends (α := X) (β := K)
-          (g := fun x => f x) (hg := f.continuous))
+      -- Prove pointwise using `simp` with the extension lemma.
       ext x
-      simpa [Function.comp] using congrArg (fun (h : X → K) => h x) hfun
+      -- Goal: F (stoneCechUnit x) = f x
+      -- `simp [F]` unfolds `F` to `stoneCechExtend …`, and then
+      -- `stoneCechExtend_extends` reduces it to `f x`.
+      simp [F]
     · -- Uniqueness via `stoneCech_hom_ext`
       intro G hG
       have h₁ : Continuous (G : StoneCech X → K) := G.continuous
@@ -434,12 +438,8 @@ noncomputable def StoneCechCompactification.fromMathlib :
       -- both sides agree after precomposition with the unit map
       -- Start with equality of bundled maps after composing with `ι`:
       have hFcomp : F.comp ⟨stoneCechUnit, continuous_stoneCechUnit⟩ = f := by
-        -- As above, use the function-level version and ext.
-        have hfun : (stoneCechExtend (α := X) (β := K)
-            (g := fun x => f x) (hg := f.continuous)) ∘ stoneCechUnit = (fun x => f x) := by
-          simpa using (stoneCechExtend_extends (α := X) (β := K)
-            (g := fun x => f x) (hg := f.continuous))
-        ext x; simpa [Function.comp] using congrArg (fun (h : X → K) => h x) hfun
+        -- Same pointwise argument, now for `F`.
+        ext x; simp [F]
       have hEq : G.comp ⟨stoneCechUnit, continuous_stoneCechUnit⟩
                 = F.comp ⟨stoneCechUnit, continuous_stoneCechUnit⟩ := by
         simpa [hFcomp] using hG
@@ -465,7 +465,7 @@ example {K : Type*} [TopologicalSpace K] [CompactSpace K] [T2Space K]
     (f : ContinuousMap X K) (x : X) :
   ((StoneCechCompactification.fromMathlib (X:=X)).lift K f).comp
       (StoneCechCompactification.fromMathlib (X:=X)).ι x = f x := by
-  simpa using
+  exact
     (StoneCechCompactification.lift_comp_apply
       (S := StoneCechCompactification.fromMathlib (X:=X)) (K:=K) f x)
 
