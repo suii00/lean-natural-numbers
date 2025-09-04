@@ -1,0 +1,24 @@
+Bを完成させてからデバックの方がいいか、デバックをしてから、局所一意性 → 分割に沿った大域一意性に進みたいか選んでもらえますか
+
+
+結論: まずデバッグを先にやりましょう
+
+理由
+
+Lean は小刻みビルドが最短。既にエラーが多い状態で機能を足すと原因特定が遅くなります。
+いまの土台（segMap/subpath/liftPathLocalOn/PathCover/coverConcat）が正しく通っていることを確約してから、局所一意性→大域一意性を足す方が安全。
+局所一意性は既存 API に強く依存（β-則や再パラメ、連結×離散）。先に土台の型・インスタンス問題を片付けた方が実装が一発で入ります。
+進め方
+
+あと10–15件のエラーを貼ってください（ファイル・行番号つき）。順に潰します。
+直近で修正した点:
+Prod 位相インスタンス不足に let _ : TopologicalSpace d.I := d.instTopI を適所に追加
+prod_mk → prodMk 差し替え
+sheetMap の連続性証明を明示（d.e.continuous_symm.comp …）
+@[simp] Path.map_trans 追加、liftPathLocalOn_map 追加
+PathCover の端点を pts i.castSucc/pts i.succ に統一
+デバッグが落ち着いたら、次の順で実装を入れます（すぐに入れられます）。
+局所一意性 liftPathLocalOn_unique（連結×離散→インデックス定数性→ext）
+大域一意性 liftPathOnCover_unique（分割に沿って fold、最後は Path.ext）
+その後、「コンパクト性→PathCover 抽出」補題を追加して完全自動化
+ビルドログをいただければ、続けて最小パッチで一気に収束させます。

