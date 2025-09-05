@@ -1,0 +1,117 @@
+Bについてあまりにエラーが多すぎるので一から作り直したい。工程表プロンプトを作成してください
+
+
+— Prompt start —
+
+あなたは Lean 4 + mathlib のコーディングアシスタントです。B 節（被覆写像の道持ち上げ）を「一から」作り直します。A/A′/C の既存コードは変更せず、B を段階的に再構築して常にビルドを維持します。ext; simp で機械的に証明が流れる API を最優先します。
+
+ゴール/完成基準
+
+形式化対象: 被覆写像の道持ち上げ（存在・一意性）。
+受入れ基準:
+src/MyProjects/Topology/B/TopologyB_Bourbaki.lean がビルド可能。
+β-則（bundled/点毎）が ext; simp で解消。
+liftPathLocalOn_unique と liftPathOnCover_unique の一意性が ext で畳み込み可能。
+A/A′/C への回帰なし。
+制約/方針
+
+連続写像は ContinuousMap を一貫使用。
+Path は Mathlib.Topology.Path を使用。
+Stone–Čech は Mathlib.Topology.Compactification.StoneCech を使用（C は完成済み）。
+均等被覆チャートの離散指数 I の位相インスタンスは「証明内の haveI のみ」で導入（定義には入れない）。
+simp は ContinuousMap.comp_apply を加えた軽量な構成に限定。
+工程（フェーズ順）
+
+フェーズ 0: 安全な土台
+
+A/A′/C を保護（変更しない）。
+B の再実装はローカル名前空間で段階的に追加（既存 B は触らないか、一時的にコメントアウトしてもよい）。
+使う import を明示（下記「参考インポート」）。
+フェーズ 1: 最小の被覆写像骨格
+
+structure CoveringMap (p : E → B) : Prop を最小限で定義（continuous, evenlyCovered）。
+ここでは「Bourbaki 版」の均等被覆を採用（U, I, e ≃ₜ (U × I), base-compatible）。
+フェーズ 2: 均等被覆 at b（EvenlyCoveredAt）
+
+structure EvenlyCoveredAt (p : E → B) (b : B) を定義（U, I, instTopI, instDiscI, e, base）。
+sheet d i : {x // x ∈ U} → {e // p e ∈ U} を d.e.toEquiv.symm (u, i) で定義（定義で instance を要求しない）。
+sheet_base d i u : p ((sheet i u).1) = u.1 を直接計算で証明（d.e.left_inv + d.base、simp 過多は避ける）。
+inclB, inclE, sheetMap d i（bundled）と @[simp] sheet_comp_eq_inclB を実装。
+インスタンスが必要な箇所に限り haveI : TopologicalSpace d.I := d.instTopI を導入。
+フェーズ 3: 連続写像の局所持ち上げ
+
+toSubtype d γ hγ : C(Z, {x // x ∈ U}) と liftAlong d h i γ hγ : C(Z, E) を実装。
+@[simp] liftAlong_beta を sheet_comp_eq_inclB＋ext z; simp [ContinuousMap.comp_apply] で証明。
+フェーズ 4: Path 補助（再パラメ/部分パス）
+
+ローカル名前空間 Bourbaki.TopologyB.Path に:
+segMap a b : C(I, I)（0 ↦ a, 1 ↦ b）、@[simp] segMap_zero/one
+subpath γ a b : Path (γ a) (γ b)（γ.toContinuousMap.comp (segMap a b)）
+以降は完全修飾名 Bourbaki.TopologyB.Path.segMap/subpath を使用。
+フェーズ 5: Path の局所持ち上げ（像が 1 チャート内）
+
+liftPathLocal h d γ e₀ h₀ hγU : Path e₀ … を liftAlong から包む。
+@[simp] liftPathLocal_map を ext; simp で証明。
+フェーズ 6: 区間版局所持ち上げと 2 区間貼り合わせ
+
+liftPathLocalOn h d γ a b eₐ hₐ hγU : Path eₐ …（subpath を使って liftPathLocal に還元）。
+@[simp] liftPathLocalOn_map（bundled β）を実装。
+liftPathTwo h γ a c b … : Path eₐ … を Path.trans で接合（中点の β は simp で処理）。
+フェーズ 7: 有限分割カバーと fold による大域持ち上げ
+
+structure PathCover p γ（pts : Fin (n+1) → I, start/stop, charts i, inU i）。
+coverConcat γ cov : Path b₀ b₁（各 subpath の trans 連結）。
+liftPathOnCover h γ cov e₀ h₀ : Σ e, Path e₀ e（fold で liftPathLocalOn を連結）。
+β（再パラメ）@[simp] liftPathOnCover_map_reparam : ((…).2.map ⟨p,_⟩) = coverConcat γ cov を ext; simp スタイルで。
+フェーズ 8: 局所一意性
+
+連続写像 Icc 0 1 → I（離散値域）は連結な区間上で定数 ⇒ シートインデックス一定。
+liftPathLocalOn_unique を実装（d.e の injectivity＋Path.ext）。
+参考 import（必要に応じて）: Mathlib.Topology.Connected.PathConnected（区間の連結性）、Mathlib.Topology.LocallyConstant.Basic。
+フェーズ 9: 大域一意性
+
+分割各小区間で局所一意性を適用し fold で結合、Path.ext で全体を同一視。
+liftPathOnCover_unique を実装。
+フェーズ 10: コンパクト性 → PathCover 抽出（自動化）
+
+Lebesgue 数/有限被覆から PathCover.of_compact h γ を構成。
+以後は
+have cov := CoveringMap.PathCover.of_compact h γ
+have ⟨e, Γ⟩ := CoveringMap.liftPathOnCover h γ cov e₀ h₀
+@[simp] have : Γ.map ⟨p,_⟩ = coverConcat γ cov := by simpa
+でエンドツーエンド。
+実装ガイド（ext/simp）
+
+ContinuousMap の合成等式は ext t; simp [ContinuousMap.comp_apply, …] を基本形に。
+sheet_base/sheet_comp_eq_inclB/liftAlong_beta は「式を並べてから点毎」に落とす。
+segMap/subpath はローカル名前空間で完全修飾使用（名前衝突回避）。
+d.I の位相インスタンスは定義では要求せず、証明で haveI を都度導入。
+端点 ⟨0, by simp⟩, ⟨1, by simp⟩ は必要に応じて : Icc (0:ℝ) 1 を明示。
+リスク/対策
+
+プロダクト位相の definality 問題: 定義側で instance を持ち込まない。証明内 haveI に限定。
+simp 過多によるメタ詰まり: 直接の書換（set …, have := …, change …）で分解し、simp は最小限。
+Path 名前解決: すべて Bourbaki.TopologyB.Path.* を使用。
+参考インポート
+
+Mathlib.Topology.Path
+Mathlib.Topology.ContinuousMap.Basic
+Mathlib.Topology.CompactOpen
+Mathlib.Topology.Compactification.StoneCech
+必要なら: Mathlib.Topology.Connected.PathConnected, Mathlib.Topology.LocallyConstant.Basic
+作業単位/コミット粒度
+
+フェーズ毎にビルド通過を確認（liftAlong_beta → liftPathLocal_map → liftPathLocalOn_map → 2 区間 → fold → β(reparam) → 一意性）。
+@[simp] は証明が安定した時点で付与（早付けは控える）。
+開始テンプレート（逐次実行用）
+
+EvenlyCoveredAt（sheet/sheet_base/inclB/inclE/sheetMap/sheet_comp_eq_inclB）を実装。ビルド。
+toSubtype/liftAlong と @[simp] liftAlong_beta。ビルド。
+segMap/subpath（ローカル名前空間）。ビルド。
+liftPathLocal と @[simp] …_map。ビルド。
+liftPathLocalOn/@[simp] …_map。ビルド。
+liftPathTwo。ビルド。
+PathCover/coverConcat/liftPathOnCover/@[simp] …_map_reparam。ビルド。
+liftPathLocalOn_unique → liftPathOnCover_unique。ビルド。
+PathCover.of_compact（後続）。ビルド。
+— Prompt end —

@@ -1,0 +1,35 @@
+対応しました。主に「I（シートの添字）のトポロジーのインスタンス不一致」と「Path.segMap / Path.subpath の名前解決」に起因するエラーを潰しています。
+
+重要修正
+
+トポロジーのインスタンス整合化
+
+変更点: EvenlyCoveredAt に格納されている instTopI と instDiscI を、そのまま d.I のインスタンスとして提供しました。
+目的: ({x // x ∈ d.U} × d.I) などの生成される Product トポロジーが、常に d.instTopI に基づいたものとして解釈されるようにし、「synthesized instance is not definitionally equal」系のエラーを避けるため。
+参照: src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:304 付近
+instance instTopologicalSpace_I (d : EvenlyCoveredAt p b) : TopologicalSpace d.I := d.instTopI
+instance instDiscreteTopology_I (d : EvenlyCoveredAt p b) : DiscreteTopology d.I := d.instDiscI
+Path 名の完全修飾（未知識別子の解消）
+
+変更点: segMap と subpath は CoveringSpaces の内側の namespace Path に定義されていたため、フルネームは Bourbaki.TopologyB.CoveringSpaces.Path.* です。これに合わせ、参照箇所をすべてこの完全修飾名に変更しました。
+目的: 「Unknown identifier Bourbaki.TopologyB.Path.segMap」「Invalid field subpath」の解消。
+代表箇所:
+src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:556 など
+Bourbaki.TopologyB.Path.segMap → Bourbaki.TopologyB.CoveringSpaces.Path.segMap
+Bourbaki.TopologyB.Path.subpath → Bourbaki.TopologyB.CoveringSpaces.Path.subpath
+γ.subpath a b → Bourbaki.TopologyB.CoveringSpaces.Path.subpath γ a b
+同様の書き換えを liftPathLocalOn, liftPathTwo, PathCover, coverConcat で実施
+期待される効果
+
+次の類のエラーが解消される見込みです。
+failed to synthesize TopologicalSpace ({ x // x ∈ d.U } × d.I)
+synthesized type class instance is not definitionally equal to inferred …
+Unknown identifier Bourbaki.TopologyB.Path.segMap
+Invalid field subpath for Path
+補足
+
+EvenlyCoveredAt 内では引き続き classical を使っていますが、今回の目的（インスタンスの一意化）には影響ありません。
+未使用引数などの linter 警告は無視して問題ありません（ご指定どおり）。
+次のステップ
+
+一度 lake build を走らせてください（依存取得のネットワークが必要なら許可をお願いします）。新しいエラーログが出たら、その該当行ごと貼ってください。引き続き最小修正で潰していきます。
