@@ -1,0 +1,53 @@
+会話をバックアップするためにプロンプトを作成してください
+
+
+以下は、現在の進捗と方針（Option 2）の要点を網羅したバックアップ用プロンプトです。このまま貼り付ければ、次回以降も Phase 3–6 の続き（特に coverConcatCore_apply → coverConcat → liftPathOnCover）を同じ設計で安全に再開できます。
+
+— Prompt start —
+
+あなたは Lean 4 + mathlib のコーディングアシスタントです。B 節（被覆写像の道持ち上げ）を ext; simp 指向・mathlib 版差に強い設計で再構築します。現在、Phase 0–5 は緑で、Phase 6 の fold を Option 2（apply レベル → Path レベルの順で段階導入）で実装します。
+
+状態（すでに実装済み）
+
+Phase 0–1: I0/I1・path_map_apply（@[simp]）、Bourbaki.TopologyB.Path.segMap/subpath（@[simp] segMap_*）
+Phase 2–3: EvenlyCoveredAt.sheetMap（内部 letI）、@[simp] sheet_comp_eq_inclB（set-level β）、toSubtype、liftAlong、@[simp] liftAlong_beta
+Phase 4: liftPathLocal（sheetMap_through で始点一致）、liftPathLocalOn（直実装、sheet 不使用）、liftPathLocalOn_map_apply（apply レベル）、Path 版は ext t; simp で導出
+Phase 5: liftPathTwo（Path.trans、中点一致は congrArg (fun δ => δ I1) と simp）
+Phase 6（途中）: CoveringMap.PathCover 構造は有効。coverConcat/liftPathOnCover 本体はコメントアウト中。代わりに左畳みの核 coverConcatCore を導入済み（返り値 Path b₀ (γ (cov.pts k))）。
+要件（継続方針）
+
+sheet は使わない（Option A 継続）。sheetMap＋bundled β（sheet_comp_eq_inclB）で統一。
+.map は「関数＋連続性」形式に統一：map (f := p) h.continuous
+等式は ext; simp（ContinuousMap.comp_apply を明示）で流す。
+d.I のインスタンスは使う箇所のブロックでのみ letI 導入（定義/型に持ち込まない）。
+端点は I0/I1 と Path.source/target の定理形を使い、simp [I0, I1] で落とす。
+実装タスク（Option 2）
+
+lemma coverConcatCore_apply (t)（apply レベル）を追加
+
+k : Fin (cov.n+1) に関する強い帰納で、Path.trans の点評価形を simp で畳む。
+使用する補題と simp セット：
+Bourbaki.TopologyB.Path.subpath の定義（γ.toContinuousMap.comp (segMap …)）
+[simp] segMap_I0/segMap_I1、ContinuousMap.comp_apply
+端点は simp [cov.start, cov.stop, path_source_I0, path_target_I1]
+coverConcat を coverConcatCore から差し替え（後で解禁）
+
+noncomputable def coverConcat (γ) (cov) := coverConcatCore γ cov ⟨cov.n, by simp⟩
+Path 等式は lemma coverConcat_apply_path : coverConcat γ cov = … を ext t; simp [coverConcatCore_apply, coverConcat] で証明。
+liftPathOnCover（強い帰納、apply レベル β）
+
+状態: Σ e_k, Path e₀ e_k × (p e_k = γ (cov.pts ⟨k, hk⟩))
+各ステップ:
+Γ_{k+1} := Γ_k.trans (liftPathLocalOn … e_k … (cov.inU i))
+hb_{k+1} は congrArg (fun δ => δ I1) を liftPathLocalOn_map_apply に適用して 1 行更新
+返り値: ⟨e_n, Γ_n⟩
+β（apply レベル）: lemma liftPathOnCover_map_apply (t) を fold で証明 → Path 等式は ext t; simp。
+落とし穴/回避策
+
+simp が True 化して止まるのを防ぐため、端点は γ.source/γ.target（定理形）で書換える（path_source_I0, path_target_I1 は定理形に戻して使用）。
+Fin 添字は ⟨k, hklt⟩ を明示構成、ext; rfl で統一。
+Nat 不等式は Nat.succ_lt_succ_iff, Nat.lt_succ_of_le, Nat.le_of_lt_succ, le_of_lt を適切に使い分ける。
+.map は必ず (f := p) h.continuous 形式に統一して path_map_apply を simp に含める。
+— Prompt end —
+
+このプロンプトをバックアップとして保存しておけば、Phase 6 の apply レベル実装（coverConcatCore_apply → coverConcat → liftPathOnCover）を同じ方針で安全に再開できます。必要であれば、すぐに coverConcatCore_apply の実装パッチから進めます。
