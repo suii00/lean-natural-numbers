@@ -1,0 +1,65 @@
+目的
+
+Lean 4 + mathlib のコーディングアシスタントとして、被覆写像の道持ち上げ（B 節）を ext; simp 指向・mathlib 差に強い設計で継続実装する。
+作業対象は src/MyProjects/Topology/B/TopologyB_Bourbaki.lean。Phase 0–6（fold + 大域 β）は概ね緑。以降は一意性（局所→大域）を小刻みに導入する。
+スタイル/ルール
+
+シートは使わない（Option A）。EvenlyCoveredAt.sheetMap と @[simp] sheet_comp_eq_inclB（bundled β）で統一。
+Path.map は必ず (f := p) h.continuous の形。@[simp] path_map_apply を活用。
+等式は基本 ext; simp。ContinuousMap.comp_apply を明示し、comp/subpath を simp で潰す。
+端点は source'/target'（定理形）経由。I0/I1 固定子で simp。
+Fin 添字は ext; rfl → congrArg (fun j => cov.pts j) で揃える。
+Prop を Prod に入れない。証明付きは Σ と ∧ に分離。
+既存の補題・命名・命名空間を尊重し、最小変更。
+実装済み（抜粋）
+
+EvenlyCoveredAt.sheetMap と @[simp] sheet_comp_eq_inclB
+toSubtype / liftAlong / @[simp] liftAlong_beta
+liftPathLocal / liftPathLocalOn と liftPathLocalOn_map_apply
+coverConcatCore / coverConcat / coverConcat_I0 / coverConcat_I1
+大域持ち上げ liftPathOnCover と liftPathOnCover_map_apply（骨組み）
+e レベル β と in‑sheet 一意性：
+EvenlyCoveredAt.liftAlong_e_apply / liftAlong_unique_in_sheet
+CoveringMap.liftPathLocalOn_e_apply / _unique_in_sheet
+現在の課題（エラー）
+
+場所: lemma liftPathOnCover_map_apply
+基底ケース（k=0）の「点毎 β」残置ゴール:
+1240:79 ⊢ (coverConcatCore γ cov 0) u = b₀
+1256/1259 “try simp” lint
+帰納ステップの IH 呼び出しの引数形:
+1269/1274 “ih e₀ hk'” が “p e₀ = b₀” を要求
+最終段（k=n）の整合:
+1351–1367 (↑R).snd と liftPathOnCover … .snd の食い違い/change ミスマッチ
+直すべきポイント（具体策）
+
+基底ケース（k=0）「点毎 β」:
+現在の hmap/h0idx/hcore + calc を削除し、次の1行に置換
+intro u; simp [coverConcatCore, path_map_apply, h₀]
+帰納ステップ IH 呼び出し:
+この補題の IH は両方を generalize している（ih : (e₀ : E) → p e₀ = b₀ → (hk : k ≤ cov.n) → …）
+呼び出しを rcases ih e₀ h₀ hk' with ⟨⟨e_k, Γ_k⟩, hpair_k⟩ に変更
+最終段（k=n）:
+R/hLift/hCC をやめ、定義に合わせた let 形で比較しつつ右辺は fold
+置換ブロック:
+have hval : (((build cov.n le_rfl).val.2).map (f := p) h.continuous) t = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := ((build cov.n le_rfl).property).1 t
+change ((let Q := (build cov.n le_rfl).val; (Q.2.map (f := p) h.continuous)) t) = (coverConcat (p:=p) γ cov) t
+simpa [coverConcat] using hval
+次にやること（機能）
+
+局所一意性の「固定シート」仮定を除去：
+unitInterval 連結 + I 離散 ⇒ 指標は locally constant ⇒ 定数
+それを補題化し、liftPathLocalOn_unique_in_sheet を薄く包んで昇格
+大域一意性（fold）：
+PathCover 各区間で局所一意性を適用し、coverConcatCore_succ_path で段階を揃え ext; simp
+端点は congrArg (fun δ => δ I1)
+受け入れ基準
+
+src/MyProjects/Topology/B/TopologyB_Bourbaki.lean がビルド緑
+既存のシンプルな simp/ext パターンに合致
+命名空間・API（Option A、bundled β、(f := p) h.continuous）に厳密準拠
+変更は必要最小限、周辺既存コードを壊さない
+補足
+
+“try simp instead of simpa” は可能なら simp に寄せる（意味保持）
+@[simp] 追加は既存方針に適合する場合のみ（diff を小さく維持）

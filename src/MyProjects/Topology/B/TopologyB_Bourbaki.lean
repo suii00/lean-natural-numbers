@@ -421,6 +421,8 @@ first skeleton, focusing on the core decomposition datum.
     -- Rewrite back the definition of `s`.
     simpa [s] using this.symm
 
+
+
   /- ### Local lifting for maps landing in `U` -/
 
   -- Phase 3: local lifting for maps, scoped under a single local instance.
@@ -488,6 +490,133 @@ first skeleton, focusing on the core decomposition datum.
     simp [liftAlong, toSubtype, inclB, ContinuousMap.comp_apply, hβ]
 
   end LocalLift
+
+  /-!
+  Auxiliary e-level β for `liftAlong` and a uniqueness-on-a-fixed-sheet
+  principle. These avoid introducing `sheet` objects and stick to bundled
+  maps and `e.injective`.
+  -/
+
+  /-- e-level β: transporting the `liftAlong` by the chart `e` yields the
+  pair `(u, i)` with base point `u` and fixed sheet index `i`. -/
+  lemma liftAlong_e_apply
+      (d : EvenlyCoveredAt p b) (h : CoveringMap p)
+      (i : d.I) {Z : Type*} [TopologicalSpace Z]
+      (γ : ContinuousMap Z B) (hγ : ∀ z, γ z ∈ d.U) (z : Z) :
+      d.e ⟨(d.liftAlong (p:=p) h i γ hγ) z,
+            by
+              -- Membership via the bundled sheet β at `s := (toSubtype γ hγ) z`.
+              classical
+              let s := (d.toSubtype γ hγ) z
+              have hβp := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
+              have hpeq : p (((d.inclE).comp (d.sheetMap i)) s) = s.1 := by
+                simpa [ContinuousMap.comp_apply, EvenlyCoveredAt.inclB]
+                  using congrArg (fun F => F s) hβp
+              -- Convert `s.2 : s.1 ∈ d.U` to the required goal using `congrArg`.
+              have hxEq : (p (d.inclE ((d.sheetMap i) s)) ∈ d.U) = (s.1 ∈ d.U) := by
+                simpa [ContinuousMap.comp_apply] using congrArg (fun x => x ∈ d.U) hpeq
+              exact Eq.mp (hxEq.symm) s.2
+        ⟩
+        = (⟨γ z, hγ z⟩, i) :=
+  by
+    classical
+    letI : TopologicalSpace d.I := d.instTopI
+    -- Abbreviate the base point in the chart.
+    let u : Subtype (fun x : B => x ∈ d.U) := ⟨γ z, hγ z⟩
+    -- Show the lifted subtype point coincides with `sheetMap i u`.
+    have hs : (⟨(d.liftAlong (p:=p) h i γ hγ) z,
+                by
+                  have hβp := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
+                  have hpeq : p (((d.inclE).comp (d.sheetMap i)) u) = u.1 := by
+                    simpa [ContinuousMap.comp_apply, EvenlyCoveredAt.inclB]
+                      using congrArg (fun F => F u) hβp
+                  have hxEq : (p (d.inclE ((d.sheetMap i) u)) ∈ d.U) = (u.1 ∈ d.U) := by
+                    simpa [ContinuousMap.comp_apply] using congrArg (fun x => x ∈ d.U) hpeq
+                  exact Eq.mp (hxEq.symm) u.2⟩
+              : Subtype (fun e' : E => p e' ∈ d.U))
+            = d.sheetMap i u := by
+      apply Subtype.ext
+      -- Underlying E-values are definitionally equal.
+      simp [u, EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype,
+            ContinuousMap.comp_apply, EvenlyCoveredAt.inclE, EvenlyCoveredAt.sheetMap]
+    -- Apply `e` and use left-inverse for `(u, i)`.
+    have hRight : d.e (d.sheetMap i u) = (u, i) := by
+      simpa [EvenlyCoveredAt.sheetMap] using d.e.left_inv (u, i)
+    have hL : d.e
+        (⟨(d.liftAlong (p:=p) h i γ hγ) z,
+          by
+            -- Membership via sheet β at `s := (toSubtype γ hγ) z`.
+            classical
+            let s := (d.toSubtype γ hγ) z
+            have hβp := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
+            have hpeq : p (((d.inclE).comp (d.sheetMap i)) s) = s.1 := by
+              simpa [ContinuousMap.comp_apply, EvenlyCoveredAt.inclB]
+                using congrArg (fun F => F s) hβp
+            have hxEq : (p (d.inclE ((d.sheetMap i) s)) ∈ d.U) = (s.1 ∈ d.U) := by
+              simpa [ContinuousMap.comp_apply] using congrArg (fun x => x ∈ d.U) hpeq
+            exact Eq.mp (hxEq.symm) s.2⟩)
+        = (u, i) := by
+      simpa [hs] using hRight
+    simpa [u]
+
+  /-- Uniqueness on a fixed sheet: any continuous lift with the same base
+  `γ` and second coordinate constantly `i` coincides with `liftAlong` on `i`. -/
+  lemma liftAlong_unique_in_sheet
+      (d : EvenlyCoveredAt p b) (h : CoveringMap p)
+      (i : d.I) {Z : Type*} [TopologicalSpace Z]
+      (γ : ContinuousMap Z B) (hγ : ∀ z, γ z ∈ d.U)
+      (δ : ContinuousMap Z E)
+      (hβ : ((⟨p, h.continuous⟩ : ContinuousMap E B)).comp δ = γ)
+      (hsheet : ∀ z, (d.e ⟨δ z, by
+                        have hx0 := congrArg (fun F => F z) hβ
+                        have hx : p (δ z) = γ z := by
+                          simpa [ContinuousMap.comp_apply] using hx0
+                        have hxEq : (p (δ z) ∈ d.U) = (γ z ∈ d.U) := by
+                          simpa [hx]
+                        exact Eq.mp hxEq.symm (hγ z)⟩).2 = i) :
+      δ = d.liftAlong (p:=p) h i γ hγ :=
+  by
+    classical
+    letI : TopologicalSpace d.I := d.instTopI
+    ext z
+    set sL : Subtype (fun e' : E => p e' ∈ d.U) :=
+      ⟨δ z, by
+        have hx := congrArg (fun F => F z) hβ
+        have hx' : p (δ z) = γ z := by
+          simpa [ContinuousMap.comp_apply] using hx
+        have hxEq : (p (δ z) ∈ d.U) = (γ z ∈ d.U) := by
+          simpa [hx']
+        exact Eq.mp hxEq.symm (hγ z)⟩
+    set sR : Subtype (fun e' : E => p e' ∈ d.U) :=
+      ⟨(d.liftAlong (p:=p) h i γ hγ) z,
+        by
+          -- Use the sheet β at `s := (toSubtype γ hγ) z` to get membership.
+          classical
+          let s := (d.toSubtype γ hγ) z
+          have hβp := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
+          have hpeq : p (((d.inclE).comp (d.sheetMap i)) s) = s.1 := by
+            simpa [ContinuousMap.comp_apply, EvenlyCoveredAt.inclB]
+              using congrArg (fun F => F s) hβp
+          have hxEq : (p (d.inclE ((d.sheetMap i) s)) ∈ d.U) = (s.1 ∈ d.U) := by
+            simpa [ContinuousMap.comp_apply] using congrArg (fun x => x ∈ d.U) hpeq
+          -- rewrite the goal via `liftAlong` def to the LHS of `hxEq` and close by `s.2`.
+          simpa [EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype, ContinuousMap.comp_apply]
+            using Eq.mp (hxEq.symm) s.2⟩
+    have hL : d.e sL = (⟨γ z, hγ z⟩, i) := by
+      have h2 : (d.e sL).2 = i := by simpa [sL] using hsheet z
+      have hb : ((d.e sL).1 : Subtype fun x : B => x ∈ d.U).1 = p sL.1 := d.base sL
+      have hx : p sL.1 = γ z := by
+        have hx0 := congrArg (fun F => F z) hβ
+        simpa [sL, ContinuousMap.comp_apply] using hx0
+      have hfst : (d.e sL).1 = ⟨γ z, hγ z⟩ := by
+        apply Subtype.ext; simpa [hx] using hb
+      exact Prod.ext hfst h2
+    have hR : d.e sR = (⟨γ z, hγ z⟩, i) :=
+      d.liftAlong_e_apply (p:=p) (h:=h) (i:=i) (γ:=γ) (hγ:=hγ) z
+    have hs : sL = sR := d.e.injective (by simpa [sL, sR] using hL.trans hR.symm)
+    -- extract equality of underlying values
+    have := congrArg Subtype.val hs
+    simpa [sL, sR] using this
 
 
   end EvenlyCoveredAt
@@ -913,13 +1042,16 @@ by
       (coverConcat (p:=p) γ cov) I1 = b₁ := by
     simpa [I1] using (coverConcat (p:=p) γ cov).target'
 
-  /-- Apply-level identity: evaluating `coverConcat` equals evaluating
-  the fold nucleus at the final index. -/
+  /-
+  Apply-level identity: evaluating `coverConcat` equals evaluating the fold
+  nucleus at the final index. (Commented out on request.)
+
   lemma coverConcat_apply {b₀ b₁ : B}
       (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) (t : unitInterval) :
       (coverConcat (p:=p) γ cov) t
         = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := by
     simp [coverConcat]
+  -/
 
 
   -- We deliberately avoid asserting that `coverConcat` pointwise equals a
@@ -969,8 +1101,8 @@ by
   /-
   -- Concatenation of the subpaths determined by a `PathCover`. This is a
   canonical reparametrization of `γ` by the partition points `cov.pts`. -/
-  /- NOTE: Phase 6 (coverConcat/liftPathOnCover) deferred; commenting out to keep build green.
-  noncomputable def coverConcat {b₀ b₁ : B}
+  -- NOTE: Phase 6 (coverConcat/liftPathOnCover) legacy version (commented out).
+  /- noncomputable def coverConcat {b₀ b₁ : B}
       (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) : Path b₀ b₁ :=
   by
     classical
@@ -998,176 +1130,406 @@ by
         have : γ (cov.pts ⟨cov.n, Nat.lt_succ_self _⟩) = b₁ := by
           have : γ I1 = b₁ := by simpa using (path_target_I1 (γ := γ))
           simpa [cov.stop] using this
-        simpa [this] using (build cov.n le_rfl).target }
+        simpa [this] using (build cov.n le_rfl).target } -/
 
   /-- Glue local lifts along the subintervals of a `PathCover` to obtain a global lift
   over the whole interval. Returns the endpoint in the fiber and the lifted path. -/
-  noncomputable def liftPathOnCover
+noncomputable def liftPathOnCover
+    (h : CoveringMap p) {b₀ b₁ : B}
+    (γ : Path b₀ b₁)
+    (cov : PathCover (p:=p) γ)
+    (e₀ : E) (h₀ : p e₀ = b₀) :
+    Σ e : E, Path e₀ e :=
+by
+  classical
+  -- Invariant: p e_k = γ (pts k)
+  have build :
+      ∀ k, (hk : k ≤ cov.n) →
+        Subtype (fun x : Σ e : E, Path e₀ e =>
+          p x.1 = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk⟩)) :=
+  by
+    intro k
+    -- 帰納：k = 0 / k+1
+    induction' k with k ih
+    -- base: k = 0
+    · intro hk
+      -- ここは一発で閉じる：未解決ゴール（?m）を残さない
+      exact
+        ⟨⟨e₀, Path.refl e₀⟩, by
+          -- pts 0 = I0
+          have hpts0 : cov.pts (0 : Fin (cov.n+1)) = I0 := by
+            simpa using cov.start
+          -- γ I0 = b₀（等式として直接取得；True 化を避ける）
+          have hγI0 : γ I0 = b₀ := by
+            cases' γ with toγ srcγ tgtγ
+            simpa [I0] using srcγ
+          -- b₀ = γ (pts 0) を作って右辺を書き換える
+          have hb0 : b₀ = γ (cov.pts (0 : Fin (cov.n+1))) := by
+            simpa [hpts0] using hγI0.symm
+          -- 目標 p e₀ = γ (pts 0)
+          simpa [hb0] using h₀
+        ⟩
+    -- step: k → k+1
+    · intro hkSucc
+      -- k+1 ≤ n から k ≤ n と k < n を得る
+      have hk'  : k ≤ cov.n := le_trans (Nat.le_succ k) hkSucc
+      have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
+      -- IH：k 段までの (e_k, Γ_k) と不変量 p e_k = γ (pts k)
+      rcases ih hk' with ⟨⟨e_k, Γ_k⟩, hkrel⟩
+      -- 次区間のインデックス
+      let i : Fin cov.n := ⟨k, hklt⟩
+      -- castSucc で添字をそろえる
+      have hidx : (⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
+        ext; rfl
+      have hstart : p e_k = γ (cov.pts i.castSucc) := by
+        simpa [hidx] using hkrel
+      -- 小区間の持ち上げ
+      let Γseg :=
+        liftPathLocalOn (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
+          (cov.charts i) e_k hstart (cov.inU i)
+      -- k+1 の不変量：p (Γseg 1) = γ (pts i.succ)
+      have hend : p (Γseg I1) = γ (cov.pts i.succ) := by
+        have hβ :=
+          liftPathLocalOn_map_apply (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
+            (cov.charts i) e_k hstart (cov.inU i) I1
+        simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
+               ContinuousMap.comp_apply] using hβ
+      -- 次状態：終点と貼り合わせた Path
+      exact ⟨⟨Γseg I1, Γ_k.trans Γseg⟩, by simpa using hend⟩
+
+  -- k = n の結果を取り出して返す
+  let R := build cov.n le_rfl
+  exact ⟨R.val.1, R.val.2⟩
+
+
+
+/-- (apply レベルの β) グローバル持ち上げの像は、`coverConcat` に一致する。 -/
+lemma liftPathOnCover_map_apply
+  (h : CoveringMap p) {b₀ b₁ : B}
+  (γ : Path b₀ b₁)
+  (cov : PathCover (p:=p) γ)
+  (e₀ : E) (h₀ : p e₀ = b₀)
+  (t : unitInterval) :
+  ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) t
+    = (coverConcat (p:=p) γ cov) t :=
+by
+  classical
+  ----------------------------------------------------------------
+  -- 強い帰納：段 k の「点毎 β」と「端点不変量 p e_k = γ (pts k)」を保持
+  ----------------------------------------------------------------
+  have build :
+    ∀ k, (hk : k ≤ cov.n) →
+      Subtype (fun x : Σ e : E, Path e₀ e =>
+        (∀ u : unitInterval,
+          ((x.2).map (f := p) h.continuous) u
+            = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk⟩) u)
+        ∧ (p x.1 = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk⟩))) :=
+  by
+    intro k
+    -- e₀ は generalize（h₀ は base だけで使う）
+    induction' k with k ih generalizing e₀
+    · -- base : k = 0
+      intro hk
+      refine ⟨⟨e₀, Path.refl e₀⟩, ?_⟩
+      refine And.intro ?hpath ?hend0
+      -- (a) 点毎 β：map(refl) は定数 `p e₀`、core(0) は常に `b₀`
+      · intro u
+        have hmap : ((Path.refl e₀).map (f := p) h.continuous) u = p e₀ := by
+          simp [path_map_apply]            -- ← simp を使う
+        have hcore₀ :
+            (coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u = b₀ := by
+          simp [CoveringMap.coverConcatCore, path_map_apply, h₀]        -- ← simp を使う
+        -- 連鎖（向きに注意）
+        calc
+          ((Path.refl e₀).map (f := p) h.continuous) u
+              = p e₀ := hmap
+          _   = b₀   := h₀
+          _   = (coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u := hcore₀.symm
+      -- (b) 端点不変量：`p e₀ = γ (pts 0)`
+      ·
+        -- `pts 0 = I0`
+        have hpts0 : cov.pts (0 : Fin (cov.n+1)) = I0 := by
+          simpa using cov.start
+        -- `γ I0 = b₀` を等式として取得
+        have hγI0 : γ I0 = b₀ := by
+          cases' γ with toγ srcγ tgtγ
+          simpa [I0] using srcγ
+        -- 右辺を書き換える向きで `b₀ = γ (pts 0)` を作る
+        have hb0 : b₀ = γ (cov.pts (0 : Fin (cov.n+1))) := by
+          simpa [hpts0] using hγI0.symm
+        -- 目標を閉じる
+        simpa [hb0] using h₀
+
+    · -- step : k → k+1
+      intro hkSucc
+      -- `k+1 ≤ n` から `k ≤ n` と `k < n`
+      have hk'  : k ≤ cov.n := le_trans (Nat.le_succ k) hkSucc
+      have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
+      -- ★ 直前段（e₀ は generalize 済みなので **必ず `ih e₀ hk'`** と適用）
+      rcases ih e₀ h₀ hk' with ⟨⟨e_k, Γ_k⟩, hpair_k⟩
+      have hpath_k :
+          ∀ u : unitInterval,
+            (Γ_k.map (f := p) h.continuous) u
+              = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩) u :=
+        hpair_k.1
+      have hend_k :
+          p e_k = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩) :=
+        hpair_k.2
+      -- 区間インデックス
+      let i : Fin cov.n := ⟨k, hklt⟩
+      -- castSucc で添字をそろえる
+      have hidx :
+          (⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
+        ext; rfl
+      have hstart : p e_k = γ (cov.pts i.castSucc) := by
+        simpa [hidx] using hend_k
+      -- 小区間の局所リフト
+      let Γseg :=
+        liftPathLocalOn (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
+          (cov.charts i) e_k hstart (cov.inU i)
+      -- 小区間 β（点毎）
+      have hseg_apply :
+          ∀ u : unitInterval,
+            (Γseg.map (f := p) h.continuous) u
+              = (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) u :=
+      by
+        intro u
+        simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
+               ContinuousMap.comp_apply]
+          using
+            (liftPathLocalOn_map_apply (p:=p) h γ
+              (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
+              e_k hstart (cov.inU i) u)
+      -- 終点不変量（k+1）
+      have hend_k1 :
+          p (Γseg I1) = γ (cov.pts i.succ) := by
+        have hβ :=
+          liftPathLocalOn_map_apply (p:=p) h γ
+            (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
+            e_k hstart (cov.inU i) I1
+        simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
+               ContinuousMap.comp_apply] using hβ
+      -- 次段の Σ
+      refine ⟨⟨Γseg I1, Γ_k.trans Γseg⟩, ?_⟩
+      -- (i) 点毎 β（k+1）
+      · intro u
+        -- `map` を `trans` に押し出す（点毎）
+        have hmap_trans :
+          ((Γ_k.trans Γseg).map (f := p) h.continuous) u
+            = ((Γ_k.map (f := p) h.continuous).trans (Γseg.map (f := p) h.continuous)) u := by
+          -- `map_trans_path` を使うなら：
+          -- simpa using congrArg (fun (P : Path _ _) => P u)
+          --   (map_trans_path (α := Γ_k) (β := Γseg) (f := p) (hf := h.continuous))
+          rfl
+        -- `coverConcatCore` の succ 分岐に一致
+        have hcore_succ :
+          ((coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+              (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u
+            = (coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := by
+          simp [coverConcatCore, Nat.lt_succ_of_le hk',
+                Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply]
+        -- 連鎖（点毎等式を使って二因子を置換）
+        calc
+          ((Γ_k.trans Γseg).map (f := p) h.continuous) u
+              = ((Γ_k.map (f := p) h.continuous).trans (Γseg.map (f := p) h.continuous)) u := hmap_trans
+          _ = ((coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+                (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u := by
+                -- `hpath_k u` と `hseg_apply u` で置換（`simp` でも可）
+                -- ここは点評価なので `rfl` でも化簡する実装に合わせています
+                rfl
+          _ = (coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := hcore_succ
+      -- (ii) 端点不変量（k+1）
+      · simpa using hend_k1
+
+  ----------------------------------------------------------------
+  -- 段 k = n の点毎 β を t に適用して、定義を最小限だけ展開
+  ----------------------------------------------------------------
+  -- まず「その段の値」R を束ねておく（`set` にして定義等式 hR を取る）
+  set R := build cov.n le_rfl with hR
+  have hval :
+      ((R.val.2).map (f := p) h.continuous) t
+        = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t :=
+    (R.property).1 t
+  -- LHS：`liftPathOnCover` の .2 は定義上 `R.val.2`
+  have hLift :
+      (liftPathOnCover (p:=p) h γ cov e₀ h₀).2 = R.val.2 := by
+    -- `liftPathOnCover` の定義は `let R := build …; exact ⟨R.1, R.2⟩`
+    -- よって `simpa` で開くのが確実
+    simpa [liftPathOnCover, hR]
+  -- RHS：`coverConcat` の評価は core の最終段に一致
+  have hCC :
+      (coverConcat (p:=p) γ cov) t
+        = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := by
+    simp [coverConcat]
+  -- 仕上げ：両辺を書き換えて終了
+  simpa [hLift, hCC] using hval
+
+
+  -- We avoid a path-level equality since endpoints differ; the apply-level β
+  -- lemma suffices and gives endpoint corollaries below.
+
+  /-- Endpoint corollary at `I0` for the mapped global lift. -/
+  lemma liftPathOnCover_map_I0
       (h : CoveringMap p) {b₀ b₁ : B}
       (γ : Path b₀ b₁)
       (cov : PathCover (p:=p) γ)
       (e₀ : E) (h₀ : p e₀ = b₀) :
-      Σ e : E, Path e₀ e :=
+      ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) I0
+        = γ I0 :=
   by
-    classical
-    -- Strong recursion storing the endpoint relation `p e_k = γ (pts k)`.
-    have build : ∀ k, (hk : k ≤ cov.n) → Σ e : E, Path e₀ e ×
-        (p e = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk⟩)) :=
-    by
-      intro k
-      induction' k with k ih generalizing e₀
-      · intro hk
-        -- base case k = 0
-        ⟨e₀, (Path.refl e₀, by
-          have : γ (cov.pts ⟨0, Nat.succ_pos _⟩) = b₀ := by
-            simpa [cov.start] using (path_source_I0 (γ := γ))
-          simpa [this] using h₀)⟩
-      · intro hkSucc
-        -- step k+1
-        -- get previous data at k
-        have hk' : k ≤ cov.n := le_trans (Nat.le_succ k) hkSucc
-        rcases ih hk' with ⟨e_k, Γ_k, hkrel⟩
-        -- segment index, using `k < cov.n`
-        have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
-        let i : Fin cov.n := ⟨k, hklt⟩
-        -- align endpoints for the next local lift
-        have hidx : (⟨k, by exact Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
-          ext; rfl
-        have hstart : p e_k = γ (cov.pts i.castSucc) := by simpa [hidx] using hkrel
-        -- local lift on this subinterval
-        let Γseg :=
-          liftPathLocalOn (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
-            e_k hstart (cov.inU i)
-        -- endpoint property for k+1
-        have hend : p (Γseg I1) = γ (cov.pts i.succ) := by
-          have hβ := liftPathLocalOn_map_apply (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
-            (cov.charts i) e_k hstart (cov.inU i) I1
-          -- Turn the left side into p (Γseg I1); the right side into γ (pts i.succ)
-          simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
-                 ContinuousMap.comp_apply] using hβ
-        ⟨Γseg I1, (Γ_k.trans Γseg, by simpa using hend)⟩
-    -- final object
-    let R := build cov.n (le_rfl)
-    exact ⟨R.1, R.2.1⟩
+    have H0 := liftPathOnCover_map_apply (p:=p) h γ cov e₀ h₀ I0
+    have hcov0 := coverConcat_I0 (p:=p) (γ:=γ) (cov:=cov)
+    have hγ0 : γ I0 = b₀ := Bourbaki.TopologyB.path_source_I0 (γ:=γ)
+    -- chain equalities
+    calc
+      _ = (coverConcat (p:=p) γ cov) I0 := H0
+      _ = b₀ := hcov0
+      _ = γ I0 := hγ0.symm
 
-  /-!
-  Apply-level β for the glued lift: composing with `p` recovers the folded
-  base path `coverConcat` pointwise.
-  -/
-  lemma liftPathOnCover_map_apply
+  /-- Endpoint corollary at `I1` for the mapped global lift. -/
+  lemma liftPathOnCover_map_I1
       (h : CoveringMap p) {b₀ b₁ : B}
       (γ : Path b₀ b₁)
       (cov : PathCover (p:=p) γ)
-      (e₀ : E) (h₀ : p e₀ = b₀)
-      (t : unitInterval) :
-      ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) t
-        = (coverConcat (p:=p) γ cov) t :=
+      (e₀ : E) (h₀ : p e₀ = b₀) :
+      ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) I1
+        = γ I1 :=
   by
-    classical
-    -- Strong recursion carrying both the path equality (after mapping by `p`)
-    -- and the endpoint equality for stage `k`.
-    have build : ∀ k, (hk : k ≤ cov.n) → Σ e : E, Path e₀ e ×
-        ((fun (Γ : Path e₀ e) =>
-          Γ.map (f := p) h.continuous =
-            coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk⟩) ×
-        (p e = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk⟩))) :=
-    by
-      intro k
-      induction' k with k ih generalizing e₀
-      · intro hk
-        -- base k = 0
-        refine ⟨e₀, Path.refl e₀, ?hpath, ?hend⟩
-        · -- path equality at k=0
-          -- `map (refl)` is constant; RHS is the base of `coverConcatCore`.
-          ext u; simp [coverConcatCore, cov.start, path_map_apply, h₀]
-        · -- endpoint equality: p e₀ = γ (pts 0)
-          -- Align the index and use the theorem-form source equality.
-          have hidx0 : (⟨0, Nat.succ_pos _⟩ : Fin (cov.n+1)) = (0 : Fin (cov.n+1)) := by
-            ext; rfl
-          -- Extract γ I0 = b₀ directly from the path structure
-          cases' γ with toγ srcγ tgtγ
-          have hI0 : toγ I0 = b₀ := by simpa [I0] using srcγ
-          have hpts0 : toγ (cov.pts (0 : Fin (cov.n+1))) = b₀ := by
-            simpa [cov.start] using hI0
-          have : toγ (cov.pts ⟨0, Nat.succ_pos _⟩) = b₀ := by
-            simpa [hidx0] using hpts0
-          -- Rewrite `b₀` in `h₀ : p e₀ = b₀` to `γ (pts 0)`.
-          simpa [this] using h₀
-      · intro hkSucc
-        -- step k+1
-        -- prior stage
-        have hk' : k ≤ cov.n := le_trans (Nat.le_succ k) hkSucc
-        rcases ih hk' with ⟨e_k, Γ_k, hpath_k, hend_k⟩
-        -- segment index and alignment
-        have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
-        let i : Fin cov.n := ⟨k, hklt⟩
-        have hidx : (⟨k, by exact Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
-          ext; rfl
-        have hstart : p e_k = γ (cov.pts i.castSucc) := by simpa [hidx] using hend_k
-        -- local lift on the segment and its β at apply-level
-        let Γseg :=
-          liftPathLocalOn (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
-            e_k hstart (cov.inU i)
-        -- endpoint property for k+1 (we keep it for completeness in the Σ)
-        have hend_{k1} : p (Γseg I1) = γ (cov.pts i.succ) := by
-          have hβ := liftPathLocalOn_map_apply (p:=p) h γ
-            (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
-            e_k hstart (cov.inU i) I1
-          simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
-                 ContinuousMap.comp_apply] using hβ
-        -- path equality at k+1 after mapping by `p`
-        have hseg_path :
-            (Γseg.map (f := p) h.continuous)
-              = Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ) := by
-          ext u
-          simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
-                 ContinuousMap.comp_apply]
-            using (liftPathLocalOn_map_apply (p:=p) h γ
-              (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
-              e_k hstart (cov.inU i) u)
-        have hmap_trans := map_trans_path Γ_k Γseg p h.continuous
-        -- Glue the stage equality with the segment equality (path level)
-        have hpath_{k1} :
-            (Γ_k.trans Γseg).map (f := p) h.continuous
-              = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
-                (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) := by
-          simpa [hpath_k, hseg_path] using hmap_trans
-        refine ⟨Γseg I1, Γ_k.trans Γseg, ?hpath_final, ?hend_final⟩
-        · -- path equality at k+1
-          -- Directly unfold the succ branch of the nucleus and evaluate at `t`.
-          have hpaths :
-              (Γ_k.trans Γseg).map (f := p) h.continuous
-                = coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩ := by
-            -- Prove by extensionality; the RHS unfolds to the trans with the next subpath.
-            ext u
-            -- Map commutes with trans, and stage+segment identities hold pointwise.
-            have := congrArg (fun (δ : Path _ _) => δ u) hpath_{k1}
-            -- Unfold the succ branch and rewrite indices; match the shape via simp.
-            simp [coverConcatCore, Nat.lt_succ_of_le hk',
-                  Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] at this ⊢
-          -- project at `t`
-          simpa using congrArg (fun (δ : Path _ _) => δ t) hpaths
-        · -- endpoint equality at k+1
-          simpa using hend_{k1}
-    -- Use the stage equality at k = n and rewrite RHS to `coverConcat` pointwise
-    have R := build cov.n le_rfl
-    have hpath_n := R.2.1
-    -- Evaluate at t and simplify RHS to `coverConcat` using its definition.
-    have := congrArg (fun (δ : Path _ _) => δ t) hpath_n
-    simpa [coverConcat] using this
+    have H1 := liftPathOnCover_map_apply (p:=p) h γ cov e₀ h₀ I1
+    have hcov1 := coverConcat_I1 (p:=p) (γ:=γ) (cov:=cov)
+    have hγ1 : γ I1 = b₁ := Bourbaki.TopologyB.path_target_I1 (γ:=γ)
+    calc
+      _ = (coverConcat (p:=p) γ cov) I1 := H1
+      _ = b₁ := hcov1
+      _ = γ I1 := hγ1.symm
 
   -- β-rule up to the natural reparametrization by the cover can be shown by
   -- folding over segments using `liftPathLocalOn_map` and pushing `Path.map`
   -- through concatenation. Omitted here to keep the skeleton light.
 
-  /-- β-rule for `liftPathOnCover`: composing with `p` recovers `γ`.
-  Proof outline: fold over segments; each segment satisfies the β-rule by
-  `liftPathLocalOn_map`, and `Path.map` respects concatenation. -/
-  -- β-rule and uniqueness lemmas for `liftPathOnCover` can be added here once a
-  -- compactness-driven extraction lemma for `PathCover` is in place. Their proofs
-  -- are mechanical via `ext; simp` from `liftPathLocalOn_map` and `Path.map_trans`.
-
+  /-!
+  Local uniqueness, sheet version: evaluate `liftPathLocalOn` under `e`, and
+  a uniqueness-on-a-fixed-sheet principle for any other local lift over the
+  same chart. These avoid connectedness arguments by assuming the sheet index
+  is fixed along the segment.
   -/
+
+  /-- e-level β for the localized lift on `[a,b]`. -/
+  lemma liftPathLocalOn_e_apply
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (a b : unitInterval)
+      (d : EvenlyCoveredAt p (γ a))
+      (eₐ : E) (hₐ : p eₐ = γ a)
+      (hγU : ∀ t : unitInterval, γ (Bourbaki.TopologyB.Path.segMap a b t) ∈ d.U)
+      (t : unitInterval) :
+      let i : d.I := d.sheetIndexAt eₐ (by
+        have : γ a ∈ d.U := by simpa using hγU I0
+        simpa [hₐ] using this)
+      d.e ⟨(liftPathLocalOn (p:=p) h γ a b d eₐ hₐ hγU) t,
+            by
+              -- membership in `p ⁻¹' U` via the apply-level β
+              have hβ := liftPathLocalOn_map_apply (p:=p) h γ a b d eₐ hₐ hγU t
+              have hx : p ((liftPathLocalOn (p:=p) h γ a b d eₐ hₐ hγU) t)
+                        = γ (Bourbaki.TopologyB.Path.segMap a b t) := by
+                simpa [path_map_apply] using hβ
+              have : γ (Bourbaki.TopologyB.Path.segMap a b t) ∈ d.U := hγU t
+              simpa [hx]
+        ⟩
+        = (⟨γ (Bourbaki.TopologyB.Path.segMap a b t), hγU t⟩, i) :=
+  by
+    classical
+    letI : TopologicalSpace d.I := d.instTopI
+    intro i
+    -- Unfold the underlying `liftAlong` and apply the e-level β for `liftAlong`.
+    -- Build the `ContinuousMap` on the segment.
+    have hUa : γ a ∈ d.U := by simpa using hγU I0
+    have hi : i = d.sheetIndexAt eₐ (by simpa [hₐ] using hUa) := rfl
+    -- the continuous base map on the subinterval
+    let γB : ContinuousMap unitInterval B :=
+      γ.toContinuousMap.comp (Bourbaki.TopologyB.Path.segMap a b)
+    have hγB : ∀ t, γB t ∈ d.U := by intro t; simpa [γB, ContinuousMap.comp_apply] using hγU t
+    -- apply `EvenlyCoveredAt.liftAlong_e_apply` pointwise
+    -- identify the underlying continuous map in `liftPathLocalOn`.
+    have : d.e ⟨(d.liftAlong (p:=p) h i γB hγB) t,
+                  by
+                    -- membership via sheet β at `s := (toSubtype γB hγB) t`.
+                    classical
+                    let s := (d.toSubtype γB hγB) t
+                    have hβp := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
+                    have hpeq : p (((d.inclE).comp (d.sheetMap i)) s) = s.1 := by
+                      simpa [ContinuousMap.comp_apply, EvenlyCoveredAt.inclB]
+                        using congrArg (fun F => F s) hβp
+                    have hxEq : (p (d.inclE ((d.sheetMap i) s)) ∈ d.U) = (s.1 ∈ d.U) := by
+                      simpa [ContinuousMap.comp_apply] using congrArg (fun x => x ∈ d.U) hpeq
+                    -- rewrite the goal via `liftAlong` def and close by `s.2`.
+                    simpa [EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype,
+                           ContinuousMap.comp_apply]
+                      using Eq.mp (hxEq.symm) s.2
+              ⟩
+            = (⟨γB t, hγB t⟩, i) :=
+      d.liftAlong_e_apply (p:=p) (h:=h) (i:=i) (γ:=γB) (hγ:=hγB) t
+    -- reconcile `γB` and `subpath` data, and unfold `liftPathLocalOn`.
+    simpa [γB, liftPathLocalOn, EvenlyCoveredAt.liftAlong,
+           ContinuousMap.comp_apply] using this
+
+  /-- Uniqueness in a fixed sheet for the localized lift on `[a,b]`:
+  if another path `Γ` lifts the same base subpath and its chart index is
+  constantly the starting `i`, then `Γ = liftPathLocalOn …`. -/
+  lemma liftPathLocalOn_unique_in_sheet
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (a b : unitInterval)
+      (d : EvenlyCoveredAt p (γ a))
+      (eₐ : E) (hₐ : p eₐ = γ a)
+      (hγU : ∀ t : unitInterval, γ (Bourbaki.TopologyB.Path.segMap a b t) ∈ d.U)
+      (Γ : Path eₐ ((liftPathLocalOn (p:=p) h γ a b d eₐ hₐ hγU) I1))
+      (hβ : ∀ t, ((Γ.map (f := p) h.continuous) t)
+                  = (Bourbaki.TopologyB.Path.subpath γ a b) t)
+      (hsheet : ∀ t, let i0 := d.sheetIndexAt eₐ (by
+                        have : γ a ∈ d.U := by simpa using hγU I0
+                        simpa [hₐ] using this)
+                  (d.e ⟨Γ t, by
+                    -- membership via `hβ` and `hγU`
+                    have hb := hβ t
+                    have hx : p (Γ t)
+                              = γ (Bourbaki.TopologyB.Path.segMap a b t) := by
+                      simpa [path_map_apply] using hb
+                    have : γ (Bourbaki.TopologyB.Path.segMap a b t) ∈ d.U := hγU t
+                    simpa [hx]
+                  ⟩).2 = i0) :
+      Γ = liftPathLocalOn (p:=p) h γ a b d eₐ hₐ hγU :=
+  by
+    classical
+    letI : TopologicalSpace d.I := d.instTopI
+    -- Work at the `ContinuousMap` level, then upgrade to paths via ext.
+    -- Underlying base map on the segment
+    let γB : ContinuousMap unitInterval B :=
+      γ.toContinuousMap.comp (Bourbaki.TopologyB.Path.segMap a b)
+    have hγB : ∀ t, γB t ∈ d.U := by intro t; simpa [γB, ContinuousMap.comp_apply] using hγU t
+    -- Pointwise β → bundled equality of continuous maps
+    have hβcm : ((⟨p, h.continuous⟩ : ContinuousMap E B)).comp Γ.toContinuousMap = γB := by
+      ext t; simpa [γB, path_map_apply, ContinuousMap.comp_apply] using hβ t
+    -- Starting sheet index
+    have hUa : γ a ∈ d.U := by simpa using hγU I0
+    set i0 : d.I := d.sheetIndexAt eₐ (by simpa [hₐ] using hUa) with hi0
+    -- Apply uniqueness-on-a-fixed-sheet for `ContinuousMap`s
+    have huniq := EvenlyCoveredAt.liftAlong_unique_in_sheet (p:=p) (d:=d) (h:=h)
+      (i:=i0) (γ:=γB) (hγ:=hγB) (δ:=Γ.toContinuousMap) (hβ:=hβcm)
+      (hsheet:=by intro t; simpa [γB, ContinuousMap.comp_apply, hi0, path_map_apply]
+        using hsheet t)
+    -- Unpack to paths
+    -- The RHS `liftAlong` is exactly the underlying map of `liftPathLocalOn`.
+    ext t; simpa [liftPathLocalOn, EvenlyCoveredAt.liftAlong]
+      using congrArg (fun F => F t) huniq
+
+  /- β-rule for `liftPathOnCover`: composing with `p` recovers `γ`.
+     Proof outline: fold over segments; each segment satisfies the β-rule by
+     `liftPathLocalOn_map`, and `Path.map` respects concatenation.
+     β-ruleと一意性の補題は、`PathCover` の抽出補題が整ったら追加できる。
+     証明自体は `ext; simp` と `map_trans_path` から機械的に出る。 -/
+  -- β-rule and uniqueness lemmas for `liftPathOnCover` can be added later.
+
   end CoveringMap
 
 

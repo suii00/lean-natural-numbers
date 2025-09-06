@@ -1,0 +1,74 @@
+会話を移行するためにプロンプトを作成してください
+
+
+— Prompt start —
+
+あなたは Lean 4 + mathlib のコーディングアシスタントです。B 節（被覆写像の道持ち上げ）を ext; simp 指向・mathlib 差に強い設計で再構築します。現在は Phase 0–6（fold 実装＋大域 β）まで緑です。以降は一意性を小さく刻んで導入します。
+
+状態（実装済み・緑）
+
+Phase 0–1
+I0/I1 固定子（定理形 source'/target' を使用）
+path_map_apply（@[simp]）
+Bourbaki.TopologyB.Path.segMap/subpath（@[simp] segMap_*、subpath は comp で定義）
+Phase 2–3
+EvenlyCoveredAt.sheetMap（内部 letI）
+@[simp] sheet_comp_eq_inclB（bundled β／set レベル）
+toSubtype、liftAlong、@[simp] liftAlong_beta
+Phase 4
+liftPathLocal（sheetMap_through で始点一致）
+liftPathLocalOn（直実装、sheet 不使用）
+liftPathLocalOn_map_apply（apply レベル／Path 版は ext t; simp で導出可能）
+Phase 5
+liftPathTwo（Path.trans；中点一致は congrArg (fun δ => δ I1) と simp）
+Phase 6（fold + β）
+PathCover 構造は有効
+coverConcatCore（左畳み核）を採用：返り値 Path b₀ (γ (cov.pts k))
+補助
+map_trans_path（map が trans と可換：ext; simp [path_map_apply]）
+coverConcatCore_succ_path（succ 分岐を Path.trans 等式として提示）
+Fin 添字は ext; rfl→congrArg (fun j => cov.pts j) で pts に流し、subpath を comp で展開して simp
+coverConcat（fold の最終 k = n を Path b₀ b₁ に再梱包）
+coverConcat_I0 / coverConcat_I1（apply レベル端点）
+coverConcat_apply（apply レベル：coverConcat の評価 = 核の評価）は現在コメントアウト（必要時に復活可）
+大域持ち上げと β
+liftPathOnCover（Σ e, Path e₀ e）
+再帰の蓄積は「Σ e, Σ Γ, endpoint 等式」の型（Prop を Prod に入れない）
+liftPathOnCover_map_apply（apply レベル β）
+段階帰納（k ≤ n）：保持不変量は
+∀ u, (Γ_k.map (f := p) h.continuous) u = (coverConcatCore … ⟨k, …⟩) u
+endpoint: p e_k = γ (cov.pts ⟨k, …⟩)
+step：map_trans_path を点評価に落とし（congrArg）、liftPathLocalOn_map_apply（apply）でセグメントの β、succ 分岐は coverConcatCore を定義展開＋添字整合＋subpath 展開で simp
+liftPathOnCover_map_path（path レベル β）：ext t; simp で apply 版から 1 行導出
+liftPathOnCover_map_I0 / _I1（端点コロラリー）：β + coverConcat_I0/I1 で 1 行
+方針（不変ルール）
+
+sheet は使わない（Option A 継続）。sheetMap + bundled β（sheet_comp_eq_inclB）で統一。
+.map は必ず (f := p) h.continuous 形式に統一（path_map_apply を simp に含める）。
+等式は ext; simp を基本に、ContinuousMap.comp_apply を明示して comp/subpath を潰す。
+端点は source'/target'（定理形）を経由し、I0/I1 固定子で simp。path_source_I0/path_target_I1 は定理形ベース。
+Fin 添字は ext; rfl で揃え、congrArg (fun j => cov.pts j) で pts に流す（subpath は comp 展開後に simp）。
+Prop を Prod に入れない。証明付きは Σ と ∧ に分離して持つ。
+既知の注意点（回避済みの落とし穴）
+
+path_source_I0/target_I1 が True に崩れる系：必ず source'/target' で扱う。
+γ を cases した局所ブロックはスコープ外に漏らさない（unknown identifier γ を避ける）。
+旧 coverConcat ブロック（fold 以前の再帰版）はコメントアウト済み（二重定義や unknown tactic を防止）。
+次にやること（推奨順）
+
+一意性（局所）:
+
+liftPathLocalOn の像を chart（EvenlyCoveredAt.e）で運び、injectivity + bundled β で一致を示す（apply レベル → path レベルは ext; simp）。
+一意性（有限被覆 fold → 大域）:
+
+PathCover の各区間で局所一意性を適用し、fold で繋ぐ（coverConcatCore_succ_path で段階を揃え、ext; simp）。終点一致は congrArg (fun δ => δ I1)。
+必要になれば coverConcat_apply（apply レベル）を復活（現状、β の導出には不要）。
+
+参照（ファイル）
+
+src/MyProjects/Topology/B/TopologyB_Bourbaki.lean
+Path.subpath 定義、segMap_*、path_map_apply（@[simp]）
+map_trans_path、coverConcatCore_succ_path
+coverConcat、coverConcat_I0/I1（coverConcat_apply はコメントアウト）
+liftPathOnCover、liftPathOnCover_map_apply / _map_path / _map_I0 / _map_I1
+— Prompt end —
