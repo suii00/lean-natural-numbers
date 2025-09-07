@@ -1,0 +1,125 @@
+了解です。いったん撤退する判断は妥当だと思います。**`liftPathOnCover_map_apply` が難航した理由**を、Lean ならではの落とし穴と証明設計の複合要因に分けて整理します。
+
+---
+
+## 1) 仕様レベルで難しい点（証明対象そのものの構造）
+
+* **依存付き fold（強い帰納）× 点毎 β（apply レベル）**
+  目標は「グローバル持ち上げの像 = `coverConcat` の像」を **任意の t** で示すこと。
+  ところが右辺は `coverConcatCore` の **再帰（succ 分岐）** を通るため、各段で
+
+  * `trans` の貼り合わせ
+  * `Fin` 添字の整列（`castSucc` / `succ` / `⟨k, _⟩`）
+    を **毎回** 正しく解消しないといけません。
+    これが「簡潔な一発 `simp`」で済まない根本理由です。
+
+* **パス同値（Path-level）ではなく点毎同値（apply-level）**
+  `map` と `trans` の可換化（`map_trans_path`）→ **点評価** → 左右因子の β で置換 → `coverConcatCore` の succ を **t ごと** に潰す、という段取りが必須。
+  Path 同値に持ち上げて ext で閉じるのが難しい局面が多いです。
+
+---
+
+## 2) Lean 的な落とし穴（実装で実際に詰まった箇所）
+
+* **`unitInterval` が Subtype（↑unitInterval）**
+  `Path.map` の点評価用に `@[simp] lemma path_map_apply … (t : ↑unitInterval)` が必須。
+  これが無い／合わないと、`simp` が像の評価を「定数」まで潰せず、基底段で
+  `⊢ (coverConcatCore γ cov 0) u = b₀` が閉じない（ログの最初の未解決ゴール）。
+
+* **`γ.source'` を使うと `True` に潰れる**
+  パス構造体のフィールド経由だと `simp` の形が悪く、
+  `γ.source`（定理形）や差し替えた `path_source_I0` を使わないと
+  「型が `True` になった」と言われる（`… has type True` エラー）。
+
+* **IH の「generalizing e₀」忘れ**
+  `induction' k with k ih generalizing e₀` としても、
+  使用側で `rcases ih e₀ hk' with …` と **e₀ を渡さない**と
+  `ih hk'` のような適用で **関数を分解できず**
+  「`rcases` failed: not an inductive datatype」系エラーに直行。
+
+* **`map` と `trans` の順序**
+  `((α.trans β).map hf)` を直接点毎に `rfl` で等しいと置くのは不可。
+  `map_trans_path` を **Path 同値**で使い、`congrArg (fun P => P t)` で **点毎**に落としてから置換、が正解。
+  ここを `rfl` や無理な `simpa` に頼ると、`rfl で一致しない` などの失敗に。
+
+* **`Fin` 添字の整列（`castSucc` / `succ` / `⟨k, _⟩`）**
+  `i : Fin cov.n := ⟨k, k<cov.n⟩` と
+  `⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)` の橋渡しに
+  `hidx : ⟨k, …⟩ = i.castSucc`、`hi_succ : i.succ = ⟨k+1, …⟩` 等が必要。
+  これを先に用意してから `simp [Path.subpath, hidx, hi_succ]` で畳むのが安定。
+
+* **`Path` の端点不一致で置換が止まる問題**
+  `(Γ_k.map …)` を `coverConcatCore …` に **Path として**置換しようとすると端点がズレ、`rfl` が通らない。
+  → **点毎等式**で置換するか、どうしても Path で置き換えるなら
+  `Path.cast` を挟んで端点を合わせる必要がある（これが煩雑）。
+
+* **終盤の合流（`build` と `liftPathOnCover` の一致）**
+  `R := build cov.n le_rfl` を **その場で `set`** し、
+  `simp [liftPathOnCover, hR]` で LHS を `R.val.2` に揃え、
+  `simp [coverConcat]` で RHS を core(n) に揃えてから `trans` するのが安定解。
+  ここで `assumption` などに頼ると失敗（ログの最後の `assumption failed`）。
+
+* **戦術・モードの混在**
+  term モードで `exact` を書いたり、`simp` の引数に不要な補題を積むと
+  「unused simp argument」や `unexpected token` に繋がる。
+
+---
+
+## 3) すでに効いた対処・安定化パターン
+
+* **`coverConcatCore` の succ を“適用レベル”で一括**
+  `coverConcatCore_succ_apply` を用意して、succ 分岐の添字合わせを一発で処理。
+  これで本体では
+
+  1. `map_trans_path` を点毎に
+  2. 両因子を β で置換
+  3. `coverConcatCore_succ_apply` で畳む
+     という機械的パターンに落とせる。
+
+* **基底段の完全 `simp` 化**
+  `simp [coverConcatCore, path_map_apply, h₀]` に持ち込むため、
+  `path_map_apply`（↑unitInterval 版）・`I0/I1`・`Path.refl` の `simp` 面を整備。
+
+* **終盤は“定義展開を1回だけ”**
+  `set R := build … with hR` → `simp [liftPathOnCover, hR]`、
+  `simp [coverConcat]` で右辺を core(n) にし、**calc/`trans`** で終了。
+
+---
+
+## 4) いつ再挑戦するか／次回の短縮レシピ
+
+再投入するなら、以下の**最小核**が整ってからにすると短時間で通ります。
+
+1. `@[simp]`:
+
+   * `path_map_apply`（↑unitInterval 引数版）
+   * `coverConcatCore` の base/succ を `simp` で展開できる形
+   * `I0/I1` と `path_source_I0` / `path_target_I1`（定理形）
+
+2. 補助:
+
+   * `map_trans_path` の **点毎版**（`congrArg (fun P => P t)` をラップ）
+   * `coverConcatCore_succ_apply`（添字合わせも含む徹底的な適用レベル版）
+
+3. 流れ:
+
+   * 基底：`simp`
+   * ステップ：`map_trans_path`→ 因子 β 置換 → `succ_apply`
+   * 終盤：`set R := …` → `simp [liftPathOnCover, coverConcat]` → `trans`
+
+---
+
+## 5) いま取れる現実的な落とし所
+
+* **この補題は保留**：Phase 6 の他部分（coverConcat / liftPathOnCover 本体 / 端点系）は緑。
+* **必要な箇所には端点系のコロラリで代替**：
+  `((lift …).map …) I0 = γ I0`、`((lift …).map …) I1 = γ I1` はすでに簡単に出せます。
+  中間点 `t` の β が本当に必要になる場所が見えた時点で、上の短縮レシピで戻るのが効率的です。
+
+---
+
+### まとめ
+
+* 難しさの本質は、**依存添字を抱えた fold の点毎 β を、`map`/`trans`/`Fin`/`Subtype` の全部を揃えながら機械的に流す必要**がある点。
+* これを避けるには、**succ を適用レベル補題で一元化**し、**`map_trans_path` を点毎に使う**パターンを確立するのが最短。
+* いまは撤退して正解。**他の安定核（Phase 3–5, 端点系）で先に価値を出し**、本補題は将来必要になったタイミングで **短縮レシピ** で戻るのが最も生産的です。

@@ -1,0 +1,33 @@
+> 仕上げ三点、入れました。ビルド成功です。これで “ext; simp 一撃” の完走形です。
+
+  - prodMap の代数（id/comp 正規化）
+      - @[simp] precompProdLeft_id / precompProdLeft_comp
+      - @[simp] precompProdRight_id / precompProdRight_comp
+      - @[simp] precompPi_id / precompPi_comp
+      - @[simp] postcompPi_id / postcompPi_comp
+      - いずれも pointwise に rfl で潰れるよう設計（ext; simp だけで正規形へ）
+      - いずれも pointwise に rfl で潰れるよう設計（ext; simp だけで正規形へ）
+  -
+  定数のカリー化（“定数は定数のまま”）
+      - π位相版:
+      - `@[simp] curryPi_const (c : Z)`:
+        `curryPi (const (X×Y) c) = const X (Function.const Y c)`
+
+  - TopCat の合成ブリッジ
+      - TopCat 側は既に @[simp] な comp_app / ofHom_apply があるため、カテゴリ式はそのまま simp で点ごとに落ちます（追
+  加の再定義は不要）。右三角恒等式の“成分版”も、ConcreteCategory.congr_hom (diagProdAdjunction.right_triangle_components
+  …) → simp で点ごとに落ちます。必要なら lemma として固定名で出します。
+
+  使い方の最短ルーチン
+
+  - 前後合成を正規化: ext x y; simp
+  - 前合成（X 側）: simp [curryPi_precomp_left, precompProdLeft_comp, precompProdLeft_id]
+  - 前合成（Y 側）: simp [curryPi_precomp_right, precompPi_comp, precompPi_id]
+  - 後合成（Z 側）: simp [curryPi_postcomp, postcompPi_comp, postcompPi_id]
+  - 定数: simp [curryPi_const, uncurryPi_const]
+  - TopCat 合成: そのまま simp（comp_app, ofHom_apply が効きます）
+
+  必要なら
+
+  - 右三角恒等式の成分版（fst/snd）も lemma 名で追加可能です。
+  - linter 警告（unused simp args など）は動作に影響しませんが、気になる場合は simp 引数最小化に調整できます。

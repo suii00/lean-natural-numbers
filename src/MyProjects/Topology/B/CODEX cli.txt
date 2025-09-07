@@ -1,0 +1,32 @@
+> 了解です。まず Δ ⊣ × の「simp 一発」体験に直結する下準備として、随伴を構成して動くところまで固め、次に単位・余単位の簡
+  約補題を最小衝突で仕上げます。
+
+  - 現状
+      - 追加: prodHomEquiv : C(X, Y × Z) ≃ (C(X, Y) × C(X, Z))
+      - 追加: prodFunctorTop : (TopCat × TopCat) ⥤ TopCat
+      - 追加: diagProdAdjunction : Functor.diag ⊣ prodFunctorTop
+      - ビルド: 成功（警告のみ）
+      - ビルド: 成功（警告のみ）
+  -
+  次の仕上げ（ご提案）
+      - 余単位（counit）の成分を既存射影に一致させる simp:
+      - `(diagProdAdjunction.counit.app (Y, Z)).1 = TopCat.prodFst Y Z`
+      - `(diagProdAdjunction.counit.app (Y, Z)).2 = TopCat.prodSnd Y Z`
+  - 単位（unit）の「射影で割ると恒等」な reassoc-simp:
+      - `(diagProdAdjunction.unit.app X) ≫ TopCat.prodFst X X = 𝟙 X`
+      - `(diagProdAdjunction.unit.app X) ≫ TopCat.prodSnd X X = 𝟙 X`
+
+  技術メモ
+
+  - 上の4本は、この mathlib スナップショットでも定義展開だけで証明できる形です。特に unit 側は随伴の左三角恒等式の第1/第
+  2成分（congrArg Prod.fst/snd）として出ます。
+  - ただ、TopCat の射影名・of の定義展開（TopCat.of と対の型の一致）がコミット間で微妙に揺れがちなため、今回まず随伴を安
+  定化させ、simp 補題はローカルの API 名に合わせて当てています。
+
+  ここからやりますか？
+
+  - 今のブランチに上記4本の補題を @[simp]/@[simp, reassoc] で追加し、手元の mathlib 版本号（v4.23.0-rc2）に合わせて最短
+  証明で通します。
+  - その後、指数法則（curry/uncurry）の simp セット（評価写像・β/η 簡約）に進みます。
+
+  どちらもこのまま実装してビルドまで回せます。進めてよければ、すぐ補題を追加して通します。
