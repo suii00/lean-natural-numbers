@@ -1,0 +1,60 @@
+liftPathOnCover_map_applyを何に使うか教えて下さい
+
+
+用途
+
+β規則（適用レベル）: 持ち上げた大域パスを被覆写像で写すと、基底側のパスの「被覆分割に沿った折り畳み」coverConcat に一致することを点毎に主張します。これで lift が正しく base を追っていることを確認できます。
+
+定義: ((liftPathOnCover …).2.map (f := p) h.continuous) t = (coverConcat …) t
+参照: src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:1207
+端点系の即応: βから t = I0, I1 を代入して、始点・終点の一致（map_I0, map_I1）を一行で得ます。lift の端点が所望の繊維点にあり、先の端点で base と合うことを保証します。
+
+参照: src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:1334, :1349 付近
+一意性の下準備: 2つの候補持ち上げを p で写して同じ coverConcat に落とすことで、以降はチャート e の injective 性やセグメント毎の in‑sheet 一意性と合わせ、グローバル一意性に繋げます（ext; simp ベース）。
+
+パスレベル等式への橋渡し: 適用レベル β から ext t; simp でパスとしての等式に昇格できます（必要なら）。以降の map_trans_path や coverConcatCore_succ_path と噛み合わせて、fold 帰納の各段で等式を貼り合わせます。
+
+実装上の役割: liftPathOnCover の定義（有限個の局所持ち上げの fold 結合）に対し、セグメント版 β（liftPathLocalOn_map_apply）を畳み込む形で証明され、以後の補題（端点・一意性）に直接使われます。
+
+
+
+
+liftPathOnCover_map_applyを何に使うか教えて下さい
+
+
+用途の要点だけまとめます。
+
+目的: グローバル持ち上げのβ（applyレベル）
+
+内容: 任意の t について
+((liftPathOnCover …).2.map (f := p) h.continuous) t = (coverConcat (p:=p) γ cov) t
+を与えます。つまり「貼り合わせで得た持ち上げを p で写す」と「cov による γ の左畳み coverConcat」の点評価が一致する、という apply レベルの β 則です。
+定義位置: src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:1227
+これで確認できること（即効の使い道）
+
+始端・終端の一致（apply レベル）
+
+直後の系として I0/I1 の一致を出せます:
+src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:1403
+src/MyProjects/Topology/B/TopologyB_Bourbaki.lean:1421
+いずれも ext; simp で潰せるように設計してあります。
+「これは本当に γ の lift か？」の検証
+
+端点だけでなく、全区間で p ∘ lift = coverConcat を保証するので、貼り合わせたパスが想定どおりの基底パス（の再パラメトライズ）を被っていることの本質的チェックになります。
+後続フェーズ（局所→大域の一意性）での中核的役割
+
+各小区間での局所 β（liftPathLocalOn_map_apply）と組み合わせて、IH の像等式を次の区間へ受け渡すときに使います。
+succ 段の整合は coverConcatCore_succ_path（succ 分岐の Path.trans 等式）を apply レベルに落とした一回の書き換えで揃え、残りは ext; simp で片付けます。
+2 本のグローバル持ち上げの一意性証明では、両者の像が等しい（本補題）＋始点一致 ⇒ 各区間で局所一意性を適用 ⇒ 全区間で一致、という流れの「像一致」を与える役です。
+なぜ apply レベルか（Path レベルにしない理由）
+
+Path.trans 直下で Path 等式を書き換えると端点型が噛み合わず壊れやすいです。apply レベルなら
+map_trans_path を u で評価
+IH と局所 β を u で評価
+最後に coverConcatCore_succ_path の apply 版で段を揃える
+という安定な ext; simp 構成にできます。
+まとめ
+
+liftPathOnCover_map_apply は、貼り合わせたグローバル持ち上げの「像が期待どおり（coverConcat）」であることを区間の各点 t で与えるβ則です。
+端点の系をただちに与え、局所一意性を大域に持ち上げるときの「像一致」パーツとして必須です。
+証明は apply レベルに徹することで ext; simp 指向・差分最小の設計に乗ります。

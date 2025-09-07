@@ -1,0 +1,77 @@
+@@
+       -- (a) pointwise β at stage 0
+       · intro u
+         have hmap : ((Path.refl e₀).map (f := p) h.continuous) u = p e₀ := by
+           simp [Bourbaki.TopologyB.path_map_apply]
+-        -- evaluate the `0`-branch of the fold nucleus
+-        have hcore0' :
+-            (CoveringMap.coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u = b₀ := by
+-          simp [CoveringMap.coverConcatCore]
+-        -- rewrite index to `0 : Fin (n+1)` to match your goal
+-        have h0idx : (0 : Fin (cov.n+1)) = ⟨0, Nat.lt_succ_of_le hk⟩ := by
+-          ext; rfl
+-        have hcore0 :
+-          (CoveringMap.coverConcatCore (p:=p) γ cov 0) u = b₀ := by
+-          simpa [h0idx] using hcore0'
++        -- evaluate the `0`-branch of the fold nucleus（Fin を明示する）
++        have hcore0 :
++            (CoveringMap.coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u = b₀ := by
++          simp [CoveringMap.coverConcatCore]
+         calc
+           ((Path.refl e₀).map (f := p) h.continuous) u = p e₀ := hmap
+           _ = b₀ := h₀
+-          _ = (CoveringMap.coverConcatCore (p:=p) γ cov 0) u := hcore0.symm
++          _ = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u := hcore0.symm
+@@
+       · -- pointwise β at stage k+1
+         intro u
+-        -- push `map` through `trans`, pointwise; `rfl` suffices once evaluated
+-        have hmap_trans :
+-          ((Γ_k.trans Γseg).map (f := p) h.continuous) u
+-            = ((Γ_k.map (f := p) h.continuous).trans (Γseg.map (f := p) h.continuous)) u := rfl
+-        -- rewrite the two factors using stage k and segment β
+-        have hA := hpath_k u
+-        have hB := hseg_apply u
++        -- (1) Path.map を `trans` の外へ（パスレベル→apply レベル）
++        have hmap_trans_path :=
++          CoveringMap.map_trans_path (α:=Γ_k) (β:=Γseg) (f:=p) (hf:=h.continuous)
++        -- (2) 因子の点毎等式を「パス等式」に格上げ
++        have hA_path :
++            (Γ_k.map (f := p) h.continuous)
++              = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩) := by
++          ext s; simpa using hpath_k s
++        have hB_path :
++            (Γseg.map (f := p) h.continuous)
++              = (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) := by
++          ext s; simpa [Γseg, Bourbaki.TopologyB.path_map_apply,
++                        Bourbaki.TopologyB.Path.subpath,
++                        ContinuousMap.comp_apply] using hseg_apply s
++        -- (3) apply レベルで因子を書き換え
++        have hmap_trans :
++            ((Γ_k.trans Γseg).map (f := p) h.continuous) u
++              = ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
++                  (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u := by
++          simpa [hA_path, hB_path] using congrArg (fun δ => δ u) hmap_trans_path
+-        -- identify the succ-branch of the fold nucleus, at `u`
++        -- (4) succ 分岐（apply 版の補題）で畳む
+         have hcore_succ :
+           ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+               (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u
+-            = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := by
+-          simp [CoveringMap.coverConcatCore, Nat.lt_succ_of_le hk',
+-                Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply]
+-        -- chain everything
+-        calc
+-          ((Γ_k.trans Γseg).map (f := p) h.continuous) u
+-              = ((Γ_k.map (f := p) h.continuous).trans (Γseg.map (f := p) h.continuous)) u := hmap_trans
+-          _ = ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+-                (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u := by
+-                -- after evaluating at `u`, replacing both factors is literal
+-                rfl
+-          _ = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := hcore_succ
++            = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := by
++          simpa using
++            (CoveringMap.coverConcatCore_succ_apply (p:=p) (γ:=γ) (cov:=cov)
++              k (Nat.succ_lt_succ_iff.mpr hklt) u)
++        -- (5) 連結
++        exact hmap_trans.trans hcore_succ

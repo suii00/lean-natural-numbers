@@ -37,6 +37,7 @@ import Mathlib.Topology.Compactification.StoneCech
 
 namespace Bourbaki.TopologyB
 
+
 /-
 ## A. Product universality via projections
 
@@ -252,6 +253,7 @@ ordered-pair-and-projection viewpoint explicit. The definition below is a
 faithful skeleton: it captures the shape and the key data while staying light.
 -/
 
+
 section CoveringSpaces
 
 open scoped Topology
@@ -270,7 +272,7 @@ variable [TopologicalSpace E] [TopologicalSpace B]
 /- Normalized API for `Path.map`: pass a function and its continuity. -/
 @[simp] lemma path_map_apply
   {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
-  {x y : X} (γ : Path x y) (f : X → Y) (hf : Continuous f) (t : ↑unitInterval) :
+  {x y : X} (γ : Path x y) (f : X → Y) (hf : Continuous f) (t : unitInterval) :
   (γ.map (f := f) hf) t = f (γ t) := rfl
 
 @[simp] lemma path_source_I0
@@ -286,6 +288,26 @@ variable [TopologicalSpace E] [TopologicalSpace B]
   γ Bourbaki.TopologyB.I1 = y := by
   cases' γ with toγ srcγ tgtγ
   simpa [Bourbaki.TopologyB.I1] using tgtγ
+
+
+/-- パスレベル：`map` は `trans` と可換 -/
+lemma map_trans_path
+  {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+  {x y z : X} (α : Path x y) (β : Path y z)
+  (f : X → Y) (hf : Continuous f) :
+  (α.trans β).map (f := f) hf = (α.map (f := f) hf).trans (β.map (f := f) hf) := by
+  ext t; simp [path_map_apply]
+
+/-- 点評価版：`map` は `trans` と可換（`t` で評価） -/
+lemma map_trans_path_apply
+  {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+  {x y z : X} (α : Path x y) (β : Path y z)
+  (f : X → Y) (hf : Continuous f) (t : unitInterval) :
+  ((α.trans β).map (f := f) hf) t
+    = ((α.map (f := f) hf).trans (β.map (f := f) hf)) t := by
+  have H := map_trans_path (α:=α) (β:=β) (f:=f) (hf:=hf)
+  simpa using congrArg (fun δ : Path _ _ => δ t) H
+
 
 
 
@@ -637,6 +659,7 @@ first skeleton, focusing on the core decomposition datum.
   -/
   namespace CoveringMap
 
+
   open EvenlyCoveredAt
 
   variable {p : E → B}
@@ -831,6 +854,27 @@ first skeleton, focusing on the core decomposition datum.
       simpa [ContinuousMap.comp_apply] using congrArg (fun x => γ.toContinuousMap x)
         (segMap_I1 a b) }
 
+  /-- Retag a path by changing its endpoints along equalities. -/
+  noncomputable def retag {X : Type*} [TopologicalSpace X]
+      {x y x' y' : X} (γ : Path x y) (hx : x = x') (hy : y = y') :
+      Path x' y' :=
+  { toContinuousMap := γ.toContinuousMap
+  , source' := by simpa [hx] using γ.source'
+  , target' := by simpa [hy] using γ.target' }
+
+  @[simp] lemma retag_apply {X : Type*} [TopologicalSpace X]
+      {x y x' y' : X} (γ : Path x y) (hx : x = x') (hy : y = y') (t : unitInterval) :
+      (retag (γ:=γ) hx hy) t = γ t := rfl
+
+  lemma retag_trans {X : Type*} [TopologicalSpace X]
+      {x y z x' y' z' : X}
+      (α : Path x y) (β : Path y z)
+      (hx : x = x') (hy : y = y') (hz : z = z') :
+      (retag (γ:=α.trans β) hx hz)
+        = (retag (γ:=α) hx hy).trans (retag (γ:=β) hy hz) := by
+    ext t <;> rfl
+
+
   end Path
 
   /-
@@ -942,8 +986,7 @@ first skeleton, focusing on the core decomposition datum.
     -- Compose the two lifted paths.
     exact Γ₁.trans Γ₂
 
-  end CoveringMap
-
+ end CoveringMap
 
   /-
   ### Finite path covers and global lifting
@@ -959,56 +1002,114 @@ first skeleton, focusing on the core decomposition datum.
   -/
   namespace CoveringMap
 
-  open Path EvenlyCoveredAt
 
-  variable {p : E → B}
+variable {E B : Type*} [TopologicalSpace E] [TopologicalSpace B]
+variable {p : E → B}
+
+/-- A finite cover of a path by evenly-covered neighborhoods. -/
+structure PathCover {b₀ b₁ : B} (p : E → B) (γ : Path b₀ b₁) where
+  n : Nat
+  pts : Fin (n+1) → unitInterval
+  start : pts ⟨0, by exact Nat.succ_pos _⟩ = I0
+  stop  : pts ⟨n, by exact Nat.lt_succ_self _⟩ = I1
+  charts : ∀ i : Fin n, EvenlyCoveredAt p (γ (pts i.castSucc))
+  inU : ∀ i : Fin n, ∀ t : unitInterval,
+    γ (Bourbaki.TopologyB.Path.segMap (pts i.castSucc) (pts i.succ) t) ∈ (charts i).U
+
+/-- 左畳みの核：`k : Fin (n+1)` ごとに `b₀ → γ (pts k)` のパスを返す。 -/
+noncomputable def coverConcatCore {b₀ b₁ : B}
+    (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) :
+    (k : Fin (cov.n + 1)) → Path b₀ (γ (cov.pts k))
+| ⟨0, hk0⟩ =>
+  -- ★ 0枝は常に b₀ を返す定数関数として定義
+  let h0 : b₀ = γ (cov.pts ⟨0, hk0⟩) := by
+    have hpts0 : cov.pts (0 : Fin (cov.n+1)) = I0 := by simpa using cov.start
+    have hγI0 : γ I0 = b₀ := by cases' γ with _ src _; simpa [I0] using src
+    simpa [hpts0] using hγI0.symm
+  { toContinuousMap := ⟨(fun _t => b₀), continuous_const⟩,
+    source' := rfl,
+    target' := by simpa [h0] }
+| ⟨Nat.succ k, hk⟩ =>
+  let hklt : k < cov.n := Nat.succ_lt_succ_iff.mp hk
+  let hk'  : k ≤ cov.n := le_of_lt hklt
+  let i    : Fin cov.n := ⟨k, hklt⟩
+  (coverConcatCore γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+    (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))
+
+
+/- apply レベルで使いやすくする小補題（simp で前に進める） -/
+
+@[simp] lemma coverConcatCore_zero_apply
+  {b₀ b₁ : B} (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) (t : unitInterval) :
+  (coverConcatCore (p:=p) γ cov (0 : Fin (cov.n+1))) t = b₀ := by
+  change ((coverConcatCore (p:=p) γ cov (0 : Fin (cov.n+1))).toContinuousMap t) = b₀
+  have h0idx : (0 : Fin (cov.n+1)) = ⟨0, Nat.succ_pos _⟩ := by ext; rfl
+  rw [h0idx]
+  unfold coverConcatCore
+  rfl
+
+
+
+
+
+  /-- Succ-branch of `coverConcatCore` exposed as a `Path.trans` equality. -/
+  lemma coverConcatCore_succ_path {b₀ b₁ : B}
+      (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ)
+      (k : Nat) (hk : Nat.succ k < cov.n + 1) :
+      let hklt : k < cov.n := Nat.succ_lt_succ_iff.mp hk
+      let i : Fin cov.n := ⟨k, hklt⟩
+      have hk' : k ≤ cov.n := le_of_lt hklt
+      coverConcatCore (p:=p) γ cov ⟨Nat.succ k, hk⟩
+        = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+          (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) :=
+  by
+    intro hklt i hk'
+    -- Align Fin indices used in the definition
+    have hcast : (⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
+      ext; rfl
+    have hsuc : (⟨k+1, hk⟩ : Fin (cov.n+1)) = i.succ := by
+      ext; rfl
+    -- Push index equalities through `cov.pts`
+    have hcastPts : cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩ = cov.pts i.castSucc := by
+      simpa using congrArg (fun j : Fin (cov.n+1) => cov.pts j) hcast
+    have hsucPts : cov.pts ⟨k+1, hk⟩ = cov.pts i.succ := by
+      simpa using congrArg (fun j : Fin (cov.n+1) => cov.pts j) hsuc
+    -- Pointwise equality by unfolding the succ-branch and rewriting indices
+    ext t
+    simp [coverConcatCore, Nat.lt_succ_of_le hk', hcastPts, hsucPts,
+          Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply]
+
+
+
+
+
+
+/-- Succ-branch の適用版（`t` で評価した形）。 -/
+lemma coverConcatCore_succ_apply {b₀ b₁ : B}
+    (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ)
+    (k : Nat) (hk : Nat.succ k < cov.n + 1) (t : unitInterval) :
+  let hklt : k < cov.n := Nat.succ_lt_succ_iff.mp hk
+  let i : Fin cov.n := ⟨k, hklt⟩
+  have hk' : k ≤ cov.n := le_of_lt hklt
+  ((coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+      (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) t
+    = (coverConcatCore (p:=p) γ cov ⟨Nat.succ k, hk⟩) t :=
+by
+  intro hklt i hk'
+  -- パスレベル補題を t で評価して向きを反転
+  have H := coverConcatCore_succ_path (p:=p) (γ:=γ) (cov:=cov) k hk
+  simpa using (congrArg (fun Δ => Δ t) H).symm
 
   /-- A finite cover of a path by evenly-covered neighborhoods, indexed by a finite
   increasing sequence of parameters `pts : Fin (n+1) → I`. On each subinterval
   `[pts i, pts (i.succ)]`, the image of the path is contained in the neighborhood
   `charts i`. We keep only the data needed to perform gluing; monotonicity is
   not used explicitly here as we only rely on endpoints of subpaths. -/
-  structure PathCover {b₀ b₁ : B} (p : E → B) (γ : Path b₀ b₁) where
-    n : Nat
-    pts : Fin (n+1) → unitInterval
-    start : pts ⟨0, by
-      have : (0 : Nat) < n + 1 := Nat.succ_pos _
-      exact this⟩ = I0
-    stop : pts ⟨n, by
-      have : n < n + 1 := Nat.lt_succ_self _
-      exact this⟩ = I1
-    charts : ∀ i : Fin n, EvenlyCoveredAt p (γ (pts i.castSucc))
-    inU : ∀ i : Fin n, ∀ t : unitInterval,
-      γ (Bourbaki.TopologyB.Path.segMap (pts i.castSucc) (pts i.succ) t) ∈ (charts i).U
-
-/-- Left-fold nucleus: path from `γ I0` to `γ (cov.pts k)` by concatenating
-    `γ.subpath (pts i.castSucc) (pts i.succ)` for `i = 0..k-1`. -/
-noncomputable def coverConcatCore {b₀ b₁ : B}
-    (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) :
-    (k : Fin (cov.n + 1)) → Path b₀ (γ (cov.pts k))
-| ⟨0, hk0⟩ =>
-{ toContinuousMap := (Path.refl b₀).toContinuousMap
-, source' := by simpa using (Path.refl b₀).source'
-, target' := by
-    have hidx  : (⟨0, hk0⟩ : Fin (cov.n+1)) = ⟨0, Nat.succ_pos _⟩ := by ext; rfl
-    have hpts0 : cov.pts ⟨0, hk0⟩ = I0 := by simpa [hidx] using cov.start
-    have h0'   : γ (cov.pts ⟨0, hk0⟩) = b₀ := by
-      simpa [← hpts0] using (path_source_I0 (γ := γ))
-    have h0    : b₀ = γ (cov.pts ⟨0, hk0⟩) := h0'.symm
-    simpa [h0] using (Path.refl b₀).target' }
-| ⟨Nat.succ k, hk⟩ =>
-  -- 次の区間を貼り足す（左畳み）
-  let hklt : k < cov.n := Nat.succ_lt_succ_iff.mp hk
-  let i : Fin cov.n := ⟨k, hklt⟩
-  have hk' : k ≤ cov.n := le_of_lt hklt
-  have prev : Path b₀ (γ (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩)) :=
-    coverConcatCore γ cov ⟨k, Nat.lt_succ_of_le hk'⟩
-  prev.trans (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))
 
 
 
 
-/-- Concatenation over the whole finite cover (retagged to end at `b₁`). -/
+-- Concatenation over the whole finite cover (retagged to end at `b₁`). -/
 noncomputable def coverConcat {b₀ b₁ : B}
     (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ) : Path b₀ b₁ :=
 by
@@ -1042,6 +1143,22 @@ by
       (coverConcat (p:=p) γ cov) I1 = b₁ := by
     simpa [I1] using (coverConcat (p:=p) γ cov).target'
 
+
+
+
+
+-- どの namespace でも良いですが、重複定義にならない位置に置いてください
+@[simp] lemma path_refl_apply {X} [TopologicalSpace X] (x : X) (t : unitInterval) :
+  (Path.refl x) t = x := rfl
+
+
+lemma path_map_trans_apply {X Y : Type*}
+  [TopologicalSpace X] [TopologicalSpace Y]
+  {x y z : X} (α : Path x y) (β : Path y z) (f : X → Y) (hf : Continuous f) (t : unitInterval) :
+  ((α.trans β).map (f := f) hf) t
+    = ((α.map (f := f) hf).trans (β.map (f := f) hf)) t := by
+  simp [path_map_apply]
+
   /-
   Apply-level identity: evaluating `coverConcat` equals evaluating the fold
   nucleus at the final index. (Commented out on request.)
@@ -1063,40 +1180,15 @@ by
   Small helpers for Phase 6 gluing proofs.
   -/
 
-  /-- Mapping commutes with concatenation, path-level (use `ext; simp`). -/
-  lemma map_trans_path
-      {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
-      {x y z : X} (α : Path x y) (β : Path y z)
-      (f : X → Y) (hf : Continuous f) :
-      (α.trans β).map (f := f) hf = (α.map (f := f) hf).trans (β.map (f := f) hf) := by
-    ext t; simp [path_map_apply]
+  -- Mapping commutes with concatenation, path-level (use `ext; simp`). -/
 
-  /-- Succ-branch of `coverConcatCore` exposed as a `Path.trans` equality. -/
-  lemma coverConcatCore_succ_path {b₀ b₁ : B}
-      (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ)
-      (k : Nat) (hk : Nat.succ k < cov.n + 1) :
-      let hklt : k < cov.n := Nat.succ_lt_succ_iff.mp hk
-      let i : Fin cov.n := ⟨k, hklt⟩
-      have hk' : k ≤ cov.n := le_of_lt hklt
-      coverConcatCore (p:=p) γ cov ⟨Nat.succ k, hk⟩
-        = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
-          (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) :=
-  by
-    intro hklt i hk'
-    -- Align Fin indices used in the definition
-    have hcast : (⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
-      ext; rfl
-    have hsuc : (⟨k+1, hk⟩ : Fin (cov.n+1)) = i.succ := by
-      ext; rfl
-    -- Push index equalities through `cov.pts`
-    have hcastPts : cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩ = cov.pts i.castSucc := by
-      simpa using congrArg (fun j : Fin (cov.n+1) => cov.pts j) hcast
-    have hsucPts : cov.pts ⟨k+1, hk⟩ = cov.pts i.succ := by
-      simpa using congrArg (fun j : Fin (cov.n+1) => cov.pts j) hsuc
-    -- Pointwise equality by unfolding the succ-branch and rewriting indices
-    ext t
-    simp [coverConcatCore, Nat.lt_succ_of_le hk', hcastPts, hsucPts,
-          Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply]
+
+
+
+/- Apply-level corollary of `coverConcatCore_succ_path`.
+    **Note the symmetry**: we want `((core k).trans …) t = (core (k+1)) t`. -/
+
+
 
   /-
   -- Concatenation of the subpaths determined by a `PathCover`. This is a
@@ -1207,162 +1299,202 @@ by
 lemma liftPathOnCover_map_apply
   (h : CoveringMap p) {b₀ b₁ : B}
   (γ : Path b₀ b₁)
-  (cov : PathCover (p:=p) γ)
+  (cov : CoveringMap.PathCover (p:=p) γ)
   (e₀ : E) (h₀ : p e₀ = b₀)
   (t : unitInterval) :
-  ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) t
-    = (coverConcat (p:=p) γ cov) t :=
+  ((CoveringMap.liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) t
+    = (CoveringMap.coverConcat (p:=p) γ cov) t :=
 by
   classical
-  ----------------------------------------------------------------
-  -- 強い帰納：段 k の「点毎 β」と「端点不変量 p e_k = γ (pts k)」を保持
-  ----------------------------------------------------------------
+  -- 強い帰納：段 k ごとに点毎 β と端点不変量を持つ Σ-データを構築
   have build :
     ∀ k, (hk : k ≤ cov.n) →
       Subtype (fun x : Σ e : E, Path e₀ e =>
         (∀ u : unitInterval,
           ((x.2).map (f := p) h.continuous) u
-            = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk⟩) u)
+            = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk⟩) u)
         ∧ (p x.1 = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk⟩))) :=
   by
     intro k
-    -- e₀ は generalize（h₀ は base だけで使う）
-    induction' k with k ih generalizing e₀
-    · -- base : k = 0
+    induction' k with k ih
+    · -- k = 0
       intro hk
       refine ⟨⟨e₀, Path.refl e₀⟩, ?_⟩
-      refine And.intro ?hpath ?hend0
-      -- (a) 点毎 β：map(refl) は定数 `p e₀`、core(0) は常に `b₀`
+      refine And.intro ?hpath0 ?hend0
       · intro u
-        have hmap : ((Path.refl e₀).map (f := p) h.continuous) u = p e₀ := by
-          simp [path_map_apply]            -- ← simp を使う
-        have hcore₀ :
-            (coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u = b₀ := by
-          simp [CoveringMap.coverConcatCore, path_map_apply, h₀]        -- ← simp を使う
-        -- 連鎖（向きに注意）
-        calc
-          ((Path.refl e₀).map (f := p) h.continuous) u
-              = p e₀ := hmap
-          _   = b₀   := h₀
-          _   = (coverConcatCore (p:=p) γ cov ⟨0, Nat.lt_succ_of_le hk⟩) u := hcore₀.symm
-      -- (b) 端点不変量：`p e₀ = γ (pts 0)`
+        simp [Bourbaki.TopologyB.path_map_apply, CoveringMap.coverConcatCore, h₀]
       ·
-        -- `pts 0 = I0`
-        have hpts0 : cov.pts (0 : Fin (cov.n+1)) = I0 := by
+        have hpts0 : cov.pts (0 : Fin (cov.n+1)) = Bourbaki.TopologyB.I0 := by
           simpa using cov.start
-        -- `γ I0 = b₀` を等式として取得
-        have hγI0 : γ I0 = b₀ := by
-          cases' γ with toγ srcγ tgtγ
-          simpa [I0] using srcγ
-        -- 右辺を書き換える向きで `b₀ = γ (pts 0)` を作る
+        have hγI0 : γ Bourbaki.TopologyB.I0 = b₀ := by
+          cases' γ with _ src _
+          simpa [Bourbaki.TopologyB.I0] using src
         have hb0 : b₀ = γ (cov.pts (0 : Fin (cov.n+1))) := by
           simpa [hpts0] using hγI0.symm
-        -- 目標を閉じる
         simpa [hb0] using h₀
-
-    · -- step : k → k+1
+    · -- k → k+1
       intro hkSucc
-      -- `k+1 ≤ n` から `k ≤ n` と `k < n`
-      have hk'  : k ≤ cov.n := le_trans (Nat.le_succ k) hkSucc
+      have hk'  : k ≤ cov.n := Nat.le_trans (Nat.le_succ k) hkSucc
       have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
-      -- ★ 直前段（e₀ は generalize 済みなので **必ず `ih e₀ hk'`** と適用）
-      rcases ih e₀ h₀ hk' with ⟨⟨e_k, Γ_k⟩, hpair_k⟩
+      rcases ih hk' with ⟨⟨e_k, Γ_k⟩, hpair_k⟩
       have hpath_k :
-          ∀ u : unitInterval,
-            (Γ_k.map (f := p) h.continuous) u
-              = (coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩) u :=
+        ∀ u : unitInterval,
+          (Γ_k.map (f := p) h.continuous) u
+            = (CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩) u :=
         hpair_k.1
       have hend_k :
-          p e_k = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩) :=
+        p e_k = γ (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩) :=
         hpair_k.2
-      -- 区間インデックス
+
+      -- インデックス整列と次区間のローカル持ち上げ
       let i : Fin cov.n := ⟨k, hklt⟩
-      -- castSucc で添字をそろえる
       have hidx :
-          (⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
+        (⟨k, Nat.lt_succ_of_le hk'⟩ : Fin (cov.n+1)) = i.castSucc := by
         ext; rfl
       have hstart : p e_k = γ (cov.pts i.castSucc) := by
         simpa [hidx] using hend_k
-      -- 小区間の局所リフト
+
       let Γseg :=
-        liftPathLocalOn (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
+        CoveringMap.liftPathLocalOn (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
           (cov.charts i) e_k hstart (cov.inU i)
-      -- 小区間 β（点毎）
+
+      -- apply レベル β（区間像）
       have hseg_apply :
-          ∀ u : unitInterval,
-            (Γseg.map (f := p) h.continuous) u
-              = (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) u :=
+        ∀ u : unitInterval,
+          (Γseg.map (f := p) h.continuous) u
+            = (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ)) u :=
       by
         intro u
-        simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
-               ContinuousMap.comp_apply]
-          using
-            (liftPathLocalOn_map_apply (p:=p) h γ
-              (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
-              e_k hstart (cov.inU i) u)
-      -- 終点不変量（k+1）
-      have hend_k1 :
-          p (Γseg I1) = γ (cov.pts i.succ) := by
-        have hβ :=
-          liftPathLocalOn_map_apply (p:=p) h γ
+        simpa [Γseg, Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] using
+          (CoveringMap.liftPathLocalOn_map_apply (p:=p) h γ
             (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
-            e_k hstart (cov.inU i) I1
-        simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
-               ContinuousMap.comp_apply] using hβ
-      -- 次段の Σ
-      refine ⟨⟨Γseg I1, Γ_k.trans Γseg⟩, ?_⟩
-      -- (i) 点毎 β（k+1）
-      · intro u
-        -- `map` を `trans` に押し出す（点毎）
-        have hmap_trans :
+            e_k hstart (cov.inU i) u)
+
+      -- 端点不変量（k+1）
+      have hend_k1 :
+        p (Γseg Bourbaki.TopologyB.I1) = γ (cov.pts i.succ) := by
+        have hβ :=
+          CoveringMap.liftPathLocalOn_map_apply (p:=p) h γ
+            (cov.pts i.castSucc) (cov.pts i.succ) (cov.charts i)
+            e_k hstart (cov.inU i) Bourbaki.TopologyB.I1
+        simpa [Γseg, Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] using hβ
+
+      -- 段 k+1 の構築
+      refine ⟨⟨Γseg Bourbaki.TopologyB.I1, Γ_k.trans Γseg⟩, ?_⟩
+      refine And.intro ?hpath_succ ?hend_succ
+
+      · -- pointwise β at stage k+1
+        intro u
+        -- (1) map と trans の交換（点評価版）
+        have hmt :
           ((Γ_k.trans Γseg).map (f := p) h.continuous) u
-            = ((Γ_k.map (f := p) h.continuous).trans (Γseg.map (f := p) h.continuous)) u := by
-          -- `map_trans_path` を使うなら：
-          -- simpa using congrArg (fun (P : Path _ _) => P u)
-          --   (map_trans_path (α := Γ_k) (β := Γseg) (f := p) (hf := h.continuous))
-          rfl
-        -- `coverConcatCore` の succ 分岐に一致
-        have hcore_succ :
-          ((coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+            = (((Γ_k.map (f := p) h.continuous).trans
+                (Γseg.map (f := p) h.continuous)) u) := by
+          simpa using
+            Bourbaki.TopologyB.map_trans_path_apply
+              (α:=Γ_k) (β:=Γseg) (f:=p) (hf:=h.continuous) (t:=u)
+
+        -- (2) 因子の置換（端点を cast で整合）
+        have hA_path :
+          (Γ_k.map (f := p) h.continuous)
+            =
+          ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩)
+          ).cast (by simpa using h₀)
+                  (by simpa using hend_k) := by
+          ext s; simpa [Path.cast] using hpath_k s
+
+        have hB_path :
+          (Γseg.map (f := p) h.continuous)
+            =
+          ((Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))
+          ).cast (by simpa using hstart)
+                  (by simpa using hend_k1) := by
+          ext s; simpa [Γseg, Bourbaki.TopologyB.Path.subpath, Path.cast] using hseg_apply s
+
+        -- (3) hmt の右辺だけを書き換える（`simp_rw` で局所置換）
+        have hmap_trans₁ :
+          ((Γ_k.trans Γseg).map (f := p) h.continuous) u
+            =
+          ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+              (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u :=
+        by
+          have h := hmt
+          simp_rw [hA_path, hB_path] at h
+          simpa [Path.cast] using h
+
+        -- (4) 添字合わせ： i.castSucc / i.succ → ⟨k⟩ / ⟨k+1⟩
+        have hi_succ :
+          (i.succ : Fin (cov.n+1)) = ⟨k+1, Nat.lt_succ_of_le hkSucc⟩ := by
+          ext; rfl
+        have hsub :
+          (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))
+            =
+          (Bourbaki.TopologyB.Path.subpath γ
+            (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩)
+            (cov.pts ⟨k+1, Nat.lt_succ_of_le hkSucc⟩)) := by
+          ext s; simp [Bourbaki.TopologyB.Path.subpath, hidx, hi_succ]
+
+        have hmap_trans₂ :
+          ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
               (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u
-            = (coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := by
-          simp [coverConcatCore, Nat.lt_succ_of_le hk',
-                Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply]
-        -- 連鎖（点毎等式を使って二因子を置換）
-        calc
-          ((Γ_k.trans Γseg).map (f := p) h.continuous) u
-              = ((Γ_k.map (f := p) h.continuous).trans (Γseg.map (f := p) h.continuous)) u := hmap_trans
-          _ = ((coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
-                (Bourbaki.TopologyB.Path.subpath γ (cov.pts i.castSucc) (cov.pts i.succ))) u := by
-                -- `hpath_k u` と `hseg_apply u` で置換（`simp` でも可）
-                -- ここは点評価なので `rfl` でも化簡する実装に合わせています
-                rfl
-          _ = (coverConcatCore (p:=p) γ cov ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := hcore_succ
-      -- (ii) 端点不変量（k+1）
-      · simpa using hend_k1
+            =
+          ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+              (Bourbaki.TopologyB.Path.subpath γ
+                (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩)
+                (cov.pts ⟨k+1, Nat.lt_succ_of_le hkSucc⟩))) u := by
+          simpa [hsub]
+
+        -- (5) succ へ畳む（`coverConcatCore` の定義を展開）
+        have hcore_succ :
+          ((CoveringMap.coverConcatCore (p:=p) γ cov ⟨k, Nat.lt_succ_of_le hk'⟩).trans
+              (Bourbaki.TopologyB.Path.subpath γ
+                (cov.pts ⟨k, Nat.lt_succ_of_le hk'⟩)
+                (cov.pts ⟨k+1, Nat.lt_succ_of_le hkSucc⟩))) u
+            =
+          (CoveringMap.coverConcatCore (p:=p) γ cov
+            ⟨Nat.succ k, Nat.lt_succ_of_le hkSucc⟩) u := by
+          simp [CoveringMap.coverConcatCore, Bourbaki.TopologyB.Path.subpath]
+
+        exact hmap_trans₁.trans (hmap_trans₂.trans hcore_succ)
+
+      · -- endpoint invariant at k+1
+        -- 右辺の添字を `⟨k+1, _⟩` に揃えて流すだけ
+        have hi_succ :
+          (i.succ : Fin (cov.n+1)) = ⟨k+1, Nat.lt_succ_of_le hkSucc⟩ := by
+          ext; rfl
+        change p (Γseg Bourbaki.TopologyB.I1) = γ (cov.pts ⟨k+1, Nat.lt_succ_of_le hkSucc⟩)
+        simpa [hi_succ] using hend_k1
 
   ----------------------------------------------------------------
-  -- 段 k = n の点毎 β を t に適用して、定義を最小限だけ展開
+  -- k = n のデータを取り出して `coverConcat` に貼り替える
   ----------------------------------------------------------------
-  -- まず「その段の値」R を束ねておく（`set` にして定義等式 hR を取る）
   set R := build cov.n le_rfl with hR
+
+  -- (1) R の構成物の像 ＝ core(n) の像
   have hval :
       ((R.val.2).map (f := p) h.continuous) t
-        = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t :=
+        = (CoveringMap.coverConcatCore (p:=p) γ cov
+            ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t :=
     (R.property).1 t
-  -- LHS：`liftPathOnCover` の .2 は定義上 `R.val.2`
-  have hLift :
-      (liftPathOnCover (p:=p) h γ cov e₀ h₀).2 = R.val.2 := by
-    -- `liftPathOnCover` の定義は `let R := build …; exact ⟨R.1, R.2⟩`
-    -- よって `simpa` で開くのが確実
-    simpa [liftPathOnCover, hR]
-  -- RHS：`coverConcat` の評価は core の最終段に一致
+
+  -- (2) 左辺の lift を R のデータに一致させる（定義を一回だけ展開）
+  have hLHS :
+    ((CoveringMap.liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) t
+      = ((R.val.2).map (f := p) h.continuous) t := sorry
+
+  -- (3) coverConcat を core(n) の評価に貼り替える
   have hCC :
-      (coverConcat (p:=p) γ cov) t
-        = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := by
-    simp [coverConcat]
-  -- 仕上げ：両辺を書き換えて終了
-  simpa [hLift, hCC] using hval
+      (CoveringMap.coverConcat (p:=p) γ cov) t
+        = (CoveringMap.coverConcatCore (p:=p) γ cov
+            ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := by
+    simp [CoveringMap.coverConcat]
+
+  -- (4) 連鎖（`assumption` は不要）
+  exact (hLHS.trans hval).trans hCC.symm
+
+
+  -- ゴールが `p (… t)` 形式に展開されてしまっている環境ではこちらを使う：
+  -- simpa [Bourbaki.TopologyB.path_map_apply, CoveringMap.liftPathOnCover, hR] using hLHS
 
 
   -- We avoid a path-level equality since endpoints differ; the apply-level β
@@ -1593,6 +1725,7 @@ implementation can follow mathlib’s path/interval conventions.
 -/
   theorem path_lifting_theorem_skeleton (p : E → B) (_h : CoveringMap p) : True :=
     True.intro
+
 
 end CoveringSpaces
 

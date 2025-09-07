@@ -1,0 +1,59 @@
+liftPathOnCover_map_applyの実装が困難な場合の解決策を提示してください
+
+
+以下は、liftPathOnCover_map_apply の実装が重く感じる（詰まりやすい）場合に効く、段階的な解決策です。既に遭遇している典型的な失敗（基底ケースの残置ゴール、IH 呼び出しの型食い違い、最終段の definitional mismatch）を直接つぶす方針と、代替アプローチの両方を提示します。
+
+【最短で通すための3点セット】
+
+基底ケース（k = 0）の点毎 βは simp 一発にする
+
+書き方（点毎ブランチ）:
+intro u
+simp [coverConcatCore, path_map_apply, h₀]
+これで ((Path.refl e₀).map …) u = p e₀ と core(0) = b₀ が同時に潰れ、残置ゴール「(coverConcatCore … 0) u = b₀」を消せます。
+付随の “try simp instead of simpa” もこれで解消。
+帰納ステップの IH 呼び出しを正しい型に合わせる
+
+この補題の IH が (e₀ : E) → p e₀ = b₀ → (hk : k ≤ cov.n) → … になっているなら、次のように呼ぶ:
+rcases ih e₀ h₀ hk' with ⟨⟨e_k, Γ_k⟩, hpair_k⟩
+もし IH を「e₀ だけ generalize」したいなら、そもそもの induction ヘッダを (e₀ のみ generalize) に変え、呼び出しは rcases ih e₀ hk' … にします。どちらかに揃えるのがコツ。
+最終段（k = n）は let 形に合わせて simpa で閉じる
+
+「R/hLift/hCC」等の補助等式を作らないで、build をそのまま使い、左辺は let 形（def と同じ形）にし、右辺は coverConcat で fold します。
+具体例:
+have hval :
+(((build cov.n le_rfl).val.2).map (f := p) h.continuous) t
+= (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t :=
+((build cov.n le_rfl).property).1 t
+change ((let Q := (build cov.n le_rfl).val
+; (Q.2.map (f := p) h.continuous)) t)
+= (coverConcat (p:=p) γ cov) t
+simpa [coverConcat] using hval
+これで (↑R).snd と (h.liftPathOnCover …).snd のズレや change の definitional mismatch が消えます。
+【別解アプローチ（詰まりやすい箇所の回避策）】
+
+先に「パス等式」に上げてから ext t; simp
+
+今は適用レベル（pointwise）で β を示していますが、Path 等式を示してから ext で落とすのも手です。map_trans_path と coverConcatCore_succ_path をベースに、k 段の等式を Path で持ち、最後に ext で t に落とすと、change のミスマッチに悩まされにくいです。
+coverConcat_apply を一時的に復活させる
+
+「coverConcat の評価 = 核の最終段の評価」を補題化しておけば、最終段の fold と liftPathOnCover の let 形を直結できます。証明が安定したら再びコメントアウトに戻す運用も可能です。
+帰納の不変量を「点毎 β だけ」に縮小する
+
+端点不変量（p e_k = γ (pts k)）は β から自動的に付いてくるので、まずは Path 等式（あるいは apply 等式）部分だけを不変量にして軽く通し、その後に端点を corollary として別出しにすると、IH の型合わせが楽になります。
+Fin 添字と subpath は simp 指向で
+
+i : Fin cov.n の扱いは ext; rfl と congrArg (fun j => cov.pts j) で揃えてから、simp [Bourbaki.TopologyB.Path.subpath, ContinuousMap.comp_apply] で潰すのが安定します。等式の向きが合っているかをまず確認。
+【デバッグのチェックリスト】
+
+Path.map は常に (f := p) h.continuous の形になっているか（@[simp] path_map_apply が効く）。
+sheet_comp_eq_inclB は u := (d.toSubtype γ hγ) z 等に評価した上で、congrArg (fun x => x ∈ d.U) → Eq.mp で membership を閉じているか（True 化に注意）。
+IH ヘッダと呼び出しの引数の整合（e₀, h₀ を generalize しているかどうか）をそろえる。
+最終段は let 形（let Q := (build …).val）に合わせ、R を別記せずに simpa [coverConcat] using hval とする。
+【どうしても厳しい場合の段階的ゴール】
+
+端点版（I0/I1）のみ先に通す:
+liftPathOnCover_map_I0 / _I1 は β + coverConcat_I0/_I1 + path_source_I0/target_I1 で 2〜3 行。
+セグメント毎の β で分解（liftPathLocalOn_map_apply の fold だけ先に安定化）:
+グローバル β は「セグメント βの連結 + Path.map と trans の可換」を押すだけなので、部分を小さい補題に切り出してから glue。
+この3点（基底 simp・IH 形揃え・最終 let 形）で、いま出ている全エラーは解消できます。必要であれば、該当行に合わせて具体的な差分（置換前/置換後）も提示します。
