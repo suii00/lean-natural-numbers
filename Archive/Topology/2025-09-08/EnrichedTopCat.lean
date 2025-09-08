@@ -166,14 +166,14 @@ lemma tensorInternal_triangle_left (X : TopCat) :
     ((tensorWith Y).map ((TensorInternal.adjunction (Y:=Y)).unit.app X)) ≫
       ((TensorInternal.adjunction (Y:=Y)).counit.app ((tensorWith Y).obj X))
     = 𝟙 ((tensorWith Y).obj X) := by
-  simpa using (TensorInternal.adjunction (Y:=Y)).left_triangle_components (X := X)
+  simp
 
 @[simp, reassoc]
 lemma tensorInternal_triangle_right (Z : TopCat) :
     ((TensorInternal.adjunction (Y:=Y)).unit.app ((internalHom Y).obj Z)) ≫
       ((internalHom Y).map ((TensorInternal.adjunction (Y:=Y)).counit.app Z))
     = 𝟙 ((internalHom Y).obj Z) := by
-  simpa using (TensorInternal.adjunction (Y:=Y)).right_triangle_components (Y := Z)
+  simp
 
 end TriangleSimp
 
