@@ -1,0 +1,193 @@
+\documentclass[uplatex, a4paper]{jlreq}
+
+% 必須パッケージ
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{tikz-cd} % 可換図式用
+
+% 余白設定
+\geometry{margin=25mm}
+
+% 定理環境の設定
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\renewcommand{\proofname}{証明}
+
+% 数学記号の定義
+\newcommand{\Top}{\mathbf{Top}}
+\newcommand{\Set}{\mathbf{Set}}
+\newcommand{\Cat}{\mathbf{Cat}}
+\newcommand{\Hom}{\mathrm{Hom}}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\comp}{\circ}
+\newcommand{\nat}{\cong}
+\newcommand{\curry}{\mathrm{curry}}
+\newcommand{\uncurry}{\mathrm{uncurry}}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\eval}{eval}
+
+\title{位相空間の圏における積の普遍性と指数法則の形式的証明}
+\author{Leanコード生成: CODEX (OpenAI)\\LaTeX文書作成: Claude (Anthropic)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本論文では、位相空間の圏$\Top$における積の普遍性と指数法則について、Lean 4とmathlibを用いた形式的証明の実装を解説する。特に、対角関手と積関手の間の随伴関係、連続写像のカリー化とその自然性、コンパクト開位相における指数法則の成立条件について詳細に論じる。これらの結果は、圏論的位相空間論の基礎をなすものであり、計算機による形式的検証により、その正確性が保証される。
+\end{abstract}
+
+\section{序論}
+
+位相空間の圏$\Top$は、現代数学において基本的な圏の一つである。本論文では、この圏における二つの重要な構造、すなわち積の普遍性と指数法則について、Lean 4による形式的証明を通じて考察する。
+
+積の普遍性は、任意の位相空間$X, Y, Z$に対して、連続写像の集合の間に自然な全単射
+\[
+C(X, Y \times Z) \cong C(X, Y) \times C(X, Z)
+\]
+が存在することを主張する。この性質は、圏論的には対角関手$\Delta: \Top \to \Top \times \Top$と積関手の間の随伴関係として理解される。
+
+一方、指数法則は、連続写像空間に適切な位相を入れることで、
+\[
+C(X \times Y, Z) \cong C(X, C(Y, Z))
+\]
+という自然同型が成立することを述べる。これは$Y$が局所コンパクトHausdorff空間である場合に、コンパクト開位相の下で同相写像となる。
+
+\section{準備}
+
+\subsection{基本的な定義}
+
+\begin{definition}[連続写像空間]
+位相空間$X, Y$に対して、$C(X, Y)$で$X$から$Y$への連続写像全体の集合を表す。これにコンパクト開位相を入れたものを連続写像空間と呼ぶ。
+\end{definition}
+
+\begin{definition}[積空間]
+位相空間$X, Y$に対して、直積集合$X \times Y$に積位相を入れたものを積空間と呼ぶ。積位相は射影$\pi_1: X \times Y \to X$, $\pi_2: X \times Y \to Y$が連続となる最弱の位相である。
+\end{definition}
+
+\begin{definition}[対角関手]
+対角関手$\Delta: \Top \to \Top \times \Top$は、対象$X$を$(X, X)$に、射$f: X \to Y$を$(f, f)$に対応させる関手である。
+\end{definition}
+
+\section{主要な結果}
+
+\subsection{積の普遍性}
+
+\begin{theorem}[積の普遍性]
+\label{thm:product-universal}
+任意の位相空間$X, Y, Z$に対して、次の全単射が存在する：
+\[
+\Phi: C(X, Y \times Z) \xrightarrow{\sim} C(X, Y) \times C(X, Z)
+\]
+ここで、$\Phi(f) = (\pi_1 \comp f, \pi_2 \comp f)$であり、その逆写像は
+$\Phi^{-1}(g, h) = \langle g, h \rangle$（ただし$\langle g, h \rangle(x) = (g(x), h(x))$）で与えられる。
+\end{theorem}
+
+この定理の圏論的な意味は、次の可換図式で表現される：
+
+\begin{center}
+\begin{tikzcd}
+X \arrow[dr, "f"] \arrow[drr, bend left=20, "g"] \arrow[ddr, bend right=20, "h"'] & & \\
+& Y \times Z \arrow[r, "\pi_1"] \arrow[d, "\pi_2"'] & Y \\
+& Z &
+\end{tikzcd}
+\end{center}
+
+\begin{proposition}[対角関手と積関手の随伴]
+対角関手$\Delta: \Top \to \Top \times \Top$は積関手$\times: \Top \times \Top \to \Top$の左随伴である。すなわち、
+\[
+\Hom_{\Top \times \Top}(\Delta(X), (Y, Z)) \cong \Hom_{\Top}(X, Y \times Z)
+\]
+という自然同型が存在する。
+\end{proposition}
+
+\subsection{指数法則}
+
+\begin{theorem}[カリー化]
+\label{thm:curry}
+任意の位相空間$X, Y, Z$に対して、連続写像
+\[
+\curry: C(X \times Y, Z) \to C(X, Y \to Z)
+\]
+が存在する。ここで$Y \to Z$にはPi位相（各点収束位相）を入れる。
+この写像は$\curry(f)(x)(y) = f(x, y)$で定義される。
+\end{theorem}
+
+\begin{theorem}[指数法則の同相版]
+\label{thm:exponential-homeo}
+$X, Y$が局所コンパクトHausdorff空間であるとき、
+\[
+\curry: C(X \times Y, Z) \xrightarrow{\approx} C(X, C(Y, Z))
+\]
+は同相写像である。ここで$C(Y, Z)$にはコンパクト開位相を入れる。
+\end{theorem}
+
+指数法則の自然性は、次の可換図式で表される：
+
+\begin{center}
+\begin{tikzcd}
+C(X' \times Y, Z) \arrow[r, "\curry"] \arrow[d, "(\phi \times \id_Y)^*"'] & C(X', C(Y, Z)) \arrow[d, "\phi^*"] \\
+C(X \times Y, Z) \arrow[r, "\curry"'] & C(X, C(Y, Z))
+\end{tikzcd}
+\end{center}
+
+ここで$\phi: X' \to X$は連続写像、$(-)^*$は前合成による引き戻しを表す。
+
+\section{証明の概略}
+
+\subsection{積の普遍性の証明}
+
+定理\ref{thm:product-universal}の証明は、写像$\Phi$とその逆写像が互いに逆であることを直接確認することで行う。
+
+まず、$\Phi \comp \Phi^{-1} = \id$を示す。任意の$(g, h) \in C(X, Y) \times C(X, Z)$に対して、
+\begin{align}
+\Phi(\Phi^{-1}(g, h)) &= \Phi(\langle g, h \rangle) \\
+&= (\pi_1 \comp \langle g, h \rangle, \pi_2 \comp \langle g, h \rangle) \\
+&= (g, h)
+\end{align}
+となる。ここで、$\pi_i \comp \langle g, h \rangle = g_i$（$i = 1, 2$）という関係を用いた。
+
+逆に、$\Phi^{-1} \comp \Phi = \id$も同様に示される。任意の$f \in C(X, Y \times Z)$と$x \in X$に対して、
+\[
+\Phi^{-1}(\Phi(f))(x) = \langle \pi_1 \comp f, \pi_2 \comp f \rangle(x) = ((\pi_1 \comp f)(x), (\pi_2 \comp f)(x)) = f(x)
+\]
+となる。
+
+\subsection{カリー化の連続性}
+
+定理\ref{thm:curry}において、$\curry(f)$が連続であることを示す。Pi位相の定義により、各$y \in Y$に対する評価写像$\eval_y: (Y \to Z) \to Z$が連続であることを用いる。
+
+任意の$y \in Y$に対して、合成
+\[
+X \xrightarrow{\curry(f)} (Y \to Z) \xrightarrow{\eval_y} Z
+\]
+は$x \mapsto f(x, y)$となり、これは$f$の連続性と積位相の性質から連続である。Pi位相の普遍性により、$\curry(f)$自体が連続となる。
+
+\subsection{指数法則の同相性}
+
+定理\ref{thm:exponential-homeo}の証明では、$Y$の局所コンパクト性が本質的である。逆写像$\uncurry$の連続性を示すために、評価写像
+\[
+\eval: C(Y, Z) \times Y \to Z, \quad (g, y) \mapsto g(y)
+\]
+がコンパクト開位相の下で連続となることを用いる。
+
+局所コンパクト性により、任意の点$(g_0, y_0) \in C(Y, Z) \times Y$の近傍で、$y_0$がコンパクト近傍$K$を持つ。このとき、$g_0 \in W(K, U)$（$U$は$g_0(y_0)$の開近傍）として、$W(K, U) \times \mathrm{int}(K)$上で評価写像が$U$に値を取ることが示される。
+
+\section{結論}
+
+本論文では、位相空間の圏における積の普遍性と指数法則について、Lean 4による形式的証明を通じて詳細に検討した。これらの結果は、圏論的位相空間論の基礎をなすものであり、以下の点で意義がある：
+
+\begin{enumerate}
+\item 積の普遍性は、位相空間の圏が有限積を持つことを保証し、多くの構成において基本的な役割を果たす。
+\item 指数法則は、関数空間の位相的性質を理解する上で本質的であり、特にホモトピー論や関数解析において重要である。
+\item 形式的証明により、これらの古典的結果の正確性が計算機により検証され、数学の基礎の確実性が高まる。
+\end{enumerate}
+
+今後の展望として、これらの結果を無限積や一般の極限・余極限に拡張すること、また他の具体的な圏（一様空間の圏、微分可能多様体の圏など）における類似の結果の形式化が考えられる。さらに、高次圏論における一般化も興味深い研究課題である。
+
+\end{document}

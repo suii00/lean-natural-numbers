@@ -1,0 +1,158 @@
+\documentclass[uplatex, a4paper]{jlreq}
+
+% 必要なパッケージ
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+% ページ設定
+\geometry{
+    left=25mm,
+    right=25mm,
+    top=30mm,
+    bottom=30mm
+}
+
+% 定理環境の設定
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\renewcommand{\proofname}{証明}
+
+% ハイパーリンクの設定
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\title{定数関数の微分に関する形式的証明の数学的解説}
+\author{Claude (Anthropic) \\ {\small Leanコード: Claude Codeにより生成}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{概要}
+
+本稿では、微分積分学における最も基本的な定理の一つである「定数関数の導関数は恒等的に0である」という命題について、Lean 4を用いた形式的証明から得られた知見を解説する。この定理は高校数学で学ぶ基本的な結果であるが、形式的証明システムを通じてその厳密な定式化と証明構造を明らかにすることで、数学的厳密性の重要性を示す。さらに、この基本定理の様々な拡張と一般化についても議論する。
+
+\section{序論}
+
+微分積分学において、定数関数の微分は最も基本的な概念の一つである。関数 $f(x) = c$（ただし $c$ は定数）に対して、その導関数が恒等的に0になるという事実は、微分の幾何学的意味（接線の傾き）からも直感的に理解できる。
+
+本稿では、証明支援システムLean 4とその数学ライブラリMathlibを用いて、この基本的な定理を形式的に証明した結果を報告する。形式的証明の利点は、証明の各ステップが論理的に厳密であることが機械的に検証される点にある。これにより、人間による証明で見落とされがちな細かな仮定や条件を明確化できる。
+
+\section{準備}
+
+本節では、議論に必要な基本的な定義と記法を導入する。
+
+\begin{definition}[導関数]
+実関数 $f: \mathbb{R} \to \mathbb{R}$ の点 $x \in \mathbb{R}$ における導関数は、極限
+\[
+f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
+\]
+が存在するとき、この極限値として定義される。この極限が存在するとき、$f$ は $x$ において微分可能であるという。
+\end{definition}
+
+\begin{definition}[定数関数]
+実数 $c \in \mathbb{R}$ に対して、定数関数 $f_c: \mathbb{R} \to \mathbb{R}$ を
+\[
+f_c(x) = c \quad (\forall x \in \mathbb{R})
+\]
+により定義する。
+\end{definition}
+
+\begin{definition}[微分可能性]
+関数 $f: \mathbb{R} \to \mathbb{R}$ が微分可能であるとは、すべての点 $x \in \mathbb{R}$ において $f$ が微分可能であることをいう。
+\end{definition}
+
+\section{主要な結果}
+
+本節では、Leanコードで証明された主要な定理を提示する。
+
+\begin{theorem}[定数関数の微分]\label{thm:const_deriv}
+任意の定数 $c \in \mathbb{R}$ に対して、定数関数 $f_c(x) = c$ の導関数は恒等的に0である。すなわち、
+\[
+\forall x \in \mathbb{R}, \quad f_c'(x) = 0
+\]
+\end{theorem}
+
+\begin{theorem}[定数関数の微分可能性]\label{thm:const_diff}
+任意の定数 $c \in \mathbb{R}$ に対して、定数関数 $f_c$ は $\mathbb{R}$ 全体で微分可能である。
+\end{theorem}
+
+\begin{theorem}[複合的定数関数の微分]\label{thm:composite_const}
+関数 $f: \mathbb{R} \to \mathbb{R}$ が定数関数である（すなわち、ある $c \in \mathbb{R}$ が存在して $\forall x \in \mathbb{R}, f(x) = c$）ならば、
+\[
+\forall x \in \mathbb{R}, \quad f'(x) = 0
+\]
+\end{theorem}
+
+\begin{corollary}[定数の線形結合の微分]
+任意の定数 $c_1, c_2, k \in \mathbb{R}$ に対して、以下が成り立つ：
+\begin{enumerate}
+\item $(c_1 + c_2)' = 0$
+\item $(k \cdot c)' = 0$
+\end{enumerate}
+\end{corollary}
+
+\section{証明の概略}
+
+\subsection{定理\ref{thm:const_deriv}の証明}
+
+定数関数の導関数が0になることの証明は、微分の定義から直接導かれる。主要なアイデアは以下の通りである：
+
+\begin{proof}[証明の概要]
+定数関数 $f(x) = c$ に対して、任意の点 $x \in \mathbb{R}$ と任意の $h \neq 0$ について、
+\[
+\frac{f(x+h) - f(x)}{h} = \frac{c - c}{h} = \frac{0}{h} = 0
+\]
+が成り立つ。したがって、
+\[
+f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} = \lim_{h \to 0} 0 = 0
+\]
+となる。
+\end{proof}
+
+Lean 4での形式的証明では、Mathlibライブラリに含まれる \texttt{deriv\_const} という補題を直接適用することで証明が完了する。これは、上記の議論がすでにライブラリ内で形式化されていることを示している。
+
+\subsection{定理\ref{thm:const_diff}の証明}
+
+定数関数の微分可能性は、導関数の存在から直ちに従う。Leanでは \texttt{differentiable\_const} という補題として提供されており、これは定数関数が各点で微分可能であることを保証する。
+
+\subsection{定理\ref{thm:composite_const}の証明}
+
+この定理の証明では、関数の外延性（extensionality）を利用する。
+
+\begin{proof}[証明の概要]
+仮定より、すべての $x$ に対して $f(x) = c$ が成り立つ。関数の外延性により、$f$ は定数関数 $f_c$ と等しい。したがって、
+\[
+f' = f_c' = 0
+\]
+となる。ここで最後の等式は定理\ref{thm:const_deriv}による。
+\end{proof}
+
+Leanでの証明では、\texttt{funext} タクティクを用いて関数の等価性を示し、その後で定理\ref{thm:const_deriv}の結果を適用している。
+
+\section{結論}
+
+本稿では、定数関数の微分に関する基本定理を、Lean 4による形式的証明を通じて解説した。形式的証明システムを用いることで、以下の利点が得られた：
+
+\begin{enumerate}
+\item \textbf{厳密性の保証}：証明の各ステップが論理的に正しいことが機械的に検証される。
+\item \textbf{再利用可能性}：証明された定理は他の証明で補題として利用できる。
+\item \textbf{教育的価値}：証明の構造が明示的になり、数学的論証の理解が深まる。
+\end{enumerate}
+
+今後の展望として、より複雑な関数（多項式関数、三角関数、指数関数など）の微分定理の形式化や、高階導関数の性質の研究が考えられる。また、形式的証明を教育現場で活用することで、数学の厳密性に対する理解を深めることも期待される。
+
+本研究で使用されたLeanコードはClaude Codeにより生成され、本LaTeX文書はClaudeにより作成された。これは、AI支援による形式的証明と数学文書作成の可能性を示す一例である。
+
+\end{document}

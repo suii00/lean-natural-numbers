@@ -1,0 +1,205 @@
+\documentclass[uplatex, a4paper]{jlreq}
+
+% 必要なパッケージ
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+% 余白設定
+\geometry{left=25mm,right=25mm,top=30mm,bottom=30mm}
+
+% 定理環境の設定
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\renewcommand{\proofname}{証明}
+
+% タイトル情報
+\title{三角関数のべき乗微分の形式証明\\
+\large --- Leanによる微分公式の完全実装 ---}
+\author{Claude（LaTeX文書生成）\\
+Claude Code（Lean形式証明生成）}
+\date{2025年1月}
+
+\begin{document}
+
+\maketitle
+
+% 概要
+\begin{abstract}
+本論文は、Lean4証明支援システムとMathlibライブラリを用いて、三角関数のべき乗微分に関する定理群の形式証明を提示する。
+特に、$\sin^n(x)$および$\cos^n(x)$の微分公式の完全な実装を達成し、さらに倍角公式を用いた恒等式の証明も示す。
+本研究により、高校数学IIIから大学初年度の微分積分学で扱われる三角関数の微分理論が、完全に形式化され機械的に検証可能となった。
+\end{abstract}
+
+% 1. 序論
+\section{序論}
+
+三角関数の微分は、微分積分学における基本的かつ重要な主題である。
+特に、$\sin(x)$や$\cos(x)$のべき乗の微分は、物理学や工学における振動現象の解析において頻繁に現れる。
+しかしながら、これらの公式の証明は、しばしば複雑な計算を伴い、人間による証明では計算ミスが生じやすい。
+
+本論文では、証明支援システムLean4を用いて、これらの微分公式を形式的に証明する。
+Lean4は、型理論に基づく証明支援システムであり、数学的証明の正しさを機械的に検証することができる。
+本研究では、Mathlibライブラリの高度な微分定理群、特に\texttt{deriv\_fun\_pow}定理を活用することで、
+三角関数のべき乗微分の簡潔かつエレガントな形式証明を実現した。
+
+% 2. 準備
+\section{準備}
+
+まず、本論文で扱う基本的な記法と定義を整理する。
+
+\begin{definition}[微分作用素]
+実関数$f: \mathbb{R} \to \mathbb{R}$に対して、その微分を$\mathrm{deriv}(f)$または$f'$で表す。
+点$x$における微分値は$\mathrm{deriv}(f)(x)$または$f'(x)$で表記する。
+\end{definition}
+
+\begin{definition}[三角関数のべき乗]
+自然数$n \in \mathbb{N}$に対して、三角関数のべき乗を以下のように定義する：
+\begin{align}
+    \sin^n(x) &:= (\sin(x))^n \\
+    \cos^n(x) &:= (\cos(x))^n
+\end{align}
+\end{definition}
+
+本研究では、Mathlibライブラリの以下の主要な定理を活用する：
+
+\begin{itemize}
+    \item \texttt{Real.deriv\_sin}: $\frac{d}{dx}\sin(x) = \cos(x)$
+    \item \texttt{Real.deriv\_cos}: $\frac{d}{dx}\cos(x) = -\sin(x)$
+    \item \texttt{deriv\_fun\_pow}: 微分可能な関数$f$に対して、
+    \[
+        \frac{d}{dx}(f(x))^n = n \cdot (f(x))^{n-1} \cdot f'(x)
+    \]
+\end{itemize}
+
+% 3. 主要な結果
+\section{主要な結果}
+
+\subsection{基本定理}
+
+まず、三角関数の基本的な微分公式を確認する。
+
+\begin{theorem}[正弦関数の微分]\label{thm:sin_deriv}
+任意の$x \in \mathbb{R}$に対して、
+\[
+    \frac{d}{dx}\sin(x) = \cos(x)
+\]
+\end{theorem}
+
+\begin{theorem}[余弦関数の微分]\label{thm:cos_deriv}
+任意の$x \in \mathbb{R}$に対して、
+\[
+    \frac{d}{dx}\cos(x) = -\sin(x)
+\]
+\end{theorem}
+
+\subsection{べき乗の微分}
+
+次に、本論文の主要な結果である三角関数のべき乗の微分公式を示す。
+
+\begin{theorem}[$\sin^2(x)$の微分]\label{thm:sin_squared}
+任意の$x \in \mathbb{R}$に対して、
+\[
+    \frac{d}{dx}\sin^2(x) = 2\sin(x)\cos(x)
+\]
+\end{theorem}
+
+\begin{theorem}[一般化された正弦べき乗の微分]\label{thm:sin_power}
+任意の$n \in \mathbb{N}$および$x \in \mathbb{R}$に対して、
+\[
+    \frac{d}{dx}\sin^n(x) = n\sin^{n-1}(x)\cos(x)
+\]
+\end{theorem}
+
+\begin{theorem}[余弦べき乗の微分]\label{thm:cos_power}
+任意の$n \in \mathbb{N}$および$x \in \mathbb{R}$に対して、
+\[
+    \frac{d}{dx}\cos^n(x) = -n\cos^{n-1}(x)\sin(x)
+\]
+\end{theorem}
+
+\subsection{三角恒等式との関連}
+
+さらに、倍角公式を用いた興味深い恒等式を証明する。
+
+\begin{lemma}[倍角公式]\label{lem:double_angle}
+任意の$x \in \mathbb{R}$に対して、
+\[
+    \sin(2x) = 2\sin(x)\cos(x)
+\]
+\end{lemma}
+
+\begin{theorem}[微分と倍角公式の恒等式]\label{thm:identity}
+任意の$x \in \mathbb{R}$に対して、
+\[
+    \frac{d}{dx}\sin^2(x) = \sin(2x)
+\]
+\end{theorem}
+
+% 4. 証明の概略
+\section{証明の概略}
+
+\subsection{定理\ref{thm:sin_squared}の証明}
+
+$\sin^2(x)$の微分を求めるために、合成関数の微分法則を適用する。
+$f(x) = \sin(x)$とおき、$g(u) = u^2$とすると、$\sin^2(x) = g(f(x))$と表現できる。
+
+Leanにおいては、\texttt{deriv\_fun\_pow}定理を直接適用することで証明が完了する。
+この定理は、微分可能な関数$f$に対して$(f(x))^n$の微分が$n \cdot f(x)^{n-1} \cdot f'(x)$
+となることを保証する。$n=2$、$f = \sin$として適用すると、
+\begin{align}
+    \frac{d}{dx}\sin^2(x) &= 2 \cdot \sin^{2-1}(x) \cdot \frac{d}{dx}\sin(x) \\
+    &= 2\sin(x) \cdot \cos(x)
+\end{align}
+が得られる。
+
+\subsection{定理\ref{thm:sin_power}の証明}
+
+一般の$n$に対する証明も同様の手法で行う。
+\texttt{deriv\_fun\_pow}定理を$f = \sin$として適用することで、
+\[
+    \frac{d}{dx}\sin^n(x) = n \cdot \sin^{n-1}(x) \cdot \cos(x)
+\]
+が直ちに導かれる。Leanの型システムは、$n \in \mathbb{N}$であることと
+$\sin$が任意の点で微分可能であることを自動的に検証する。
+
+\subsection{定理\ref{thm:identity}の証明}
+
+定理\ref{thm:sin_squared}より、$\frac{d}{dx}\sin^2(x) = 2\sin(x)\cos(x)$である。
+一方、補題\ref{lem:double_angle}より、$\sin(2x) = 2\sin(x)\cos(x)$である。
+したがって、
+\[
+    \frac{d}{dx}\sin^2(x) = \sin(2x)
+\]
+が成立する。
+
+% 5. 結論
+\section{結論}
+
+本論文では、Lean4証明支援システムを用いて、三角関数のべき乗微分に関する完全な形式証明を提示した。
+特筆すべき成果として、以下の点が挙げられる：
+
+\begin{enumerate}
+    \item 基本的な三角関数の微分公式から、べき乗の微分公式まで、体系的に形式証明を構築した。
+    \item Mathlibライブラリの\texttt{deriv\_fun\_pow}定理を効果的に活用することで、
+          簡潔かつエレガントな証明を実現した。
+    \item 三角恒等式との関連を明らかにし、微分と倍角公式の美しい関係性を形式的に証明した。
+    \item すべての証明がエラーフリーでコンパイル可能であることを確認し、
+          証明の正しさを機械的に保証した。
+\end{enumerate}
+
+本研究の意義は、教育的観点と実用的観点の両面にある。
+教育的には、高校数学から大学初年度の微分積分学で扱われる内容が、
+完全に形式化され検証可能となったことで、学習者が証明の正しさを確信を持って理解できる。
+実用的には、物理学や工学における三角関数を含む計算の自動化や検証に貢献する。
+
+今後の展望として、より複雑な三角関数の組み合わせ（例：$\sin^m(x)\cos^n(x)$）の微分や、
+逆三角関数のべき乗の微分への拡張が考えられる。
+また、フーリエ級数の収束性証明など、より高度な解析学への応用も期待される。
+
+\end{document}

@@ -1,0 +1,91 @@
+% pLaTeX document (platex → dvipdfmx)
+\documentclass[11pt]{jsarticle}
+
+% 数学パッケージ（pLaTeX 対応）
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{enumerate}
+\usepackage{geometry}
+\geometry{margin=28mm}
+
+% 定理環境（軽量）
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\theoremstyle{remark}
+\newtheorem*{remark}{注意}
+
+\title{TopologyA の数学的解説\;—\;順序対・射影・指数法則（Bourbaki 的視点）}
+\author{CODEX (OpenAI)}
+\date{}
+
+\begin{document}
+\maketitle
+
+本稿は、リポジトリ中の\verb|src/MyProjects/Topology/A/TopologyA.lean|で実装された内容を、ニコラ・ブルバキの\textbf{順序対と射（射影）による構造化}の観点から簡潔に解説する。核となる話題は以下の四点である：
+\begin{enumerate}[(1)]
+  \item 積位相の普遍性（射影 $\pi_1,\pi_2$ による特徴づけ）
+  \item 位相環における連続準同型の構造的補題
+  \item コンパクト開位相における指数法則（Currying）と評価写像の連続性
+  \item 部分評価・前合成の整合性、および ext; simp による自動化
+\end{enumerate}
+
+\section{積位相の普遍性：$\pi_1,\pi_2$ による特徴づけ}
+積 $X\times Y$ の射影を $\pi_1:X\times Y\to X,\;\pi_2:X\times Y\to Y$ とする。積位相の普遍性は、\emph{積への写像の連続性が成分の連続性と同値}であることに要約される。
+
+\begin{theorem}[成分版の特徴づけ]
+型 $Z$ と写像 $f:Z\to X,\;g:Z\to Y$ に対して
+\[
+ \mathrm{Continuous}\,(z\mapsto (f(z),g(z)))\;\Longleftrightarrow\;\mathrm{Continuous}\,f\;\land\;\mathrm{Continuous}\,g.
+\]
+\end{theorem}
+
+\begin{theorem}[図式版：射影との合成]
+写像 $h:Z\to X\times Y$ が連続ならば，$\pi_1\circ h$ と $\pi_2\circ h$ は共に連続である。さらに
+\[
+ \mathrm{Continuous}\,h\;\Longleftrightarrow\;\mathrm{Continuous}\,(\pi_1\circ h)\;\land\;\mathrm{Continuous}\,(\pi_2\circ h).
+\]
+\end{theorem}
+
+\noindent 証明はいずれも合成の連続性と $\mathrm{Continuous}.\mathrm{prodMk}$（成分からペアを作る操作の連続性）で与えられる。
+
+\section{位相環における連続準同型の構造補題}
+\label{sec:ring}
+$R, S$ を環，$R$ に位相空間構造と $\mathrm{IsTopologicalRing}\,R$ を仮定する（$S$ には位相空間構造と環構造）。連続な環準同型 $f:R\to^{+\!*} S$ が与えられたとき：
+\begin{itemize}
+  \item $r\mapsto f(r+r)$ は連続（加法の連続性と合成より）。
+  \item $(p_1,p_2)\mapsto f(p_1\cdot p_2)$ は連続（乗法の連続性と合成より）。
+\end{itemize}
+これらは，位相環の演算が連続であることを f と合成しただけの事実であり，代数構造と位相構造の整合を端的に表している。
+
+\section{コンパクト開位相・指数法則と評価の連続性}
+連続写像空間 $C(X,Y)$ をコンパクト開位相で位相化すると，カリー化は次を与える：
+\begin{theorem}[指数法則（Homeomorph.curry）]\label{thm:exp}
+\emph{局所コンパクト}な位相空間 $X,Y$ に対して，$C(X\times Y, Z)\cong C\bigl(X,\,C(Y,Z)\bigr)$ が位相同型として成り立つ。
+\end{theorem}
+
+\noindent 本実装では，この同型の両方向に対して \emph{見たまま} の $\beta$-簡約（$F(x,y)$ に戻る）が \verb|@[simp]| として供され，ext; simp による機械的簡約が可能である。
+
+\begin{proposition}[評価の連続性]\label{prop:eval}
+組 $(Y,Z)$ が \emph{locally compact pair} であれば，評価 $\mathrm{ev}: C(Y,Z)\times Y\to Z,\ (f,y)\mapsto f(y)$ は連続である。
+\end{proposition}
+
+\noindent さらに，$F\in C(X\times Y,Z)$ に対し，$y\in Y$ を固定すると $x\mapsto F(x,y)$ は連続（左変数固定でも同様）となる（部分評価の連続性）。
+
+\section{前合成とカリー化の整合性}
+\subsection*{第1変数側（$X$ 側）の前合成}
+連続写像 $\varphi\in C(X',X)$ に対し，$F\in C(X\times Y,Z)$ を $F\circ(\varphi\times\mathrm{id})$ で前合成したものをカリー化すると，$(\mathrm{curry}\,F)\circ\varphi\in C\bigl(X',\,C(Y,Z)\bigr)$ と一致する（bundled 版の等式として実装）。
+
+\subsection*{第2変数側（$Y$ 側）の前合成}
+連続写像 $\psi\in C(Y',Y)$ に対し，$F\in C(X\times Y,Z)$ を $F\circ(\mathrm{id}\times\psi)$ で前合成してからカリー化したものは，$x\mapsto\bigl(y'\mapsto (\mathrm{curry}\,F)(x)(\psi(y'))\bigr)$ と一致する。実装では点ごとの \verb|@[simp]| 補題と，bundled 版（等式）の両方が提供され，いずれも \verb|ext x y; simp| で証明・利用できる。
+
+\section{ext; simp による自動化}
+指数法則の $\beta$-簡約，直積前合成の評価（\verb|prodMap_apply|），評価写像の $\beta$-簡約（命題 \ref{prop:eval}）が \verb|@[simp]| で与えられているため，指数法則に絡む等式は概ね \verb|ext x y; simp| だけで片付く。積の普遍性に関しても，$\pi_1,\pi_2$ で成分ごとに議論するのが定石である。
+
+\section{前提の整理と実例}
+指数法則（定理 \ref{thm:exp}）には $X,Y$ の局所コンパクト性が必要である。評価の連続性（命題 \ref{prop:eval}）には $(Y,Z)$ の locally compact pair 仮定が必要になる。実数 $\mathbb{R}$ を用いた実例は，リポジトリ構成に依存して \verb|Mathlib.Topology.Instances.Real.Lemmas| や \verb|Mathlib.Topology.Algebra.Ring.Real| の import で賄える。
+
+\section{ブルバキ的総括}
+順序対 $(x,y)$ と射影 $\pi_1,\pi_2$ を\textbf{構造射}として捉える立場では，積位相は「それらを連続にする最弱の位相」として特徴づけられる。関数空間はコンパクト開位相の下で指数法則により \emph{関手的} な挙動を示し，評価・部分評価・前合成は自然な可換図式として統一される。本実装は，これらの枠組みを Lean 上で直接扱える補題群としてまとめ，$\verb|simp|$ での $\beta$-簡約と \verb|ext| による点ごとの同定を通して，計算機上での証明運用を滑らかにすることを目的とする。
+
+\end{document}
+

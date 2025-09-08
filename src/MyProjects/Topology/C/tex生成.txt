@@ -1,0 +1,75 @@
+はい、**日本語で数学的な解説を入れたTeX版**を作成しました。
+（著者名には *「TeXはChatGPT-5 Proで生成」「LeanファイルはCODEX (OpenAI)で生成」* を明記、図式も複数収録しています。）
+
+**ダウンロード：**
+
+* 日本語解説付き： [BourbakiPairsAndMorphisms\_JP.tex](sandbox:/mnt/data/BourbakiPairsAndMorphisms_JP.tex)
+* 先にお渡しした英語ミニ解説版： [BourbakiPairsAndMorphisms.tex](sandbox:/mnt/data/BourbakiPairsAndMorphisms.tex)
+
+---
+
+## 収録内容（日本語解説付き版の概要）
+
+### 1) 背景と狙い（Bourbaki風の視点）
+
+* **順序対・射影**（$\pi_1,\pi_2$）で積 $X\times Y$ を特徴づけ、**連続性の判定を射影に還元**する考え方を解説。
+* **A. 積位相**、**B. 群準同型の合成**、**C. 位相群における反転の連続性**の3テーマに分割。
+
+### 2) 主な定理・補題（Lean内の名前に対応）
+
+* `π₁, π₂` の定義と `continuous_π₁, continuous_π₂`（射影の連続性）
+* `continuous_iff_proj_core / continuous_iff_proj / continuous_of_proj`
+  $\;\Rightarrow\; h:T\to X\times Y$ が連続 $\iff$ $\pi_1\circ h,\ \pi_2\circ h$ が連続
+* `continuous_pair_mk, continuous_Prod_map`
+  $\;\Rightarrow\;$ $f:X\to Z,\ g:Y\to W$ が連続なら $(x,y)\mapsto (f(x),g(y))$ は連続
+* `prod_map_comp, prod_map_id_id`
+  $\;\Rightarrow\;$ `Prod.map` の**合成公式**と**単位律**
+* `groupHomComp, continuous_groupHomComp`
+  $\;\Rightarrow\;$ 群（MonoidHom）の**合成**と、その**連続性の保存**
+* `topological_group_hom_continuous_precomp_inv / postcomp_inv / inv`
+  $\;\Rightarrow\;$ 位相群における**反転**との前合成・後合成が連続
+
+### 3) 数学的解説（本文より抜粋）
+
+* **積位相の普遍性**：
+  $h:T\to X\times Y$ が連続 $\iff$ $\pi_1\circ h$ と $\pi_2\circ h$ が連続。
+  これは積位相が「**射影を連続にする最弱の位相**」であること（初期構造）から従います。
+* **積写像 $f\times g$ の連続性**：
+  $\pi_1\circ(f\times g)=f\circ\pi_1,\ \pi_2\circ(f\times g)=g\circ\pi_2$ の可換性により、射影の連続性へ帰着。
+* **群準同型の合成の連続性**：
+  連続写像の合成は連続、を MonoidHom（群準同型）に適用。
+* **位相群の反転**：
+  $g\mapsto g^{-1}$ が連続（位相群の公理）。よって前合成/後合成しても連続。
+
+### 4) 図式（tikz-cd）
+
+* **射影での判定図**、**$f\times g$ の可換図**、**群準同型の合成図**、**反転と合成の連続性図**を収録。
+
+### 5) Leanの定理・定義の一覧表
+
+* 種別／名前／先頭行シグネチャを表形式で列挙。
+* 末尾に **Leanソース全文** を `listings` でそのまま掲載。
+
+---
+
+## コンパイルの注意
+
+* 日本語を含むため **XeLaTeX** を推奨：
+
+  ```bash
+  xelatex BourbakiPairsAndMorphisms_JP.tex
+  ```
+* プリアンブルで `xeCJK` を読み、既定フォントとして **Noto Serif CJK JP** を指定しています。
+  環境に応じて `\setCJKmainfont{...}` を **お使いの日本語フォント名**（例：`IPAexMincho`）に変更してください。
+* `minted` は使っていないので **-shell-escape は不要** です。
+
+---
+
+## 追加のご要望もどうぞ
+
+* 図式を **pullback** / **pushout** / **fiber product** の図に差し替え
+* 各定理に **証明スケッチ** を一段詳しく追加
+* 用語集や **練習問題** の付録を追加
+* Lean の特定の定理にフォーカスした **講義ノート風** への改稿
+
+など、すぐ反映できます。

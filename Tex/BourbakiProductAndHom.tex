@@ -1,0 +1,80 @@
+% pLaTeX document explaining BourbakiProductAndHom.lean
+\documentclass[a4paper,11pt]{jsarticle}
+
+% Packages
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+
+% Theorem environments
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+\newtheorem{proposition}{命題}
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\newtheorem{remark}{注}
+
+\title{BourbakiProductAndHom の数学的解説（p\LaTeX 版）}
+\author{CODEX (OpenAI)}
+\date{}
+
+\begin{document}
+\maketitle
+
+本書類は Lean ファイル \texttt{src/MyProjects/Topology/BourbakiProductAndHom.lean} の内容を、ニコラ・ブルバキ『数学原論』の精神（集合・順序対・射および射影）に従って概説する。主題は以下の三点である：
+\begin{itemize}
+  \item 順序対と射影（$\pi_1,\pi_2$）に基づく直積位相の普遍性
+  \item 成分写像の連続性から誘導される直積写像の連続性
+  \item 群準同型の合成、および位相群での逆元合成の連続性
+\end{itemize}
+
+\section{順序対と射影}
+集合 $X, Y$ に対して直積 $X\times Y$ を考える。射影
+\[
+  \pi_1 : X\times Y \to X,\quad \pi_2 : X\times Y \to Y
+\]
+を定める。ブルバキの観点では、順序対 $(x,y)$ はこれらの射影を通じて特徴づけられ、直積位相は「$\pi_1,\pi_2$ を連続にする最弱の位相」として与えられる。
+
+\section{直積位相の普遍性と連続性}
+一般位相空間 $X,Y,Z,W$ を考える。$f : X\to Z$, $g : Y\to W$ が連続のとき、直積写像
+\[
+  F : X\times Y \to Z\times W,\quad F(x,y) = (f(x), g(y))
+\]
+は連続である。これは次の定理としてまとめられる。
+
+\begin{theorem}[成分連続性からの直積写像の連続性]
+\label{thm:prod}
+$f : X\to Z$, $g : Y\to W$ が連続であれば、$F(x,y)=(f(x),g(y))$ は連続である。
+\end{theorem}
+
+\noindent 概念的には、$\pi_1,\pi_2$ の連続性と合成の連続性、対の作成 $\langle\cdot,\cdot\rangle$ の連続性を用いれば従う。Lean 実装では、標準補題 $\texttt{continuous\_fst}$, $\texttt{continuous\_snd}$ と $\texttt{Continuous.prodMk}$ の組合せで示されている（命名：\texttt{continuous\_prod\_map}）。
+
+\section{群準同型の合成}
+群 $G,H,K$ を考える。群準同型（Mathlib では \texttt{MonoidHom}）$\varphi : G\to H$, $\psi : H\to K$ の合成 $\psi\circ\varphi : G\to K$ は再び群準同型である：
+\begin{proposition}[群準同型の合成]
+\label{prop:gh-comp}
+群準同型 $\varphi : G\to H$, $\psi : H\to K$ に対し、$\psi\circ\varphi$ は群準同型である。
+\end{proposition}
+\noindent Lean 実装では \texttt{MonoidHom.comp} をラップした \texttt{groupHomComp} として与え、等式 \(\,\texttt{groupHomComp\_apply}\,\) で $\bigl(\psi\circ\varphi\bigr)(g)=\psi(\varphi(g))$ を即約できる。
+
+\section{位相群における逆元合成の連続性}
+位相空間 $G$ と位相群 $H$ をとり、群準同型 $f : G\to H$ が連続であるとする。このとき、写像
+\[
+  G \to H,\quad g \mapsto \bigl(f(g)\bigr)^{-1}
+\]
+は連続である。これは、$H$ の逆元写像 $\mathrm{inv}_H : H\to H$ の連続性と $f$ の連続性の合成に他ならない。
+
+\begin{theorem}[位相群の逆元合成の連続性]
+\label{thm:tgp-inv}
+位相群 $H$ において、連続群準同型 $f : G\to H$ に対し、$g\mapsto (f(g))^{-1}$ は連続である。
+\end{theorem}
+
+\noindent Lean では \texttt{continuous\_inv \char`\comp\ hf}（すなわち $\mathrm{inv}_H\circ f$ の連続性）として実装されている（命名：\texttt{topological\_group\_hom\_continuous\_inv}）。ここで要求される位相群条件は $H$ のみで十分であり、$G$ 側には位相空間構造があればよい点に注意されたい。
+
+\section{補足：普遍性の視点}
+直積位相の普遍性は次の同値で表現される：任意の位相空間 $T$ と写像 $h:T\to X\times Y$ に対し、$h$ が連続であることと、$\pi_1\circ h$, $\pi_2\circ h$ が共に連続であることは同値である。定理~\ref{thm:prod} は、特定の $h$ を成分写像から組み立てた場合の直接的帰結である。
+
+\bigskip
+\noindent 以上により、順序対と射影を核とするブルバキ的「構造＋射」の枠組みの下で、直積位相、群準同型の合成、位相群における構造射の連続性を整然と把握できる。
+
+\end{document}
+

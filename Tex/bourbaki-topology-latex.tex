@@ -1,0 +1,239 @@
+\documentclass[uplatex, a4paper]{jlreq}
+
+% 必須パッケージ
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{tikz-cd} % 可換図式用
+\usepackage{xcolor}
+
+% 余白設定
+\geometry{margin=25mm}
+
+% 定理環境の設定
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\newtheorem{remark}[theorem]{注意}
+\renewcommand{\proofname}{証明}
+
+% 数学記号の定義
+\newcommand{\Top}{\mathbf{Top}}
+\newcommand{\Grp}{\mathbf{Grp}}
+\newcommand{\TopGrp}{\mathbf{TopGrp}}
+\newcommand{\Set}{\mathbf{Set}}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\comp}{\circ}
+\newcommand{\inv}{^{-1}}
+\DeclareMathOperator{\Hom}{Hom}
+\DeclareMathOperator{\Cont}{C}
+
+\title{ブルバキ流位相空間論における順序対と射の形式的証明\\
+\large --- 射影による普遍性と位相群の連続性 ---}
+\author{Leanコード生成: CODEX (OpenAI)\\LaTeX文書作成: Claude (Anthropic)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本論文では、ニコラ・ブルバキの『数学原論』の精神に従い、順序対の射影による特徴付けと、その射影に関する射の振る舞いについて、Lean 4による形式的証明を通じて考察する。特に、積位相の普遍性、群準同型の合成、位相群における逆元写像の連続性について詳細に論じる。これらの結果は、構造を持つ集合としての数学的対象を扱うブルバキ流の構造主義的アプローチの本質を明確に示すものである。
+\end{abstract}
+
+\section{序論}
+
+ニコラ・ブルバキの『数学原論』は、20世紀数学の構造主義的再構築を試みた記念碑的著作である。その中心的な思想の一つは、数学的対象を「構造を持つ集合」として統一的に扱うことであった。本論文では、この思想に基づいて、順序対と射影、積位相の普遍性、そして群と位相群における射の合成について、Lean 4による形式的証明を通じて考察する。
+
+ブルバキの観点では、順序対 $(x, y)$ は、その第一射影 $\pi_1$ と第二射影 $\pi_2$ によって完全に特徴付けられる。この原理は、積空間への写像の連続性が、各成分への射影との合成の連続性によって判定できるという普遍性として現れる。
+
+さらに、群の圏における射（群準同型）の合成、および位相群における連続準同型の性質について考察することで、異なる数学的構造がどのように相互作用するかを明らかにする。
+
+\section{準備}
+
+\subsection{基本概念}
+
+\begin{definition}[順序対と射影]
+集合 $X, Y$ に対して、直積集合 $X \times Y$ の要素 $(x, y)$ を順序対と呼ぶ。射影 $\pi_1: X \times Y \to X$ および $\pi_2: X \times Y \to Y$ を
+\[
+\pi_1(x, y) = x, \quad \pi_2(x, y) = y
+\]
+により定義する。
+\end{definition}
+
+\begin{definition}[積位相]
+位相空間 $(X, \tau_X)$, $(Y, \tau_Y)$ に対して、直積集合 $X \times Y$ 上の積位相は、射影 $\pi_1$, $\pi_2$ が連続となる最弱の位相である。すなわち、
+\[
+\{U \times V : U \in \tau_X, V \in \tau_Y\}
+\]
+を準開基とする位相である。
+\end{definition}
+
+\begin{definition}[位相群]
+群 $(G, \cdot)$ が位相空間でもあり、群演算
+\[
+\mu: G \times G \to G, \quad (g, h) \mapsto g \cdot h
+\]
+および逆元写像
+\[
+\iota: G \to G, \quad g \mapsto g\inv
+\]
+が連続であるとき、$G$ を位相群と呼ぶ。
+\end{definition}
+
+\section{主要な結果}
+
+\subsection{積位相の普遍性}
+
+\begin{theorem}[射影による連続性の特徴付け]
+\label{thm:continuity-by-projections}
+位相空間 $T, X, Y$ と写像 $h: T \to X \times Y$ に対して、次は同値である：
+\[
+h \text{ は連続} \iff \pi_1 \comp h \text{ と } \pi_2 \comp h \text{ が連続}
+\]
+\end{theorem}
+
+この定理は次の可換図式で視覚化される：
+
+\begin{center}
+\begin{tikzcd}
+& T \arrow[dl, "\pi_1 \comp h"'] \arrow[d, "h"] \arrow[dr, "\pi_2 \comp h"] & \\
+X & X \times Y \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & Y
+\end{tikzcd}
+\end{center}
+
+\begin{proposition}[積写像の連続性]
+\label{prop:product-map-continuous}
+連続写像 $f: X \to Z$, $g: Y \to W$ に対して、積写像
+\[
+f \times g: X \times Y \to Z \times W, \quad (x, y) \mapsto (f(x), g(y))
+\]
+は連続である。
+\end{proposition}
+
+この命題の証明では、次の図式の可換性が本質的である：
+
+\begin{center}
+\begin{tikzcd}
+X \times Y \arrow[r, "f \times g"] \arrow[d, "\pi_1"'] & Z \times W \arrow[d, "\pi_1"] \\
+X \arrow[r, "f"'] & Z
+\end{tikzcd}
+\quad \text{および} \quad
+\begin{tikzcd}
+X \times Y \arrow[r, "f \times g"] \arrow[d, "\pi_2"'] & Z \times W \arrow[d, "\pi_2"] \\
+Y \arrow[r, "g"'] & W
+\end{tikzcd}
+\end{center}
+
+\subsection{群準同型の合成}
+
+\begin{theorem}[群準同型の合成]
+\label{thm:group-hom-composition}
+群 $G, H, K$ と群準同型 $\varphi: G \to H$, $\psi: H \to K$ に対して、合成 $\psi \comp \varphi: G \to K$ は群準同型である。さらに、次の性質を満たす：
+\begin{enumerate}
+\item (結合律) $(\chi \comp \psi) \comp \varphi = \chi \comp (\psi \comp \varphi)$
+\item (単位律) $\id_H \comp \varphi = \varphi$ かつ $\psi \comp \id_H = \psi$
+\end{enumerate}
+\end{theorem}
+
+これにより、群と群準同型は圏 $\Grp$ を成す。この圏論的構造は次の図式で表現される：
+
+\begin{center}
+\begin{tikzcd}
+G \arrow[r, "\varphi"] \arrow[rr, bend right=20, "\psi \comp \varphi"'] & H \arrow[r, "\psi"] & K
+\end{tikzcd}
+\end{center}
+
+\subsection{位相群における連続性}
+
+\begin{theorem}[逆元写像との合成の連続性]
+\label{thm:topological-group-continuity}
+位相群 $G, H$ と連続群準同型 $f: G \to H$ に対して、次が成り立つ：
+\begin{enumerate}
+\item $G$ が位相群ならば、$g \mapsto f(g\inv)$ は連続である（前合成）
+\item $H$ が位相群ならば、$g \mapsto f(g)\inv$ は連続である（後合成）
+\end{enumerate}
+\end{theorem}
+
+これらの連続性は、次の可換図式で理解できる：
+
+\begin{center}
+\begin{tikzcd}[column sep=large]
+G \arrow[r, "\iota_G"] \arrow[d, "f"'] & G \arrow[d, "f"] \\
+H \arrow[r, "\iota_H"'] & H
+\end{tikzcd}
+\end{center}
+
+ここで、$\iota_G$, $\iota_H$ はそれぞれ $G$, $H$ の逆元写像である。
+
+\section{証明の概略}
+
+\subsection{積位相の普遍性の証明}
+
+定理\ref{thm:continuity-by-projections}の証明は、積位相の定義に直接基づく。
+
+\textbf{必要性（$\Rightarrow$）：} $h: T \to X \times Y$ が連続であるとする。射影 $\pi_1: X \times Y \to X$ と $\pi_2: X \times Y \to Y$ は積位相の定義により連続である。従って、合成 $\pi_1 \comp h$ と $\pi_2 \comp h$ も連続である。
+
+\textbf{十分性（$\Leftarrow$）：} $\pi_1 \comp h$ と $\pi_2 \comp h$ が連続であるとする。積位相の準開基は $U \times V$ の形の集合（$U \subset X$, $V \subset Y$ は開集合）からなる。任意の準開基元 $U \times V$ に対して、
+\[
+h^{-1}(U \times V) = h^{-1}(\pi_1^{-1}(U) \cap \pi_2^{-1}(V)) = (\pi_1 \comp h)^{-1}(U) \cap (\pi_2 \comp h)^{-1}(V)
+\]
+となる。仮定により右辺は開集合の交わりとして開集合である。よって $h$ は連続である。
+
+\subsection{積写像の連続性}
+
+命題\ref{prop:product-map-continuous}の証明では、定理\ref{thm:continuity-by-projections}を適用する。
+
+写像 $f \times g: X \times Y \to Z \times W$ に対して、
+\begin{align}
+\pi_1 \comp (f \times g) &= f \comp \pi_1 \\
+\pi_2 \comp (f \times g) &= g \comp \pi_2
+\end{align}
+が成り立つ。$f$, $g$, $\pi_1$, $\pi_2$ はすべて連続なので、右辺は連続である。定理\ref{thm:continuity-by-projections}により、$f \times g$ は連続である。
+
+\subsection{群準同型の合成}
+
+定理\ref{thm:group-hom-composition}の証明は直接的である。任意の $g_1, g_2 \in G$ に対して、
+\begin{align}
+(\psi \comp \varphi)(g_1 \cdot g_2) &= \psi(\varphi(g_1 \cdot g_2)) \\
+&= \psi(\varphi(g_1) \cdot \varphi(g_2)) \quad (\varphi \text{ は準同型}) \\
+&= \psi(\varphi(g_1)) \cdot \psi(\varphi(g_2)) \quad (\psi \text{ は準同型}) \\
+&= (\psi \comp \varphi)(g_1) \cdot (\psi \comp \varphi)(g_2)
+\end{align}
+
+\subsection{位相群における連続性}
+
+定理\ref{thm:topological-group-continuity}の証明では、位相群の定義を用いる。
+
+(1) $G$ が位相群の場合、逆元写像 $\iota_G: G \to G$ は連続である。従って、
+\[
+g \mapsto f(g\inv) = (f \comp \iota_G)(g)
+\]
+は連続写像の合成として連続である。
+
+(2) $H$ が位相群の場合、逆元写像 $\iota_H: H \to H$ は連続である。従って、
+\[
+g \mapsto f(g)\inv = (\iota_H \comp f)(g)
+\]
+は連続写像の合成として連続である。
+
+\section{結論}
+
+本論文では、ブルバキ流の構造主義的アプローチに基づいて、位相空間と群の基本的性質をLean 4により形式的に証明した。主な成果は以下の通りである：
+
+\begin{enumerate}
+\item \textbf{射影による特徴付け}：順序対は射影によって完全に決定され、積空間への写像の連続性は射影との合成により判定できることを示した。これはブルバキの「構造は射によって読み取られる」という原理の具体例である。
+
+\item \textbf{圏論的構造}：群準同型の合成が再び群準同型となることを証明し、群と群準同型が圏を成すことを確認した。これは数学的構造の圏論的理解の基礎となる。
+
+\item \textbf{構造の相互作用}：位相群において、代数的構造（群）と位相的構造が調和的に相互作用することを、逆元写像の連続性を通じて明らかにした。
+
+\end{enumerate}
+
+これらの結果は、現代数学の基礎をなす構造主義的思考の妥当性を、形式的証明システムによって検証したものである。今後の展望として、より複雑な構造（ベクトル束、リー群など）への拡張や、高次圏論における一般化が考えられる。
+
+形式的証明の利点は、人間の直観に頼らない厳密な論証が可能になることである。特に、複雑な図式の可換性や自然変換の検証において、Leanのような証明支援系は強力なツールとなる。本研究は、ブルバキの理想である数学の完全な形式化への一歩として位置づけられる。
+
+\end{document}

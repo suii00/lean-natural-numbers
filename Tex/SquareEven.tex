@@ -1,0 +1,146 @@
+\documentclass[uplatex, a4paper]{jlreq}
+
+% 必須パッケージ
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage[unicode,hidelinks]{hyperref}
+
+% ページ設定
+\geometry{left=25mm, right=25mm, top=30mm, bottom=30mm}
+
+% 定理環境の設定
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\renewcommand{\proofname}{証明}
+
+% タイトル情報
+\title{整数の平方と偶奇性に関する形式的証明の解析}
+\author{Claude (Anthropic) によるLaTeX生成\\
+Claude Codeを用いたLean証明の作成}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{概要}
+
+本論文は、整数論における基本的な定理「整数の平方が偶数であるならば、その整数自身も偶数である」という命題の形式的証明を扱う。この証明はLean 4証明支援系を用いて形式化され、対偶証明法と整数の偶奇性に関する基本的な性質を活用している。本稿では、形式証明の構造を解析し、その数学的意味を明確にする。
+
+\section{序論}
+
+整数の偶奇性は数論の最も基本的な概念の一つである。特に、「$n^2$が偶数ならば$n$も偶数である」という命題は、無理数の証明（特に$\sqrt{2}$の無理性）において重要な役割を果たす。
+
+本論文では、Lean 4証明支援系を用いて形式化されたこの定理の証明を検討する。形式証明は、Mathlibライブラリの標準的な定義と戦術を用いて構成されており、証明の各ステップが厳密に検証可能である。
+
+\section{準備}
+
+まず、本論文で用いる基本的な定義を述べる。
+
+\begin{definition}[偶数]
+整数$n \in \mathbb{Z}$が\textbf{偶数}（even）であるとは、ある整数$k \in \mathbb{Z}$が存在して
+\[
+n = 2k
+\]
+となることである。形式的には、
+\[
+\text{Even}(n) \iff \exists k \in \mathbb{Z}, \; n = 2k
+\]
+\end{definition}
+
+\begin{definition}[奇数]
+整数$n \in \mathbb{Z}$が\textbf{奇数}（odd）であるとは、ある整数$k \in \mathbb{Z}$が存在して
+\[
+n = 2k + 1
+\]
+となることである。形式的には、
+\[
+\text{Odd}(n) \iff \exists k \in \mathbb{Z}, \; n = 2k + 1
+\]
+\end{definition}
+
+これらの定義は、Lean 4のMathlibライブラリに標準的に実装されているものである。
+
+\section{主要な結果}
+
+本節では、主定理とそれを支える補題を提示する。
+
+\begin{lemma}[偶数の平方は偶数]\label{lem:even_square}
+$n$が偶数ならば、$n^2$も偶数である。すなわち、
+\[
+\text{Even}(n) \Rightarrow \text{Even}(n^2)
+\]
+\end{lemma}
+
+\begin{proof}
+$n$が偶数であるとする。定義より、ある整数$k$が存在して$n = 2k$となる。このとき、
+\[
+n^2 = (2k)^2 = 4k^2 = 2(2k^2)
+\]
+$2k^2$は整数であるから、$n^2$は偶数である。
+\end{proof}
+
+\begin{lemma}[奇数の平方は奇数]\label{lem:odd_square}
+$n$が奇数ならば、$n^2$も奇数である。すなわち、
+\[
+\text{Odd}(n) \Rightarrow \text{Odd}(n^2)
+\]
+\end{lemma}
+
+\begin{proof}
+$n$が奇数であるとする。定義より、ある整数$k$が存在して$n = 2k + 1$となる。このとき、
+\begin{align}
+n^2 &= (2k + 1)^2 \\
+    &= 4k^2 + 4k + 1 \\
+    &= 2(2k^2 + 2k) + 1
+\end{align}
+$2k^2 + 2k$は整数であるから、$n^2$は奇数である。
+\end{proof}
+
+\begin{theorem}[主定理：平方が偶数なら元も偶数]\label{thm:main}
+整数$n$に対して、$n^2$が偶数ならば$n$も偶数である。すなわち、
+\[
+\text{Even}(n^2) \Rightarrow \text{Even}(n)
+\]
+\end{theorem}
+
+\section{証明の概略}
+
+定理\ref{thm:main}の証明は対偶法を用いる。すなわち、「$n$が偶数でない」ならば「$n^2$も偶数でない」ことを示す。
+
+\begin{proof}[定理\ref{thm:main}の証明]
+対偶を証明する。$n$が偶数でないと仮定する。
+
+整数は偶数か奇数のいずれかであることから（これはMathlibの\texttt{Int.even\_or\_odd}により保証される）、$n$が偶数でなければ$n$は奇数である。
+
+補題\ref{lem:odd_square}より、$n$が奇数ならば$n^2$も奇数である。
+
+奇数は偶数ではないため、$n^2$は偶数ではない。
+
+したがって、対偶が成立し、元の命題も成立する。
+\end{proof}
+
+この証明の核心は以下の論理構造にある：
+
+\begin{enumerate}
+    \item 整数の二分性：任意の整数は偶数または奇数である
+    \item 奇数の平方の性質：奇数の平方は必ず奇数となる
+    \item 対偶論法：$P \Rightarrow Q$を示すために$\neg Q \Rightarrow \neg P$を証明する
+\end{enumerate}
+
+Leanにおける形式証明では、\texttt{contrapose}戦術を用いて対偶に変換し、\texttt{Int.even\_or\_odd}により整数の二分性を適用している。最終的に、平方が同時に偶数かつ奇数であることから矛盾を導いている。
+
+\section{結論}
+
+本論文では、「整数の平方が偶数ならば、その整数自身も偶数である」という基本的な数論の定理について、Lean 4による形式証明を解析した。この証明は対偶法を巧みに利用し、整数の偶奇性に関する基本的な性質のみから導かれている。
+
+形式証明の利点は、証明の各ステップが機械的に検証可能であることにある。本定理は$\sqrt{2}$の無理性証明など、より高度な数学的結果の基礎となる重要な命題であり、その厳密な形式化は数学基礎論において意義深い。
+
+今後の展望として、この形式証明を拡張し、より一般的な環における偶奇性の概念や、$p$進付値に関連する結果への応用が考えられる。また、証明支援系を用いた教育的応用として、学部レベルの数論教育における活用も期待される。
+
+\end{document}

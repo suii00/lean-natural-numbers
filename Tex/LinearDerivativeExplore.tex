@@ -1,0 +1,247 @@
+% このLaTeXファイルはClaudeによって生成されました
+% 元のLeanファイル（LinearDerivativeExplore.lean）はClaude Codeによって生成されました
+
+\documentclass[a4paper,11pt]{jlreq}
+
+% 必要なパッケージ
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+% ページ設定
+\geometry{margin=25mm}
+
+% 定理環境の設定
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\newtheorem{example}[theorem]{例}
+\renewcommand{\proofname}{証明}
+
+% タイトル情報
+\title{線形関数の微分と接線に関する形式的証明\\
+\large Lean4による形式化とその数学的考察}
+\author{（著者名）}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本論文では、線形関数$f(x) = ax + b$の微分が定数$a$になることを形式的に証明し、その接線方程式の導出を行う。
+Lean4による形式化を通じて、微分の基本性質である線形性と、線形関数が自身の接線と一致するという特性を厳密に示す。
+さらに、物理学における等速運動への応用についても触れ、純粋数学と応用数学の橋渡しとなる結果を提示する。
+本研究は、基礎的な微分積分学の結果を形式的証明支援系で検証することで、数学教育における厳密性の重要性を示すものである。
+\end{abstract}
+
+\section{序論}
+
+微分積分学において、線形関数の微分は最も基本的かつ重要な結果の一つである。
+高等学校数学では、一次関数$f(x) = ax + b$の傾きが$a$であることは自明とされるが、
+これを厳密に証明するには、微分の定義に立ち返る必要がある。
+
+本論文では、定理証明支援系Lean4を用いて、線形関数の微分に関する一連の結果を形式的に証明する。
+具体的には、恒等関数の微分、線形関数の微分可能性、そして接線方程式の導出を扱う。
+これらの証明は、Mathlibライブラリの基本的な微分法則を活用しつつ、教育的観点から段階的に構築される。
+
+形式的証明の利点は、証明の各ステップが機械的に検証されることで、
+論理的な飛躍や暗黙の仮定を排除できる点にある。
+本研究は、基礎的な数学的事実であっても、その厳密な証明には慎重な論理展開が必要であることを示している。
+
+\section{準備}
+
+本節では、線形関数の微分を議論するために必要な基本的な定義と記法を導入する。
+
+\begin{definition}[微分可能性]
+関数$f: \mathbb{R} \to \mathbb{R}$が点$x_0 \in \mathbb{R}$で微分可能であるとは、
+極限
+\[
+\lim_{h \to 0} \frac{f(x_0 + h) - f(x_0)}{h}
+\]
+が存在することをいう。この極限値を$f'(x_0)$または$\frac{df}{dx}(x_0)$と表記し、
+$f$の$x_0$における微分係数と呼ぶ。
+\end{definition}
+
+\begin{definition}[線形関数]
+実数$a, b \in \mathbb{R}$に対して、関数$f: \mathbb{R} \to \mathbb{R}$を
+\[
+f(x) = ax + b
+\]
+で定義するとき、$f$を線形関数（一次関数）と呼ぶ。
+特に、$b = 0$のとき、$f$を同次線形関数と呼ぶ。
+\end{definition}
+
+\begin{definition}[接線]
+微分可能な関数$f$の点$(x_0, f(x_0))$における接線は、
+傾き$f'(x_0)$を持つ直線であり、その方程式は
+\[
+y = f'(x_0)(x - x_0) + f(x_0)
+\]
+で与えられる。
+\end{definition}
+
+本論文では、以下の基本的な微分法則を既知のものとして使用する：
+\begin{itemize}
+\item 和の微分法則：$(f + g)' = f' + g'$
+\item 定数倍の微分法則：$(cf)' = cf'$
+\item 定数関数の微分：$\frac{d}{dx}c = 0$
+\item 恒等関数の微分：$\frac{d}{dx}x = 1$
+\end{itemize}
+
+\section{主要な結果}
+
+本節では、線形関数の微分に関する主要な定理を提示する。
+
+\begin{lemma}[恒等関数の微分]
+\label{lem:identity}
+恒等関数$f(x) = x$に対して、すべての$x \in \mathbb{R}$において
+\[
+f'(x) = 1
+\]
+が成り立つ。
+\end{lemma}
+
+\begin{lemma}[定数倍された恒等関数の微分]
+\label{lem:const_mul}
+実数$a \in \mathbb{R}$に対して、関数$f(x) = ax$の微分は
+\[
+f'(x) = a
+\]
+である。
+\end{lemma}
+
+\begin{theorem}[線形関数の微分]
+\label{thm:linear_deriv}
+線形関数$f(x) = ax + b$（ただし$a, b \in \mathbb{R}$）に対して、
+すべての$x \in \mathbb{R}$において
+\[
+f'(x) = a
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{theorem}[線形関数の微分可能性]
+\label{thm:differentiable}
+線形関数$f(x) = ax + b$は$\mathbb{R}$全体で微分可能である。
+\end{theorem}
+
+\begin{theorem}[線形関数の接線]
+\label{thm:tangent}
+線形関数$f(x) = ax + b$の任意の点$(x_0, f(x_0))$における接線は、
+元の関数$f$自身と一致する。すなわち、接線の方程式は
+\[
+y = ax + b
+\]
+となる。
+\end{theorem}
+
+\begin{corollary}[物理学への応用]
+等速運動において、位置関数$s(t) = vt + s_0$（$v$は速度、$s_0$は初期位置）
+の時間微分は速度$v$に等しい：
+\[
+\frac{ds}{dt} = v
+\]
+\end{corollary}
+
+\section{証明の概略}
+
+本節では、主要な定理の証明の核心的なアイデアを解説する。
+
+\subsection{定理\ref{thm:linear_deriv}の証明}
+
+線形関数$f(x) = ax + b$の微分を求めるため、和の微分法則を適用する。
+
+まず、$f(x) = ax + b$を二つの関数の和として表現する：
+\[
+f(x) = g(x) + h(x)
+\]
+ここで、$g(x) = ax$、$h(x) = b$である。
+
+和の微分法則により、
+\[
+f'(x) = g'(x) + h'(x)
+\]
+が成り立つ。
+
+次に、各項の微分を計算する。$g(x) = ax$に対しては、定数倍の微分法則と補題\ref{lem:identity}を適用して、
+\[
+g'(x) = a \cdot \frac{d}{dx}x = a \cdot 1 = a
+\]
+を得る。
+
+一方、$h(x) = b$は定数関数であるため、
+\[
+h'(x) = 0
+\]
+である。
+
+したがって、
+\[
+f'(x) = a + 0 = a
+\]
+が示される。
+
+\subsection{定理\ref{thm:tangent}の証明}
+
+線形関数$f(x) = ax + b$の点$(x_0, f(x_0))$における接線の方程式を導出する。
+
+接線の一般形は
+\[
+y = f'(x_0)(x - x_0) + f(x_0)
+\]
+である。
+
+定理\ref{thm:linear_deriv}より$f'(x_0) = a$であり、また$f(x_0) = ax_0 + b$であることから、
+\begin{align}
+y &= a(x - x_0) + (ax_0 + b) \\
+  &= ax - ax_0 + ax_0 + b \\
+  &= ax + b
+\end{align}
+
+これは元の関数$f(x)$と完全に一致する。この結果は、線形関数が「自身の接線である」
+という幾何学的に自明な事実を形式的に確認するものである。
+
+\subsection{証明における形式化の利点}
+
+Lean4による形式化では、各証明ステップが型理論に基づいて厳密に検証される。
+例えば、微分可能性の仮定が必要な箇所では、明示的に`DifferentiableAt`の証明項を
+提供する必要がある。これにより、通常の数学的証明で見落とされがちな
+技術的詳細（例：関数の定義域、微分可能性の条件）が明確化される。
+
+\section{結論}
+
+本論文では、線形関数の微分に関する基本的な結果を、Lean4を用いて形式的に証明した。
+主要な成果は以下の通りである：
+
+\begin{enumerate}
+\item 線形関数$f(x) = ax + b$の微分が定数$a$であることの厳密な証明
+\item 線形関数が全域で微分可能であることの確認
+\item 線形関数の接線が自身と一致することの形式的証明
+\item 物理学における等速運動への応用の明示化
+\end{enumerate}
+
+これらの結果は、高等学校数学で直感的に理解される内容であるが、
+形式的証明を通じて、その背後にある論理構造を明確にすることができた。
+特に、和の微分法則と定数倍の微分法則という基本的な性質から、
+線形関数の微分が導出される過程を段階的に示すことで、
+数学的推論の積み重ねの重要性を示すことができた。
+
+今後の展望として、より複雑な関数クラス（二次関数、多項式関数、超越関数）への
+拡張が考えられる。また、多変数関数の場合への一般化や、
+線形代数における線形写像の微分への応用も興味深い研究課題である。
+
+形式的証明支援系を用いた数学教育は、証明の厳密性を保ちながら、
+学習者に数学的思考の本質を伝える有効な手段となることが期待される。
+本研究がその一助となることを願う。
+
+% 参考文献（必要に応じて追加）
+% \begin{thebibliography}{9}
+% \bibitem{mathlib} The mathlib Community, \textit{The Lean Mathematical Library}, 2024.
+% \end{thebibliography}
+
+\end{document}

@@ -1,0 +1,96 @@
+% !TEX TS-program = platex
+\documentclass[a4paper,12pt]{jsarticle}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage[dvipdfmx]{hyperref}
+\usepackage{pxjahyper}
+
+\newcommand{\R}{\mathbb{R}}
+
+\title{課題1〜7とガウス積分の数学的解説（p\LaTeX/jsclasses 版）}
+\author{CODEX (OpenAI)}
+\date{}
+
+\begin{document}
+\maketitle
+
+本メモは，`FinalKadaiPractical.lean` で扱っている各課題の数学的背景を簡潔にまとめたものです。証明は基本的な微分積分学の事実（連続性，微分の公式，微分積分学の基本定理，広義積分の定義と極限）に基づきます。
+
+\section*{前提・基本事実}
+\begin{itemize}
+  \item 微分積分学の基本定理（FTC）: 連続な関数 $f$ に対し，$F' = f$ なら $\int_a^b f = F(b) - F(a)$。
+  \item 連鎖律: $\dfrac{d}{dx}(g\circ h) = (g'\circ h)\cdot h'$。
+  \item 初等関数の導関数: $\dfrac{d}{dx} e^{x} = e^{x}$，$\dfrac{d}{dx} (x^n) = n x^{n-1}$（$n$ は自然数），$\dfrac{d}{dx}\arctan x = \dfrac{1}{1+x^2}$。
+  \item 広義積分: 有界区間の積分の極限で定義し，必要に応じて極限計算で評価。
+\end{itemize}
+
+\section{課題1\&2: 具体的置換（連鎖律の応用）}
+目標は
+\[
+  \int_a^b 2x\, e^{x^2}\,dx = e^{b^2} - e^{a^2}.
+\]
+$F(x) := e^{x^2}$ とおくと連鎖律より $F'(x) = 2x\, e^{x^2}$。よって FTC から $\int_a^b 2x\, e^{x^2} = F(b) - F(a) = e^{b^2} - e^{a^2}$。
+
+\section{課題3: $\arctan$ の導関数の積分}
+目標は
+\[
+  \int_a^b \frac{1}{1+x^2}\,dx = \arctan b - \arctan a.
+\]
+既知の導関数 $\dfrac{d}{dx}\arctan x = \dfrac{1}{1+x^2}$ を用い，$F(x) := \arctan x$ として FTC を適用する。
+
+\section{課題4: 部分分数分解による積分（方針）}
+有理関数の積分は，分母の因数分解（実数範囲で一次・二次因子）に応じて係数を決め，\textbf{一次因子}に対しては対数，\textbf{既約二次因子}に対しては $\arctan$ 型や線形置換に帰着する。注意点は次の通り。
+\begin{itemize}
+  \item 分母が 0 にならない区間で議論する（定義域の管理）。
+  \item 分解形での係数決定（連立方程式）と，原始関数の組み立て。
+\end{itemize}
+
+\section{課題5: 曲線間の面積（$y=x$ と $y=x^2$，区間 $[0,1]$）}
+目標は $\int_0^1 (x - x^2)\,dx = \dfrac{1}{6}$。区間 $[0,1]$ では常に $x \ge x^2$ なので，上関数$-$下関数で面積を表す。
+\[
+  \int_0^1 x\,dx = \frac{1}{2},\qquad \int_0^1 x^2\,dx = \frac{1}{3},\qquad \Rightarrow\quad \frac{1}{2} - \frac{1}{3} = \frac{1}{6}.
+\]
+
+\section{課題6: 回転体の体積（$y=\sqrt{x}$ を x 軸回り，$[0,1]$）}
+回転体の体積（ワッシャー法）より，半径 $y(x)$ の円の面積 $\pi y(x)^2$ を x で積分する。$y(x)=\sqrt{x}$ なので $y(x)^2 = x$。
+\[
+  V = \pi \int_0^1 (\sqrt{x})^2\,dx = \pi \int_0^1 x\,dx = \frac{\pi}{2}.
+\]
+
+\section{課題7: 広義積分 $\int_1^R \dfrac{1}{x^2}\,dx$ の極限（$R\to\infty$）}
+原始関数 $\dfrac{d}{dx}\bigl(-\tfrac{1}{x}\bigr) = \dfrac{1}{x^2}$（$x\ne 0$）を用いると
+\[
+  \int_1^R \frac{1}{x^2}\,dx = \left[-\frac{1}{x}\right]_1^R = \left(-\frac{1}{R}\right) - \left(-1\right) = 1 - \frac{1}{R}.
+\]
+$R\to\infty$ で $\dfrac{1}{R}\to 0$ だから，極限は $1$ になる。
+
+\section{ガウス積分の準備（$\int_{-R}^{R} e^{-x^2}\,dx$ の性質）}
+以降 $R>0$ とする。
+
+\paragraph{(1) 非負性・正値性} $e^{-x^2}>0$ なので任意の区間で積分は非負。さらに $r:=\min(R,1)$ として区間 $[0,r]$ で $e^{-x^2}\ge e^{-1}$ より
+\[
+  \int_0^r e^{-x^2}\,dx \;\ge\; r\,e^{-1} \;>\; 0,
+\]
+従って包含から $\int_{-R}^{R} e^{-x^2}\,dx>0$。
+
+\paragraph{(2) 上界（簡易）} $-x^2\le 0$ より $e^{-x^2}\le 1$。従って
+\[
+  \int_{-R}^{R} e^{-x^2}\,dx \;\le\; \int_{-R}^{R} 1\,dx \;=\; 2R.
+\]
+
+\paragraph{(3) 上界（強い評価）} 古典的事実 $\displaystyle \int_{\R} e^{-x^2}\,dx = \sqrt{\pi}$ を用いる。非負関数なので区間積分は全実線積分を超えない:
+\[
+  \int_{-R}^{R} e^{-x^2}\,dx \;\le\; \int_{\R} e^{-x^2}\,dx \;=\; \sqrt{\pi} \;<\; 2\sqrt{\pi}.
+\]
+また $e^{-x^2}$ は偶関数であり，$\int_{-R}^{R} e^{-x^2}\,dx = 2\int_0^R e^{-x^2}\,dx$ である。
+
+\section*{備考（測度論的視点）}
+\begin{itemize}
+  \item 非負関数の単調性: $0\le f\le g$ なら $\int f \le \int g$。
+  \item 区間拡大の単調性（$f\ge 0$）: 区間が広いほど積分値は大きい。
+  \item 広義積分はフィルタ極限（$R\to\infty$）で表し，計算と一致する形を作って極限を取るのが堅牢。
+\end{itemize}
+
+\end{document}
+
