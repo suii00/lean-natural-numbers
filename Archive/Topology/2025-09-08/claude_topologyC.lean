@@ -17,11 +17,11 @@
   - This file is a scaffold derived from the brief. Replace `by sorry` or `axiom`
     with concrete mathlib proofs if you want it to compile fully.
   - Encoding: UTF-8, EOL: LF.
-/-
+-/
 
 import Mathlib.Topology.Basic
 import Mathlib.Topology.Constructions.SumProd
-import Mathlib.Topology.ContinuousMap.Basic
+import Mathlib.Topology.ContinuousFunction.Basic
 import Mathlib.Topology.Category.TopCat.Basic
 import Mathlib.Topology.CompactOpen
 import Mathlib.CategoryTheory.Adjunction.Basic
@@ -40,9 +40,9 @@ namespace MyProjects.Topology.C
 open scoped Topology
 open CategoryTheory
 
-/***********************
+/-!
   Ordered Pairs & Projections
-************************/
+-/
 
 section Projections
 
@@ -65,9 +65,9 @@ lemma continuous_π₂ : Continuous (π₂ : X × Y → Y) := by
 end Projections
 
 
-/***********************
+/-!
   A. Enrichment Sketch for TopCat
-************************/
+-/
 
 section EnrichedTop
 
@@ -86,13 +86,17 @@ the required continuity without committing to a concrete topology.
 -/
 structure EnrichedTopCat where
   homTop : ∀ (X Y : TopCat.{u}), TopologicalSpace (X ⟶ Y)
+  /-- Continuity of composition on hom-sets. For compact-open enrichment,
+      this holds whenever the middle object is locally compact. -/
   comp_continuous :
-    ∀ {X Y Z : TopCat.{u}}, by
-      -- Use the declared hom-set topologies locally as typeclass instances
-      let _ : TopologicalSpace (Y ⟶ Z) := homTop Y Z
-      let _ : TopologicalSpace (X ⟶ Y) := homTop X Y
-      let _ : TopologicalSpace (X ⟶ Z) := homTop X Z
-      exact Continuous (fun p : (Y ⟶ Z) × (X ⟶ Y) => p.1 ≫ p.2)
+    ∀ {X Y Z : TopCat.{u}},
+      (LocallyCompactSpace Y) →
+      by
+        -- Use the declared hom-set topologies locally as typeclass instances
+        let _ : TopologicalSpace (Y ⟶ Z) := homTop Y Z
+        let _ : TopologicalSpace (X ⟶ Y) := homTop X Y
+        let _ : TopologicalSpace (X ⟶ Z) := homTop X Z
+        exact Continuous (fun p : (Y ⟶ Z) × (X ⟶ Y) => p.2 ≫ p.1)
 
 /-- Skeleton statement for the expected adjunction `(- × Y) ⊣ (Y ⟹ -)` on `TopCat`.
 We record it as a `Prop` to avoid committing to a specific implementation here. -/
@@ -107,9 +111,34 @@ theorem tensor_hom_adjunction
 end EnrichedTop
 
 
-/***********************
+/-!
+  A'. Canonical Compact-Open Enrichment (instantiation)
+-/
+
+section CanonicalCompactOpen
+
+open TopCat
+
+universe u
+
+/-- Axiom: for compact-open topology, composition `C(Y,Z) × C(X,Y) → C(X,Z)` is continuous
+    when `Y` is locally compact. (This is standard; we record it as a placeholder here.) -/
+/-
+  To keep this file compiling portably without committing to a particular
+  global instance `TopologicalSpace (X ⟶ Y)` for every `TopCat` hom-set,
+  we postulate the existence of a compact-open enrichment and leave its
+  construction to a future, mathlib-backed development.
+ -/
+
+/-- Placeholder for the canonical compact-open enrichment of `TopCat`. -/
+axiom CompactOpenEnrichment : EnrichedTopCat
+
+end CanonicalCompactOpen
+
+
+/-!
   B. Path Homotopy and Fundamental Group (Wrapper)
-************************/
+-/
 
 section FundamentalGroup
 
@@ -119,19 +148,19 @@ variable {x y : X}
 /-- Path homotopy, delegated to mathlib's `Path.Homotopic`. -/
 def PathHomotopic (p q : Path x y) : Prop := p.Homotopic q
 
-/-- Fundamental group at a basepoint — an alias of mathlib's notion. -/
-abbrev FundamentalGroup (X : Type*) [TopologicalSpace X] (x : X) :=
+/-- Fundamental group at a basepoint — short alias `Pi1`. -/
+abbrev Pi1 (X : Type*) [TopologicalSpace X] (x : X) :=
   FundamentalGroup X x
 
 instance (X : Type*) [TopologicalSpace X] (x : X) :
-    Group (FundamentalGroup X x) := inferInstance
+    Group (Pi1 X x) := inferInstance
 
 end FundamentalGroup
 
 
-/***********************
+/-!
   C. Uniform Continuity, Completion, and Exponential-Law Skeleton
-************************/
+-/
 
 section Uniform
 
@@ -140,14 +169,14 @@ variable [UniformSpace X] [UniformSpace Y] [UniformSpace Z]
 
 /-- Bundled uniformly continuous map, extending `C(X, Y)` with uniform continuity. -/
 structure UniformContinuousMap (X Y : Type*)
-    [UniformSpace X] [UniformSpace Y] extends C(X, Y) where
-  uniform_continuous : UniformContinuous toFun
-
-attribute [simp] UniformContinuousMap.toContinuousMap_coe
+    [UniformSpace X] [UniformSpace Y] where
+  toFun : X → Y
+  continuous_toFun : Continuous toFun
+  uniform_continuous_toFun : UniformContinuous toFun
 
 /-- Placeholder: the canonical uniformly continuous map into the completion. -/
 axiom CompletionMap (X : Type*) [UniformSpace X] :
-  UniformContinuousMap X (Completion X)
+  UniformContinuousMap X (UniformSpace.Completion X)
 
 /-- Skeleton (statement-as-`Prop`) of a uniform exponential law.
 The intended content is an isomorphism between spaces of uniformly continuous
@@ -164,4 +193,3 @@ theorem uniform_exponential_law
 end Uniform
 
 end MyProjects.Topology.C
-

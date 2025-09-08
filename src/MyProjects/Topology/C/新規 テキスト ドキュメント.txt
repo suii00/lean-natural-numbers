@@ -1,0 +1,34 @@
+> 発展ポイントA（エンリッチ圏）：実装を一歩進め、TopCat の自己エンリッチ化に向けた下地を追加しました。主な変更は次のとお
+  りです。
+
+  - 追加ファイル
+      - src/MyProjects/Topology/C/EnrichedTopCat.lean
+      - hom 空間：C(X, Y) に compact-open 位相（mathlib 既存の instance）を採用。
+      - 合成の連続性：ContinuousMap.continuous_comp' と Homeomorph.prodComm を用いて
+        p : C(Y,Z) × C(X,Y) ↦ p.1.comp p.2 の連続性を証明（仮定 [LocallyCompactPair Y Z]）。
+      - テンソルと内部ホム：
+        - tensorWith Y : TopCat ⥤ TopCat（X ↦ X × Y, 射は prodMk 由来）
+        - internalHom Y : TopCat ⥤ TopCat（X ↦ C(Y, X), 射は post-composition）
+      - 局所的指数法則：Homeomorph.curry から
+        homEquiv_curry : C(X × Y, Z) ≃ C(X, C(Y, Z))（[LocallyCompactSpace X][LocallyCompactSpace Y]）を提供。
+
+  - ビルド
+      - lake build MyProjects.Topology.C.EnrichedTopCat
+
+  提案する次ステップ（高次圏論への橋渡し）
+
+  - 局所的随伴の明示化
+      - Y を固定し、X が局所コンパクトである範囲で
+      TopCat((X × Y) ⟶ Z) ≃ TopCat(X ⟶ C(Y, Z)) の自然性を整理。
+  - unit/counit の成分レベルの等式（triangle identities）の補題を追加。
+  - Enriched 構造の束ね
+      - 現在の lemma（composition_continuous'）を使い、必要仮定付きの EnrichedTopCat データを最小限で束ねる（恒等射の連
+  続性は自明）。
+  - simp 支援
+      - curry/uncurry と pre/post-composition の両側自然性について @[simp] 形の評価則を追加（B 側のユーティリティに合わ
+  せる）。
+  - サブカテゴリでの厳密化
+      - すべての対象が局所コンパクトなサブカテゴリ（例：LocCompHaus 的な小世界）に制限して、(− × Y) ⊣ C(Y, −) を
+  Adjunction として厳密に構成。
+
+  必要なら、この流れで「局所コンパクト空間のサブカテゴリ」に対し本物の Adjunction（mkOfHomEquiv）まで仕上げますか？
