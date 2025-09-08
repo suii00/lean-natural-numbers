@@ -18,3 +18,7 @@ Thumbs.db
 
 # Node.js (if using)
 node_modules/
+
+#LaTeX中間生成物
+*.pdf
+*.gz
