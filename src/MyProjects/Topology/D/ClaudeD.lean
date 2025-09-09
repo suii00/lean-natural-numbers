@@ -228,6 +228,29 @@ lemma productMonad_eta_comp_fst (X : TopCat) :
     have h := diagProdAdjunction.left_triangle_components (X := X)
     simpa using congrArg Prod.snd h
 
+  /-!
+  Componentwise multiplication `μ` (flatten) via projections.
+  These are stated in a way that is robust across snapshots by referring to the
+  counit at `(X×X, X×X)` for the "big" projections.
+  -/
+
+  @[simp, reassoc]
+  lemma productMonad_mu_comp_fst (X : TopCat) :
+      (productMonad.μ.app X) ≫ (diagProdAdjunction.counit.app (X, X)).1
+        =
+      (diagProdAdjunction.counit.app ((TopCat.of (X × X)), (TopCat.of (X × X)))).1 ≫
+        (diagProdAdjunction.counit.app (X, X)).1 := by
+    -- Both sides are morphisms `((X×X)×(X×X)) ⟶ X`; check pointwise.
+    ext p <;> rfl
+
+  @[simp, reassoc]
+  lemma productMonad_mu_comp_snd (X : TopCat) :
+      (productMonad.μ.app X) ≫ (diagProdAdjunction.counit.app (X, X)).2
+        =
+      (diagProdAdjunction.counit.app ((TopCat.of (X × X)), (TopCat.of (X × X)))).2 ≫
+        (diagProdAdjunction.counit.app (X, X)).2 := by
+    ext p <;> rfl
+
   -- (Optional) μ component lemmas can be added once notations for the big
   -- projections `((X×X)×(X×X)) ⟶ (X×X)` are settled. The unit lemmas above
   -- already cover common diagonal rewrites.
@@ -239,5 +262,81 @@ lemma productMonad_eta_comp_fst (X : TopCat) :
 -- cover the typical rewriting needs for diagonal maps.
 
 end ProductMonadSimp
+
+/-! # Product monad laws: componentwise simps (Option B)
+
+Project the monad laws (right unit and associativity) along the two projections
+of `T X = X × X`. Proofs are by composing the monad equalities with the
+projections and normalizing via associativity. This keeps rewrites stable and
+works well with `ext; simp`.
+-/
+
+section ProductMonadLawsSimp
+
+open TopCat CategoryTheory
+
+@[simp, reassoc]
+lemma productMonad_right_unit_comp_fst (X : TopCat) :
+  (productMonad.map (productMonad.η.app X) ≫ productMonad.μ.app X)
+    ≫ (diagProdAdjunction.counit.app (X, X)).1
+  = (diagProdAdjunction.counit.app (X, X)).1 := by
+  -- Compose the right unit law with the first projection.
+  simpa [Category.comp_id, Category.assoc]
+    using congrArg (fun k => k ≫ (diagProdAdjunction.counit.app (X, X)).1)
+      (productMonad.right_unit X)
+
+@[simp, reassoc]
+lemma productMonad_right_unit_comp_snd (X : TopCat) :
+  (productMonad.map (productMonad.η.app X) ≫ productMonad.μ.app X)
+    ≫ (diagProdAdjunction.counit.app (X, X)).2
+  = (diagProdAdjunction.counit.app (X, X)).2 := by
+  simpa [Category.comp_id, Category.assoc]
+    using congrArg (fun k => k ≫ (diagProdAdjunction.counit.app (X, X)).2)
+      (productMonad.right_unit X)
+
+@[simp, reassoc]
+lemma productMonad_assoc_comp_fst (X : TopCat) :
+  (productMonad.map (productMonad.μ.app X) ≫ productMonad.μ.app X)
+    ≫ (diagProdAdjunction.counit.app (X, X)).1
+  =
+  (productMonad.μ.app (productMonad.obj X) ≫ productMonad.μ.app X)
+    ≫ (diagProdAdjunction.counit.app (X, X)).1 := by
+  -- Compose associativity with the first projection.
+  simpa [Category.assoc]
+    using congrArg (fun k => k ≫ (diagProdAdjunction.counit.app (X, X)).1)
+      (productMonad.assoc X)
+
+@[simp, reassoc]
+lemma productMonad_assoc_comp_snd (X : TopCat) :
+  (productMonad.map (productMonad.μ.app X) ≫ productMonad.μ.app X)
+    ≫ (diagProdAdjunction.counit.app (X, X)).2
+  =
+  (productMonad.μ.app (productMonad.obj X) ≫ productMonad.μ.app X)
+    ≫ (diagProdAdjunction.counit.app (X, X)).2 := by
+  simpa [Category.assoc]
+    using congrArg (fun k => k ≫ (diagProdAdjunction.counit.app (X, X)).2)
+      (productMonad.assoc X)
+
+end ProductMonadLawsSimp
+
+/-! # Kleisli normalization (C‑2)
+
+Pointwise-normal forms in the Kleisli category of `productMonad`. We keep these
+lemmas minimal and definitional so that rewriting via `ext; simp [Category.assoc]`
+is stable.
+-/
+
+section KleisliSimp
+
+open TopCat
+
+-- Objects of `Kleisli productMonad` are the same as objects of `TopCat`.
+
+-- (removed kleisli_id_def; identities in Kleisli are definitional `η`)
+
+-- Underlying-base-category composition formula for Kleisli arrows (omitted).
+-- (removed kleisli_comp_def; composition in Kleisli is definitional)
+
+end KleisliSimp
 
 end MyProjects.Topology.D

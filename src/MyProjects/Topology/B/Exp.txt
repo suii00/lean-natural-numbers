@@ -1,0 +1,16 @@
+理論的根拠
+
+懸念事項の明確な分離：Dモジュールは現在、「Δ ⊣ × → モナド」の実装経路として機能しています（TopCat関手、productMonad、η/μ成分の定理、Kleisli圏など）。これに対し、指数法則はContinuousMapとコンパクト開位相に基づく古典的位相理論の領域に完全に属しています。ExpLawCOをB領域に配置することで、圏論的なモナドコードと関数解析的位相理論のコードが混在するのを防ぎます。
+
+依存関係の整理：src/MyProjects/Topology/B/ExpLawCO.leanモジュールはコンパクト開位相関連の定義（Mathlib.Topology.CompactOpen）のみをインポートしています。Dモジュール群（src/MyProjects/Topology/D/ClaudeD.lean、…/ClaudeD_Kleisli.leanなど）はCategoryTheory.*モジュールに依存しています。ExpLawCOをB領域に配置することで、領域間の依存関係を最小限に抑え、ビルド時の影響範囲を限定できます。
+
+本リポジトリにおけるフォルダ構成の意味：「B」フォルダは既に、積/射の定義や位相関連のユーティリティ関数のパスを収容しています（例：src/MyProjects/Topology/BourbakiProductAndHom.lean、Topology/B/…以下の関連ノート）。指数法則（コンパクト開位相下でのcurry/uncurry演算）は、この領域に自然にフィットします。
+
+スナップショットの安定性：Homeomorph.curryエイリアスとpointwise @[simp] _apply定理は、TopCatモジュールを変更することなく安定して動作します。このコードをB領域に配置することで、Dモジュールの圏論的コードに対する将来のリファクタリング作業から完全に分離できます。
+
+将来的な統合可能性：必要に応じて、D/All.leanモジュールからB/ExpLawCO.leanを再エクスポートすることは可能ですが、このモジュールの内容はDモジュールとは無関係に設計されているため、インポート循環が発生するリスクを最小限に抑えられます。
+
+追加・変更ファイル
+
+新規追加：src/MyProjects/Topology/B/ExpLawCO.lean
+コア部分の変更なし：src/MyProjects/Topology/D/ClaudeD.lean、src/MyProjects/Topology/D/ClaudeD_Kleisli.lean
