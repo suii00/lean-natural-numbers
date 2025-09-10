@@ -1,0 +1,167 @@
+% !TEX program = lualatex
+% Compile with LuaLaTeX or XeLaTeX for UTF-8 Japanese support.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz-cd}
+\usepackage[a4paper,margin=27mm]{geometry}
+\usepackage{hyperref}
+\usepackage{iftex}
+\ifLuaTeX
+  \usepackage{luatexja}
+\fi
+\ifXeTeX
+  \usepackage{xeCJK}
+\fi
+
+\title{Bourbaki-Style Structuring by Ordered Pairs and Projections\\
+Composition, Kernels and Images, and Dual Spaces\\[2mm]
+順序対と射影によるブルバキ的構造化：合成・核と像・双対空間}
+
+\author{CODEX (OpenAI) --- TeX file generated\\CODEX (OpenAI) --- Lean files generated}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We explain three Lean modules implemented in a Bourbaki-inspired spirit: structures are read
+via arrows (morphisms) and, for products, via projections. The topics are: linear map
+composition, closure properties of kernels and images, and basic identities in dual spaces.
+Japanese text is provided in parallel.\\
+本ノートは 3 つの Lean モジュールの数学的要約である。ブルバキの精神、すなわち
+「構造は射によって読み、直積は射影で読む」という原則に従い、線形写像の合成、核と像の閉性、
+双対空間における基本等式を解説する。
+\end{abstract}
+
+\tableofcontents
+
+\section{Composition of Linear Maps／線形写像の合成}
+
+Let $R$ be a (commutative) semiring and $U,V,W$ be $R$-modules. Given linear maps
+$f:U\to V$ and $g:V\to W$, their composition $g\circ f:U\to W$ is linear.
+
+\begin{theorem}[Linearity of the composition／合成の線形性]
+For all $u_1,u_2\in U$, one has
+\[
+ (g\circ f)(u_1+u_2) = (g\circ f)(u_1) + (g\circ f)(u_2).
+\]
+In Lean this is \verb|LinearMap.map_add (g.comp f) u1 u2|.
+\end{theorem}
+
+\begin{proof}[Sketch／略証]
+Use linearity twice: $(g\circ f)(u_1+u_2)=g\big(f(u_1+u_2)\big)
+=g\big(f(u_1)+f(u_2)\big)=g(f(u_1))+g(f(u_2))$.
+\end{proof}
+
+\begin{theorem}[Associativity／結合律]
+For $f:U\to V$, $g:V\to W$, $h:W\to X$ linear, we have
+\[
+ (h\circ g)\circ f = h\circ (g\circ f).
+\]
+In Lean: \verb|ext u; rfl| with \verb|LinearMap.comp|.
+\end{theorem}
+
+\begin{theorem}[Left identity／左単位]
+\(\operatorname{id}_V\circ f = f\).
+\end{theorem}
+
+\paragraph{Diagram／図式}
+\[
+\begin{tikzcd}
+U \arrow[r, "f"] \arrow[rr, bend left=15, "g\circ f"] & V \arrow[r, "g"] & W
+\end{tikzcd}
+\]
+In a Bourbaki reading, one follows the arrowed path; equalities are checked at the level of
+arrows rather than elements of a product.
+
+\section{Kernels and Images／核と像}
+
+Let $f:V\to W$ be linear. The kernel and range are read through $f$:
+\[
+ \ker f = \{v\in V\mid f(v)=0\},\qquad \operatorname{range}(f)=\{f(v)\mid v\in V\}.
+\]
+
+\begin{theorem}[Additive closure of the kernel／核の加法閉性]
+If $v,w\in\ker f$, then $v+w\in\ker f$.
+\end{theorem}
+
+\begin{proof}[Sketch／略証]
+From $f(v)=f(w)=0$ and linearity, $f(v+w)=f(v)+f(w)=0$.
+\end{proof}
+
+\begin{theorem}[Additive closure of the range／像の加法閉性]
+If $y,z\in\operatorname{range}(f)$, then $y+z\in\operatorname{range}(f)$.
+\end{theorem}
+
+\begin{proof}[Sketch／略証]
+Write $y=f(v)$, $z=f(w)$; then $y+z=f(v+w)$ by linearity.
+\end{proof}
+
+\begin{theorem}[Scalar closure of the kernel／核のスカラー倍閉性]
+If $v\in\ker f$ and $a\in R$, then $a\cdot v\in\ker f$.
+\end{theorem}
+
+\paragraph{Exact-ish diagram／図式のイメージ}
+\[
+\begin{tikzcd}
+0 \arrow[r] & \ker f \arrow[r, hook] & V \arrow[r, "f"] & W \arrow[r, two heads] & \operatorname{coker}(f)
+\end{tikzcd}
+\]
+Here we only use the left part: $\ker f\hookrightarrow V \xrightarrow{\ f\ } W$ and linearity
+of $f$ to read closure properties.
+
+\section{Dual Spaces and Evaluation／双対空間と評価}
+
+The dual space is $V^* = \mathrm{Hom}_R(V,R)$. Elements $\varphi\in V^*$ are linear functionals.
+
+\begin{theorem}[Pointwise addition／点ごとの加法]
+For $\varphi,\psi\in V^*$ and $v\in V$, $(\varphi+\psi)(v)=\varphi(v)+\psi(v)$.
+\end{theorem}
+
+\begin{theorem}[Double-dual evaluation／二重双対の評価]
+For $v\in V$ and $\varphi\in V^*$, $\mathrm{eval}(v)(\varphi)=\varphi(v)$.
+\end{theorem}
+
+\begin{theorem}[Bilinearity of the canonical pairing／標準ペアリングの双線形性]
+For $a\in R$, $v,w\in V$, and $\varphi\in V^*$,
+\[
+ \varphi(a\cdot v + w) = a\,\varphi(v) + \varphi(w).
+\]
+\end{theorem}
+
+\paragraph{Pairing diagram／ペアリングの図式}
+\[
+\begin{tikzcd}
+V^* \times V \arrow[r, "\langle\cdot,\cdot\rangle"] \arrow[d, "\mathrm{id}\times(+)"] & R \\
+V^* \times (V\times V) \arrow[r, dashed] & R
+\end{tikzcd}
+\]
+Reading by projections: the value $\langle\varphi, v\rangle=\varphi(v)$ is determined by
+the arrow $\varphi:V\to R$; bilinearity is a restatement of linearity in each argument.
+
+\section*{Lean references／Lean で用いた標準補題}
+
+\begin{itemize}
+  \item Composition: \verb|LinearMap.comp|, \verb|LinearMap.map_add|, \verb|LinearMap.ext|.
+  \item Kernel/Range: \verb|LinearMap.mem_ker|, \verb|LinearMap.range|, \verb|LinearMap.map_add|,
+        \verb|Submodule.smul_mem|.
+  \item Dual: \verb|LinearMap.add_apply|, \verb|Module.Dual.eval_apply|, \verb|LinearMap.map_add|,
+        \verb|LinearMap.map_smul|, \verb|smul_eq_mul|.
+\end{itemize}
+
+\paragraph{Authorship／著者名}
+This TeX file was generated by \textbf{CODEX (OpenAI)}. The associated Lean files were generated by
+\textbf{CODEX (OpenAI)}.\\
+本 TeX 文書は \textbf{CODEX (OpenAI)} により生成され、対応する Lean ファイルは
+\textbf{CODEX (OpenAI)} により生成された。
+
+\end{document}
+

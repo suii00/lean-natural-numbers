@@ -1,17 +1,18 @@
-% !TEX program = xelatex
-\documentclass[12pt]{article}
-\usepackage[margin=28mm]{geometry}
-\usepackage{hyperref}
-\usepackage{amsmath, amsthm, amssymb, amsfonts}
+% !TEX program = lualatex
+% Compile with LuaLaTeX or XeLaTeX for UTF-8 Japanese support.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{tikz-cd}
-\usepackage{fontspec}
-\usepackage{unicode-math}
-\usepackage{xeCJK} % 日本語
-\setmainfont{Latin Modern Roman}
-\setmonofont{Latin Modern Mono}
-\setCJKmainfont{Noto Serif CJK JP} % お手元の環境に応じて変更可（例：IPAexMincho）
-\usepackage{listings}
-\lstset{basicstyle=\ttfamily\footnotesize, columns=fullflexible, breaklines=true, showstringspaces=false}
+\usepackage[a4paper,margin=27mm]{geometry}
+\usepackage{hyperref}
+\usepackage{iftex}
+\ifLuaTeX
+  \usepackage{luatexja}
+\fi
+\ifXeTeX
+  \usepackage{xeCJK}
+\fi
+
 \newtheorem{theorem}{定理}
 \newtheorem{lemma}{補題}
 \newtheorem{proposition}{命題}
