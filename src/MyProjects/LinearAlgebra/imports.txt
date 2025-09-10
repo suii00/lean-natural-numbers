@@ -1,0 +1,62 @@
+何を読めばいい？
+
+よく使う目的ごとに最小インポート例を置いておきます。
+
+線形写像・定義＆基本補題
+
+import Mathlib.Algebra.Module.LinearMap.Defs
+import Mathlib.Algebra.Module.LinearMap.Basic
+
+
+（LinearMap 系は Algebra/Module/LinearMap にいます） 
+leanprover-community.github.io
++1
+
+基底・一次独立・span
+
+import Mathlib.LinearAlgebra.Basis.Defs
+import Mathlib.LinearAlgebra.Basis.Basic
+import Mathlib.LinearAlgebra.LinearIndependent.Basic
+import Mathlib.LinearAlgebra.Span.Basic
+
+
+leanprover-community.github.io
++3
+leanprover-community.github.io
++3
+leanprover-community.github.io
++3
+
+有限次元・次元（rank/finrank）
+
+import Mathlib.LinearAlgebra.FiniteDimensional.Defs
+import Mathlib.LinearAlgebra.FiniteDimensional.Basic
+import Mathlib.LinearAlgebra.Dimension.Basic
+import Mathlib.LinearAlgebra.Dimension.Finrank
+
+
+leanprover-community.github.io
++3
+leanprover-community.github.io
++3
+leanprover-community.github.io
++3
+
+行列と線形写像の対応・行列式など
+
+import Mathlib.LinearAlgebra.Matrix.ToLin
+import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
+
+
+leanprover-community.github.io
++1
+
+テンソル積の基本
+
+import Mathlib.LinearAlgebra.TensorProduct.Basic
+
+
+leanprover-community.github.io
+
+どうしても広く使いたいときは、まず import Mathlib で動かしてから、必要なものだけに絞るのが手っ取り早いです。
+GitHub
