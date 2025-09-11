@@ -1,0 +1,42 @@
+search機能がオンなら文献参照
+▌
+▌:Bourbaki "Algebra II" (テンソル積
+▌)
+▌Weibel "An Introduction to Homological Algebra"
+▌Reed-Simon "Functional Analysis"
+
+🌐 Searched: Bourbaki Algebra II tensor product Elements of Mathematics Chapters 4-7 Springer
+
+🌐 Searched: Bourbaki Algebra II Tensor Products Elements of Mathematics Chapters 4-7 Springer link tensor product
+modules
+
+🌐 Searched: Bourbaki Algebra I Chapters 1-3 Elements of Mathematics tensor product of modules section
+
+> 以下、TensorProduct（加群のテンソル積）とその周辺事項に関する主要参考文献です。必要箇所（章・節）も付記しました。
+
+  -
+  Bourbaki, Algebra II: Chapters 4–7, Elements of Mathematics（Springer）—本巻は主に体と PID 上の加群を扱い、第 IV 章の
+  補遺として「対称テンソルと多項式写像」の節が含まれます。一般の加群のテンソル積の構成・基本性質は Algebra I（下記）を参
+  照するのが適切です。参考: Algebra II の版情報と概要。 (link.springer.com (https://link.springer.com/book/10.1007/978-
+  3-642-61698-3?utm_source=openai))
+  -
+  Bourbaki, Algebra I: Chapters 1–3, Elements of Mathematics（Springer）—「線形代数」中の §3「Tensor products」（p.
+  243 〜；随所に加群・線形写像のテンソル、可換環上のテンソルなど）と §4「テンソル積と Hom の関係」（p. 267 〜；Hom–
+  Tensor 対応の同型を含む）が基本出典です。版情報（Springer）と該当節の目次（Google Books の TOC 抜粋）を併記します。
+  (link.springer.com (https://link.springer.com/book/9783540642435?utm_source=openai))
+  -
+  Weibel, An Introduction to Homological Algebra, Cambridge Studies in Advanced Mathematics 38（Cambridge Univ.
+  Press, 1994）—導入から Tor・Ext・スペクトル列まで一貫した扱い。テンソル積と導来関手（特に Tor）や Hom–Tensor の関
+  係が実用的観点から整理されています。版元ページ（DOI 付き）と AMS の標準書誌（MR 1269324）をどうぞ。 (cambridge.org
+  (https://www.cambridge.org/core/books/an-introduction-to-homological-algebra/AAA3F16482097015CD12D4376D505282?
+  utm_source=openai))
+  -
+  Reed–Simon, Methods of Modern Mathematical Physics I: Functional Analysis（Academic Press, 2nd ed., 1980）—ヒルベルト
+  空間・作用素論の古典的教科書で、ヒルベルト空間のテンソル積の基礎と応用（Fock 空間等に向けて）を含みます。AMS Bulletin
+  の書誌（第 I 巻・第 2 版 1980 の記載）と 1972 年初版時の書評情報を参考までに。 (ams.org (https://www.ams.org/journals/
+  bull/1980-02-03/S0273-0979-1980-14789-8/?utm_source=openai))
+
+  補足
+
+  - 本リポジトリの Lean 実装（Hom–Tensor 対応、結合同型、直和分配）は上の Bourbaki Algebra I §3–§4 と Weibel の対応箇所
+  に整合するように書いてあります。必要なら、該当箇所（定理番号・命題番号）でさらに絞り込みます。
