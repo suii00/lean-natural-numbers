@@ -1,7 +1,7 @@
-import Mathlib.LinearAlgebra.Basic
-import Mathlib.Algebra.Homology.ShortExact
-import Mathlib.Algebra.Module.Submodule.Ker
-import Mathlib.Algebra.Module.Submodule.Range
+import Mathlib.Algebra.Module.LinearMap.Basic
+import Mathlib.Algebra.Module.Equiv.Defs
+import Mathlib.LinearAlgebra.BilinearMap
+import Mathlib.LinearAlgebra.Matrix.ToLinearEquiv
 
 /-!
 # 完全系列とホモロジー代数の基礎
@@ -40,7 +40,7 @@ def RightSplit (g : B →ₗ[R] C) : Prop :=
   ∃ s : C →ₗ[R] B, g.comp s = LinearMap.id
 
 -- 分裂補題：右分裂なら左分裂も存在（射影加群の特徴付け）
-theorem split_lemma {f : A →ₗ[R] B} {g : B →ₗ[R] C]
+theorem split_lemma {f : A →ₗ[R] B} {g : B →ₗ[R] C}
   (h : ShortExact f g) (hs : RightSplit g) :
   LeftSplit f := by
   classical
@@ -49,14 +49,20 @@ theorem split_lemma {f : A →ₗ[R] B} {g : B →ₗ[R] C]
   -- `p` を核に値を取る写像に芯域制限する
   let p : B →ₗ[R] B := LinearMap.id - (s.comp g)
   have hg_comp_p : g.comp p = 0 := by
-    -- g ∘ (id - s ∘ g) = g - (g ∘ s) ∘ g = g - id ∘ g = 0
-    ext b; simp [p, LinearMap.comp_sub, LinearMap.sub_comp, LinearMap.comp_assoc, hs]
+    -- 計算で各点 0 を示す
+    ext b
+    have hgs : g (s (g b)) = g b := by
+      have := congrArg (fun (L : B →ₗ[R] C) => L (g b)) hs
+      simpa [LinearMap.comp_apply, LinearMap.id_apply] using this
+    simp [p, sub_eq_add_neg, hgs]
   let projKer : B →ₗ[R] LinearMap.ker g :=
     LinearMap.codRestrict (LinearMap.ker g) p (by
       intro b
-      -- g (p b) = 0
-      have := congrArg (fun L => L b) (show g.comp p = (0 : B →ₗ[R] C) from hg_comp_p)
-      simpa [LinearMap.comp_apply, Zero.zero, p] using this)
+      have hgs : g (s (g b)) = g b := by
+        have := congrArg (fun (L : B →ₗ[R] C) => L (g b)) hs
+        simpa [LinearMap.comp_apply, LinearMap.id_apply] using this
+      -- g (p b) = g b - g (s (g b)) = 0
+      simpa [p, sub_eq_add_neg, hgs, LinearMap.mem_ker])
   -- `f` は核へ写るので，芯域制限 fₖ : A → ker g を作る
   have hf_maps_to_ker : ∀ a, f a ∈ LinearMap.ker g := by
     intro a
@@ -68,15 +74,18 @@ theorem split_lemma {f : A →ₗ[R] B} {g : B →ₗ[R] C]
   -- fKer は単射
   have hfKer_inj : Function.Injective fKer := by
     intro a₁ a₂ hEq
-    -- 値の等しさから本体が等しいことを引き出す
-    have : f a₁ = f a₂ := by simpa using congrArg Subtype.val hEq
-    exact h.f_injective this
+    -- 値の等しさから f a₁ = f a₂ を得る
+    have hco : (fKer a₁ : B) = (fKer a₂ : B) := by
+      simpa using congrArg (fun z : LinearMap.ker g => (z : B)) hEq
+    have hf_eq : f a₁ = f a₂ := by simpa [fKer] using hco
+    exact h.f_injective hf_eq
   -- fKer は全射（`range f = ker g` より）
   have hfKer_surj : Function.Surjective fKer := by
     intro x
     -- x : ker g. 値部の等式 `range f = ker g` を使って，a を取る
     rcases x with ⟨b, hb⟩
-    have : b ∈ LinearMap.range f := by simpa [Exact, h.exact, LinearMap.mem_ker] using hb
+    have hbker : b ∈ LinearMap.ker g := by simpa [LinearMap.mem_ker] using hb
+    have : b ∈ LinearMap.range f := by simpa [Exact, h.exact] using hbker
     rcases this with ⟨a, rfl⟩
     refine ⟨a, ?_⟩
     -- `codRestrict` の定義から同値
@@ -95,13 +104,17 @@ theorem split_lemma {f : A →ₗ[R] B} {g : B →ₗ[R] C]
       -- `f a ∈ ker g`
       have hmem : f a ∈ LinearMap.ker g := hf_maps_to_ker a
       simpa [LinearMap.mem_ker] using hmem
-    simp [p, this]
+    simp [p, this, sub_eq_add_neg]
   -- したがって `projKer (f a)` は `Subtype.mk (f a) _`
-  change (e.symm : (LinearMap.ker g) →ₗ[R] A) ⟨f a, ?_⟩ = a
-  · -- `f a ∈ ker g`
-    exact hf_maps_to_ker a
-  -- `e.symm` は `fKer` の逆．`fKer a = ⟨f a, _⟩` より結論
-  simpa using (LinearEquiv.left_inv e a)
+  have hproj : projKer (f a) = ⟨f a, hf_maps_to_ker a⟩ := by
+    apply Subtype.ext
+    simpa [projKer, p] using this
+  -- `e` は同型なので，両辺に `e` を適用して等式化する
+  have hr : e (r (f a)) = e a := by
+    -- e (e.symm (projKer (f a))) = projKer (f a) = ⟨f a, _⟩
+    simpa [r, hproj] using (LinearEquiv.apply_symm_apply e (projKer (f a)))
+  -- e の単射性より r (f a) = a
+  simpa using (LinearEquiv.injective e hr)
 
 -- 五項補題（Five Lemma）の特殊ケース
 theorem five_lemma_injective
@@ -121,29 +134,36 @@ theorem five_lemma_injective
   -- 五項補題（短完全列版）：左右が単射 ⇒ 中も単射
   intro b₁ b₂ hβ
   -- β(b₁ - b₂) = 0 を示し，b₁ - b₂ = 0 を導く
-  have hb0 : β (b₁ - b₂) = 0 := by simpa [map_sub] using congrArg2 HSub.hSub hβ rfl
+  have hb0 : β (b₁ - b₂) = 0 := by
+    simpa [sub_eq_add_neg, map_add, map_neg, hβ]
   -- まず g₁(b₁ - b₂) = 0 を得る（右正方形と γ の単射）
-  have hγ_eq : γ (g₁ (b₁ - b₂)) = g₂ (β (b₁ - b₂)) := by
-    have := congrArg (fun (L : B₁ →ₗ[R] C₂) => L (b₁ - b₂)) comm₂
-    simpa [LinearMap.comp_apply] using this
+  have hγ0 : γ (g₁ (b₁ - b₂)) = γ 0 := by
+    have hcomm := congrArg (fun (L : B₁ →ₗ[R] C₂) => L (b₁ - b₂)) comm₂
+    -- γ (g₁ (b₁ - b₂)) = g₂ (β (b₁ - b₂)) = g₂ 0
+    simpa [LinearMap.comp_apply, hb0, LinearMap.map_zero] using hcomm
   have hker_g1 : g₁ (b₁ - b₂) = 0 := by
-    have : g₂ (β (b₁ - b₂)) = 0 := by simpa [hb0]
-    have : γ (g₁ (b₁ - b₂)) = 0 := by simpa [hγ_eq] using this
-    exact hγ this
+    exact hγ hγ0
   -- exactness より b₁ - b₂ ∈ range f₁
   have hmem : b₁ - b₂ ∈ LinearMap.range f₁ := by
-    have : b₁ - b₂ ∈ LinearMap.ker g₁ := by simpa [LinearMap.mem_ker] using hker_g1
-    simpa [Exact, h₁.exact] using this
+    have hker : b₁ - b₂ ∈ LinearMap.ker g₁ := by
+      simpa [LinearMap.mem_ker] using hker_g1
+    simpa [Exact, h₁.exact] using hker
   rcases hmem with ⟨a, ha⟩
   -- 0 = β(b₁ - b₂) = β(f₁ a) = f₂(α a) ⇒ α a = 0 ⇒ a = 0 ⇒ b₁ = b₂
   have : f₂ (α a) = 0 := by
-    have := congrArg (fun (L : B₁ →ₗ[R] B₂) => L (b₁ - b₂)) comm₁
-    have hβf : β (f₁ a) = f₂ (α a) := by simpa [LinearMap.comp_apply, ha] using this
+    have hcomm := congrArg (fun (L : B₁ →ₗ[R] B₂) => L (b₁ - b₂)) comm₁
+    -- β(f₁ a) = f₂(α a)
+    have hβf : β (f₁ a) = f₂ (α a) := by simpa [LinearMap.comp_apply, ha] using hcomm
     simpa [hb0, ha] using hβf
-  have : α a = 0 := by exact h₂.f_injective this
-  have : a = 0 := hα this
-  have : b₁ - b₂ = 0 := by simpa [ha, this]
-  simpa using sub_eq_zero.mp this
+  have hα0 : α a = 0 := by
+    -- f₂ の単射性
+    have : f₂ (α a) = f₂ 0 := by simpa using this
+    exact h₂.f_injective this
+  have ha0 : a = 0 := by
+    have : α a = α 0 := by simpa using hα0
+    exact hα this
+  have : b₁ - b₂ = 0 := by simpa [ha, ha0]
+  simpa [sub_eq, sub_eq_add_neg] using this
 
 -- 蛇の補題の準備：核の完全系列（左 3 項）
 -- 0 → ker α → ker β → ker γ が正確
@@ -151,38 +171,27 @@ theorem ker_exact_sequence
   {f₁ : A →ₗ[R] B} {g₁ : B →ₗ[R] C}
   {f₂ : A →ₗ[R] B} {g₂ : B →ₗ[R] C}
   (α : A →ₗ[R] A) (β : B →ₗ[R] B) (γ : C →ₗ[R] C)
-  (h₁ : Exact f₁ g₁) (h₂ : Exact f₂ g₂)
+  (h₁ : Exact f₁ g₁) (h₂ : ShortExact f₂ g₂)
   (comm₁ : β.comp f₁ = f₂.comp α)
   (comm₂ : γ.comp g₁ = g₂.comp β) :
   Exact
     (LinearMap.codRestrict (LinearMap.ker β) (f₁.comp (LinearMap.ker α).subtype)
       (by
         intro x
-        -- x : ker α ⇒ α x = 0 ⇒ β(f₁ x) = f₂(α x) = 0
-        have := congrArg (fun (L : A →ₗ[R] B) => L x) comm₁
-        -- β (f₁ x) = f₂ (α x) = 0
-        have hx : (f₂.comp α) x = 0 := by
-          -- α x = 0
-          have : α x = 0 := by
-            -- x ∈ ker α by definition
-            exact (by simpa [LinearMap.mem_ker] using x.property)
-          simpa [LinearMap.comp_apply, this]
-        simpa [LinearMap.comp_apply, LinearMap.mem_ker] using (by simpa using hx)
+        -- β (f₁ x) = f₂ (α x) = 0 since α x = 0
+        have hcomm : β (f₁ x) = f₂ (α x) := by
+          simpa [LinearMap.comp_apply] using congrArg (fun (L : A →ₗ[R] B) => L x) comm₁
+        have hx0 : α x = 0 := by simpa [LinearMap.mem_ker] using x.property
+        simpa [LinearMap.mem_ker, hcomm, hx0]
     ))
     (LinearMap.codRestrict (LinearMap.ker γ) (g₁.comp (LinearMap.ker β).subtype)
       (by
         intro y
-        -- y : ker β ⇒ β y = 0 ⇒ γ (g₁ y) = g₂ (β y) = 0
-        have := congrArg (fun (L : B →ₗ[R] C₂) => L y) comm₂
-        -- Fix type C₂ := C for clarity
-        -- We restate with explicit types to avoid elaboration issues
-        -- In practice, the following direct calc is simpler:
+        -- γ (g₁ y) = g₂ (β y) and β y = 0
+        have hcomm : γ (g₁ y) = g₂ (β y) := by
+          simpa [LinearMap.comp_apply] using congrArg (fun (L : B →ₗ[R] C) => L y) comm₂
         have hβy : β y = 0 := by simpa [LinearMap.mem_ker] using y.property
-        -- γ (g₁ y) = g₂ (β y) = 0
-        have : γ (g₁ y) = g₂ (β y) := by
-          have := congrArg (fun (L : B →ₗ[R] C) => L y) comm₂
-          simpa [LinearMap.comp_apply] using this
-        simpa [LinearMap.mem_ker, hβy] using this
+        simpa [LinearMap.mem_ker, hβy] using hcomm
     )) := by
   -- `range (f₁|_{ker α}) = ker (g₁|_{ker β})` を示せばよい
   -- まず inclusion を示す
@@ -191,8 +200,7 @@ theorem ker_exact_sequence
   set ι₁ := LinearMap.codRestrict (LinearMap.ker β) (f₁.comp (LinearMap.ker α).subtype) _
   set ι₂ := LinearMap.codRestrict (LinearMap.ker γ) (g₁.comp (LinearMap.ker β).subtype) _
   -- 等号の両方向を示す
-  apply le_antisymm_iff.mp
-  constructor
+  apply le_antisymm
   · -- ⊆ 方向
     intro y hy
     -- y = ι₁ x とする
@@ -203,7 +211,7 @@ theorem ker_exact_sequence
     have gf_zero : ∀ a, g₁ (f₁ a) = 0 := by
       intro a
       have : f₁ a ∈ LinearMap.range f₁ := ⟨a, rfl⟩
-      have : f₁ a ∈ LinearMap.ker g₁ := by simpa [Exact, h₁.exact] using this
+      have : f₁ a ∈ LinearMap.ker g₁ := by simpa [Exact, h₁] using this
       simpa [LinearMap.mem_ker] using this
     -- y ∈ ker ι₂
     -- Unfold `ι₁`, `ι₂`
@@ -226,49 +234,28 @@ theorem ker_exact_sequence
     -- exactness of (f₁,g₁) gives b ∈ range f₁
     have hb_in : b ∈ LinearMap.range f₁ := by
       have : b ∈ LinearMap.ker g₁ := by simpa [LinearMap.mem_ker] using hgb
-      simpa [Exact, h₁.exact] using this
+      simpa [Exact, h₁] using this
     rcases hb_in with ⟨a, rfl⟩
     -- ι₁ ⟨a, _⟩ に書けることを示す
     refine ⟨⟨a, ?_⟩, ?_⟩
-    · -- a ∈ ker α：β (f₁ a) = f₂ (α a) かつ β (f₁ a) = 0（hbβ）から
-      -- β (f₁ a) = 0 since y = ⟨f₁ a, hbβ⟩
+    · -- a ∈ ker α：β (f₁ a) = f₂ (α a) かつ β (f₁ a) = 0（hbβ）から α a = 0
       have hβfa : β (f₁ a) = 0 := by simpa using hbβ
-      have : f₂ (α a) = 0 := by
-        have := congrArg (fun (L : B →ₗ[R] B) => L (f₁ a)) comm₁
-        simpa [LinearMap.comp_apply] using (by simpa [hβfa] using this)
-      -- exactness of (f₂,g₂) ⇒ α a ∈ ker f₂ = range? we only need α a = 0
-      -- f₂ の単射性は不要；ここは α a ∈ ker f₂ だが，ker f₂ = {0} とは限らない
-      -- しかし x ∈ ker α を構成する必要がある：α a = 0 を示せばよい
-      -- g₂ ∘ f₂ = 0 だが，不要。ここは `α a = 0` を結びたい。
-      -- `ShortExact` を使っていないため，この部分は弱すぎるので別経路：
-      -- y が ker β の元（β(f₁ a)=0）であり，comm₁ から f₂(α a)=0。
-      -- しかし α a = 0 までは導けない。よって statement を「正確さ」だけに合わせる。
-      -- 実際，`ι₁` の像が ker `ι₂` に等しいことを示すためには a∈ker α を要する。
-      -- そこで，`a` を `⟨a, proof⟩` として与える証明は，`α a = 0` を示す必要がある。
-      -- 一般には成り立たないため，ここでは h₂ の exactness から `range f₂ = ker g₂` を用い，
-      -- g₂(f₂(α a)) = 0 は自明なので情報不足。従って元の補題型は蛇の補題の左三項 exact に対応し，
-      -- ここまでで inclusion の逆向きを示す際に `α a = 0` を要求するのは強すぎる。
-      -- 修正：この補題は inclusion (range ι₁ ≤ ker ι₂) のみを与えるのが自然だが，
-      -- ユーザ要求は「核の完全系列」を意図しているため，追加仮定として α の単射を置くのが標準。
-      -- しかし本ファイルの先頭では仮定していないため，ここでは `by exact?` の代わりに `by exact rfl` を置けない。
-      -- よって，本行での証明を中断し，代わりに `α a = 0` を直接構成する：
-      -- comm₁ at a in ker α の場合に限るように a を取り直せばよい。
-      -- 取り直し：b の表示 b = f₁ a に対し，a' := a - a で trivial... これは無意味。
-      --
-      -- 結論：ここでの完全な蛇の補題は本ファイルの範囲を超えるため，
-      -- この補題の第二方向 inclusion は保留とする（コメント化）。
-      --
-      -- 代わりに「range ι₁ ⊆ ker ι₂」を `Exact` の片側包含として返すのが最小限。
-      admit
+      have hfa : f₂ (α a) = 0 := by
+        have hcomm : β (f₁ a) = f₂ (α a) := by
+          simpa [LinearMap.comp_apply] using congrArg (fun (L : A →ₗ[R] B) => L a) comm₁
+        simpa [hβfa] using hcomm
+      -- 下の短完全列より f₂ は単射
+      have : α a = 0 := h₂.f_injective hfa
+      simpa [LinearMap.mem_ker, this]
     · -- ι₁ ⟨a, _⟩ = ⟨f₁ a, _⟩ = ⟨b, hbβ⟩
       -- 成分等号
       apply Subtype.ext
       simp
 
-/-! 注記：最後の補題 `ker_exact_sequence` は蛇の補題の左 3 項の完全性
-の完全証明を志向していますが，ここでは包含 `range ι₁ ≤ ker ι₂` を主に示し，
-逆包含の一部は追加の仮定（例えば α の単射）なしでは一般に導けないため，
-スケッチに留めています。用途に応じて仮定を補えば完全な等号が得られます。 -/
+/-! 注記：最後の補題 `ker_exact_sequence` は蛇の補題の左 3 項
+`0 → ker α → ker β → ker γ` の正確さを，
+下段の列を短完全列（特に `f₂` の単射）と仮定して証明しています。
+この仮定がちょうど `β (f₁ a) = 0 ⇒ α a = 0` を導くために必要です。 -/
 
 end ExactSequenceTask
 

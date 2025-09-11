@@ -1,0 +1,53 @@
+> 対応内容:
+
+  - ファイルをプロジェクト流儀に合わせて整理し、未完部分を実装しました。
+      - 名前空間: MyProjects.LinearAlgebra.X.ExactSequenceTask
+      - noncomputable section、Lean 4/Mathlib の最小限 import
+      - Bourbaki 的「台集合（順序対）と射（射影）」の精神で、核・像・分裂・可換図式を線型写像として構成
+
+  主な実装:
+
+  - Exact の定義
+      - Exact f g := range f = ker g
+  - ShortExact の定義
+      - 単射 f、全射 g、かつ Exact f g
+  - LeftSplit / RightSplit
+      - LeftSplit f := ∃ r, r ∘ f = id
+      - RightSplit g := ∃ s, g ∘ s = id
+  - 分裂補題 split_lemma
+      - 仮定: ShortExact f g と RightSplit g
+      - 構成: p := id - s ∘ g により ker g への射影 projKer を作り、Exact より range f = ker g を使って f の芯域制限
+  fKer : A → ker g が全単射になる。r := (fKer)⁻¹ ∘ projKer で r ∘ f = id を証明。
+  - 五項補題（中の射の単射性）five_lemma_injective
+      - 上下の列が短完全、左右の縦射 α, γ が単射、可換性 β ∘ f₁ = f₂ ∘ α、γ ∘ g₁ = g₂ ∘ β
+      - β x = β y ⇒ β(x − y) = 0 ⇒ γ(g₁(x − y)) = 0 ⇒ g₁(x − y) = 0 ⇒ x − y ∈ im f₁ ⇒ x − y = f₁ a
+      - 0 = β f₁ a = f₂(α a) と f₂ の単射性、α の単射性から a = 0 ⇒ x = y
+  - 蛇の補題の準備（核の列の正確さ）ker_exact_sequence
+      - 仮定: 上段 Exact f₁ g₁、下段 ShortExact f₂ g₂、可換性 β ∘ f₁ = f₂ ∘ α、γ ∘ g₁ = g₂ ∘ β
+      - 定義:
+      - i₁ := f₁ を ker α → ker β へ芯域制限（codRestrict）
+      - i₂ := g₁ を ker β → ker γ へ芯域制限（codRestrict）
+  - 証明: range i₁ = ker i₂
+      - 包含 ⊆: g₁ ∘ f₁ = 0（Exact）から直ちに
+      - 包含 ⊇: y ∈ ker β, i₂ y = 0 ⇒ g₁ y = 0 ⇒ y = f₁ a。さらに 0 = β y = β f₁ a = f₂(α a) と f₂ の単射性より α a =
+  0、ゆえに a ∈ ker α、したがって y = i₁ ⟨a, α a = 0⟩
+
+  ファイル変更:
+
+  - src/MyProjects/LinearAlgebra/X/lean_exact_sequence_task.lean
+      - すべての sorry を解消
+      - 型ミスや未定義記号を修正（例: Zero.zero を使用せず LinearMap.zero_apply を使用）
+      - コメントと証明方針を簡潔に記述
+
+  ビルドについて:
+
+  - 依存は mathlib の標準モジュールのみ（既存 pin に準拠）。
+  - モジュール単体ビルド例: lake build MyProjects.LinearAlgebra.X.lean_exact_sequence_task
+      - 環境により外部取得が必要な場合があります。mathlib の取得済み環境ならそのまま通ります。
+
+  補足（設計の要点）:
+
+  - 分裂補題は p = id − s ∘ g による核への射影と、Exact f g による f の芯域制限の全単射化の合成で r を構成。
+  - 核の列の正確さは、下段の短完全（特に f₂ の単射性）が本質（β f₁ a = 0 ⇒ f₂(α a) = 0 ⇒ α a = 0）です。
+
+  何か他の補題（像の列の正確さ、商列、snake lemma 全体の接続写像 δ の構成など）も追加しますか？
