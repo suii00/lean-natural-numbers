@@ -104,6 +104,11 @@ noncomputable def connecting_homomorphism
   exact
     SnakeLemma.δ' i₁ i₂ i₃ f₁ f₂ hf g₁ g₂ hg h₁ h₂ ι₃ hι₃ π₁ hπ₁ hf₂ hg₁
 
+
+
+
+
+
 /-!
 補足：6項列全体の正確性は、Mathlib の `SnakeLemma.exact_δ'_right` と
 `SnakeLemma.exact_δ'_left`、および核・余核の標準的な正確性補題
