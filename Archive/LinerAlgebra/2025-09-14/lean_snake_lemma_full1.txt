@@ -1,0 +1,288 @@
+import Mathlib.Algebra.Module.LinearMap.Basic
+import Mathlib.Algebra.Module.Submodule.Ker
+import Mathlib.Algebra.Module.Submodule.Range
+import Mathlib.Algebra.Homology.ShortComplex.Basic
+import Mathlib.Algebra.Exact
+import Mathlib.Algebra.Module.SnakeLemma
+import Mathlib.LinearAlgebra.Quotient.Basic
+
+/-!
+# 蛇の補題とホモロジーの長完全列
+
+Bourbakiの精神：完全系列を射の核・像の包含関係として読む。
+連結準同型は「境界を追跡する射」として自然に現れる。
+-/
+
+namespace SnakeLemma
+
+open Function
+
+universe u
+
+variable {R : Type u} [CommRing R]
+
+/-- 可換図式の設定：
+```
+  0 → A₁ -f₁→ B₁ -g₁→ C₁ → 0
+      ↓α     ↓β     ↓γ
+  0 → A₂ -f₂→ B₂ -g₂→ C₂ → 0
+```
+-/
+structure SnakeDiagram
+  (A₁ B₁ C₁ A₂ B₂ C₂ : Type u)
+  [AddCommGroup A₁] [AddCommGroup B₁] [AddCommGroup C₁]
+  [AddCommGroup A₂] [AddCommGroup B₂] [AddCommGroup C₂]
+  [Module R A₁] [Module R B₁] [Module R C₁]
+  [Module R A₂] [Module R B₂] [Module R C₂] where
+  -- 水平射（短完全列）
+  f₁ : A₁ →ₗ[R] B₁
+  g₁ : B₁ →ₗ[R] C₁
+  f₂ : A₂ →ₗ[R] B₂
+  g₂ : B₂ →ₗ[R] C₂
+  -- 垂直射
+  α : A₁ →ₗ[R] A₂
+  β : B₁ →ₗ[R] B₂
+  γ : C₁ →ₗ[R] C₂
+  -- 短完全性
+  exact₁ : LinearMap.range f₁ = LinearMap.ker g₁
+  exact₂ : LinearMap.range f₂ = LinearMap.ker g₂
+  f₁_inj : Function.Injective f₁
+  f₂_inj : Function.Injective f₂
+  g₁_surj : Function.Surjective g₁
+  g₂_surj : Function.Surjective g₂
+  -- 可換性
+  comm₁ : β.comp f₁ = f₂.comp α
+  comm₂ : γ.comp g₁ = g₂.comp β
+
+namespace SnakeDiagram
+
+variable {A₁ B₁ C₁ A₂ B₂ C₂ : Type u}
+variable [AddCommGroup A₁] [AddCommGroup B₁] [AddCommGroup C₁]
+variable [AddCommGroup A₂] [AddCommGroup B₂] [AddCommGroup C₂]
+variable [Module R A₁] [Module R B₁] [Module R C₁]
+variable [Module R A₂] [Module R B₂] [Module R C₂]
+variable {D : SnakeDiagram (R:=R) A₁ B₁ C₁ A₂ B₂ C₂}
+
+/-- 連結準同型 `δ : ker γ → coker α` の構成。
+Mathlib の `SnakeLemma.δ'`（Module 版）を核／余核に特化して与える。 -/
+noncomputable def connecting_homomorphism
+    (D : SnakeDiagram (R:=R) A₁ B₁ C₁ A₂ B₂ C₂) :
+  LinearMap.ker D.γ →ₗ[R] (A₂ ⧸ LinearMap.range D.α) := by
+  classical
+  -- 記号の短縮
+  let i₁ : A₁ →ₗ[R] A₂ := D.α
+  let i₂ : B₁ →ₗ[R] B₂ := D.β
+  let i₃ : C₁ →ₗ[R] C₂ := D.γ
+  let f₁ : A₁ →ₗ[R] B₁ := D.f₁
+  let f₂ : B₁ →ₗ[R] C₁ := D.g₁
+  let g₁ : A₂ →ₗ[R] B₂ := D.f₂
+  let g₂ : B₂ →ₗ[R] C₂ := D.g₂
+  -- 横方向の正確性
+  have hf : Exact f₁ f₂ := by
+    -- `ker f₂ = range f₁`（= 行の正確性）
+    simpa using (LinearMap.exact_iff.mpr (by simpa using D.exact₁.symm))
+  have hg : Exact g₁ g₂ := by
+    simpa using (LinearMap.exact_iff.mpr (by simpa using D.exact₂.symm))
+  -- 可換性
+  have h₁ : g₁.comp i₁ = i₂.comp f₁ := by simpa using D.comm₁.symm
+  have h₂ : g₂.comp i₂ = i₃.comp f₂ := by simpa using D.comm₂.symm
+  -- `ι₃ : ker i₃ ↪ M₃` とその正確性
+  let ι₃ : LinearMap.ker i₃ →ₗ[R] C₁ := (LinearMap.ker i₃).subtype
+  have hι₃ : Exact ι₃ i₃ := by
+    -- `range (ker i₃).subtype = ker i₃`
+    refine LinearMap.exact_iff.mpr ?_
+    simpa [ι₃] using (Submodule.range_subtype (LinearMap.ker i₃)).symm
+  -- `π₁ : A₂ ⟶ coker i₁` とその正確性
+  let π₁ : A₂ →ₗ[R] (A₂ ⧸ LinearMap.range i₁) := (LinearMap.range i₁).mkQ
+  have hπ₁ : Exact i₁ π₁ := by
+    -- `ker (mkQ (range i₁)) = range i₁`
+    simpa using (LinearMap.exact_map_mkQ_range i₁)
+  -- 末尾行は surj/inj 条件
+  have hf₂ : Function.Surjective f₂ := D.g₁_surj
+  have hg₁ : Function.Injective g₁ := D.f₂_inj
+  -- `SnakeLemma.δ'` で接続準同型を与える
+  exact
+    SnakeLemma.δ' i₁ i₂ i₃ f₁ f₂ hf g₁ g₂ hg h₁ h₂ ι₃ hι₃ π₁ hπ₁ hf₂ hg₁
+
+/-! ### 6項列の中央部の正確性を束ねる -/
+
+/-- `ker β → ker γ`（`g₁` の制限） -/
+noncomputable def kerβ_to_kerγ
+    (D : SnakeDiagram (R:=R) A₁ B₁ C₁ A₂ B₂ C₂) :
+  LinearMap.ker D.β →ₗ[R] LinearMap.ker D.γ :=
+by
+  classical
+  refine LinearMap.codRestrict (LinearMap.ker D.γ)
+    (D.g₁.comp (LinearMap.ker D.β).subtype) ?_
+  intro x
+  -- γ ∘ g₁ = g₂ ∘ β, かつ x ∈ ker β
+  have := congrArg (fun L => L x.1) D.comm₂
+  -- `by simpa` で γ(g₁ x) = g₂(β x) = 0
+  simpa [LinearMap.mem_ker, Subtype.prop x, LinearMap.comp_apply]
+
+/-- `coker α → coker β`（`f₂` の商への誘導） -/
+noncomputable def cokerα_to_cokerβ
+    (D : SnakeDiagram (R:=R) A₁ B₁ C₁ A₂ B₂ C₂) :
+  (A₂ ⧸ LinearMap.range D.α) →ₗ[R] (B₂ ⧸ LinearMap.range D.β) :=
+by
+  classical
+  -- 目標: `πβ ∘ f₂` を `range α` で割って持ち上げる
+  let πβ : B₂ →ₗ[R] (B₂ ⧸ LinearMap.range D.β) := (LinearMap.range D.β).mkQ
+  refine (LinearMap.range D.α).liftQ (πβ.comp D.f₂) ?h
+  intro a ha
+  rcases ha with ⟨a₁, rfl⟩
+  -- 可換性から `(πβ ∘ f₂)(α a₁) = πβ (β (f₁ a₁))`
+  have hcomp : (πβ.comp D.f₂) (D.α a₁) = πβ (D.β (D.f₁ a₁)) := by
+    -- congrArg は右辺＝左辺になるので `symm`
+    simpa [LinearMap.comp_apply] using
+      (congrArg (fun L => πβ (L a₁)) D.comm₁).symm
+  -- `πβ (β (f₁ a₁)) = 0` は `(πβ ∘ β) = 0` から従う（0 の型を明示）
+  have hzero : πβ (D.β (D.f₁ a₁)) = 0 := by
+    have hcomp0 :
+        (πβ.comp D.β)
+          = (0 : B₁ →ₗ[R] (B₂ ⧸ LinearMap.range D.β)) := by
+      simpa using (LinearMap.range_mkQ_comp D.β)
+    simpa [LinearMap.comp_apply] using
+      congrArg (fun (φ : B₁ →ₗ[R] (B₂ ⧸ LinearMap.range D.β)) => φ (D.f₁ a₁)) hcomp0
+  simpa [hcomp] using hzero
+
+/-- `coker β → coker γ`（`g₂` の商への誘導） -/
+noncomputable def cokerβ_to_cokerγ
+    (D : SnakeDiagram (R:=R) A₁ B₁ C₁ A₂ B₂ C₂) :
+  (B₂ ⧸ LinearMap.range D.β) →ₗ[R] (C₂ ⧸ LinearMap.range D.γ) :=
+by
+  classical
+  let πγ : C₂ →ₗ[R] (C₂ ⧸ LinearMap.range D.γ) := (LinearMap.range D.γ).mkQ
+  refine (LinearMap.range D.β).liftQ (πγ.comp D.g₂) ?h
+  intro b hb
+  rcases hb with ⟨b₁, rfl⟩
+  -- 可換性から `(πγ ∘ g₂)(β b₁) = πγ (γ (g₁ b₁))`
+  have hcomp : (πγ.comp D.g₂) (D.β b₁) = πγ (D.γ (D.g₁ b₁)) := by
+    simpa [LinearMap.comp_apply] using
+      (congrArg (fun L => πγ (L b₁)) D.comm₂).symm
+  -- `πγ (γ (g₁ b₁)) = 0`（0 の型を明示）
+  have hzero : πγ (D.γ (D.g₁ b₁)) = 0 := by
+    have hcomp0 :
+        (πγ.comp D.γ)
+          = (0 : C₁ →ₗ[R] (C₂ ⧸ LinearMap.range D.γ)) := by
+      simpa using (LinearMap.range_mkQ_comp D.γ)
+    simpa [LinearMap.comp_apply] using
+      congrArg (fun (φ : C₁ →ₗ[R] (C₂ ⧸ LinearMap.range D.γ)) => φ (D.g₁ b₁)) hcomp0
+  simpa [hcomp] using hzero
+
+/-- 6項列の「中央」`ker β → ker γ →δ→ coker α → coker β` の正確性。 -/
+theorem exact_middle_six_term
+    (D : SnakeDiagram (R:=R) A₁ B₁ C₁ A₂ B₂ C₂) :
+  Exact (kerβ_to_kerγ D) (connecting_homomorphism (R:=R) D) ∧
+  Exact (connecting_homomorphism (R:=R) D) (cokerα_to_cokerβ (R:=R) D) :=
+by
+  classical
+  -- 記号（前節の構成と整合）
+  let i₁ : A₁ →ₗ[R] A₂ := D.α
+  let i₂ : B₁ →ₗ[R] B₂ := D.β
+  let i₃ : C₁ →ₗ[R] C₂ := D.γ
+  let f₁ : A₁ →ₗ[R] B₁ := D.f₁
+  let f₂ : B₁ →ₗ[R] C₁ := D.g₁
+  let g₁ : A₂ →ₗ[R] B₂ := D.f₂
+  let g₂ : B₂ →ₗ[R] C₂ := D.g₂
+  -- 可換性（行きがけに明示化しておく）
+  have h₁ : g₁.comp i₁ = i₂.comp f₁ := by simpa using D.comm₁.symm
+  have h₂ : g₂.comp i₂ = i₃.comp f₂ := by simpa using D.comm₂.symm
+  -- ι₂, ι₃, π₁, π₂
+  let ι₂ : LinearMap.ker i₂ →ₗ[R] B₁ := (LinearMap.ker i₂).subtype
+  let ι₃ : LinearMap.ker i₃ →ₗ[R] C₁ := (LinearMap.ker i₃).subtype
+  let π₁ : A₂ →ₗ[R] (A₂ ⧸ LinearMap.range i₁) := (LinearMap.range i₁).mkQ
+  let π₂ : B₂ →ₗ[R] (B₂ ⧸ LinearMap.range i₂) := (LinearMap.range i₂).mkQ
+  have hι₂ : Exact ι₂ i₂ := by
+    simpa using (LinearMap.exact_iff.mpr ((Submodule.range_subtype (LinearMap.ker i₂)).symm))
+  -- `ker β → ker γ` は `F` として `SnakeLemma.exact_δ'_right` に渡す
+  have hF : f₂.comp ι₂ = ι₃.comp (kerβ_to_kerγ (R:=R) D) := by
+    -- 両辺は要素ごとに一致（定義で同じ）
+    ext x; rfl
+  have hf₂ : Function.Surjective f₂ := D.g₁_surj
+  have hg₁ : Function.Injective g₁ := D.f₂_inj
+  have hι₃ : Exact ι₃ i₃ := by
+    simpa using (LinearMap.exact_iff.mpr ((Submodule.range_subtype (LinearMap.ker i₃)).symm))
+  have hπ₁ : Exact i₁ π₁ := by
+    simpa using (LinearMap.exact_map_mkQ_range i₁)
+    -- 右側：`ker β → ker γ → δ` の正確性（`simpa` で `connecting_homomorphism` に合流）
+  have h_right :
+      Exact (kerβ_to_kerγ (R:=R) D) (connecting_homomorphism (R:=R) D) := by
+    -- `ι₃` の単射
+    have injι₃ : Function.Injective ι₃ := by
+      have hker : LinearMap.ker ι₃ = ⊥ := by
+        simpa [ι₃] using (Submodule.ker_subtype (LinearMap.ker i₃))
+      exact (LinearMap.ker_eq_bot).1 hker
+    -- `F := kerβ_to_kerγ D` が図式レベルで可換になること
+    have hF : f₂.comp ι₂ = ι₃.comp (kerβ_to_kerγ (R:=R) D) := by
+      ext x; rfl
+    -- ここで Mathlib の `exact_δ'_right` を使い，
+    -- `connecting_homomorphism` を定義展開して一致させる
+    simpa [connecting_homomorphism, h₁, h₂] using
+      (SnakeLemma.exact_δ'_right (i₁:=i₁) (i₂:=i₂) (i₃:=i₃)
+        (f₁:=f₁) (f₂:=f₂) (g₁:=g₁) (g₂:=g₂)
+        (hf:=by simpa using (LinearMap.exact_iff.mpr (by simpa using D.exact₁.symm)))
+        (hg:=by simpa using (LinearMap.exact_iff.mpr (by simpa using D.exact₂.symm)))
+        (F:=kerβ_to_kerγ (R:=R) D) (hF:=hF)
+        (hf₂:=hf₂) (hg₁:=hg₁) (h:=injι₃))
+
+  -- 左側：`δ → coker α → coker β` の正確性
+  have h_left :
+      Exact (connecting_homomorphism (R:=R) D) (cokerα_to_cokerβ (R:=R) D) := by
+    -- `SnakeLemma.exact_δ'_left` を使う。`G := cokerα_to_cokerβ D`。
+    -- 合成の可換性：`G ∘ π₁ = π₂ ∘ g₁` は `liftQ` の性質より成立。
+    have hG : (cokerα_to_cokerβ (R:=R) D).comp π₁ = π₂.comp g₁ := by
+      -- `liftQ` の普遍性：(liftQ g).comp mkQ = g
+      -- g = π₂ ∘ g₁ とおいたので成立
+      -- 使用する補題名: `Submodule.liftQ_mkQ`
+      have hcond : ∀ a ∈ LinearMap.range i₁,
+          ((LinearMap.range i₂).mkQ.comp g₁) a = 0 := by
+        intro a ha; rcases ha with ⟨a₁, rfl⟩
+        have hx : g₁ (i₁ a₁) ∈ LinearMap.range i₂ := by
+          refine ⟨f₁ a₁, ?_⟩; simpa using congrArg (fun L => L a₁) D.comm₁
+        have hx' : g₁ (i₁ a₁) ∈ LinearMap.ker ((LinearMap.range i₂).mkQ) := by
+          simpa [Submodule.ker_mkQ] using hx
+        simpa [LinearMap.mem_ker, LinearMap.comp_apply] using hx'
+      have : (LinearMap.range i₁).liftQ ((LinearMap.range i₂).mkQ.comp g₁) hcond
+          = cokerα_to_cokerβ (R:=R) D := by
+        -- definitional equality
+        rfl
+      -- これで `(liftQ g).comp mkQ = g` を適用
+      simpa [this, π₁, π₂, cokerα_to_cokerβ] using
+        (Submodule.liftQ_mkQ (LinearMap.range i₁)
+          ((LinearMap.range i₂).mkQ.comp g₁) hcond)
+    -- `π₁` は surjective
+    have hπ₁_surj : Function.Surjective π₁ := Submodule.mkQ_surjective _
+    -- `π₂` についても `Exact i₂ π₂` を用意
+    have hπ₂ : Exact i₂ π₂ := by
+      simpa using (LinearMap.exact_map_mkQ_range i₂)
+    simpa [connecting_homomorphism, cokerα_to_cokerβ] using
+      (SnakeLemma.exact_δ'_left (i₁:=i₁) (i₂:=i₂) (i₃:=i₃)
+        (f₁:=f₁) (f₂:=f₂) (g₁:=g₁) (g₂:=g₂)
+        (hf:=by
+          simpa using (LinearMap.exact_iff.mpr (by simpa using D.exact₁.symm)))
+        (hg:=by
+          simpa using (LinearMap.exact_iff.mpr (by simpa using D.exact₂.symm)))
+        (h₁:=by simpa using D.comm₁.symm) (h₂:=by simpa using D.comm₂.symm)
+        (ι₃:=ι₃) (hι₃:=hι₃) (π₁:=π₁) (hπ₁:=hπ₁) (π₂:=π₂) (hπ₂:=hπ₂)
+        (G:=cokerα_to_cokerβ (R:=R) D) (hF:=hG)
+        (hf₂:=hf₂) (hg₁:=hg₁) (h:=hπ₁_surj))
+  exact ⟨h_right, h_left⟩
+
+/-!
+補足：6項列全体の正確性は、Mathlib の `SnakeLemma.exact_δ'_right` と
+`SnakeLemma.exact_δ'_left`、および核・余核の標準的な正確性補題
+（`exact_subtype_mkQ` / `exact_map_mkQ_range` など）を組み合わせて得られます。
+本ファイルでは Bourbaki 流の構成として `δ` の具体化に焦点を当てました。
+-/
+
+end SnakeDiagram
+
+/-!
+備考（長完全列）:
+ホモロジーの長完全列は `Mathlib.Algebra.Homology.ShortComplex.SnakeLemma`
+および `Mathlib.Algebra.Homology.HomologySequence` に存在します。
+必要になれば別ファイルでそれらを薄くラップして提供できます。
+-/
+
+end SnakeLemma
