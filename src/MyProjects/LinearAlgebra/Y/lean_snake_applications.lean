@@ -71,9 +71,10 @@ def mayer_vietoris_sequence
 
 -- 応用例：球面のホモロジー計算
 example :
-  -- S^n のホモロジー計算の存在主張（骨格）
+  -- S^n のホモロジー計算（骨格）。内容は未実装のため保留。
   True := by
-  exact True.intro
+  -- TODO: 実際の Mayer–Vietoris による計算を実装。
+  sorry
 
 end MayerVietoris
 
@@ -99,7 +100,9 @@ theorem tor_long_exact_sequence
   (exact : LinearMap.range f = LinearMap.ker g) :
   -- Tor の長完全列
   ∀ n : ℕ, True := by
-  intro n; exact True.intro
+  intro n
+  -- TODO: 導来関手の長完全列を構成して証明する。
+  sorry
 
 /-- Ext関手の長完全列
 短完全列 0 → A → B → C → 0 に対して：
@@ -119,13 +122,16 @@ theorem ext_long_exact_sequence
   (exact : LinearMap.range f = LinearMap.ker g) :
   -- Ext の長完全列（反変）
   ∀ n : ℕ, True := by
-  intro n; exact True.intro
+  intro n
+  -- TODO: 反変 Ext の長完全列を構成して証明する。
+  sorry
 
 -- Tor と Ext の双対性
 theorem tor_ext_duality :
   -- Tor_n(M, N) ≅ Ext^n(M*, N*) 的な関係
   True := by
-  exact True.intro
+  -- TODO: 双対性の厳密な定式化と証明を実装。
+  sorry
 
 end DerivedFunctors
 

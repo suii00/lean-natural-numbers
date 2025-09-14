@@ -1,0 +1,24 @@
+True := by
+exact True.intro
+に数学的内容は空なのでどうしても使用したい場合はsorryにしてコメントを残してください。
+
+
+承知しました。「True := by exact True.intro」は数学的内容が空なので、該当箇所をコメント付きの sorry に置き換えました。
+
+変更箇所
+
+src/MyProjects/LinearAlgebra/Y/lean_snake_applications.lean:75
+example : True := by の本文を -- TODO … コメント付き sorry に変更
+src/MyProjects/LinearAlgebra/Y/lean_snake_applications.lean:101
+tor_long_exact_sequence : ∀ n, True := by → intro n; -- TODO …; sorry
+src/MyProjects/LinearAlgebra/Y/lean_snake_applications.lean:121
+ext_long_exact_sequence : ∀ n, True := by → intro n; -- TODO …; sorry
+src/MyProjects/LinearAlgebra/Y/lean_snake_applications.lean:127
+tor_ext_duality : True := by → -- TODO …; sorry
+補足
+
+構造体のフィールドとしての True（例: ConvergentSpectralSequence.converges := True.intro）は「定義データ」に過ぎないため、そのままにしています。こちらも sorry 化（例えば命題化して証明保留）をご希望なら指示ください。
+次のアクション
+
+ローカルで lake build を実行して警告/エラーをご確認ください。
+他にも True.intro を見かけたら同様に -- TODO コメントを添えて sorry に置換しますので、位置を教えてください。
