@@ -71,35 +71,35 @@ def B : R3 := (4,  2, -1)
 
 /-- **Q1(a)** 2点 A(1,-2,3), B(4,2,-1) に対し、差ベクトル `→AB` を求めよ。 -/
 theorem Q1a : vec A B = (3, 4, -4) := by
-  sorry
+  ext <;> simp [vec, A, B] <;> norm_num
   -- ヒント：`simp [vec, A, B]` または `rfl` 展開 → 各成分を算術簡約。
   -- `norm_num` が整数計算に便利。
 
 /-- **Q1(b)** `|→AB|^2 = 41` を示せ（平方根は使わず二乗ノルムで確認）。 -/
 theorem Q1b : normSq (vec A B) = 41 := by
-  sorry
+  simp [normSq, dot, vec, A, B] <;> ring_nf <;> norm_num
   -- ヒント：`simp [normSq, dot, vec, A, B]` の後に `norm_num` または `ring`。
 
 /-- **Q2** `U=(2,-1,0), V=(1,3,4)` に対し、`2U - 3V` を計算せよ。 -/
 theorem Q2 : (2 : ℝ) • U - (3 : ℝ) • V = (1, -11, -12) := by
-  sorry
+  ext <;> simp [U, V] <;> norm_num
   -- ヒント：`simp [U, V]` で各成分のスカラー倍→加減算に還元。
 
 /-- **Q3** 加法可換律 `u + v = v + u` を R^3 で示せ（全称命題）。 -/
 theorem Q3 (u v : R3) : u + v = v + u := by
-  sorry
+  simpa using add_comm u v
   -- ヒント：`simpa using add_comm u v`。
 
 /-- **Q4** 任意の `(x,y,z)` は標準基底で分解できることを示せ。 -/
 theorem Q4 (x y z : ℝ) :
     (x, y, z) = x • e1 + y • e2 + z • e3 := by
-  sorry
+  ext <;> simp [e1, e2, e3]
   -- ヒント：`simp [e1, e2, e3]`。
 
 /-- **Q5** 標準基底との内積：`⟪(x,y,z), e1⟫ = x` を示せ。 -/
 theorem Q5 (x y z : ℝ) :
     ⟪(x, y, z), e1⟫ = x := by
-  sorry
+  simp [dot, e1]
   -- ヒント：`simp [dot, e1]`。`mul_one`, `mul_zero`, `zero_add` などが自動で効く。
 
 /-! ---

@@ -1,0 +1,28 @@
+ニコラ・ブルバキの『数学原論』の順序対の集合と射（射影）化による構造化の精神に従ってください。theorem Challenge以外のtheoremのsorryの続きを完成させてください。
+
+
+以下の sorry を、R^3 = ℝ×ℝ×ℝ を順序対（射影）で分解する方針（ext で座標ごとに還元し、simp で射影計算）で埋めました。Challenge は変更していません。
+
+変更点
+
+Q1a: 座標差の定義から各成分を計算
+src/MyProjects/LinearAlgebra/A1/ZenLA1_Session01.lean:73
+Q1b: normSq と dot と vec を展開し、各成分の2乗和を計算
+src/MyProjects/LinearAlgebra/A1/ZenLA1_Session01.lean:79
+Q2: 直積のスカラー倍・減算を座標ごとに簡約
+src/MyProjects/LinearAlgebra/A1/ZenLA1_Session01.lean:84
+Q3: 可換律をそのまま適用
+src/MyProjects/LinearAlgebra/A1/ZenLA1_Session01.lean:89
+Q4: 標準基底 e1,e2,e3 での分解を座標ごとに simp
+src/MyProjects/LinearAlgebra/A1/ZenLA1_Session01.lean:94
+Q5: 内積定義を展開して simp
+src/MyProjects/LinearAlgebra/A1/ZenLA1_Session01.lean:100
+実装方針の要点
+
+座標射影での同値化: ext <;> ... により積の等式を各座標の等式へ射影。
+定義展開と簡約: simp [vec, A, B, U, V, e1, e2, e3, normSq, dot] で定義を展開、norm_num/ring_nf で数式を確定。
+可換・結合・単位元の利用: Bourbaki 的に構造（和・スカラー倍）を順序対の演算として扱い、律則は simp で処理。
+ビルド確認
+
+lake build 成功（依存は既に取得済みの前提）。
+このまま Challenge の証明も続けますか？（パラレログラム則を simp 展開＋ring で示せます）
