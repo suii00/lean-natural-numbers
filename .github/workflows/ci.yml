@@ -1,5 +1,10 @@
+# .github/workflows/ci.yml
 name: CI
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -7,30 +12,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Elan (Lean のバージョンマネージャ) を入れる
-      - name: Install elan (Lean toolchain)
+      # Lean/Lake セットアップ & .lake キャッシュ
+      - uses: leanprover/lean-action@v1
+
+      - name: Show versions
         run: |
-          curl -L https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
-          bash elan-init.sh -y
-          echo "$HOME/.elan/bin" >> $GITHUB_PATH
-          lean --version
+          lake env lean --version
           lake --version
 
-      # .lake ディレクトリをキャッシュ（依存の再ダウンロード抑制）
-      - name: Cache .lake
-        uses: actions/cache@v4
-        with:
-          path: .lake
-          key: lake-${{ runner.os }}-${{ hashFiles('lake-manifest.json', 'lakefile.lean', 'lean-toolchain') }}
-          restore-keys: |
-            lake-${{ runner.os }}-
-
       - name: Resolve deps
-        run: lake update
+        run: |
+          time -p lake update
 
-      # mathlib などの precompiled olean を取得（高速化のキモ）
-      - name: Get mathlib cache
-        run: lake exe cache get
+      - name: Fetch mathlib olean cache
+        run: |
+          time -p lake exe cache get
 
-      - name: Build
-        run: lake build
+      - name: Build (canary + full)
+        run: |
+          # （CI/Smoke.lean を置いているなら）カナリアも併走
+          if [ -f CI/Smoke.lean ] || [ -f CI/Smoke/lean ]; then
+            time -p lake build CI.Smoke || true
+          fi
+          time -p lake build
+
+      - name: Upload build log on failure
+        if: failure()
+        run: |
+          echo "Check previous step logs in the Actions UI (grouped output)."
