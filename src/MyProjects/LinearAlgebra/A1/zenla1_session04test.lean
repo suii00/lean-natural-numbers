@@ -18,6 +18,7 @@ import Mathlib.Data.Matrix.Mul
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Data.Real.Basic
 import Mathlib.Tactic
+import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
 
 namespace ZenLA1.Session04
 
@@ -159,3 +160,88 @@ theorem Challenge :
 -/
 
 end ZenLA1.Session04
+
+/-! #############################################################################
+一般 n×n 版の定理化（補遺）
+############################################################################# -/
+
+namespace ZenLA1.Session04.General
+
+open Matrix BigOperators
+
+variable {ι R : Type*}
+  [Fintype ι] [DecidableEq ι] [CommRing R]
+
+/-- 一般 n×n：転置で行列式は不変。 -/
+theorem det_transpose (A : Matrix ι ι R) : det (Matrix.transpose A) = det A := by
+  classical
+  simpa using Matrix.det_transpose (A := A)
+
+/-- 一般 n×n：積の行列式は行列式の積。 -/
+theorem det_mul (A B : Matrix ι ι R) : det (Matrix.mul A B) = det A * det B := by
+  classical
+  simpa using Matrix.det_mul (A := A) (B := B)
+
+/-- 一般 n×n：上三角（対角より下が 0）なら行列式は対角積。 -/
+theorem det_upperTriangular
+    [DecidableLinearOrder ι]
+    (A : Matrix ι ι R)
+    (h : ∀ ⦃i j : ι⦄, i < j → A j i = 0) :
+    det A = ∏ i, A i i := by
+  classical
+  -- mathlib 既存補題をそのまま利用
+  have hdet : det A = ∏ i, A i i := Matrix.det_of_upperTriangular (A := A) (h := h)
+  simpa using hdet
+
+end ZenLA1.Session04.General
+
+/-! #############################################################################
+Fin 指標向け：defeq を良くする行列積 `Matrix.mulᵣ`
+############################################################################# -/
+
+namespace ZenLA1.Session04.FinMul
+
+open Matrix
+
+universe u
+
+/- Fin ベクトル（= 関数）とその map -/
+abbrev FinVec (n : ℕ) (α : Type u) := Fin n → α
+
+namespace FinVec
+  /-- 行列を「行のベクトル」へ見て，各行に変換を施す `map`。 -/
+  def map {l m n : ℕ} {α β : Type u}
+      (f : (Fin m → α) → (Fin n → β))
+      (X : Fin l → Fin m → α) : Fin l → Fin n → β :=
+    fun i => f (X i)
+end FinVec
+
+namespace Matrix
+
+  /-- Fin に沿った再帰で定義したドット積（`Add` と `Mul` と `Zero` のみを要求）。 -/
+  def dotProductᵣ {α : Type u} [Mul α] [Add α] [Zero α]
+      {m : ℕ} (v₁ v₂ : Fin m → α) : α :=
+    match m with
+    | 0 => 0
+    | Nat.succ m =>
+        v₁ 0 * v₂ 0 + dotProductᵣ (m := m) (fun i => v₁ i.succ) (fun i => v₂ i.succ)
+
+  /-- `Fin` 指標での defeq を重視した行列積。 -/
+  def mulᵣ {l m n : ℕ} {α : Type u} [Mul α] [Add α] [Zero α]
+      (A : Matrix (Fin l) (Fin m) α) (B : Matrix (Fin m) (Fin n) α) :
+      Matrix (Fin l) (Fin n) α :=
+    -- 「行 × 列 → ドット積」をそのまま関数合成で記述
+    FinVec.map
+      (fun (v₁ : Fin m → α) =>
+        FinVec.map (fun (v₂ : Fin m → α) => Matrix.dotProductᵣ v₁ v₂) (Matrix.transpose B))
+      A
+
+  @[simp] theorem mulᵣ_apply {l m n : ℕ} {α : Type u} [Mul α] [Add α] [Zero α]
+      (A : Matrix (Fin l) (Fin m) α) (B : Matrix (Fin m) (Fin n) α)
+      (i : Fin l) (j : Fin n) :
+      mulᵣ A B i j =
+        Matrix.dotProductᵣ (fun k => A i k) (fun k => B k j) := rfl
+
+end Matrix
+
+end ZenLA1.Session04.FinMul

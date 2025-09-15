@@ -1,0 +1,18 @@
+ニコラ・ブルバキの『数学原論』の順序対の集合と射（射影）化による構造化の精神に従ってください。theorem Challenge以外のtheoremのsorryの続きを完成させてください。
+
+
+以下の5つの sorry を除去し、計算・性質を完了しました（Challengeは未着手のまま）。
+
+変更点
+
+Q1: 具体行列の積を simp [Matrix.mul_apply, Fin.sum_univ_two] で展開し、ring で同定。
+Q2: 転置の成分計算を simp [transpose_apply] で展開し、交換法則は ring で処理。
+Q3: det3 の数値展開を simp [det3, C] → norm_num で評価。
+Q4: 上三角行列の Sarrus 展開を simp [det3, D] → norm_num で評価（対角積に一致）。
+Q5: isRegular2 を simp [isRegular2, det2, A] → norm_num で非零性を確認。
+編集ファイル
+
+src/MyProjects/LinearAlgebra/A1/zenla1_session04.lean
+次のステップ（任意）
+
+Challenge（Vandermonde）を一般形まで整理して証明しましょう。simp [det3, vandermonde] で展開後、ring で整理し、因数分解を (b-a)(c-a)(c-b) に合わせます。必要なら補題として対称式の整理を追加します。

@@ -1,0 +1,170 @@
+% !TEX program = lualatex
+\documentclass[luatexja,ja=standard,a4paper,12pt]{bxjsarticle}
+
+% 基本パッケージ
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{tikz-cd}
+\usepackage{array}
+\usepackage{geometry}
+\usepackage{xcolor}
+\geometry{margin=28mm}
+
+\title{ZenLA1 Session04 解説\;—\;行列式と Vandermonde（順序対と射影の視点）}
+\author{CODEX (OpenAI)（TeX 生成）\\ CODEX (OpenAI)（Lean 生成）}
+\date{\today}
+
+% 記法
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Mat}{\mathrm{Mat}}
+\newcommand{\MatTwo}{\Mat_{2\times 2}(\R)}
+\newcommand{\MatThree}{\Mat_{3\times 3}(\R)}
+\newcommand{\TT}{\mathrm{T}}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+\newtheorem{proposition}{命題}
+\theoremstyle{remark}
+\newtheorem*{remark}{注意}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本ノートは、Lean ファイル\footnote{\texttt{src/MyProjects/LinearAlgebra/A1/zenla1\_session04.lean}.}で形式化した行列式の基礎（2×2, 3×3 の定義・計算、基本性質）と Vandermonde 行列式 $\det V(a,b,c)=(b-a)(c-a)(c-b)$ の証明を、ニコラ・ブルバキの「\emph{順序対の集合と射（射影）化}」の精神で簡潔にまとめる。TeX 文書は \textbf{CODEX (OpenAI)} が生成し、対応する Lean 証明は \textbf{CODEX (OpenAI)} が実装した。
+\end{abstract}
+
+\section{データと成分射（射影）}
+実数体 $\R$ 上の $n\times n$ 行列全体を $\Mat_{n\times n}(\R)$ と書く。ブルバキ的には、添字集合 $I=\{0,\dots,n-1\}\times\{0,\dots,n-1\}$ の\textbf{順序対} $(i,j)\in I$ に対して、\textbf{成分射（射影）}
+\[
+  \pi_{ij}:\; \Mat_{n\times n}(\R) \longrightarrow \R,\qquad A=(a_{uv})\longmapsto a_{ij}
+\]
+を考える。$A=B$ は $\pi_{ij}(A)=\pi_{ij}(B)$（すべての $(i,j)$）に同値であり、行列に関する命題はしばしば成分射による\emph{外延性}で還元できる。
+
+\begin{center}
+  \begin{tikzcd}
+    \Mat_{3\times 3}(\R) \arrow[r, "\langle\pi_{ij}\rangle_{0\le i,j<3}"] & \R^{9}
+  \end{tikzcd}
+\end{center}
+
+\section{2×2, 3×3 の行列式}
+\paragraph{2×2 の定義} $A=\begin{bmatrix}a&b\\c&d\end{bmatrix}$ に対し
+\[
+  \det_2(A) \coloneqq ad-bc.
+\]
+Lean では `det2 A = A\,00\,11 - A\,01\,10` と定義した。
+
+\paragraph{3×3（Sarrus）の定義}
+\[
+  \det_3\!\begin{pmatrix}
+  a_{00}&a_{01}&a_{02}\\ a_{10}&a_{11}&a_{12}\\ a_{20}&a_{21}&a_{22}
+  \end{pmatrix}
+  = a_{00}a_{11}a_{22}+a_{01}a_{12}a_{20}+a_{02}a_{10}a_{21}
+   -a_{00}a_{12}a_{21}-a_{01}a_{10}a_{22}-a_{02}a_{11}a_{20}.
+\]
+
+\paragraph{基本性質（抜粋）}
+\begin{itemize}
+  \item \textbf{転置不変}: $\det(A^{\TT})=\det(A)$。
+  \item \textbf{多重線形・交代性}: 列（または行）ごとの線形性／同一列があると 0。
+  \item \textbf{上三角の対角積}: 上三角なら $\det(A)=\prod\limits_i a_{ii}$。
+\end{itemize}
+
+\section{Lean: 基礎問題 Q1–Q5 の要点}
+リポジトリの `zenla1_session04.lean` で次を形式化した（`simp`, `ring`, `norm_num` を活用）。
+\begin{itemize}
+  \item[Q1] 具体的 2×2 行列 $A,B$ について $\det(AB)=\det A\,\det B$ を直接展開で確認。
+  \item[Q2] 任意の 2×2 行列で $\det(A^{\TT})=\det A$（成分射で展開）。
+  \item[Q3] $C=\begin{bmatrix}1&2&3\\0&1&4\\5&6&0\end{bmatrix}$ の行列式は $1$（Sarrus による計算）。
+  \item[Q4] 上三角 $D=\begin{bmatrix}2&1&3\\0&4&2\\0&0&5\end{bmatrix}$ で $\det D=2\cdot 4\cdot 5$。
+  \item[Q5] $A=\begin{bmatrix}3&2\\1&4\end{bmatrix}$ は $\det A=10\ne 0$ なので正則。
+\end{itemize}
+
+\section{Vandermonde 行列式}
+\begin{definition}[Vandermonde]
+\label{def:vand}
+$a,b,c\in\R$ に対し
+\[
+  V(a,b,c)\coloneqq
+  \begin{bmatrix}
+    1 & 1 & 1\\
+    a & b & c\\
+    a^2 & b^2 & c^2
+  \end{bmatrix}.
+\]
+\end{definition}
+
+\begin{theorem}[Vandermonde の 3×3 公式]
+\label{thm:vand3}
+任意の $a,b,c\in\R$ について
+\[
+  \det V(a,b,c)=(b-a)(c-a)(c-b).
+\]
+特に $V(1,2,3)$ の行列式は $2$ である。
+\end{theorem}
+
+\begin{proof}
+列基本変形 $C_2\leftarrow C_2-C_1$, $C_3\leftarrow C_3-C_1$ を行う（行列式は不変）。すると
+\[
+  \det V(a,b,c)=\det
+  \begin{bmatrix}
+    1 & 0 & 0\\
+    a & b-a & c-a\\
+    a^2 & b^2-a^2 & c^2-a^2
+  \end{bmatrix}
+  \stackrel{\text{(第1行で展開)}}{=}
+  \det\begin{bmatrix}
+    b-a & c-a\\ b^2-a^2 & c^2-a^2
+  \end{bmatrix}.
+\]
+右辺は
+\begin{align*}
+  &(b-a)(c^2-a^2)-(c-a)(b^2-a^2)\\
+  &\quad=(b-a)(c-a)(c+a)-(c-a)(b-a)(b+a)\\
+  &\quad=(b-a)(c-a)\bigl( (c+a)-(b+a) \bigr)\\
+  &\quad=(b-a)(c-a)(c-b),
+\end{align*}
+であり、主張を得る。$a=1,b=2,c=3$ とすれば $\det V(1,2,3)=2$ も従う。
+\end{proof}
+
+\paragraph{評価写像の図式} 多項式空間 $\mathcal{P}_2=\mathrm{Span}\{1,x,x^2\}$ からの評価
+\[
+  \mathrm{ev}_{a,b,c}:\; \mathcal{P}_2\longrightarrow \R^3,\qquad f\longmapsto \bigl(f(a),f(b),f(c)\bigr)
+\]
+を考えると、$V(a,b,c)$ は基底 $(1,x,x^2)$ と標準基底の下での行列表現である。したがって $\det V(a,b,c)$ は $\mathrm{ev}_{a,b,c}$ の体積伸長率であり、列の交代性から三つの点の\emph{順序}（差の積）だけに依存する。
+
+\begin{center}
+\begin{tikzcd}
+  \mathcal{P}_2 \arrow[r, "\mathrm{ev}_{a,b,c}"] \arrow[d, "\cong"'] & \R^3 \\
+  \R^3 \arrow[u, "\cong"'] \arrow[r, "V(a,b,c)"] & \R^3 \arrow[u, equal]
+\end{tikzcd}
+\end{center}
+
+\section{ブルバキ的視点のまとめ}
+\begin{itemize}
+  \item \textbf{順序対と射影}: 成分射 $\pi_{ij}$ によって等式や計算は成分ごとに帰着する（Lean の `ext`/`simp` に対応）。
+  \item \textbf{構造の自然性}: 行列式は列ベクトルへの交代的多重線形写像であり、上三角や転置の性質は構造から即座に導かれる。
+  \item \textbf{Vandermonde}: 列基本変形（可逆線形変換）で差を因子として取り出し、残りが $c-b$ になることを 2×2 行列式で検算する。
+\end{itemize}
+
+\section*{Lean 形式化メモ}
+実装は `src/MyProjects/LinearAlgebra/A1/zenla1_session04.lean`。主な項目：
+\begin{itemize}
+  \item \textbf{Q1}: 具体行列で $\det(AB)=\det A\,\det B$（展開→`ring`）。
+  \item \textbf{Q2}: $\det(A^{\TT})=\det A$（転置の成分展開）。
+  \item \textbf{Q3–Q4}: Sarrus と上三角の対角積（`simp`, `norm_num`）。
+  \item \textbf{Q5}: $\det A\ne 0$ による正則性。
+  \item \textbf{Challenge}: $\det V(1,2,3)=2$ と一般形 $\det V(a,b,c)=(b-a)(c-a)(c-b)$（`ring` による同一視）。
+\end{itemize}
+
+\section*{謝辞}
+この文書（TeX）は \textbf{CODEX (OpenAI)} により生成され、対応する Lean ファイルの実装・修正も \textbf{CODEX (OpenAI)} により行われた。順序対の集合と射影（射）化による構造化という観点は、成分射での外延性と可逆変形（基本変形）の図式で自然に表現される。
+
+\end{document}
+
