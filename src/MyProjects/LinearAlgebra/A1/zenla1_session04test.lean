@@ -40,6 +40,31 @@ def det3 (A : Mat3) : ℝ :=
   A 0 0 * A 1 1 * A 2 2 + A 0 1 * A 1 2 * A 2 0 + A 0 2 * A 1 0 * A 2 1
   - A 0 0 * A 1 2 * A 2 1 - A 0 1 * A 1 0 * A 2 2 - A 0 2 * A 1 1 * A 2 0
 
+/-- 橋渡し：2×2 の自作定義 `det2` は `Matrix.det` と一致。 -/
+@[simp] lemma det2_eq_det (A : Mat2) : det2 A = Matrix.det A := by
+  classical
+  simpa [det2] using (Matrix.det_fin_two (A := A)).symm
+
+/-- 橋渡し：3×3 の自作定義 `det3` は `Matrix.det` と一致。 -/
+@[simp] lemma det3_eq_det (A : Mat3) : det3 A = Matrix.det A := by
+  classical
+  -- `Matrix.det_fin_three` の式は項の並びが異なるだけなので演算律で整形
+  simpa [ det3
+       , sub_eq_add_neg
+       , add_comm, add_left_comm, add_assoc
+       , mul_comm, mul_left_comm, mul_assoc ]
+    using (Matrix.det_fin_three (A := A)).symm
+
+/-- 逆向き：2×2 で `Matrix.det` は `det2` に等しい。 -/
+lemma det_eq_det2 (A : Mat2) : Matrix.det A = det2 A := by
+  classical
+  simpa using (det2_eq_det (A := A)).symm
+
+/-- 逆向き：3×3 で `Matrix.det` は `det3` に等しい。 -/
+lemma det_eq_det3 (A : Mat3) : Matrix.det A = det3 A := by
+  classical
+  simpa using (det3_eq_det (A := A)).symm
+
 /-- 2×2行列が正則（可逆）であるための条件。 -/
 def isRegular2 (A : Mat2) : Prop := det2 A ≠ 0
 
