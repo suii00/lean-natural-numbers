@@ -1,0 +1,39 @@
+# .github/workflows/smoke.yml
+name: Smoke
+
+on:
+  workflow_dispatch: {}  # Actions から手動実行
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 必須: Lean/Lake セットアップ & .lake キャッシュ
+      - uses: leanprover/lean-action@v1
+
+      - name: Show versions
+        run: |
+          echo "::group::versions"
+          lake env lean --version
+          lake --version
+          echo "::endgroup::"
+
+      - name: Resolve deps
+        run: |
+          echo "::group::lake update"
+          time -p lake update
+          echo "::endgroup::"
+
+      - name: Fetch mathlib olean cache
+        run: |
+          echo "::group::lake exe cache get"
+          time -p lake exe cache get
+          echo "::endgroup::"
+
+      - name: Build (full)
+        run: |
+          echo "::group::lake build"
+          time -p lake build
+          echo "::endgroup::"
