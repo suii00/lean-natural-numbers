@@ -1,0 +1,133 @@
+% !TEX program = lualatex
+\documentclass[luatexja,ja=standard,a4paper,12pt]{bxjsarticle}
+
+% 基本パッケージ
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{tikz-cd}
+\usepackage{array}
+\usepackage{geometry}
+\usepackage{xcolor}
+\geometry{margin=28mm}
+
+% 体裁
+\title{ZenLA1 Session03 数学的解説\;—\;順序対と射影（射）による行列の構造}
+\author{CODEX (OpenAI)（TeXファイル生成）\\ CODEX (OpenAI)（Leanファイル生成）}
+\date{\today}
+
+% 記法
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Mat}{\mathrm{Mat}}
+\newcommand{\MatTwo}{\Mat_{2\times 2}(\R)}
+\newcommand{\Sym}{\mathrm{Sym}_2(\R)}
+\newcommand{\Skew}{\mathrm{Skew}_2(\R)}
+\newcommand{\tr}{\mathrm{tr}}
+\newcommand{\TT}{\mathrm{T}}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+\newtheorem{proposition}{命題}
+\theoremstyle{remark}
+\newtheorem*{remark}{注意}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本ノートは、Lean ファイル\footnote{リポジトリ: \texttt{src/MyProjects/LinearAlgebra/A1/zenla1\_session03.lean}.}で形式化した 2\,$\times$\,2 行列に関する基本演算（和・積・転置・トレース）と、対称成分・歪対称成分への分解（ブルバキ的「順序対の集合と射（射影）」の精神）を、Lua\TeX による和文数式で簡潔に解説する。TeX 文書は \textbf{CODEX (OpenAI)} により生成され、Lean 形式化も \textbf{CODEX (OpenAI)} により実装された。
+\end{abstract}
+
+\section{データと記法}
+実数体 $\R$ 上の $2\times 2$ 行列全体を $\MatTwo$ と書く。$A\in\MatTwo$ のトレースは
+\[
+  \tr(A) \coloneqq a_{00}+a_{11}\qquad (A=(a_{ij})_{i,j\in\{0,1\}})
+\]
+で定める。転置を $A^{\TT}$ と書く。以下を定義：
+\begin{align*}
+  &\text{対称行列}:&& A^{\TT}=A,\\
+  &\text{歪対称（交代）行列}:&& A^{\TT}=-A.
+\end{align*}
+
+\paragraph{成分射（射影）の観点}
+各成分抽出
+\[
+  \pi_{ij}:\; \MatTwo\longrightarrow \R,\qquad A\longmapsto a_{ij}
+\]
+は射（関数）であり、$A=B$ は $\pi_{ij}(A)=\pi_{ij}(B)$（全 $i,j$）に同値である。すなわち、\emph{順序対集合} $\{0,1\}\times\{0,1\}$ の各元 $(i,j)$ への\emph{射影} $\pi_{ij}$ の族により、行列の等式は成分ごとの等式へ還元される。
+
+\begin{center}
+  \begin{tikzcd}[column sep=large]
+    \MatTwo \arrow[r, "\langle\pi_{00},\pi_{01},\pi_{10},\pi_{11}\rangle"] & \R^4
+  \end{tikzcd}
+\end{center}
+
+\section{基本計算（Lean: Q1--Q5）}
+Lean 側では以下の具体行列を用いた：
+\[
+  A=\begin{bmatrix}1&2\\[2pt]3&4\end{bmatrix},\quad
+  B=\begin{bmatrix}2&-1\\[2pt]0&3\end{bmatrix},\quad
+  C=\begin{bmatrix}1&0&2\\[2pt]-1&3&1\end{bmatrix},\quad
+  D=\begin{bmatrix}3&1\\[2pt]0&-1\\[2pt]2&2\end{bmatrix},\quad
+  S=\begin{bmatrix}2&3\\[2pt]3&-1\end{bmatrix}.
+\]
+結果は（成分射での計算）：
+\begin{itemize}
+  \item[Q1] $2A+3B=\begin{bmatrix}8&1\\[2pt]6&17\end{bmatrix}$。
+  \item[Q2] $C\,D=\begin{bmatrix}7&5\\[2pt]-1&-2\end{bmatrix}$（行列積）。
+  \item[Q3] $(A^{\TT})^{\TT}=A$（転置の冪等性）。
+  \item[Q4] $\tr(aA+bB)=a\,\tr(A)+b\,\tr(B)$（トレースの線形性）。
+  \item[Q5] $\tr(S)=1$ かつ $s_{00}-s_{11}=3$。
+\end{itemize}
+
+\section{転置作用素と直和分解}
+線形作用素 $T:\MatTwo\to\MatTwo$, $T(A)=A^{\TT}$ を考えると、$T\circ T=\mathrm{id}$ であり、$+1$-固有空間が対称行列、$-1$-固有空間が歪対称行列である。したがって、任意の $M\in\MatTwo$ は
+\[
+  P\coloneqq \tfrac12\,(M+M^{\TT})\in\Sym,\qquad
+  Q\coloneqq \tfrac12\,(M-M^{\TT})\in\Skew
+\]
+とおくと、$M=P+Q$ と一意に分解される（次定理）。
+
+\begin{theorem}[対称＋歪対称分解の存在と一意性（Lean: Challenge）]\label{thm:decomp}
+任意の $M\in\MatTwo$ に対し、$P=\frac12(M+M^{\TT})\in\Sym$ と $Q=\frac12(M-M^{\TT})\in\Skew$ は $M=P+Q$ を満たす。さらに、$M=P'+Q'$ かつ $P'\in\Sym,\,Q'\in\Skew$ ならば $P'=P,\;Q'=Q$ である。
+\end{theorem}
+
+\begin{proof}[スケッチ]
+$(M+M^{\TT})^{\TT}=M^{\TT}+M$ より $P^{\TT}=P$、$(M-M^{\TT})^{\TT}=M^{\TT}-M$ より $Q^{\TT}=-Q$。和は自明に $P+Q=M$。一意性は、$M=P'+Q'$ を転置して $M^{\TT}=P'-Q'$ を得、加減して $P'=\tfrac12(M+M^{\TT}),\;Q'=\tfrac12(M-M^{\TT})$ を\,\emph{成分射}\,（$\pi_{ij}$）で評価して導く。
+\end{proof}
+
+この事実は次の図式（分解 $\Phi$ と加法 $+$）で表現できる：
+\begin{center}
+\begin{tikzcd}
+  \MatTwo \arrow[r, dashed, "\Phi: M\mapsto (\tfrac12(M+M^{\TT}),\,\tfrac12(M-M^{\TT}))"] \arrow[dr, "\mathrm{id}"']
+  & \Sym\times\Skew \arrow[d, "+"] \\
+  & \MatTwo
+\end{tikzcd}
+\end{center}
+
+\section{ブルバキ的観点の要点}
+\begin{itemize}
+  \item 行列等式は、順序対集合 $\{0,1\}\times\{0,1\}$ への射影 $\pi_{ij}$ により\textbf{成分射の一致}へ還元できる（射影=射）。
+  \item 転置は自己同型 $T$ を与え、$\MatTwo$ は $T$ の $\pm 1$-固有空間の\textbf{直和分解}として記述できる。
+  \item 分解射 $\Phi$ と加法 $+$ は図式 \,$+\circ\Phi=\mathrm{id}$\, を満たす。Lean では `ext`（成分射による外延性）と `simp` を用いて機械的に検証した。
+\end{itemize}
+
+\section{Lean 形式化メモ}
+実装は \texttt{src/MyProjects/LinearAlgebra/A1/zenla1\_session03.lean}。主な定理は：
+\begin{itemize}
+  \item \textbf{Q1--Q5}: 成分計算、行列積、転置の冪等性、トレースの線形性、具体行列の値。
+  \item \textbf{Challenge}: $M=P+Q$ の存在と一意性（$P=\frac12(M+M^{\TT})$, $Q=\frac12(M-M^{\TT})$）。
+\end{itemize}
+
+\paragraph{ビルド} 本ファイルは Lua\LaTeX（\texttt{lualatex}）でのコンパイルを想定している（クラス \texttt{ltjsarticle}，\texttt{tikz-cd} を使用）。
+
+\section*{謝辞}
+本 Lua\TeX 文書は \textbf{CODEX (OpenAI)} により生成され、Lean ファイルも \textbf{CODEX (OpenAI)} により生成・修正された。ブルバキ的視点（順序対・射影）を学び直す題材として本セッションを位置付ける。
+
+\end{document}
+

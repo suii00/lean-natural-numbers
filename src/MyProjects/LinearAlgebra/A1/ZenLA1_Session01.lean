@@ -114,8 +114,14 @@ theorem Q5 (x y z : ℝ) :
 theorem Challenge
   (u v : R3) :
   ⟪u + v, u + v⟫ + ⟪u - v, u - v⟫
-    = 2 * ⟪u, u⟫ + 2 * ⟪v, v⟫ := by
-  sorry
+    = (2 : ℝ) * (⟪u, u⟫) + (2 : ℝ) * (⟪v, v⟫) := by
+  -- 成分に分解して多項式等式に帰着
+  rcases u with ⟨ux, uy, uz⟩
+  rcases v with ⟨vx, vy, vz⟩
+  -- 内積定義と演算を展開し、`ring` で整理
+  simp [dot, sub_eq_add_neg, add_comm, add_left_comm, add_assoc,
+        mul_add, add_mul]
+  ring
   /- ヒント例：
      simp [dot, sub_eq_add_neg, add_comm, add_left_comm, add_assoc,
            mul_add, add_mul]   -- 成分展開
@@ -131,5 +137,4 @@ theorem Challenge
 #check Q5
 #check Challenge
 -/
-
 end ZenLA1.Session01
