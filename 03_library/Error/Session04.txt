@@ -1,0 +1,65 @@
+zenla1_session04test.lean:185:37
+unexpected token 'variable'; expected 'lemma'
+zenla1_session04test.lean:194:44
+Invalid argument name A for function det_of_upperTriangular
+
+Hint: Perhaps you meant one of the following parameter names:
+• m: Am
+• R: AR
+• M: AM
+zenla1_session04test.lean:194:59
+Application type mismatch: The argument
+h
+has type
+∀ ⦃i j : Fin n⦄, i < j → A j i = 0
+but is expected to have type
+BlockTriangular ?m.22 id
+in the application
+det_of_upperTriangular h
+zenla1_session04test.lean:205:44
+Invalid argument name A for function det_of_upperTriangular
+
+Hint: Perhaps you meant one of the following parameter names:
+• m: Am
+• R: AR
+• M: AM
+zenla1_session04test.lean:205:59
+Application type mismatch: The argument
+h'
+has type
+∀ ⦃i j : Fin n⦄, i < j → A j i = 0
+but is expected to have type
+BlockTriangular ?m.41 id
+in the application
+det_of_upperTriangular h'
+
+
+修正方針（ブルバキ流の構造化）
+
+指標の順序対 (i, j) を順序構造（Fin n の線形順序）に載せ、射影 id : Fin n → Fin n を通じて「上三角」の性質を BlockTriangular id（下三角が0）という構造的述語で表現しました。
+その上で射（補題）Matrix.det_of_upperTriangular を適用し、行列式＝対角積を得ます。
+行った変更
+
+ドキュメントコメント直後に variable を置くと「次は定理等が来る」と解釈されエラーになるため、variable {n : ℕ} をコメントの前に移動。
+Matrix.det_of_upperTriangular の引数名は M なので、名前付き引数を (M := A) に変更。
+与えられた成分条件（順序対の反映）を BlockTriangular id に写す補助を導入。
+編集箇所
+
+src/MyProjects/LinearAlgebra/A1/zenla1_session04test.lean:184 付近
+variable {n : ℕ} の位置をコメントより前に移動。
+src/MyProjects/LinearAlgebra/A1/zenla1_session04test.lean:189
+det_upperTriangular_fin を以下の形に修正（抜粋）:
+have hBlock : Matrix.BlockTriangular A id := by intro i j hij; exact h (i := j) (j := i) hij
+simpa using Matrix.det_of_upperTriangular (M := A) hBlock
+src/MyProjects/LinearAlgebra/A1/zenla1_session04test.lean:197
+det_upperTriangular_fin' も同様に h から hBlock を定義して適用。
+これで解消されるエラー
+
+unexpected token 'variable' → 変数宣言位置の移動で解消
+Invalid argument name A → (M := A) に変更で解消
+Application type mismatch（BlockTriangular … id を要求）→ hBlock 構築で解消
+次の確認
+
+#check det_upperTriangular_fin などで型が通るか確認してください。
+ビルド確認（環境に lake がある場合）: lake build
+必要なら、残りの証明部も BlockTriangular を介して整理（例えば上三角・下三角の相互変換は転置という射で実現）します。続けて他のエラーがあればログをご共有ください。
