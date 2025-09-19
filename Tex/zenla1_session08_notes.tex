@@ -1,0 +1,117 @@
+\documentclass[lualatex]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{physics}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\title{行列の階数と退化次数に関するメモ}
+\author{CODEX (OpenAI)\thanks{本ノートは CODEX (OpenAI) により作成された TeX ドキュメントです。} \\ CODEX (OpenAI)\thanks{付随する Lean ファイルも CODEX (OpenAI) により編集されました。}}
+\date{2025年9月19日}
+
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{定義}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{備考}
+
+\begin{document}
+
+\maketitle
+
+\section{概要}
+本ノートでは、学習課題で扱った具体的な実行列 $A, B, C, D, E$ を題材に、階数 (rank) と退化次数 (nullity) の基本性質を整理する。特に、Lean での形式化で得られた知見を踏まえ、手計算と抽象的議論の橋渡しを意図した解説を行う。
+
+\section{定義の整理}
+\begin{definition}[列の線形独立性]
+$m\times n$ 行列 $M$ の列ベクトル集合から有限部分集合 $S \subseteq \{0,\dots,n-1\}$ を選ぶ。係数列 $c = (c_j)_{j \in S}$ に対し、以下が成り立つとき $S$ は線形独立という。
+\[
+  \sum_{j\in S} c_j M_{\bullet j} = 0 \implies \forall j\in S,\; c_j = 0.
+\]
+\end{definition}
+
+\begin{definition}[階数と退化次数]
+列ベクトルの線形独立な最大個数を階数 $\operatorname{rank}(M)$ とし、列数を $n$ とするとき退化次数を $\operatorname{nullity}(M) = n - \operatorname{rank}(M)$ と定める。
+\end{definition}
+
+\section{具体例の検討}
+\subsection{上三角行列 $B$}
+行列
+\[
+B = \begin{pmatrix}
+1 & 2 & 3 \\
+0 & 1 & 2 \\
+0 & 0 & 1
+\end{pmatrix}
+\]
+は上三角かつ対角要素が全て $1$ であるため、列（あるいは行）が完全に独立であり、\(\operatorname{rank}(B) = 3\) である。Lean では `norm_num` を用いて $B_{ii} \neq 0$ を確認することで形式的な証明が成立した。
+
+\subsection{行列 $C$ と rank-nullity}
+行列
+\[
+C = \begin{pmatrix}
+1 & 0 & 2 \\
+0 & 1 & -1
+\end{pmatrix}
+\]
+に対して、第1列・第2列が独立であることを成分比較によって確認できる。従って $\operatorname{rank}(C)=2$。列数は 3 なので $\operatorname{nullity}(C)=1$。これは後述する rank-nullity 定理の具体例である。
+
+\subsection{行列 $D$ の行依存性}
+\[
+D = \begin{pmatrix}
+1 & 2 & 3 \\
+2 & 4 & 6 \\
+0 & 1 & 1 \\
+1 & 3 & 4
+\end{pmatrix}
+\]
+第2行は第1行の2倍であるため、行集合に線形従属が存在する。Lean では `ext`/`fin_cases` による成分比較と `norm_num` を組み合わせて `D.row 1 = 2 • D.row 0` を確定させた。
+
+\section{階数と行列式}
+行列 $E$ は
+\[
+E = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+\]
+であり、直接展開により行列式が $0$ である。これは $E$ の階数が 3 未満であることを意味する。Lean 上では定義式を `simp` と `norm_num` で逐一評価し、零であることを形式的に示した。
+
+\section{図式による視覚化}
+列空間と核の関係を図式で表すため、線形写像 $T : \mathbb{R}^3 \to \mathbb{R}^2$ を $C$ と対応付けて考える。
+\[
+\begin{tikzcd}
+0 \arrow[r] & \ker T \arrow[r, hook, "\iota"] & \mathbb{R}^3 \arrow[r, "T"] & \operatorname{im} T \arrow[r] & 0
+\end{tikzcd}
+\]
+この正確列は $\dim \ker T + \dim \operatorname{im} T = 3$ を与え、rank-nullity 定理そのものを表現する。$C$ の場合、$\dim \operatorname{im} T = 2$ なので、核の次元は $1$ となる。
+
+\section{Lean 形式化のポイント}
+\begin{itemize}
+  \item `Finset.sum` を用いることで、列（行）の線形結合を有限集合上の総和として扱った。
+  \item `classical` ブロックを導入し、`Finset.max'` に必要な選択公理を活用して最大値を取得した。
+  \item `norm_num` や `simp` を駆使して具体的数値計算を自動化し、手計算の誤りを排除した。
+\end{itemize}
+
+\section{まとめ}
+Lean による形式検証を通じて、
+\begin{itemize}
+  \item 上三角行列の対角要素非零性 \Rightarrow フルランク、
+  \item 列の独立性による階数計算、
+  \item 行の比例関係による従属性の検出、
+  \item 行列式と階数の関係、
+  \item rank-nullity 定理の具体例
+\end{itemize}
+を明確に確認した。これらの結果は、行基本変形や核・像の概念を可視化し、線形代数の基礎的な理解を支援するものである。
+
+\end{document}

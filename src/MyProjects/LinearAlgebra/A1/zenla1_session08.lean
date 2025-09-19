@@ -24,7 +24,7 @@ import Mathlib.Data.Finset.Card
 namespace ZenLA1.Session08
 
 open BigOperators Matrix
-open scoped Matrix
+open scoped Matrix BigOperators
 
 /-! ## 下準備：階数の型定義と基本演算 -/
 
@@ -33,34 +33,41 @@ abbrev MatrixMN (m n : ℕ) := Matrix (Fin m) (Fin n) ℝ
 
 /-- 列ベクトルが線形独立であるかの判定（簡易版）-/
 def areColsIndependent {m n : ℕ} (A : MatrixMN m n) (cols : Finset (Fin n)) : Prop :=
-  ∀ c : Fin n → ℝ, (∑ j in cols, c j • A.col j = 0) → (∀ j ∈ cols, c j = 0)
+  ∀ c : Fin n → ℝ,
+    Finset.sum cols (fun j => c j • A.col j) = 0 →
+    ∀ j ∈ cols, c j = 0
 
 /-- 行が線形独立であるかの判定（簡易版）-/
 def areRowsIndependent {m n : ℕ} (A : MatrixMN m n) (rows : Finset (Fin m)) : Prop :=
-  ∀ c : Fin m → ℝ, (∑ i in rows, c i • A.row i = 0) → (∀ i ∈ rows, c i = 0)
+  ∀ c : Fin m → ℝ,
+    Finset.sum rows (fun i => c i • A.row i) = 0 →
+    ∀ i ∈ rows, c i = 0
 
 /-- 階数：最大の線形独立な列ベクトルの個数（簡易定義）-/
-def rank {m n : ℕ} (A : MatrixMN m n) : ℕ :=
-  Finset.univ.image (fun s : Finset (Fin n) => if areColsIndependent A s then s.card else 0)
-    |>.max'
-    (by simp [Finset.image_nonempty, Finset.univ_nonempty] : _)
+noncomputable def rank {m n : ℕ} (A : MatrixMN m n) : ℕ := by
+  classical
+  refine Finset.max' (Finset.univ.image fun s : Finset (Fin n) =>
+    if areColsIndependent A s then s.card else 0) ?_
+  simpa [Finset.image_nonempty, Finset.univ_nonempty]
 
 /-- 行階数：最大の線形独立な行ベクトルの個数（簡易定義）-/
-def rowRank {m n : ℕ} (A : MatrixMN m n) : ℕ :=
-  Finset.univ.image (fun s : Finset (Fin m) => if areRowsIndependent A s then s.card else 0)
-    |>.max'
-    (by simp [Finset.image_nonempty, Finset.univ_nonempty] : _)
+noncomputable def rowRank {m n : ℕ} (A : MatrixMN m n) : ℕ := by
+  classical
+  refine Finset.max' (Finset.univ.image fun s : Finset (Fin m) =>
+    if areRowsIndependent A s then s.card else 0) ?_
+  simpa [Finset.image_nonempty, Finset.univ_nonempty]
 
 /-- 階段行列であるかの判定（簡易版：上三角に近い形）-/
 def isRowEchelon {m n : ℕ} (A : MatrixMN m n) : Prop :=
-  ∀ i j k : Fin m, i < j → (∀ l : Fin n, l < k → A j l = 0) → A i k ≠ 0 → A j k = 0
+  ∀ i j : Fin m, ∀ k : Fin n, i < j → (∀ l : Fin n, l < k → A j l = 0) → A i k ≠ 0 → A j k = 0
 
 /-- ピボット（非零要素）の位置を取得 -/
-def pivotCol {m n : ℕ} (A : MatrixMN m n) (i : Fin m) : Option (Fin n) :=
-  (Finset.univ.filter (fun j => A i j ≠ 0)).min
+noncomputable def pivotCol {m n : ℕ} (A : MatrixMN m n) (i : Fin m) : Option (Fin n) := by
+  classical
+  exact (Finset.univ.filter fun j => A i j ≠ 0).min
 
 /-- 退化次数（nullity）：解空間の次元 -/
-def nullity {m n : ℕ} (A : MatrixMN m n) : ℕ := n - rank A
+noncomputable def nullity {m n : ℕ} (A : MatrixMN m n) : ℕ := n - rank A
 
 /-! ### 補助：簡単な `simp` 用の補題 -/
 
@@ -99,19 +106,36 @@ def E : MatrixMN 3 3 := !![1, 2, 3; 4, 5, 6; 7, 8, 9]
 
 /-- **Q1** 上三角行列 B の階数は対角成分が全て非零なら3であることを示せ。 -/
 theorem Q1 : B 0 0 ≠ 0 ∧ B 1 1 ≠ 0 ∧ B 2 2 ≠ 0 := by
-  sorry
+  constructor
+  · simp [B]
+  · constructor
+    · simp [B]
+    · simp [B]
   -- ヒント：`simp [B]` → `norm_num` で各対角成分が非零であることを確認。
   -- 上三角かつ対角非零 → フルランクの原理。
 
 /-- **Q2** 行列 C の第1列と第2列が線形独立であることを示せ。 -/
 theorem Q2 : ∀ c₁ c₂ : ℝ, c₁ • C.col 0 + c₂ • C.col 1 = 0 → c₁ = 0 ∧ c₂ = 0 := by
-  sorry
+  intro c₁ c₂ h
+  have h0 := congrArg (fun v => v 0) h
+  have h1 := congrArg (fun v => v 1) h
+  have hc₁ : c₁ = 0 := by
+    simpa [col_def, C] using h0
+  have hc₂ : c₂ = 0 := by
+    simpa [col_def, C, hc₁] using h1
+  exact ⟨hc₁, hc₂⟩
   -- ヒント：成分ごとに展開して連立方程式を解く。
   -- `ext i` → `fin_cases i` → `simp [C]` で係数の条件を導出。
 
 /-- **Q3** 行列 D において第1行と第2行が線形従属（比例）であることを示せ。 -/
 theorem Q3 : D.row 1 = 2 • D.row 0 := by
-  sorry
+  ext j
+  fin_cases j
+  · simp [row_def, D]
+  · have : (2 : ℝ) * 2 = 4 := by norm_num
+    simpa [row_def, D, this]
+  · have : (2 : ℝ) * 3 = 6 := by norm_num
+    simpa [row_def, D, this]
   -- ヒント：`ext j` → `fin_cases j` → `simp [D]` → `norm_num`。
 
 /-- **Q4** 行列 E の行列式が0であることを確認し、階数が3未満であることを示せ。 -/
@@ -120,7 +144,9 @@ theorem Q4 :
   let det3_E := E 0 0 * E 1 1 * E 2 2 + E 0 1 * E 1 2 * E 2 0 + E 0 2 * E 1 0 * E 2 1
               - E 0 0 * E 1 2 * E 2 1 - E 0 1 * E 1 0 * E 2 2 - E 0 2 * E 1 1 * E 2 0
   det3_E = 0 := by
-  sorry
+  intro det3_E
+  simp [det3_E, E]
+  norm_num
   -- ヒント：`simp [E]` → `norm_num` で行列式を計算。
   -- 行列式 = 0 ⇔ 階数 < 3（正方行列の場合）。
 
@@ -129,7 +155,13 @@ theorem Q5 :
   let A' := fun i j => if i = 0 then A 0 j + A 2 j else A i j
   -- 階数の不変性を示すために、変形後も第3列が独立であることを確認
   A' 0 2 ≠ 0 ∨ A' 1 2 ≠ 0 ∨ A' 2 2 ≠ 0 := by
-  sorry
+  intro A'
+  left
+  have h₀ : A' 0 2 = (3 : ℝ) + 1 := by simp [A', A]
+  have h₁ : (3 : ℝ) + 1 = 4 := by norm_num
+  have h : A' 0 2 = 4 := by simpa [h₀] using h₁
+  have : (4 : ℝ) ≠ 0 := by norm_num
+  simpa [h] using this
   -- ヒント：行基本変形は階数を保存する。
   -- `simp [A]` で具体的に計算。
 
@@ -147,7 +179,8 @@ theorem Challenge :
   let rank_C := 2  -- 仮定：適切に定義された階数
   let nullity_C := 1  -- 退化次数
   rank_C + nullity_C = 3 := by
-  sorry
+  intro rank_C nullity_C
+  simp [rank_C, nullity_C]
   /- ヒント：
      - 一般の証明：解空間の次元 = n - rank（線形写像の基本定理）
      - C の場合：2つの独立列 → 階数2 → 退化次数 = 3-2 = 1
@@ -164,3 +197,19 @@ theorem Challenge :
 -/
 
 end ZenLA1.Session08
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
