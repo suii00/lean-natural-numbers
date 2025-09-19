@@ -186,22 +186,24 @@ theorem s1_challenge
       (a := (0 : ℝ)) (b := (a : ℝ))
       (f := fun x => fe f (-x)) (g := fun x => fe f x)
       (by intro x hx; simpa using h_even_fe x)
+    simpa [neg_zero] using (Eq.symm hcomp).trans hcongr
     exact hcomp.symm.trans hcongr
-  have h_fe_split : ∫ x in (-a : ℝ)..a, fe f x =
-      2 * ∫ x in (0 : ℝ)..a, fe f x := by
+    have h_fe_split :
+      ∫ x in (-a : ℝ)..a, fe f x = 2 * ∫ x in (0 : ℝ)..a, fe f x := by
     calc
       ∫ x in (-a : ℝ)..a, fe f x
           = ∫ x in (-a : ℝ)..0, fe f x + ∫ x in (0 : ℝ)..a, fe f x := by
             simpa [add_comm] using h_split_fe
       _ = ∫ x in (0 : ℝ)..a, fe f x + ∫ x in (0 : ℝ)..a, fe f x := by
             simp [h_half]
-      _ = 2 * ∫ x in (0 : ℝ)..a, fe f x := by ring
+      _ = 2 * ∫ x in (0 : ℝ)..a, fe f x := by
+            ring_nf
   calc
     ∫ x in -a..a, f x
         = ∫ x in -a..a, fe f x + fo f x := by
             simpa using h_integral
-    _ = ∫ x in -a..a, fe f x + ∫ x in -a..a, fo f x := by
-            simpa using h_add
+        _ = ∫ x in -a..a, fe f x + ∫ x in -a..a, fo f x := by
+          simpa using h_add
     _ = ∫ x in -a..a, fe f x := by simp [h_fo_zero]
     _ = 2 * ∫ x in (0 : ℝ)..a, fe f x := h_fe_split
 
