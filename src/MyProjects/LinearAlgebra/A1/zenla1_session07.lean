@@ -23,6 +23,8 @@ import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
 
 namespace ZenLA1.Session07
 
+noncomputable section
+
 open BigOperators Matrix
 open scoped Matrix
 
@@ -49,7 +51,7 @@ def isInvertible2 (A : Mat2) : Prop := det2 A ≠ 0
 def isInvertible3 (A : Mat3) : Prop := det3 A ≠ 0
 
 /-- 2×2行列の逆行列の公式（行列式≠0の場合）-/
-def inv2 (A : Mat2) (h : det2 A ≠ 0) : Mat2 :=
+def inv2 (A : Mat2) (_h : det2 A ≠ 0) : Mat2 :=
   (1 / det2 A) • !![A 1 1, -A 0 1; -A 1 0, A 0 0]
 
 /-- 余因子行列の(i,j)成分（2×2の場合）-/
@@ -109,33 +111,58 @@ def I2 : Mat2 := 1
 
 /-- **Q1** 行列 A の行列式を計算し、可逆であることを示せ。 -/
 theorem Q1 : det2 A = 10 ∧ isInvertible2 A := by
-  sorry
+  constructor
+  · norm_num [det2, A]
+  ·
+    change A 0 0 * A 1 1 - A 0 1 * A 1 0 ≠ 0
+    norm_num [A]
   -- ヒント：`constructor` → `simp [det2, A]` → `norm_num` と `simp [isInvertible2]` → `norm_num`。
-
 /-- **Q2** 2×2行列 A の逆行列を計算し、A * A⁻¹ = I を確認せよ。 -/
 theorem Q2 (h : det2 A ≠ 0) : A * (inv2 A h) = 1 := by
-  sorry
+  ext i j <;> fin_cases i <;> fin_cases j <;>
+    (simp [A, inv2, Matrix.mul_apply, Fin.sum_univ_two, det2] <;> norm_num)
   -- ヒント：`ext i j` → `fin_cases i; fin_cases j` → 
   -- `simp [A, inv2, mul_apply, Fin.sum_univ_two]` → `field_simp` → `ring`。
 
 /-- **Q3** 積の逆行列の性質：(AB)⁻¹ = B⁻¹A⁻¹ を示せ（A, B は上で定義）。 -/
 theorem Q3 (hA : det2 A ≠ 0) (hB : det2 B ≠ 0) (hAB : det2 (A * B) ≠ 0) :
   inv2 (A * B) hAB = inv2 B hB * inv2 A hA := by
-  sorry
+  have hdetA : det2 A = 10 := by norm_num [det2, A]
+  have hdetB : det2 B = 7 := by norm_num [det2, B]
+  have hdetAB : det2 (A * B) = 70 := by
+    norm_num [det2, A, B, Matrix.mul_apply, Fin.sum_univ_two]
+  ext i j <;> fin_cases i <;> fin_cases j <;>
+    (simp [inv2, det2, A, B, Matrix.mul_apply, Fin.sum_univ_two, hdetA, hdetB, hdetAB] <;>
+      norm_num)
   -- ヒント：両辺に (A * B) を掛けて単位行列になることを示す、または成分計算。
 
 /-- **Q4** 上三角行列 C の逆行列も上三角であることを示せ（対角成分の逆数から始まる）。 -/
 theorem Q4 : ∃ C_inv : Mat3, isRightInverse C C_inv ∧ 
   C_inv 1 0 = 0 ∧ C_inv 2 0 = 0 ∧ C_inv 2 1 = 0 := by
-  sorry
-  -- ヒント：C_inv = !![1, -1, -1/6; 0, 1/2, -1/6; 0, 0, 1/3] を構成し、
+  classical
+  let C_inv : Mat3 := !![1, -1, -2 / 3; 0, 1 / 2, -1 / 6; 0, 0, 1 / 3]
+  refine ⟨C_inv, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_⟩
+  ·
+    unfold isRightInverse
+    ext i j <;> fin_cases i <;> fin_cases j <;>
+      (simp [C, C_inv, Matrix.mul_apply, Fin.sum_univ_three] <;> norm_num)
+  · simp [C_inv]
+  · simp [C_inv]
+  · simp [C_inv]
+  -- ヒント：C_inv = !![1, -1, -2/3; 0, 1/2, -1/6; 0, 0, 1/3] を構成し、
   -- 右逆であることと下三角成分が0であることを確認。
 
 /-- **Q5** 転置の逆行列の性質：(Aᵀ)⁻¹ = (A⁻¹)ᵀ を確認せよ（A で具体的に）。 -/
 theorem Q5 (h : det2 A ≠ 0) : 
   inv2 (transpose A) (by simp [det2, A]; norm_num : det2 (transpose A) ≠ 0) = 
   transpose (inv2 A h) := by
-  sorry
+  have hdet : det2 A = 10 := by norm_num [det2, A]
+  have hdetT : det2 (transpose A) = 10 := by
+    norm_num [det2, transpose, transpose_apply, A]
+  ext i j <;> fin_cases i <;> fin_cases j <;>
+    (simp [inv2, transpose, transpose_apply, det2, A, hdet, hdetT, Matrix.mul_apply,
+      Fin.sum_univ_two] <;> norm_num)
   -- ヒント：`ext i j` → `fin_cases` → `simp [inv2, transpose_apply, A]` → `norm_num`。
 
 /-! ---
@@ -154,9 +181,13 @@ theorem Challenge :
   -- Schur補行列 S = 4 - 1*(1/3)*2 = 4 - 2/3 = 10/3
   -- 逆行列の(0,0)成分は A⁻¹ + A⁻¹BS⁻¹CA⁻¹ = 1/3 + (1/3)*2*(3/10)*1*(1/3) = 2/5
   let M := A  -- [[3, 2], [1, 4]]
-  let M_inv := inv2 M (by simp [det2, A]; norm_num : det2 M ≠ 0)
+  let M_inv := inv2 M (by
+    simp [M, det2, A]
+    norm_num : det2 M ≠ 0)
   M_inv 0 0 = 2/5 := by
-  sorry
+  intro M M_inv
+  simp [M, M_inv, inv2, det2, A]
+  norm_num
   /- ヒント：
      - `simp [inv2, A]` で逆行列の定義を展開
      - 分数の計算は `norm_num` で処理
@@ -172,4 +203,19 @@ theorem Challenge :
 #check Challenge
 -/
 
+end
 end ZenLA1.Session07
+
+
+
+
+
+
+
+
+
+
+
+
+
+

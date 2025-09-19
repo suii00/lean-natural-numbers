@@ -1,0 +1,100 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz-cd}
+\usepackage{luatexja-fontspec}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{TeX Gyre Cursor}
+
+\title{逆行列の構造理解と形式検証メモ}
+\author{TeX生成: CODEX (OpenAI) \\ Leanファイル生成: CODEX (OpenAI)}
+\date{2025年9月19日}
+
+\begin{document}
+
+\maketitle
+
+\section{概観}
+Lean で作成した `zenla1\_session07.lean` の証明群をもとに、逆行列の基本的な性質を数式と図で整理する。特に $2\times2$、$3\times3$ 行列、そしてブロック行列表現に焦点を当て、Schur 補行列や転置との関係にも触れる。
+
+\section{基本データ}
+以下の行列を扱う。
+\begin{align*}
+A &= \begin{pmatrix} 3 & 2 \\ 1 & 4 \end{pmatrix}, &
+B &= \begin{pmatrix} 2 & -1 \\ 3 & 2 \end{pmatrix}, &
+C &= \begin{pmatrix} 1 & 2 & 3 \\ 0 & 2 & 1 \\ 0 & 0 & 3 \end{pmatrix}.
+\end{align*}
+$A$ の行列式は $\det(A)=3\cdot4-2\cdot1=10$ で、Lean 上では `norm_num` により即座に評価できる。
+
+\section{$2\times2$ 行列の逆行列}
+行列式が非零である $2\times2$ 行列
+\[
+M = \begin{pmatrix} a & b \\ c & d \end{pmatrix}
+\]
+に対し、逆行列は
+\[
+M^{-1} = \frac{1}{ad-bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}
+\]
+で与えられる。具体的に $A$ を代入すると
+\[
+A^{-1} = \frac{1}{10}\begin{pmatrix}4 & -2\\-1 & 3\end{pmatrix}
+\]
+となる。Lean の証明では成分ごとに `ext` で分解し、`simp` と `norm_num` で $AA^{-1}=I$ を示した。
+
+\section{積・転置に関する性質}
+$A,B$ の積 $AB$ は行列式 $70$ を持ち、可逆である。Lean では
+\[
+(AB)^{-1} = B^{-1}A^{-1}
+\]
+を各成分計算で検証した。さらに、
+\[
+(A^{\mathsf{T}})^{-1} = (A^{-1})^{\mathsf{T}}
+\]
+も成立し、転置と逆行列が可換であることが確認される。
+
+\section{上三角行列の逆行列}
+上三角行列 $C$ に対して、右逆行列
+\[
+C^{-1}_{\text{right}} = \begin{pmatrix}
+1 & -1 & -\tfrac{2}{3}\\
+0 & \tfrac{1}{2} & -\tfrac{1}{6}\\
+0 & 0 & \tfrac{1}{3}
+\end{pmatrix}
+\]
+を構成すると $CC^{-1}_{\text{right}} = I$ が成り立ち、逆行列も上三角になる。Lean では `simp` と `norm_num` を組み合わせて自動的に検証した。
+
+\section{Schur 補行列とブロック行列}
+$M$ を $1\times1$ ブロック 4 つからなる行列
+\[
+M = \begin{pmatrix} A_{11} & A_{12} \\ A_{21} & A_{22} \end{pmatrix}
+\]
+とする。$A_{11}$ が可逆で Schur 補行列 $S = A_{22} - A_{21}A_{11}^{-1}A_{12}$ が可逆ならば、
+\[
+M^{-1} = \begin{pmatrix}
+A_{11}^{-1} + A_{11}^{-1} A_{12} S^{-1} A_{21} A_{11}^{-1} & -A_{11}^{-1} A_{12} S^{-1} \\
+- S^{-1} A_{21} A_{11}^{-1} & S^{-1}
+\end{pmatrix}
+\]
+が成立する。$A_{11}=3$, $A_{12}=2$, $A_{21}=1$, $A_{22}=4$ として評価すると $S = 10/3$、$(0,0)$ 成分は $2/5$ となり、Lean で求めた逆行列と一致する。
+
+\begin{center}
+\begin{tikzcd}
+\mathbb{R}^2 \arrow[r, "A_{11}"] \arrow[d, "M"] & \mathbb{R}^2 \arrow[d, "A_{12}"] \\
+\mathbb{R}^2 \arrow[r, "A_{21}"] & \mathbb{R}^2
+\end{tikzcd}
+\end{center}
+この図式はブロック作用素の相互作用を表し、$A_{11}$ と $S$ の可逆性が全体の可逆性を保証することを視覚的に示している。
+
+\section{Lean 証明の要点}
+\begin{enumerate}
+  \item 実数の逆数を扱うために `noncomputable section` を導入し、`Real` 上の非計算的構成を許容した。
+  \item `change` を挿入してから `norm_num` を呼ぶことで、求める不等式を直接数値評価できる形に整えた。
+  \item ブロック行列の逆行列は `simp` と `norm_num` のみで算出でき、Schur 補行列の公式と整合することを確認した。
+\end{enumerate}
+
+\section{まとめ}
+Lean による形式的証明と数式計算を組み合わせることで、初等的な逆行列の性質を確実に裏付け、ブロック構造や Schur 補行列といった応用的テーマにも滑らかに拡張できることがわかった。今後は他のブロック分解（LU 分解や QR 分解）にも同様の手法を適用することで形式化の幅を広げられる。
+
+\end{document}
