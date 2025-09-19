@@ -1,0 +1,78 @@
+\documentclass{ltjsarticle}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows.meta,calc,positioning}
+
+\title{整数環の構造と素数の基本性質}
+\author{CODEX (OpenAI)（本TeXファイル生成および Lean ファイル S2.lean 生成）}
+\date{2025年9月19日}
+
+\begin{document}
+
+\maketitle
+
+\section*{序}
+本稿は整数環 $\mathbb{Z}$ を $(\mathbb{Z}, +, \times)$ という順序対とみなし、対応する射影（構造保存写像）を明示することで、Lean ファイル \texttt{S2.lean} に実装した各定理の数理的背景を解説する。特に単元、整域性、素数、最大公約数、ベズー恒等式、ユークリッドの補題の特殊形を統一的に理解する構造を与える。
+
+\section{整数環の単元と整域性}
+整数環の単元全体は集合 $\mathbb{Z}^\times = \{1, -1\}$ であり、構造射影
+\[
+\pi : (\mathbb{Z}, +, \times) \to (\mathbb{Z}^\times, \cdot)
+\]
+が存在すると考えると、定理 S2\_P01 は「単元であること」と「$\pi$ の像に属すること」が同値であると述べている。
+定理 S2\_P02 は積写像 $m : \mathbb{Z} \times \mathbb{Z} \to \mathbb{Z}$, $m(a,b) = ab$ が整域的性質（零因子が 0 のみ）を保つことを示し、順序対 $(\mathbb{Z}, m)$ が整域構造を担っていることを確認する。
+
+\section{素数の基礎性質と最大公約数}
+素数は基点付き整域 $(\mathbb{N}, \cdot)$ における不可約元として定義される。定理 S2\_P03 は射影 $p \mapsto p$ を通じて、素数の順序対 $(p, \text{素数性})$ が少なくとも $2$ の像に入ることを保証する。
+
+最大公約数については、写像
+\[
+\operatorname{gcd} : \mathbb{N} \times \mathbb{N} \to \mathbb{N}, \quad (m,n) \mapsto \gcd(m,n)
+\]
+を考えると、定理 S2\_P04 は $(12,18)$ の像が $6$ であることを具体的に計算したものである。
+
+\section{ベズー恒等式と構造図式}
+順序対 $((x,y),\ell)$ で表される線型写像
+\[
+\ell : \mathbb{Z}^2 \to \mathbb{Z}, \quad \ell(x,y) = 15x + 10y
+\]
+は、合成
+\[
+\mathbb{Z}^2 \xrightarrow{\pi} \mathbb{Z}/5\mathbb{Z} \xrightarrow{\sim} \operatorname{Im}(\ell)
+\]
+を通じて $\gcd(15,10) = 5$ を像として取り、定理 S2\_P05 のベズー係数 $(1,-1)$ を与える。図式により、射影と像の関係を可視化できる。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[column sep=large, row sep=large]
+    \mathbb{Z}^2 \arrow[d, "\pi_1"'] \arrow[r, "\ell"] & \mathbb{Z} \arrow[d, "\operatorname{mod}~5"] \\
+    \mathbb{Z} \arrow[r, "\operatorname{mod}~5"'] & \mathbb{Z}/5\mathbb{Z}
+  \end{tikzcd}
+  \caption{射影と線型写像によるベズー恒等式の構造図式}
+\end{figure}
+
+ここで $\pi_1$ は 1 番目の座標への射影であり、対称的に $\pi_2$ を用いれば他の係数の探索も可能である。図式全体は $\ell$ が $\mathbb{Z}/5\mathbb{Z}$ への全射となることを示し、ベズー係数が存在する理由を説明する。
+
+\section{ユークリッドの補題（素数 3 の場合）}
+順序対 $(3, \text{素数構造})$ を考えると、射影
+\[
+\operatorname{div}_3 : \mathbb{N} \to \mathbb{Z}/3\mathbb{Z}
+\]
+は積構造 $m(a,b) = ab$ と可換な図式を持つ。定理 S2\_CH は以下の図式の可換性から導かれる。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[column sep=huge, row sep=large]
+    \mathbb{N} \times \mathbb{N} \arrow[r, "m"] \arrow[d, "{(\operatorname{div}_3,\operatorname{div}_3)}"'] & \mathbb{N} \arrow[d, "\operatorname{div}_3"] \\
+    (\mathbb{Z}/3\mathbb{Z})^2 \arrow[r, "\tilde{m}"] & \mathbb{Z}/3\mathbb{Z}
+  \end{tikzcd}
+  \caption{ユークリッドの補題における可換図式}
+\end{figure}
+
+積の射 $m$ を通じて $3 \mid ab$ となるとき、下段の射 $\tilde{m}$ の核の構造から $\operatorname{div}_3(a)=0$ または $\operatorname{div}_3(b)=0$、すなわち $3 \mid a$ または $3 \mid b$ が結論される。これは素数 3 に特化したユークリッドの補題であり、一般の素数の場合にも同様の図式が成立する。
+
+\section*{結語}
+Lean による形式化では、順序対として与えられる各構造に対応する型と射が tactic を介して明示される。本稿で整理した図式と対応付けることで、定理 S2\_P01--S2\_CH の証明が構造保存写像のレベルで理解できる。
+
+\end{document}

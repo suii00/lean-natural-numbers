@@ -1,0 +1,117 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz-cd}
+\usepackage{physics}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\title{整数環のイデアルに関する小論}
+\author{CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\theoremstyle{remark}
+\newtheorem{remark}{補足}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+  本稿および Lean 証明ファイル \texttt{MyProjects/IUT1/S3.lean} は CODEX (OpenAI) が生成しました。
+\end{center}
+
+\section*{序論}
+ニコラ・ブルバキの『数学原論』に倣い、集合と射による構造化の観点から整数環 $\mathbb{Z}$ のイデアルを考察する。対象はイデアルの族、射はそれらの包含写像とし、積分的に生成される主イデアルの性質を Lean で形式化した結果を説明する。
+
+\section{主イデアルの生成}
+定数 $6$ が生成する主イデアル $\langle 6 \rangle$ に $18$ が属することは、$18 = 6 \cdot 3$ による。Lean では \texttt{Ideal.mem\_span\_singleton} を用いて存在証明を具体化した。これは射影的には $\mathbb{Z} \to \mathbb{Z}/\langle 6 \rangle$ の核に $18$ が入るという事実と同値である。
+
+\section{イデアルの加法閉性と単位}
+任意のイデアル $I$ と $a,b\in I$ に対し $a+b\in I$ であることは加法的閉性の公理。Lean では \texttt{Ideal.add\_mem} を適用した。また $(1)\in I$ なら $I=\mathbb{Z}$ を示す定理 \ref{thm:unit} を以下にまとめる。
+
+\begin{theorem}\label{thm:unit}
+単位元 $1$ がイデアル $I$ に含まれるなら、包含射 $I\hookrightarrow \mathbb{Z}$ は全射となり、$I=\mathbb{Z}$ である。
+\end{theorem}
+
+Lean では \texttt{Ideal.eq\_top\_of\_isUnit\_mem} を利用し、射の全射性を形式化した。
+
+\section{イデアルの交わり}
+$\langle 4 \rangle$ と $\langle 6 \rangle$ の交わりに $12$ が含まれることは、$12=4\cdot 3=6\cdot 2$ であることに由来する。カテゴリー的には fibered product
+\[
+  \langle 4 \rangle \times_{\mathbb{Z}} \langle 6 \rangle
+\]
+における同一対象として $12$ を捉えられる。
+
+\section{整除関係とイデアル包含}
+整除関係 $6=3\cdot 2$ はイデアル包含 $\langle 6 \rangle \subseteq \langle 3 \rangle$ と同値である。Lean では \texttt{Ideal.span\_le} を通じて集合的包含から示した。
+
+\section{最小公倍数による主イデアル}
+集合
+\[
+  S = \{ x\in\mathbb{Z} \mid 10\mid x \land 15\mid x \}
+\]
+が生成するイデアルは $\langle 30 \rangle$ に等しい。これは $10$ と $15$ の最小公倍数が $30$ であることから期待されるが、Lean では互いに素な要素を利用して次の流れで形式化した。
+
+\begin{enumerate}[label=\textbf{(\alph*)}]
+  \item $10\mid x$ なら $2\mid x$。包含射を通じて $2$ が $x$ を分割する性質を得る。
+  \item $2$ と $15$ は互いに素なので、$2\mid x=15b$ から $2\mid b$ が従う。
+  \item $x=15\cdot 2c = 30c$ となり、$x$ は $\langle 30 \rangle$ に属する。
+  \item $30$ は $10$ と $15$ のいずれでも割り切れるので逆包含も成り立つ。
+\end{enumerate}
+
+\section{包含図式}
+理想の包含関係を以下の図式で表す。
+
+\begin{center}
+\begin{tikzcd}
+  & \langle 30 \rangle \arrow[dl, hook'] \arrow[dr, hook] & \\
+  \langle 10 \rangle \arrow[dr, hook'] & & \langle 15 \rangle \arrow[dl, hook] \\
+  & \mathbb{Z} &
+\end{tikzcd}
+\end{center}
+
+ここで矢印は包含射 (モノ射) を表し、$\langle 30 \rangle$ が両方の交わりであることを示している。
+
+\section{Lean コード断片}
+主要な証明ステップは次の Lean コードに集約される。
+
+\begin{verbatim}
+theorem S3_CH : (Ideal.span {x : Int | 10 ∣ x ∧ 15 ∣ x} : Ideal Int)
+  = Ideal.span {30} := by
+  refine le_antisymm ?_ ?_
+  · refine Ideal.span_le.2 ?_
+    intro x hx
+    obtain ⟨b, hb⟩ := hx.2
+    have hxTwo : (2 : Int) ∣ x :=
+      dvd_trans (by refine ⟨5, ?_⟩; norm_num) hx.1
+    have hDiv : (2 : Int) ∣ b * 15 := by
+      simpa [hb, mul_comm] using hxTwo
+    have hCoprime : IsCoprime (2 : Int) (15 : Int) := by decide
+    have hTwoDivB : (2 : Int) ∣ b := hCoprime.dvd_of_dvd_mul_right hDiv
+    obtain ⟨c, hc⟩ := hTwoDivB
+    refine Ideal.mem_span_singleton.mpr ?_
+    refine ⟨c, ?_⟩
+    calc
+      x = 15 * b := hb
+      _ = 15 * ((2 : Int) * c) := by simp [hc]
+      _ = (30 : Int) * c := by ring
+  · refine Ideal.span_le.2 ?_
+    intro x hx
+    rcases Set.mem_singleton_iff.mp hx with rfl
+    have hmem : (30 : Int) ∈ {x : Int | 10 ∣ x ∧ 15 ∣ x} := by
+      refine ⟨?_, ?_⟩
+      · refine ⟨3, by norm_num⟩
+      · refine ⟨2, by norm_num⟩
+    exact Ideal.subset_span hmem
+\end{verbatim}
+
+\section*{結語}
+Lean による形式化は、イデアルの構造を射と対象からなる圏的視点と整合させ、証明の機械的検証を実現する。本稿では主イデアルの生成、交わり、包含を巡る基本性質を記述し、$\langle 30 \rangle$ が $10$ と $15$ の共通倍として普遍性を持つことを示した。
+
+\end{document}

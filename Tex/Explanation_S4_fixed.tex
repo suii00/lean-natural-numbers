@@ -1,0 +1,80 @@
+\documentclass[12pt]{article}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,mathtools,amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\title{HW\_IUT1\_S04の整数除法補題の解説}
+\author{CODEX (OpenAI)（TeX生成）\\CODEX (OpenAI)（Lean生成）}
+\date{2025年9月19日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+
+\begin{document}
+\maketitle
+
+\section*{序論}
+本稿では、自然数に対する除法アルゴリズムとその唯一性、ユークリッド互除法に基づく補題群について、ニコラ・ブルバキ『数学原論』における順序対と射影の構造化の精神に従い解説する。Leanファイル\texttt{S4.lean}で実装した証明内容を、集合と写像の枠組みから体系的に述べる。
+
+\section{剰余付き除法の構造}
+\begin{theorem}[除法定理の具体例]
+自然数$17$について、$17 = 5\cdot 3 + 2$かつ$0 \leq 2 < 5$が成り立つ。
+\end{theorem}
+\begin{proof}
+集合$\{0,1,2,3,4\}$上の射影写像$\pi\colon \mathbb{N}\times\mathbb{N} \to \mathbb{N}$を用いると、対応する順序対$(q,r)=(3,2)$が除法の条件を満たす。Leanでは決定可能性補題\texttt{decide}を適用して直接検証した。
+\end{proof}
+
+\begin{theorem}[剰余の非負性]
+任意の自然数$n$と正の自然数$m$に対し、剰余$n \bmod m$は$m$未満である。
+\end{theorem}
+\begin{proof}
+乗法写像$\varphi\colon \mathbb{N}\times\mathbb{N} \to \mathbb{N}$, $(q,r)\mapsto mq+r$を考える。剰余は$\pi_2$による射影で得られ、$m>0$の下で$\varphi$の像は$[0,m)$に含まれる。Leanではライブラリ補題\texttt{Nat.mod\_lt}を用いた。
+\end{proof}
+
+\begin{theorem}[剰余の一意性]
+$a,b\in\mathbb{N}$, $b>0$とし、$a = bq_1 + r_1 = bq_2 + r_2$かつ$0\le r_1,r_2<b$ならば$r_1=r_2$である。
+\end{theorem}
+\begin{proof}
+順序対$(q,r)$が満たす条件集合$D=\{(q,r)\mid a=bq+r,\ 0\le r<b\}$を考える。$D$は$\mathbb{N}\times\mathbb{N}$の部分集合で、射影$\pi_2$の制限$\pi_2\restriction D$は関数である。よって$(q_1,r_1),(q_2,r_2)\in D$なら射影の値が一致する。Leanでは$\le$の全順序性と差分の零化から証明を組み立てた。
+\end{proof}
+
+\section{ユークリッド互除法}
+\begin{lemma}[互除法の再帰]
+$\gcd(21,15)=\gcd(15,21\bmod 15)$。
+\end{lemma}
+\begin{proof}
+ユークリッド互除法の再帰関係$\gcd(m,n)=\gcd(n,m\bmod n)$に$m=21,n=15$を適用する。Leanでは\texttt{Nat.gcd\_rec}を\texttt{simpa}で用いた。
+\end{proof}
+
+\begin{theorem}[整除性と剰余]
+$b\mid a$かつ$b>0$ならば$a\bmod b = 0$。
+\end{theorem}
+\begin{proof}
+除法構造$\varphi(q) = bq$の射影に注目する。$a=bk$と書けるとき、剰余は射影$\pi_2(k,0)=0$に一致する。Leanでは約数の存在形から$k$を取り出し、$b\ne 0$を明示した上で$\texttt{simp}$を適用した。
+\end{proof}
+
+\section{拡張ユークリッド互除法}
+\begin{theorem}[線形結合の存在]
+整数$x,y$で$35x+15y = \gcd(35,15)$かつ$|x|\le 3$, $|y|\le 7$となるものが存在する。
+\end{theorem}
+\begin{proof}
+$(x,y)=(1,-2)$を与えると、$35\cdot 1 + 15\cdot (-2) = 5 = \gcd(35,15)$であり、絶対値条件も満たす。Leanでは具体的な対を組み、\texttt{norm\_num}と\texttt{decide}を組合せて検証した。
+\end{proof}
+
+\section{図式的理解}
+順序対と射影の観点から、除法アルゴリズムは次の可換図式で表現できる。
+\begin{center}
+\begin{tikzcd}
+\mathbb{N}\times\mathbb{N} \arrow[rr, "{\varphi(q,r)=bq+r}"] \arrow[dr, "\pi_2"'] && \mathbb{N} \\
+& \mathbb{N} \arrow[ur, "i_b"'] &
+\end{tikzcd}
+\end{center}
+ここで$\pi_2$は第二成分への射影、$i_b$は$[0,b)\hookrightarrow\mathbb{N}$の包含写像である。$a$に対し$D$上の制限を考えると、$\pi_2$は$D\to [0,b)$の同型となり、剰余の一意性が得られる。
+
+\section*{結語}
+Leanでの形式化とTeXでの記述は、射影や包含といった構造的概念を共有し、ブルバキ的視点に則った整数論の基礎を提示する。CODEX (OpenAI)はLean実装と本稿双方を作成し、抽象的構造に忠実な理解を助けることを意図した。
+
+\end{document}

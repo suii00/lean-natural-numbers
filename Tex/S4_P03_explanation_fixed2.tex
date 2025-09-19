@@ -1,0 +1,69 @@
+\documentclass[12pt]{article}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,mathtools,amsthm}
+\usepackage{tikz-cd}
+\title{S4\_P03 剰余一意性の構造的解釈}
+\author{CODEX (OpenAI)}
+\date{2025年9月19日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+
+\begin{document}
+\maketitle
+
+\section*{序論}
+Lean ファイル \texttt{S4.lean} における命題 \texttt{S4\_P03} は、自然数に対して除法定理の剰余の一意性を示すものである。本稿ではニコラ・ブルバキ『数学原論』の精神に倣い、集合と射の観点から証明の骨格を整理する。
+
+\section{命題の再掲}
+\begin{theorem}[剰余の一意性]
+自然数 $a,b,q_1,q_2,r_1,r_2$ と仮定 $b>0$ が与えられているとする。等式
+\[
+  a = b q_1 + r_1, \qquad a = b q_2 + r_2
+\]
+と制約 $0 \le r_1 < b$, $0 \le r_2 < b$ が成り立つとき、$r_1 = r_2$ が従う。
+\end{theorem}
+
+\section{構造的視点}
+直積集合 $\mathbb{N} \times \mathbb{N}$ を考え、第一成分射影 $\pi_1$ と第二成分射影 $\pi_2$ を備える。除法定理は次の部分集合を定義する。
+\[
+  D_a = \{ (q,r) \in \mathbb{N} \times \mathbb{N} \mid a = b q + r,\ 0 \le r < b \}.
+\]
+命題は $\pi_2$ の制限 $\pi_2\restriction D_a : D_a \to [0,b)$ が関数として一意的であること（つまり値が重複しないこと）を述べている。
+
+\section{Lean 証明の要約}
+Lean 実装では、まず順序関係 $q_1 \le q_2$ の場合に限定した補題を定義し、残りのケースを全順序性で包摂する。以下の流れで証明が進む。
+
+\subsection{補題 \texttt{remainder\_unique}}
+\begin{lemma}
+$q_1 \le q_2$ と仮定し、$a = b q_1 + r_1$, $a = b q_2 + r_2$, $r_1 < b$, $r_2 < b$ が成り立つなら $r_1 = r_2$。
+\end{lemma}
+\begin{proof}[概略]
+\begin{enumerate}
+  \item 等式差より $b q_2 = b q_1 + b (q_2 - q_1)$ を得て、剰余部分を $b(q_2 - q_1)$ と $r_2$ に分離する。
+  \item $b (q_2 - q_1)$ が $0$ でないと仮定すると、$q_2 - q_1 > 0$ である。従って $b \le b (q_2 - q_1)$ が成立し、$r_1 = b(q_2 - q_1) + r_2 \ge b$ となり、$r_1 < b$ と矛盾する。
+  \item よって $b(q_2 - q_1) = 0$、すなわち $q_1 = q_2$。これを剰余の等式に代入して $r_1 = r_2$ を得る。
+\end{enumerate}
+Lean では \verb|by_contra| と \verb|Nat.mul_eq_zero| を用いて 2. を実装している。
+\end{proof}
+
+\subsection{全順序によるケース分け}
+自然数の全順序性から $q_1 \le q_2$ または $q_2 \le q_1$ のいずれかが成り立つ。前者は補題をそのまま適用し、後者はラベルを入れ替えて同じ補題を使うことで $r_1 = r_2$ を導く。Lean では \verb|le_total q_{1} q_{2}| を用いて場合分けし、\verb|Eq.symm.trans| で等式の向きを揃えている。
+
+\section{図式的理解}
+除法構造を以下の可換図式で表す。
+\begin{center}
+\begin{tikzcd}
+D_a \arrow[r, hook, "\iota"] \arrow[dr, "\pi_2"] & \mathbb{N} \times \mathbb{N} \arrow[r, "{(q,r) \mapsto bq+r}"] & \mathbb{N} \\
+& {[0,b)} \arrow[u, hook, "j"] &
+\end{tikzcd}
+\end{center}
+埋め込み $\iota$ と $j$ を通じて、$a$ に対応する点の剰余成分は $[0,b)$ に留まる。剰余の一意性は $\pi_2 \circ \iota$ の像が $a$ の選び方に対してただ一つであることに等しい。
+
+\section*{結語}
+S4\_P03 の証明は、差分を第1成分へ押し込むことで剰余の安定性を示す構造的議論である。Lean での形式化はこの図式的理解を忠実に反映し、ブルバキ的な観点から整数除法の本質を示している。
+
+\end{document}

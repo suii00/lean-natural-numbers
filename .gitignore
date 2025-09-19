@@ -22,3 +22,8 @@ node_modules/
 #LaTeX中間生成物
 *.pdf
 *.gz
+*.fls
+*.log
+*.aux
+*.fdb_latexmk
+*.out
