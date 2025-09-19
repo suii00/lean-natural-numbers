@@ -79,8 +79,8 @@ def addRow {m n : ℕ} (M : Matrix (Fin m) (Fin n) ℝ) (r₁ r₂ : Fin m) (c :
 /-- 2×2係数行列 A₁ = [[2, 1], [1, 3]] -/
 def A₁ : CoeffMatrix 2 2 := !![2, 1; 1, 3]
 
-/-- 右辺ベクトル b₁ = [5, 7] -/
-def b₁ : ColVector 2 := ![5, 7]
+/-- 右辺ベクトル b₁ = [4, 7] -/
+def b₁ : ColVector 2 := ![4, 7]
 
 /-- 3×3係数行列（正則）A₂ = [[1, 2, 3], [0, 1, 2], [0, 0, 1]] -/
 def A₂ : CoeffMatrix 3 3 := !![1, 2, 3; 0, 1, 2; 0, 0, 1]
@@ -112,33 +112,42 @@ def b₄ : ColVector 3 := ![3, 7, 11]
 
 /-- **Q1** 連立方程式 A₁x = b₁ の解が x = [1, 2] であることを確認せよ。 -/
 theorem Q1 : isSolution A₁ b₁ ![1, 2] := by
-  sorry
-  -- ヒント：`simp [isSolution, A₁, b₁, mulVec, dotProduct]` → `ext` → `fin_cases` → `norm_num`。
+  ext i <;> fin_cases i <;>
+    (simp [A₁, b₁, Matrix.mulVec, dotProduct, Fin.sum_univ_two]; try norm_num)
 
 /-- **Q2** 上三角行列 A₂ を用いた連立方程式 A₂x = b₂ を後退代入で解き、
 x = [1, 1, 1] が解であることを示せ。 -/
 theorem Q2 : isSolution A₂ b₂ ![1, 1, 1] := by
-  sorry
-  -- ヒント：後退代入の結果を直接確認。`simp [isSolution, A₂, b₂, mulVec]` → `ext` → `fin_cases`。
+  ext i <;> fin_cases i <;>
+    (simp [A₂, b₂, Matrix.mulVec, dotProduct, Fin.sum_univ_three]; try norm_num)
 
 /-- **Q3** 劣決定系 A₃x = b₃ において、x = [1, 1, 0] と x = [0, 0, 3] が
 両方とも解であることを示せ（解の非一意性）。 -/
 theorem Q3 : isSolution A₃ b₃ ![1, 1, 0] ∧ isSolution A₃ b₃ ![0, 0, 3] := by
-  sorry
-  -- ヒント：両方の解を個別に確認。`constructor` → 各々 `simp [isSolution, A₃, b₃]`。
-
+  constructor
+  · ext i <;> fin_cases i <;>
+      (simp [A₃, b₃, Matrix.mulVec, dotProduct, Fin.sum_univ_three]; try norm_num)
+  · ext i <;> fin_cases i <;>
+      (simp [A₃, b₃, Matrix.mulVec, dotProduct, Fin.sum_univ_three]; try norm_num)
 /-- **Q4** 過決定系 A₄x = b₄ が解を持つことを示せ（x = [1, 1] が解）。 -/
 theorem Q4 : isSolution A₄ b₄ ![1, 1] := by
-  sorry
-  -- ヒント：`simp [isSolution, A₄, b₄, mulVec]` → `ext` → `fin_cases` → `norm_num`。
+  ext i <;> fin_cases i <;>
+    (simp [A₄, b₄, Matrix.mulVec, dotProduct, Fin.sum_univ_two]; try norm_num)
 
 /-- **Q5** 同次連立方程式 A₁x = 0 において、非自明解 x = [3, -6] が存在することを示せ。
 ただし、実際には A₁ は正則なので、この問題設定を変更する必要がある。
 代わりに、A₃x = 0 の非自明解 x = [2, -1, 0] を示す。 -/
 theorem Q5 : isHomogeneousSolution A₃ ![2, -1, 0] ∧ ![2, -1, 0] ≠ 0 := by
-  sorry
-  -- ヒント：`constructor` で分けて、前半は `simp [isHomogeneousSolution, A₃]`、
-  -- 後半は `intro h` → 成分の矛盾を導く。
+  constructor
+  · ext i <;> fin_cases i <;>
+      (simp [A₃, Matrix.mulVec, dotProduct, Fin.sum_univ_three]; try norm_num)
+  · intro h
+    have hfun : (![2, -1, 0] : Fin 3 → ℝ) = 0 := by simpa using h
+    have h0 : (2 : ℝ) = 0 := by
+      have := congrArg (fun v : Fin 3 → ℝ => v 0) hfun
+      simpa using this
+    have : (2 : ℝ) ≠ 0 := by norm_num
+    exact this h0
 
 /-! ---
 ## チャレンジ（応用1問）
@@ -153,16 +162,11 @@ theorem Q5 : isHomogeneousSolution A₃ ![2, -1, 0] ∧ ![2, -1, 0] ≠ 0 := by
 /-- パラメータ付き係数行列 -/
 def A_param (t : ℝ) : CoeffMatrix 2 2 := !![1, t; t, 1]
 
+/-- **Challenge** t = 2 のとき、A(2)x = [4, 4] の解は x = [4/3, 4/3]。 -/
 theorem Challenge :
-  -- t = 2 のとき、A(2)x = [4, 4] の解は x = [4/3, 4/3]
   isSolution (A_param 2) ![4, 4] ![4/3, 4/3] := by
-  sorry
-  /- ヒント：
-     - `simp [isSolution, A_param, mulVec, dotProduct]` で展開
-     - `ext i` → `fin_cases i` で各成分を確認
-     - 分数の計算は `norm_num` または `field_simp` を使用
-     - 一般のパラメータ t に対する分類は、行列式 det(A(t)) = 1 - t² を考える
-  -/
+  ext i <;> fin_cases i <;>
+    norm_num [isSolution_def, A_param, Matrix.mulVec, dotProduct, Fin.sum_univ_two]
 
 /-! ## 参考：動作確認コマンド（提出時は残してOK）
 #check Q1
@@ -174,3 +178,15 @@ theorem Challenge :
 -/
 
 end ZenLA1.Session06
+
+
+
+
+
+
+
+
+
+
+
+

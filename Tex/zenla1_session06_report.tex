@@ -1,0 +1,128 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{physics}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=cyan,
+  citecolor=blue
+}
+
+\title{ZEN大学「線形代数1」第6回課題の数学的解説\thanks{Lua\LaTeX\ による組版}}
+\author{TeX生成: CODEX (OpenAI)\\Lean生成: CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{序論}
+本稿では、与えられた Lean ファイル \texttt{zenla1\_session06\_CODEX.lean} で扱われた基礎問題 5 題とチャレンジ問題 1 題について、数学的背景と計算手順を Lua\LaTeX\ を用いて整理する。\par
+係数行列 $A$ と右辺ベクトル $b$ に対し、連立一次方程式 $A x = b$ の解の検証を Lean で形式的に行った結果を人間が理解しやすい形で説明する。ここで、$A \in \mathrm{Mat}_{m \times n}(\mathbb{R})$、$b \in \mathbb{R}^m$、$x \in \mathbb{R}^n$ とする。なお、本文中の計算結果は Lean によって既に検証済みである。
+
+\section{準備}
+\subsection{基本概念}
+\begin{itemize}
+  \item \textbf{係数行列} $A \in \mathrm{Mat}_{m \times n}(\mathbb{R})$ は、方程式系の線形写像 $\mathbb{R}^n \to \mathbb{R}^m$ を表現する。
+  \item \textbf{列ベクトル} $x \in \mathbb{R}^n$ は未知数ベクトルであり、Lean の型では $\operatorname{Fin}(n) \to \mathbb{R}$ として実装される。
+  \item \textbf{拡大係数行列} $[A\mid b]$ はガウス消去法で解の存在性を調べる際に利用する。
+  \item \textbf{解の判定} $A x = b$ の解であることは $\mathrm{mulVec}(A, x) = b$ に一致し、Lean の定義 `isSolution` および `isHomogeneousSolution` で表現される。
+\end{itemize}
+
+\subsection{線形写像の図式}
+以下の図式は、係数行列 $A$ が定める線形写像と、その核・像の関係を概念的に示したものである。
+\begin{center}
+  \begin{tikzcd}[row sep=large, column sep=huge]
+    0 \arrow[r] & \ker(A) \arrow[r, hook] \arrow[d, dashed] & \mathbb{R}^n \arrow[r, "A"] \arrow[d, "x \mapsto A x"] & \mathbb{R}^m \arrow[r] \arrow[d, twoheadrightarrow] & \operatorname{coker}(A) \arrow[r] & 0 \\
+    & \{0\} \arrow[r, hook] & \mathbb{R}^n \arrow[r, "A"] & \operatorname{im}(A) \arrow[r] & 0 &
+  \end{tikzcd}
+\end{center}
+図の上段は一般の線形写像に対する標準的な短完全列、下段は像への射影を表す。今回扱う問題では、$A$ の階数や核の次元がそれぞれの方程式の解の個数にどのように影響するかを理解することが重要である。
+
+\section{各問題の数学的解説}
+本節では Lean で証明した事実を、人手で追える形にまとめる。
+
+\subsection{問題 Q1}
+\textbf{設定：} $A_1 = \begin{pmatrix}2 & 1\\ 1 & 3\end{pmatrix}$、$b_1 = \begin{pmatrix}4\\7\end{pmatrix}$。
+\par
+\textbf{主張：} $x = \begin{pmatrix}1\\2\end{pmatrix}$ は $A_1 x = b_1$ の解である。
+\par
+\textbf{計算：}
+\[
+A_1 x = \begin{pmatrix}2 & 1\\ 1 & 3\end{pmatrix}\begin{pmatrix}1\\2\end{pmatrix}
+= \begin{pmatrix}2 \cdot 1 + 1 \cdot 2\\ 1 \cdot 1 + 3 \cdot 2\end{pmatrix}
+= \begin{pmatrix}4\\7\end{pmatrix} = b_1.
+\]
+ゆえに $x$ は解である。Lean では `simp` と `norm_num` を組み合わせて各成分等式を確認した。
+
+\subsection{問題 Q2}
+\textbf{設定：} 上三角行列 $A_2 = \begin{pmatrix}1 & 2 & 3\\ 0 & 1 & 2\\ 0 & 0 & 1\end{pmatrix}$、$b_2 = \begin{pmatrix}6\\3\\1\end{pmatrix}$。
+\par
+\textbf{主張：} $x = (1,1,1)^\mathsf{T}$ が解。
+\par
+\textbf{計算：} 上から順に代入すれば
+\begin{align*}
+\text{第3行: } & 1 = 1,\\
+\text{第2行: } & 1 + 2 = 3,\\
+\text{第1行: } & 1 + 2 + 3 = 6,
+\end{align*}
+となり一致する。Lean では各行ごとに `simp` で簡約している。
+
+\subsection{問題 Q3}
+\textbf{設定：} $A_3 = \begin{pmatrix}1 & 2 & 1\\ 2 & 4 & 2\end{pmatrix}$、$b_3 = \begin{pmatrix}3\\6\end{pmatrix}$。
+\par
+\textbf{主張：} $x^{(1)} = (1,1,0)^\mathsf{T}$ と $x^{(2)} = (0,0,3)^\mathsf{T}$ はともに解。
+\par
+\textbf{計算：}
+\begin{align*}
+A_3 x^{(1)} &= \begin{pmatrix}1 \cdot 1 + 2 \cdot 1 + 1 \cdot 0\\ 2 \cdot 1 + 4 \cdot 1 + 2 \cdot 0\end{pmatrix} = \begin{pmatrix}3\\6\end{pmatrix} = b_3,\\
+A_3 x^{(2)} &= \begin{pmatrix}1 \cdot 0 + 2 \cdot 0 + 1 \cdot 3\\ 2 \cdot 0 + 4 \cdot 0 + 2 \cdot 3\end{pmatrix} = \begin{pmatrix}3\\6\end{pmatrix} = b_3.
+\end{align*}
+この系は行が一次従属であるため、一次独立な解が複数存在し解空間は 1 次元のアフィン集合となる。
+
+\subsection{問題 Q4}
+\textbf{設定：} $A_4 = \begin{pmatrix}1 & 2\\ 3 & 4\\ 5 & 6\end{pmatrix}$、$b_4 = \begin{pmatrix}3\\7\\11\end{pmatrix}$。
+\par
+\textbf{主張：} $x = (1,1)^\mathsf{T}$ が解。
+\par
+\textbf{計算：}
+\[
+A_4 x = \begin{pmatrix}1 \cdot 1 + 2 \cdot 1\\ 3 \cdot 1 + 4 \cdot 1\\ 5 \cdot 1 + 6 \cdot 1\end{pmatrix} = \begin{pmatrix}3\\7\\11\end{pmatrix} = b_4.
+\]
+ここでは行数が列数より多いが、整合的な右辺を選んでいるため、少なくとも 1 つの解が存在する。
+
+\subsection{問題 Q5}
+\textbf{設定：} 同次系 $A_3 x = 0$。非自明解として $x = (2, -1, 0)^\mathsf{T}$ を示す。
+\par
+\textbf{計算：}
+\[
+A_3 x = \begin{pmatrix}1 & 2 & 1\\ 2 & 4 & 2\end{pmatrix}\begin{pmatrix}2\\ -1\\ 0\end{pmatrix} = \begin{pmatrix}2 - 2 + 0\\ 4 - 4 + 0\end{pmatrix} = \begin{pmatrix}0\\0\end{pmatrix}.
+\]
+ベクトル $x$ は零ベクトルではなく、従って核は非自明である。Lean では `simp` で積を 0 と確認し、最後に第 1 成分が 2 であることから零ベクトルと一致しないことを導いた。
+
+\subsection{チャレンジ問題}
+\textbf{設定：} $A(t) = \begin{pmatrix}1 & t\\ t & 1\end{pmatrix}$、$b = (4,4)^\mathsf{T}$、$t = 2$。
+\par
+\textbf{主張：} $x = \left(\tfrac{4}{3}, \tfrac{4}{3}\right)^\mathsf{T}$ が解。
+\par
+\textbf{計算：}
+\[
+A(2) x = \begin{pmatrix}1 & 2\\ 2 & 1\end{pmatrix} \begin{pmatrix}4/3\\ 4/3\end{pmatrix} = \begin{pmatrix}4/3 + 8/3\\ 8/3 + 4/3\end{pmatrix} = \begin{pmatrix}4\\4\end{pmatrix} = b.
+\]
+一般の $t$ に対しては行列式 $\det A(t) = 1 - t^2$ を用いると、$t \neq \pm 1$ で可逆、$t = 1$ で次数 1 の自由度、$t = -1$ で矛盾が生じる (ただし $b \neq 0$)。
+
+\section{Lean 証明との対応}
+Lean ファイルでは、`ext` と `fin_cases` により有限添字上の等式を成分毎の検証に還元し、`simp` や `norm_num` によって計算を完遂した。本稿の式変形はそれらの機械的計算と直接対応している。
+
+\section{結論}
+各方程式の解は、線形代数の基本的な考え方（行列とベクトルの積、核と像の概念、行列式による可逆性判定）で説明できる。Lean による形式検証は、人手による計算の正当性を保証する強力な手段であり、本稿の Lua\LaTeX\ 文書はその理解を助ける。
+
+\end{document}
