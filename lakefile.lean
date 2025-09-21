@@ -4,7 +4,7 @@ open Lake DSL
 package «myproject» {}
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4" @ "v4.23.0-rc2"
+  "https://github.com/leanprover-community/mathlib4" @ "v4.23.0"
 
 lean_lib MyProjects {
   srcDir := "src"  -- Changed from 'src' to 'srcDir'

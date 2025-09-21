@@ -1,0 +1,60 @@
+\documentclass[uplatex,12pt]{ltjsarticle}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{luatexja-fontspec}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\title{IUT1 Session 6 の構造的解説}
+\author{Codex (OpenAI)\thanks{TeXファイル生成}\and Codex (OpenAI)\thanks{Leanファイル生成}}
+\date{\today}
+
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{lemma}[theorem]{補題}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{補足}
+
+\begin{document}
+\maketitle
+
+\section{序論}
+本稿では、Bourbaki 流の集合と射影による構造化の精神に従い、Session~6 の各課題で扱った環準同型、イデアル、多項式環、剰余環の構造を秩序立てて解説する。Lean 4 上の証明は Codex (OpenAI) により構築され、本稿も同じく Codex (OpenAI) によって Lua\TeX{} (LuaLaTeX) を想定して組版されている。
+
+\section{環準同型と単位元保持 (P01)}
+環準同型 $f \colon R \to S$ は単位元を保つ。これは構造的には、モノイド準同型としての基礎性に起因し、$1_R$ が $R$ の乗法単位であること、$f$ が乗法を保存することから $f(1_R) = 1_S$ が従う。Lean では `RingHom.map_one` を適用するだけである。
+
+\section{剰余環への射と核 (P02)}
+整数環から $\mathbb{Z}/6\mathbb{Z}$ への標準射影 $\pi$ の核は $6\mathbb{Z}$ である。構造的には
+\[
+  \ker(\pi) = \{ x \in \mathbb{Z} \mid 6 \mid x \}
+\]
+であり、一般に $\ker(\mathbb{Z} \to \mathbb{Z}/n\mathbb{Z}) = n\mathbb{Z}$ を具体例として確かめたことになる。Lean では \texttt{ZMod.intCast\_zmod\_eq\_zero\_iff\_dvd} によって「零に写る」ことと「$6$ で割り切れる」ことを結び付けた。
+
+\section{イデアルの逆像 (P03)}
+環準同型 $f \colon R \to S$ と $S$ のイデアル $J$ に対して、逆像 $f^{-1}(J)$ は $R$ のイデアルであり、これは \texttt{Ideal.comap f J} に一致する。存在証明は構成的で、集合と射の枠組みにおいては、左側の構造を右側の構造の引き戻しで整備したことを意味する。
+
+\section{多項式環の主イデアル (P04)}
+多項式 $X^2 - X$ は $\mathbb{Z}[X]$ の主イデアル $(X)$ に属する。因数分解 $X^2 - X = X(X-1)$ により $X$ を因子として持つことが明らかとなり、商構造の観点では $(X)$ が $X$ で生成されるイデアルであることを確認した。
+
+\section{有限剰余環の単元 (P05)}
+$\mathbb{Z}/5\mathbb{Z}$ において $2$ は逆元 $3$ を持つ。有限体（ここでは $\mathbb{Z}/5\mathbb{Z}$）では非ゼロ元はすべて単元であり、具体計算により $2 \cdot 3 \equiv 1 \pmod{5}$ をチェックした。Lean では \texttt{decide} が自動判定する。
+
+\section{素イデアルと極大イデアル (CH)}
+$\mathbb{Z}[X]$ における $(X)$ が素イデアルであるが極大でないことを示す。商環 $\mathbb{Z}[X]/(X) \simeq \mathbb{Z}$ が整域であるため素であるが、$\mathbb{Z}$ が体ではないので極大ではない。構造的には次のイデアル包含が決定的である。
+
+\begin{tikzcd}[row sep=small]
+  & (X, 2) \arrow[d, hookrightarrow] \\
+  (X) \arrow[ur, hookrightarrow] \arrow[dr, hookrightarrow] & \mathbb{Z}[X] \\
+  & (0)
+\end{tikzcd}
+
+さらに、$(X)$ より大きいイデアル $(X,2)$ を構成し、$2 \in (X,2)$ だが $2 \notin (X)$ を評価写像 $\mathbb{Z}[X] \to \mathbb{Z}/2\mathbb{Z}$ で確認した。Lean では \texttt{Polynomial.eval\_2RingHom (Int.castRingHom (ZMod 2)) 0} を導入し、その核が $(X,2)$ を含むことを利用して $(X)$ が極大でないことを構築的に示した。
+
+\section{まとめと展望}
+以上の各命題は、環とイデアルの構造理解を段階的に深め、多項式環における素性と極大性の違いまで到達する流れになっている。Bourbaki 的視点では、射影（環準同型）とその核・像の関係、引き戻し（comap）による構造保存、主イデアルによる生成という統一的枠組みが全体を貫いている。
+
+\end{document}

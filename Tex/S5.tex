@@ -1,0 +1,104 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+\title{\textbf{S5.lean の数学的解説}}
+\author{CODEX (OpenAI)\\\textit{TeXファイル生成・Leanファイル生成}}
+\date{2025年9月21日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命題}
+\newtheorem{lemma}{補題}
+\newtheorem{corollary}{系}
+\theoremstyle{remark}
+\newtheorem{remark}{注意}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+Lean ファイル \texttt{S5.lean} では、整数環 $\mathbb{Z}$ における主イデアルの素性および極大性に関する基本的命題を形式化しています。本稿は、それらの定理を数学的観点から整理し、使用した Lean の補題や証明戦略を解説することを目的とします。TeX ファイルおよび Lean ファイルはどちらも CODEX (OpenAI) によって生成されました。
+
+\section{整数環のイデアル}
+$\mathbb{Z}$ は PID であり、任意のイデアルは $n \in \mathbb{Z}$ を用いて $(n)$ の形で表されます。素イデアル性・極大イデアル性は、生成元 $n$ の算術的性質に還元されます。
+
+\begin{definition}
+$I \subseteq R$ を可換環 $R$ のイデアルとする。
+\begin{enumerate}
+  \item $I$ が \emph{素イデアル} であるとは、$ab \in I$ ならば $a \in I$ または $b \in I$ が成り立つことをいう。
+  \item $I$ が \emph{極大イデアル} であるとは、$I \subsetneq J \subseteq R$ を満たすイデアル $J$ が $R$ か $I$ のどちらかに限られることをいう。
+\end{enumerate}
+\end{definition}
+
+\section{S5.lean で形式化された主結果}
+ファイルには命題 P01--P05 とチャレンジ問題 CH が含まれ、以下の内容を扱っています。
+
+\begin{proposition}[P01]
+$(5)$ は素イデアルである。
+\end{proposition}
+\begin{proof}
+整数 $5$ は素数であるため、$\mathbb{Z}$ における素元です。Lean では \texttt{Int.prime\_iff\_natAbs\_prime} により自然数としての素数性と整数としての素元性を同一視し、\texttt{Ideal.span\_singleton\_prime} を適用して素イデアル性を得ています。
+\end{proof}
+
+\begin{proposition}[P02]
+$(7)$ は極大イデアルである。
+\end{proposition}
+\begin{proof}
+剰余環 $\mathbb{Z}/(7)$ は有限体 $\mathbb{F}_7$ と同型であるため、$(7)$ は極大です。Lean では Mathlib の \texttt{Int.ideal\_span\_isMaximal\_of\_prime} を用いて即座に証明しています。
+\end{proof}
+
+\begin{proposition}[P03]
+$(6)$ は素イデアルではない。
+\end{proposition}
+\begin{proof}
+$6=2\cdot 3$ と因数分解でき、$2,3 \notin (6)$ であるにもかかわらず $2\cdot 3 \in (6)$ です。Lean では \texttt{Ideal.span\_singleton\_prime} の逆方向を使い、整数 $6$ が素元でないことを示して矛盾を導いています。
+\end{proof}
+
+\begin{proposition}[P04]
+任意の極大イデアル $I \subseteq \mathbb{Z}$ は素イデアルである。
+\end{proposition}
+\begin{proof}
+一般論として、極大イデアルは常に素イデアルです。Lean では \texttt{IsMaximal.isPrime} を直接用いています。
+\end{proof}
+
+\begin{proposition}[P05]
+零イデアル $(0)$ は素イデアルである。
+\end{proposition}
+\begin{proof}
+$\mathbb{Z}$ は整域であるため零イデアルは素です。Lean では \texttt{Ideal.bot\_prime} を呼び出しています。
+\end{proof}
+
+\begin{corollary}[CH]
+素数 $p$ に対して $(p)$ は極大イデアルであり、かつ素イデアルである。
+\end{corollary}
+\begin{proof}
+命題 P01 と P02 の一般化として証明されます。Lean では型クラス \texttt{Fact (Nat.Prime p)} を導入し、極大性には \texttt{Int.ideal\_span\_isMaximal\_of\_prime} を、素性には \texttt{Ideal.span\_singleton\_prime} を適用しています。
+\end{proof}
+
+\section{図式による視覚化}
+剰余写像と核としての主イデアル $(p)$ の関係を次の図式に示します。
+\begin{center}
+\begin{tikzcd}
+\mathbb{Z} \arrow[r, two heads, "\pi_p"] \arrow[dr, two heads, "\text{mod } p"'] & \mathbb{Z}/(p) \\
+ & \mathbb{F}_p \arrow[u, hookrightarrow, "\simeq"]
+\end{tikzcd}
+\end{center}
+核が $(p)$ であり、像が体になるため $(p)$ が極大イデアルであることが理解できます。
+
+\section{Lean 実装のポイント}
+\begin{itemize}
+  \item 既存の Mathlib 補題を活用して短い証明を構築しています。
+  \item 自然数の素数性から整数の素元性への移送には \texttt{Int.prime\_iff\_natAbs\_prime} が重要です。
+  \item 合成数のケースは具体例 $6$ を用いて、素イデアルではないことを明確に示しています。
+\end{itemize}
+
+\section{今後の展望}
+整数環に限定された議論を、Dedekind 整域や代数的整数環、局所化などへ拡張することで、より一般的なイデアル論の形式化が期待されます。Lean 形式化の蓄積は、抽象代数学の学習教材としても有益です。
+
+\end{document}
