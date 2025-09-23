@@ -1,0 +1,112 @@
+\documentclass{ltjsarticle}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\title{IUT1 Session 10 数論演習ノート}
+\author{TeXファイル生成: CODEX (OpenAI)\\Leanファイル生成: CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{corollary}[theorem]{系}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{序論}
+本ノートは、演習課題 \texttt{S10.lean} に対応する数学的背景を、順序対と射（射影）による構造化というニコラ・ブルバキ的視点の下で整理したものである。\footnote{Lean ソース: \texttt{src/MyProjects/IUT1/S10.lean}, 生成者 CODEX (OpenAI)。} 各命題は体 $\mathbb{Z}/n\mathbb{Z}$ における元と写像の組を明確化し、Lean による検証結果との対応を明示する。
+
+\section{一次合同式の構造}
+\subsection{P01: $3x \equiv 6 \pmod 9$ の解集合}
+$\mathbb{Z}/9\mathbb{Z}$ を加群 $\{(\bar a, \bar b) \mid \bar a = 3\bar b\}$ の射影とみなし、射影写像 $\pi_2: (\bar a, \bar b) \mapsto \bar b$ を考える。合同式 $3x=6$ は $\{(3\bar x, \bar x)\}$ の像と $\{(6, \bar y)\}$ の共通部分に対応し、解集合は $\pi_2$ による射影で与えられる。
+
+\begin{theorem}[P01]
+任意の $x \in \mathbb{Z}/9\mathbb{Z}$ について $3x = 6$ であることと $x \in \{2,5,8\}$ であることは同値である。
+\end{theorem}
+
+\begin{proof}
+$3$ の像 $3(\mathbb{Z}/9\mathbb{Z})$ は $\{0,3,6\}$ であり、$6$ はその元であるため可解性が確保される。線形写像 $f: \mathbb{Z}/9\mathbb{Z} \to \mathbb{Z}/9\mathbb{Z},\; f(\bar x)=3\bar x$ の核は $\{0,3,6\}$ で次数 $3$。特定解 $x_0=2$ を見つければ、全解は $x_0+$核で与えられ、$2+\{0,3,6\}=\{2,5,8\}$ を得る。
+\end{proof}
+
+\paragraph{Leanによる確認} Lean では有限体の判定子を用いて \verb|decide| が真偽を判定し、命題 \verb|S10_P01| を一行で証明している。
+
+\subsection{P02: $5x \equiv 3 \pmod 7$ の一意解}
+$\mathbb{Z}/7\mathbb{Z}$ は体であるため、$5$ は逆元 $5^{-1}=3$ を持つ。構造的には、線形写像 $f(\bar x)=5\bar x$ の左逆 $g(\bar y)=3\bar y$ が存在し、$g\circ f = \operatorname{id}$ が成り立つ。
+
+\begin{theorem}[P02]
+方程式 $5x=3$ は $x=2$ の一意解を持つ。
+\end{theorem}
+
+\begin{proof}
+$5^{-1}=3$ であるため $x = 3\cdot 3 = 2$ が解である。$f$ が全単射であるから解は一意である。
+\end{proof}
+
+\paragraph{Leanによる確認} Lean 証明では、逆元との積を明示し、写像 $y \mapsto 3\cdot(5y)$ を介した射影図式を再現している。
+
+\section{二次剰余とフェルマー・オイラー判定}
+\subsection{P03: $3$ は $\mathbb{Z}/7\mathbb{Z}$ の非二次剰余}
+平方写像 $s: x \mapsto x^2$ の像を列挙すれば $\{0,1,2,4,-1\}$ に限られ、$3$ は含まれない。これは $(x,x^2)$ を集めたサブ集合の射影で確認できる。
+
+\begin{theorem}[P03]
+$\mathbb{Z}/7\mathbb{Z}$ に $x^2=3$ を満たす元は存在しない。
+\end{theorem}
+
+\paragraph{Leanによる確認} \verb|decide| により有限集合の探索が自動化され、非存在が判定される。
+
+\subsection{P04: $2$ は $\mathbb{Z}/11\mathbb{Z}$ の非二次剰余}
+Euler の判定法によれば、奇素数 $p$ に対し $(a/p) \equiv a^{\frac{p-1}{2}} \pmod p$ である。$a=2, p=11$ の場合 $2^5 = 32 \equiv -1$ となり非二次剰余である。
+
+\begin{theorem}[P04]
+$\left(\frac{2}{11}\right)=-1$、すなわち $2^5 \equiv -1 \pmod{11}$。
+\end{theorem}
+
+\section{ウィルソンの定理と階乗構造}
+\subsection{P05: Wilson の定理（$p=7$）}
+積写像 $w: i \mapsto i+1$ を $1\leq i \leq 6$ で考えると対になる元 $(a, -a)$ の積が $-1$ に集約される。
+
+\begin{theorem}[P05]
+$6! = -1 \pmod 7$。
+\end{theorem}
+
+\paragraph{Leanによる確認} \verb|decide| が有限積の評価を自動的に実行する。
+
+\section{挑戦課題：二次相互法則}
+Legendre 記号を群準同型とみなし、作用する射を図式で可視化する。
+
+\begin{center}
+\begin{tikzcd}[column sep=huge]
+(\mathbb{Z}/7\mathbb{Z})^\times \arrow[r, "\chi_3" ] \arrow[d, "\operatorname{res}_{7\to 3}"'] & \{\pm 1\} \\
+(\mathbb{Z}/3\mathbb{Z})^\times \arrow[ur, "\chi_7"'] &
+\end{tikzcd}
+\end{center}
+
+ここで $\chi_3(a) = \left(\frac{a}{7}\right)$、$\chi_7(b) = \left(\frac{b}{3}\right)$ とおくと、構造的関係
+\[
+\chi_3(3)\,\chi_7(7) = (-1)^{\frac{(3-1)(7-1)}{4}} = -1
+\]
+が成立し、$x^2 \equiv 3 \pmod 7$ が解を持たず、$x^2 \equiv 1 \pmod 3$ は解を持つことが帰結する。
+
+\begin{theorem}[CH]
+\begin{enumerate}[label=\textnormal{(\roman*)}]
+  \item $x^2=3$ を満たす $x \in \mathbb{Z}/7\mathbb{Z}$ は存在しない。
+  \item $x^2=1$ を満たす $x \in \mathbb{Z}/3\mathbb{Z}$ が存在する。
+  \item $((3\cdot7) \bmod 4) = 1$。
+\end{enumerate}
+\end{theorem}
+
+\paragraph{Leanによる確認} 命題 \verb|S10_CH| は各成分を \verb|decide| と具体的な構成（一例として $x=1$）で示し、終端係数 $((3 : \\mathbb{Z})\\cdot 7) \\bmod 4$ が $1$ となることも同時に機械検証している。
+
+\section{付記}
+Lean 証明と TeX 解説はともに CODEX (OpenAI) により生成された。これらは有限群の射像・核の構造を軸に整理され、ブルバキ流の抽象構成に従う。今後は Legendre 記号の乗法性や Gauss 和の構造的理解へと発展させることが可能である。
+
+\end{document}
+
+

@@ -1,0 +1,62 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz-cd}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\title{IUT1 課題10 修正版メモ}
+\author{CODEX (OpenAI)\\Lean ファイル生成: CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本資料は、ニコラ・ブルバキ『数学原論』における順序対と射による構造化の理念に倣い、\texttt{S10fixed.lean} で定式化した命題を集合論的・代数的視点から説明する。Lean での形式化は CODEX (OpenAI) が行い、本稿の TeX 版も同じく CODEX (OpenAI) が生成した。
+\end{abstract}
+
+\section{全体方針}
+各問題の解集合は、適切な環  = \mathbb{Z}/n\mathbb{Z}$ と射影写像
+\[
+\pi : R \times R \to R, \quad \pi(x,b) = ax - b
+\]
+の核として与えられる。ブルバキ流の視点では、解集合は構造付き集合の部分対象として捉えられ、射 $\pi$ の像・核を解析することで性質を理解する。
+
+\section{P01 一次合同式の解集合}
+Lean 定理 \texttt{S10\_P01} は射 $\pi(x) = 3x - 6$ の核が $\{2,5,8\}$ に一致することを示す。既約元 $ が $\mathbb{Z}/9\mathbb{Z}$ で零因子であるため、元の剰余類を明示的に列挙し、$\pi$ の値が $ となる代表元を選び出した。
+
+\section{P02 一意的な一次合同式}
+\texttt{S10\_P02} では $\mathbb{Z}/7\mathbb{Z}$ が体であるため、$ の逆元 ^{-1} = 3$ を用いて、射 $\pi(x) = 5x - 3$ の核が単元により移されながら一点集合 $\{2\}$ となることを示した。Lean では群作用の一意性補題（\exists!）を具体的な等式の計算で証明した。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzcd}[row sep=large, column sep=huge]
+    R \times R \arrow[r, "\pi"] \arrow[d, swap, "\mathrm{pr}_1"] & R \\
+    R \arrow[ru, bend left=15, "a \mapsto 5a - 3"] &
+  \end{tikzcd}
+  \caption{P02 の射 $\pi$ と射影 $\mathrm{pr}_1$ の関係。核が一点に潰れることで解の一意性が保証される。}
+  \label{fig:P02diagram}
+\end{figure}
+
+\section{P03 二次剰余の判定}
+\texttt{S10\_P03} は平方写像 $\varphi : \mathbb{Z}/7\mathbb{Z} \to \mathbb{Z}/7\mathbb{Z},\; x \mapsto x^2$ の像を列挙し、$ が像に含まれないことを decide が即座に判定することで示した。これは有限集合上の射の像を調べる典型例である。
+
+\section{P04 フェルマー--オイラーの判定法}
+\texttt{S10\_P04} では $\mathbb{F}_{11}^\times$ の指数写像を用い、^5 = 32 \equiv -1 \pmod{11}$ を検算する。図式的には、冪写像  \mapsto x^5$ が自己同型となり、元 $ が $-1$ に送られることを確認するだけである。
+
+\section{P05 ウィルソンの定理（=7$）}
+Lean の Finset.prod を通じて、可換群 $\mathbb{F}_{7}^\times$ における積写像の全体を列挙し、単位元以外の各元が逆元と対を成すことにより積が $-1$ に一致することを検証した。
+
+\section{CH 二次相互法則の具体計算}
+\texttt{S10\_CH} は、先の射 $\varphi$ と $\mathbb{Z}/3\mathbb{Z}$ 上の平方写像の像を組み合わせ、
+\[
+ (3/7) = -1, \quad (7/3) = 1, \quad \frac{(3-1)(7-1)}{4} = 3
+\]
+が成り立つことを算術的に確かめた。Lean では S10_P03 の結果をそのまま引用し、$\mathbb{Z}/3\mathbb{Z}$ の平方根の存在と整数計算を 
+orm_num で処理している。
+
+\section{Lean との対応}
+各節の議論は src/MyProjects/IUT1/S10fixed.lean にて decide や基本的な射の計算で形式化されている。有限環上の計算を決定手続で処理することで、射の核・像の構造を一貫して把握できるようにした。
+
+\end{document}

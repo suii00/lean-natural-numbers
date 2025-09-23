@@ -1,0 +1,73 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{cd}
+\usepackage{hyperref}
+
+\title{Session 11: 二次形式と類理論の具体例}
+\author{CODEX (OpenAI)\\Leanファイル生成: CODEX (OpenAI)}
+\date{2025年9月22日}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{概要}
+本資料は CODEX (OpenAI) により作成されたものであり、同エージェントが生成した Lean ファイル \texttt{S11.lean} の数学的背景を解説する。Session~11 の基礎問題では、整数を二次形式で表す具体例、ペル方程式の最小解、ガウス整数のノルム、同時合同式の解を扱った。チャレンジ問題では判別式 \(-20\) をもつ二元二次形式の類が 2 つ存在し、それぞれが異なる素数を表すという事実を示す。
+
+\section{基礎問題の整理}
+\subsection{P01: 二平方和表示}
+整数 13 は \(2^2 + 3^2\) として表される。Lean では存在証明を \(\langle 2,3,\_ \rangle\) で与え、\texttt{norm\_num} が計算を自動化する。
+
+\subsection{P02: ペル方程式 \(x^2 - 2y^2 = 1\)}
+最小解 \((x,y) = (3,2)\) に対して \(3^2 - 2\cdot 2^2 = 1\)。\texttt{norm\_num} により等式確認がただちに行える。
+
+\subsection{P03: 四平方和の具体例}
+7 は \(2^2 + 1^2 + 1^2 + 1^2\) として表される。四平方和定理の一般論に先立ち、具体的な証明として Lean では \(\langle 2,1,1,1,\_ \rangle\) を用いた。
+
+\subsection{P04: ガウス整数のノルム}
+ガウス整数 \(3 + 4i\) のノルムは
+\[
+N(3 + 4i) = 3^2 + 4^2 = 25.
+\]
+Lean では実数での乗法表現を用意し、\texttt{simp [Complex.normSq]} と組み合わせて証明した。
+
+\subsection{P05: 二次合同式の同時解}
+条件 \(x^2 \equiv 1 \pmod{8}\) と \(x \equiv 3 \pmod{5}\) を満たす最小の正整数は 3 である。Lean では組立てに \texttt{constructor} を使い、\texttt{decide} が剰余計算を自動化する。
+
+\section{チャレンジ問題: 判別式 \(-20\) の類構造}
+\subsection{形式と判別式}
+二元二次形式
+\[
+f(x,y) = x^2 + 5y^2, \qquad g(u,v) = 2u^2 + 2uv + 3v^2
+\]
+はいずれも判別式 \(D = b^2 - 4ac = -20\) を共有する。Lean では \texttt{rfl} で等式を確認した。
+
+\subsection{素数の表現と類}
+形式 \(f\) は素数 29 を表し、\(f(3,2) = 9 + 20 = 29\)。一方、\(g\) は 7 を表し、\(g(1,1) = 2 + 2 + 3 = 7\)。29 に対しては局所障害により \(g\) が表現できないことが知られており、これは判別式 \(-20\) の類数が 2 であることを反映している。
+
+\subsection{図式的把握}
+\begin{center}
+\begin{tikzcd}[column sep=large]
+\text{判別式 } -20 \arrow[d, "\text{代表形式}"'] \arrow[r, dashed, "\text{類の分岐}"] & \text{表現される素数の集合} \\
+f(x,y)=x^2+5y^2 \arrow[r, mapsto] & 29 \\
+g(u,v)=2u^2+2uv+3v^2 \arrow[r, mapsto] & 7
+\end{tikzcd}
+\end{center}
+
+この図式は、同じ判別式でも同値類が異なると表す素数が変わることを可視化している。
+
+\section{今後の展望}
+\begin{itemize}
+  \item 類体論的視点：類数が 2 である状況はヒルベルト類体と密接に関わる。
+  \item 計算的手法：局所的障害を検出するアルゴリズムを実装することで、大きな素数に対しても判定が可能となる。
+  \item 次回への準備：Session~12 では p 進数が導入される。局所条件を理解することが鍵となる。
+\end{itemize}
+
+\section*{謝辞}
+本資料および Lean 証明は CODEX (OpenAI) によって自動生成された。ユーザからの数学的フィードバックにより、判別式 \(-20\) の類分解の理解がより深まったことに感謝する。
+
+\end{document}

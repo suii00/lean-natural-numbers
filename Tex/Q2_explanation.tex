@@ -1,0 +1,92 @@
+% !TEX program = lualatex
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
+
+\title{Q2: 微積分学の基本定理（右側導関数版）の数学的解説}
+\author{TeXファイル作成: CODEX (OpenAI)\\Leanファイル生成: CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+
+\begin{document}
+\maketitle
+
+\section{問題設定}
+本資料では、区間積分で定義される原始関数
+\begin{equation}
+F(t) = \int_{x = a}^{t} f(x)\,dx
+\end{equation}
+が連続関数 $f$ に対し $\mathrm{d}F/\mathrm{d}t = f(t)$ を満たすことを示す。これは Q2 に対応し、Lean では\newline
+\texttt{integral\_hasDerivAt\_right}
+を適用することで証明できる。
+
+\section{数学的背景}
+\subsection{仮定の整理}
+\begin{itemize}
+  \item $f\colon \mathbb{R} \to \mathbb{R}$ は連続。
+  \item $a \in \mathbb{R}$ は固定。
+  \item 区間 $[a, t]$ 上の積分はルベーグ積分を用いて定義する。
+\end{itemize}
+連続性から $f$ は任意の有界閉区間上で可積分であり、$F$ はよく定義される。
+
+\subsection{定理の主張}
+\begin{theorem}[微積分学の基本定理 (FTC-1)]
+連続関数 $f$ に対して、$F(t) = \int_{a}^{t} f(x)\,dx$ とおくと、任意の $t \in \mathbb{R}$ で
+\begin{equation}
+\frac{dF}{dt}(t) = f(t)
+\end{equation}
+が成り立つ。
+\end{theorem}
+
+\subsection{証明のアイデア}
+差商を用いて
+\begin{equation}
+\frac{F(t+h) - F(t)}{h} = \frac{1}{h}\int_{t}^{t+h} f(x)\,dx
+\end{equation}
+を評価する。連続性により $f$ が $t$ で一様連続に近い振る舞いを示すため、$h \to 0$ で右辺が $f(t)$ に収束する。
+厳密には平均値の定理と $f$ の極限を用いて示す。
+
+\section{Lean 定理との対応}
+Lean の補題
+\begin{center}
+\texttt{intervalIntegral.integral\_hasDerivAt\_right}
+\end{center}
+は以下を仮定する：
+\begin{enumerate}
+  \item $f$ が $[a, t]$ 上で \texttt{IntervalIntegrable}。
+  \item $f$ が $t$ で強可測かつ連続。
+\end{enumerate}
+連続性からこれらの前提が満たされ、結論として \texttt{HasDerivAt} を得る。Q2 の Lean 証明はこの定理を \texttt{simpa} で呼び出すだけで完了する。
+
+\section{図式による全体像}
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[node distance=2.8cm, every node/.style={rectangle, rounded corners, draw, align=center, font=\small}]
+    \node (cont) {連続関数\\$f: \mathbb{R} \to \mathbb{R}$};
+    \node (integrable) [right=of cont] {$f$ は $[a,t]$ 上で\\可積分};
+    \node (primitive) [right=of integrable] {$F(t)=\int_{a}^{t} f$\\原始関数の定義};
+    \node (lemma) [below=of integrable] {FTC-1 の差商評価\\(平均値の定理)};
+    \node (lean) [below=of primitive] {Lean補題\\\texttt{integral\_hasDerivAt\_right}};
+    \node (conclusion) [below=of lemma] {結論\\$\dfrac{dF}{dt}=f$};
+
+    \draw[-{Latex[length=3mm]}] (cont) -- (integrable);
+    \draw[-{Latex[length=3mm]}] (integrable) -- (primitive);
+    \draw[-{Latex[length=3mm]}] (primitive) -- (lean);
+    \draw[-{Latex[length=3mm]}] (lemma) -- (conclusion);
+    \draw[-{Latex[length=3mm]}] (cont) -- (lemma);
+    \draw[-{Latex[length=3mm]}] (lean) -- (conclusion);
+  \end{tikzpicture}
+  \caption{Q2 の論理構造}
+\end{figure}
+
+\section{まとめ}
+Q2 の証明は、連続性が可積分性と強可測性を保証する点を把握し、FTC-1 をそのまま適用することで完結する。Lean では既存補題を活用することで、数学的議論を直接コード化できる。
+
+\end{document}

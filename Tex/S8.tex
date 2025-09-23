@@ -1,0 +1,117 @@
+% !TEX program = lualatex
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows.meta}
+
+\title{IUT1 Session 8 基礎問題解説}
+\author{TeX ファイル作成: CODEX (OpenAI)\\Lean ファイル作成: CODEX (OpenAI)}
+\date{}
+
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{corollary}[theorem]{系}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{定義}
+\theoremstyle{remark}
+\newtheorem*{remark}{補足}
+
+\begin{document}
+
+\maketitle
+
+\section{イントロダクション}
+
+本稿では、IUT1 Session 8 の基礎問題（P01--P05）について、数学的背景と証明の概略を解説する。
+チャレンジ問題（CH）は扱わない。
+本文中の環はすべて可換環とする。
+
+\section{P01: 環準同型の像}
+
+\begin{theorem}
+自然な環準同型 $f:\mathbb{Z}\to\mathbb{Z}/12\mathbb{Z}$ は全射である。
+\end{theorem}
+
+\begin{proof}
+各剰余類 $[a]\in\mathbb{Z}/12\mathbb{Z}$ に対し整数 $a$ を取れば $f(a)=[a]$ であるから、任意の元が像に属する。
+したがって $f$ は全射。
+Lean では $\texttt{ZMod.intCast\_surjective}$ がそのまま使える。
+\end{proof}
+
+\section{P02: 第一同型定理の具体例}
+
+\begin{theorem}
+$\mathbb{Z}/\langle 6\rangle$ と $\mathbb{Z}/6\mathbb{Z}$ の間には環同型が存在する。
+\end{theorem}
+
+\begin{proof}
+$\mathbb{Z}\to\mathbb{Z}/6\mathbb{Z}$ の核は $\langle6\rangle$ だから、第一同型定理より
+\[
+\mathbb{Z}/\langle 6\rangle \simeq \operatorname{Im}(\mathbb{Z}\to\mathbb{Z}/6\mathbb{Z}) = \mathbb{Z}/6\mathbb{Z}
+\]
+が従う。既存の同型 $ \texttt{Int.quotientSpanNatEquivZMod} $ を用いれば一行で証明できる。
+\end{proof}
+
+\begin{center}
+\begin{tikzcd}[column sep=large,row sep=large]
+\mathbb{Z} \ar[d,"{\text{射影}}"] \ar[r,"{\bmod 6}"] & \mathbb{Z}/6\mathbb{Z} \\
+\mathbb{Z}/\langle6\rangle \ar[ru,dashed,"{\simeq}"] &
+\end{tikzcd}
+\end{center}
+
+\section{P03: イデアル対応の準備}
+
+\begin{theorem}
+イデアル $I\subseteq J\subseteq\mathbb{Z}$ に対し、$\pi:\mathbb{Z}\to\mathbb{Z}/I$ による像 $\pi(J)$ は $\mathbb{Z}/I$ のイデアルである。
+\end{theorem}
+
+\begin{proof}
+任意のイデアル $J$ に対し $ \texttt{Ideal.map}(\pi, J) $ は商環のイデアルになる。
+よって
+\[
+K := \pi(J) = \texttt{Ideal.map}(\pi)(J)
+\]
+が要請を満たす。
+Lean では単に $ \texttt{use Ideal.map (Ideal.Quotient.mk I) J} $ と書けばよい。
+\end{proof}
+
+\section{P04: 環同型の推移性}
+
+\begin{theorem}
+環 $R,S,T$ があり $R\simeq S$ かつ $S\simeq T$ ならば $R\simeq T$。
+\end{theorem}
+
+\begin{proof}
+環同型の合成 $f\circ g$ は再び環同型である。
+Lean では $\texttt{f.trans g}$ が環同型の合成を与える。
+\end{proof}
+
+\section{P05: 中国剰余定理の特殊ケース}
+
+\begin{theorem}
+$6=2\cdot 3$ と互いに素であることから $\mathbb{Z}/6\mathbb{Z} \simeq \mathbb{Z}/2\mathbb{Z}\times\mathbb{Z}/3\mathbb{Z}$。
+\end{theorem}
+
+\begin{proof}
+$2$ と $3$ は互いに素なので、中国剰余定理より
+\[
+\mathbb{Z}/(2\cdot3)\mathbb{Z} \simeq \mathbb{Z}/2\mathbb{Z} \times \mathbb{Z}/3\mathbb{Z}.
+\]
+Lean では $\texttt{ZMod.chineseRemainder}$ を用い、指数の一致 $\texttt{ZMod.cast}$ と組み合わせることで同型を構成できる。
+\end{proof}
+
+\begin{center}
+\begin{tikzcd}[column sep=huge,row sep=large]
+& \mathbb{Z} \ar[dl,"{\bmod 2}"'] \ar[dr,"{\bmod 3}"] \ar[d,"\bmod 6"] & \\
+\mathbb{Z}/2\mathbb{Z} & \mathbb{Z}/6\mathbb{Z} \ar[l, dashed,swap,"{\text{CRT 同型}}"] \ar[r, dashed,"{\text{CRT 同型}}"] & \mathbb{Z}/3\mathbb{Z}
+\end{tikzcd}
+\end{center}
+
+\section{まとめ}
+
+以上の問題は Mathlib の既存定理を活用することで、Lean 上でも極めて簡潔に定式化・証明できる。
+特に剰余環や商環に関する基本的な同型の扱いが重要であり、これらの API を把握しておくことは今後の演習に役立つ。
+
+\end{document}

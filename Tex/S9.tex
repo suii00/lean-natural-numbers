@@ -1,0 +1,77 @@
+% !TeX program = lualatex
+\documentclass[luatex]{ltjsarticle}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{商環演習 S9 解説ノート}
+\author{Codex (OpenAI)\TeXファイル生成: Codex (OpenAI)\Leanファイル生成: Codex (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\newtheorem{example}{例}
+\theoremstyle{remark}
+\newtheorem{remark}{補足}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+本資料は、演習 S9 に対応する Lean ファイル（\texttt{MyProjects/IUT1/S9.lean}）に実装された証明の数学的背景を日本語で解説する。各問題は商環 \(\mathbb{Z}/n\mathbb{Z}\) の計算、零因子、単元、環同型、フロベニウス準同型、そして中国剰余定理に基づく構造定理を扱う。本ノートおよび対応する Lean コードは Codex (OpenAI) により生成された。
+
+\section{基礎問題の解説}
+各問題で Lean がどのような事実を形式化しているかを確認する。
+
+\subsection{P01: 商環での計算}
+目標は \(((7 + 8)\bmod 10) \cdot 4 = 0\) を示すことである。\(7 + 8 = 15\) であり、10 で割ると余りは 5。さらに \(5 \cdot 4 = 20\) は 10 の倍数なので商環では 0 となる。Lean では \texttt{decide} を用いて有限集合上の等式を自動判定している。
+
+\subsection{P02: 零因子の存在}
+\(\mathbb{Z}/15\mathbb{Z}\) において 3 と 5 はいずれも 0 ではないが、積は 0 になる。これは 15 が合成数であり、互いに素でない因子が存在することに由来する。Lean では論理積を \texttt{refine} で組み立て、各等式・不等式を \texttt{decide} で確定させている。
+
+\subsection{P03: 単元}
+\(\mathbb{Z}/12\mathbb{Z}\) における 7 は \(\gcd(7,12)=1\) のため単元であり、逆元も 7 である。これは \(7^2 = 49 \equiv 1 \pmod{12}\) を確認すれば良い。同様に Lean では \texttt{decide} が単元性と積の一致をまとめて示している。
+
+\subsection{P04: 商環の同型}
+整数環のイデアル \(\langle 15 \rangle\) による剰余環 \(\mathbb{Z}/\langle 15 \rangle\) は、既知の定理 \texttt{Int.quotientSpanNatEquivZMod} により \(\mathbb{Z}/15\mathbb{Z}\) と環同型であることが示される。Lean ではこの既成の環同型をそのまま \texttt{Nonempty.intro} の証人として提示している。
+
+\subsection{P05: フロベニウス準同型}
+\(\mathbb{Z}/5\mathbb{Z}\) は 5 を法とする有限体であり、任意の \(x\) について \(x^5 = x\) が成り立つ（フェルマーの小定理）。Lean では有限体の冪乗に関する一般補題 \texttt{ZMod.pow	extunderscore card} と素数性を表す型クラス \texttt{Fact (Nat.Prime 5)} を導入し、\texttt{simp} で証明している。
+
+\section{チャレンジ問題: 中国剰余定理による分解}
+\subsection{構成の全体像}
+\(60 = 4 \cdot 15 = 2^2 \cdot 3 \cdot 5\) を用いて、商環 \(\mathbb{Z}/60\mathbb{Z}\) を \(\mathbb{Z}/4\mathbb{Z} \times \mathbb{Z}/3\mathbb{Z} \times \mathbb{Z}/5\mathbb{Z}\) に分解する。Lean 実装では 2 段階の中国剰余定理を用いている:
+\begin{enumerate}[label=\arabic*)]
+  \item まず \(\mathbb{Z}/60\mathbb{Z} \to \mathbb{Z}/4\mathbb{Z} \times \mathbb{Z}/15\mathbb{Z}\)。
+  \item 次に \(\mathbb{Z}/15\mathbb{Z} \to \mathbb{Z}/3\mathbb{Z} \times \mathbb{Z}/5\mathbb{Z}\)。
+\end{enumerate}
+これらを合成し、座標の順序を調整して最終的な同型を得る。Lean では \texttt{RingEquiv.prodCongr} と恒等同型 \texttt{RingEquiv.refl} を組み合わせて構造を組み立て、\texttt{native	extunderscore decide} と \texttt{simp} で具体的な像 \(f(17) = (1,2,2)\) を確認している。
+
+\subsection{図式による可視化}
+図式により合成の流れを示す。\(f\) は最終的な同型であり、\(\pi_{15}\) は第2座標への射影、\(e_2\) は第2段階の同型を表す。
+\[
+\begin{tikzcd}
+\mathbb{Z}/60\mathbb{Z} \arrow[r, "f"] \arrow[d, "\pi_{15}"'] & \mathbb{Z}/4\mathbb{Z} \times \mathbb{Z}/3\mathbb{Z} \times \mathbb{Z}/5\mathbb{Z} \arrow[d, "\mathrm{pr}_{\mathbb{Z}/3\mathbb{Z}\times \mathbb{Z}/5\mathbb{Z}}"] \
+\mathbb{Z}/15\mathbb{Z} \arrow[r, "e_2"] & \mathbb{Z}/3\mathbb{Z} \times \mathbb{Z}/5\mathbb{Z}
+\end{tikzcd}
+\]
+この図式は可換であり、上の合成が下の合成と一致することを表している。17 の像は各法についての剰余をとるだけで得られ、\(17 \equiv 1 \pmod{4}\), \(17 \equiv 2 \pmod{3}\), \(17 \equiv 2 \pmod{5}\) が確認できる。
+
+\subsection{Lean コードとの対応}
+Lean ファイルでは以下のような構成になっている:
+\begin{itemize}
+  \item \texttt{e₁} : 60 と 4, 15 の互いに素性を \texttt{Nat.Coprime} で確認し、\texttt{ZMod.chineseRemainder} で同型を構成。
+  \item \texttt{e₂} : 同様に 15 と 3, 5 の互いに素性から同型を構成。
+  \item \texttt{f} : 上記を \texttt{RingEquiv.trans} と \texttt{RingEquiv.prodCongr} で合成。
+  \item \texttt{native	extunderscore decide} : 合成した写像が与える像を有限集合上の全探索で判定。
+  \item \texttt{simp} : \texttt{RingEquiv.trans	extunderscore apply} などの補題で式を簡約し、結果を整理。
+\end{itemize}
+
+\section{まとめ}
+本資料では Lean による形式証明をもとに、演習 S9 の各問題を数学的に解説した。商環の基本的性質に加え、中国剰余定理を段階的に適用することで構造定理を構成する流れを明示した。今後は一般の \(n\) に対する分解や、環準同型の普遍性をさらに深く考察することで、より高次の代数的構造理解へとつなげられる。
+
+\end{document}

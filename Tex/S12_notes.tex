@@ -1,0 +1,72 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\usepackage{hyperref}
+\geometry{margin=25mm}
+\title{IUT1 Session 12 における補題解説（P02・P03を除く）}
+\author{TeXファイル生成: CODEX (OpenAI)\\Leanファイル生成: CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{はじめに}
+本稿では IUT1 Session 12 の課題のうち、\textbf{S12\_P02} および \textbf{S12\_P03} を除いた命題に関する数学的背景と論理構造を丁寧に解説する。対象は以下の四題である。
+\begin{itemize}
+  \item \textbf{S12\_P01}: 整数 $360$ の $p$ 進付値の計算。
+  \item \textbf{S12\_P04}: 整数 $17$ の $3$ 進展開の初項。
+  \item \textbf{S12\_P05}: ヘンゼルの補題に向けた剰余計算の準備。
+  \item \textbf{S12\_CH}: $5$ 進整数における単元の密度と構造。
+\end{itemize}
+
+\section{S12\_P01: $p$ 進付値の計算}
+$360=2^3\cdot3^2\cdot5$ と素因数分解できるため、$p$ 進付値 $v_p(360)=\mathrm{padicValNat}(p,360)$ は素因数の指数に一致する。したがって
+\[
+ v_2(360)=3,\quad v_3(360)=2,\quad v_5(360)=1.
+\]
+この事実から $p$ 進付値は\textbf{最大冪除数}の概念と一致することが確認できる。\texttt{Lean} での形式化では、素数事実を `Fact` インスタンスとして導入し、$p^k$ の付値公式 `padicValNat.prime_pow` と零除法則 `padicValNat.eq_zero_of_not_dvd` を組み合わせることで、$p$ の因子と互いに素な残り部分を明確に分離している。
+
+\section{S12\_P04: $3$ 進展開の初項}
+$17$ を $3$ の累乗に対する剰余で調べると次が成立する。
+\[
+17 \equiv 2 \pmod 3,\qquad 17 \equiv 8 \pmod 9,\qquad 17 \equiv 17 \pmod{27}.
+\]
+これは $17 = 2 + 2\cdot3 + 1\cdot3^2$ という $3$ 進展開の初項を与える。一般に、$p$ 進展開は逐次的に剰余を計算し、上位桁を吟味することで構成できる。\texttt{Lean} では `Nat.mod_eq_of_lt` などの補題に基づき、`decide` による計算証明で自動的に確認している。
+
+\section{S12\_P05: ヘンゼルの補題への準備}
+ヘンゼルの補題は $p$ 進整数での方程式解の持ち上げに関する。ここでは平方合同
+\[
+ x^2 \equiv 2 \pmod 7
+\]
+の解 $x\equiv 3$ を基点として、合同式を $7^2=49$ に持ち上げる。具体的には
+\[
+3^2 = 9 \equiv 2 \pmod 7,\qquad 10^2 = 100 = 2 + 2\cdot49 \equiv 2 \pmod{49}.
+\]
+$x=10$ が $x \equiv 3 \pmod 7$ を保ちながら合同式を満たすことが確認でき、ヘンゼルの補題適用の典型例になっている。
+
+\section{S12\_CH: $5$ 進整数の稠密性と単元構造}
+$5$ 進整数環 $\mathbb{Z}_5$ では、素数 $5$ と互いに素な整数はすべて単元となる。$2$ と $5$ は互いに素なので、$2$ は $\mathbb{Z}_5$ の単元であり、その逆元は $5$ による冪乗剰余から構成できる。具体的に
+\[
+2 \cdot 63 = 126 = 1 + 125 \equiv 1 \pmod{125}
+\]
+となり、$63$ が $\mathbb{Z}/125\mathbb{Z}$ における $2$ の逆元である。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[column sep=large]
+    \mathbb{Z} \arrow[r, "\mathrm{mod}\ 5"] \arrow[d, "\mathrm{mod}\ 125"'] & \left(\mathbb{Z}/5\mathbb{Z}\right)^{\times} \arrow[d, "\text{単元としての射影}"] \\
+    \mathbb{Z}/125\mathbb{Z} \arrow[r, "\mathrm{mod}\ 5"'] & \mathbb{Z}/5\mathbb{Z}
+  \end{tikzcd}
+  \caption{$5$ 進整数における単元の射影構造。$63$ は $125$ 剰余での逆元を与え、下段から上段への単元情報を持ち上げる。}
+\end{figure}
+
+図式は、$\mathbb{Z}$ から $\mathbb{Z}/125\mathbb{Z}$、さらに $\mathbb{Z}/5\mathbb{Z}$ への射影を介して単元の情報が伝播する様子を描いている。$63$ を $5$ で割った剰余は $3$ であり、$2$ の逆元として一貫性を保つ。これにより、$\mathbb{Z}_5$ における逆元の構成が有限剰余類のデータから再構成できることがわかる。
+
+\section{おわりに}
+以上、S12 の諸命題（S12\_P02, S12\_P03 を除く）について、整数の素因数分解、$p$ 進展開、ヘンゼルの補題の初歩、そして $p$ 進整数における単元の構造を概観した。これらの議論は \texttt{Lean} 形式化とも整合し、コンピュータ支援証明における計算戦略の背後にある数学的洞察を提供する。
+
+\end{document}

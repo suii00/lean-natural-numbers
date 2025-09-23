@@ -1,0 +1,70 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz-cd}
+\usepackage{microtype}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+\title{Session 7 基礎問題の数学的解説}
+\author{CODEX (OpenAI)\\\small 本TeXファイルおよび Lean ファイルの生成}
+\date{2025年9月21日}
+
+\begin{document}
+
+\maketitle
+
+\section*{概要}
+本資料では Session 7 の基礎問題 \textbf{P01} から \textbf{P05} までを数学的に解説します。チャレンジ問題 (CH) は対象外です。各問題はニコラ・ブルバキ『数学原論』が強調する「集合と射による構造化」の観点から説明し、必要に応じて図式を用います。
+
+\section{P01: 直積環の構造}
+直積環 $\mathbb{Z} \times \mathbb{Z}$ は積集合に成分ごとの演算を備えた普遍的構造です。射影写像
+\[
+\begin{tikzcd}
+\mathbb{Z} \times \mathbb{Z} \arrow[r, "p_1"] \arrow[d, "p_2"'] & \mathbb{Z} \\
+& \mathbb{Z}
+\end{tikzcd}
+\]
+を考えると、任意の環 $R$ からの射 $f_1, f_2 : R \to \mathbb{Z}$ は一意的に $R \to \mathbb{Z} \times \mathbb{Z}$ を因子分解します。従って $(2,3)$ と $(4,5)$ の積は成分ごとに計算され、
+\[(2 \cdot 4,\; 3 \cdot 5) = (8,15)
+\]
+となります。Lean では `Prod.ext` や `norm_num` に対応する成分ごとの証明がこの構造理解を反映します。
+
+\section{P02: 商環の元の等価性}
+商環 $\mathbb{Z}/6\mathbb{Z}$ の元は合同類 $\overline{n}$ で表され、
+\[
+\overline{a} = \overline{b} \iff 6 \mid (a-b)
+\]
+が成り立ちます。$8-2 = 6$ は $6$ の倍数なので $\overline{8} = \overline{2}$ です。商環は剰余写像
+\[
+\begin{tikzcd}
+\mathbb{Z} \arrow[r, "\pi"] & \mathbb{Z}/6\mathbb{Z}
+\end{tikzcd}
+\]
+によって構造化され、$\pi(8) = \pi(2)$ として議論されます。Lean では `decide` や `simp` によりこの剰余判定を自動化できます。
+
+\section{P03: 多項式環の拡張}
+係数環を $\mathbb{Z}/3\mathbb{Z}$ に取る多項式環 $(\mathbb{Z}/3\mathbb{Z})[X]$ では有限体の演算規則に従います。二項定理を用いると
+\[
+(X+1)^2 = X^2 + 2X + 1
+\]
+が成り立ちます。ここで $2 = -1$ が $\mathbb{Z}/3\mathbb{Z}$ の元であることに注意すれば、展開した係数が期待通りであると分かります。Lean の `ring` タクティックは体の特徴 $3$ を認識し、自動的にこの式を証明します。
+
+\section{P04: 行列環の構成}
+$2 \times 2$ 整数行列全体は単位行列 $I_2$ を持つ環となります。任意の行列 $A$ に対して
+\[
+I_2 A = A
+\]
+が成り立つのは、$I_2$ が成分ごとに単位元を与えるためです。これは線型写像としての「恒等写像」が持つ普遍性に対応し、Lean では `Matrix.one_mul` がこの事実を直接反映します。
+
+\section{P05: 部分環の判定}
+$\mathbb{Z}[\sqrt{2}] = \{ a + b\sqrt{2} \mid a,b \in \mathbb{Z} \}$ は $\mathbb{R}$ の部分環です。二元の積を計算すると
+\[
+(a + b\sqrt{2})(c + d\sqrt{2}) = (ac + 2bd) + (ad + bc)\sqrt{2}
+\]
+となり、係数 $(ac + 2bd)$ と $(ad + bc)$ は整数なので再び $\mathbb{Z}[\sqrt{2}]$ の元です。これは部分環の閉性を示し、Lean では `ring_nf` を用いることで平方根の乗法規則 $\sqrt{2}^2 = 2$ を組み合わせて証明を完結できます。
+
+\section*{終わりに}
+本資料は CODEX (OpenAI) が Lean ファイルの形式的証明と整合する形で生成しました。各項目では射や普遍性といった観点で構造を捉え、ニコラ・ブルバキの視点に沿って整理しています。
+
+\end{document}
