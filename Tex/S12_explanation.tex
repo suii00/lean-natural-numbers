@@ -1,0 +1,74 @@
+\documentclass{ltjsarticle}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{luatexja}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+\title{p\,進ノルムの具体計算と解説}
+\author{TeX生成: Codex (OpenAI)\\Leanファイル生成: Codex (OpenAI)}
+\date{2025年9月23日}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+本資料では、課題 $S12$ に含まれる命題 $P02$ および $P03$ の数学的背景と計算手順を解説します。どちらも $p$ 進ノルム $\lvert\cdot\rvert_p$ の基本性質、とくに積性と素数冪の評価を利用して値を求める問題です。
+
+\section{$P02$: $\lvert 25\rvert_5 = \frac{1}{25}$ の解説}
+$5$ 進ノルムの定義は
+\[
+  \lvert x\rvert_5 = 5^{-v_5(x)}\quad(x \neq 0)
+\]
+であり、$v_5(x)$ は $x$ に含まれる $5$ の指数（$5$ 進付値）です。$25 = 5^2$ と素因数分解できるため、$v_5(25) = 2$ が直ちに分かります。したがって
+\[
+  \lvert 25\rvert_5 = 5^{-2} = \frac{1}{25}.
+\]
+
+Lean での証明では次のステップを踏みました。
+
+\begin{enumerate}
+  \item $\lvert 5\rvert_5 = 5^{-1}$ を補題 \texttt{padicNorm\_p\_of\_prime} から取得。
+  \item $25 = 5 \cdot 5$ と因数分解し、$p$ 進ノルムの積性 \texttt{padicNorm.mul} を適用。
+  \item 得られた $5^{-1} \cdot 5^{-1}$ を $\frac{1}{25}$ と同一視するために \texttt{simp} と \texttt{norm\_num} で整理。
+\end{enumerate}
+
+この流れを図式で表すと以下のようになります。
+\[
+\begin{tikzcd}
+  25 \arrow[d, "5^2"'] \arrow[r, "\text{積性}" ] &
+  5 \cdot 5 \arrow[d, "\lvert\cdot\rvert_5" ] \arrow[r, "\text{帰着}" ] &
+  5^{-1} \cdot 5^{-1} \arrow[d, "\text{乗算}" ] \\
+  v_5(25) = 2 \arrow[r, "\Rightarrow" ] &
+  \lvert 5\rvert_5 = 5^{-1} \arrow[r, "\Rightarrow" ] &
+  \lvert 25\rvert_5 = 5^{-2} = \frac{1}{25}
+\end{tikzcd}
+\]
+
+図は、値を素因数分解に落とし込み、ノルムの積性を利用して指数計算に還元する一連の流れを示しています。
+
+\section{$P03$: $\lvert 26 - 35\rvert_3 = \frac{1}{9}$ の解説}
+差 $26 - 35 = -9$ を計算し、符号が $p$ 進ノルムに影響しないこと（$\lvert -x\rvert_p = \lvert x\rvert_p$）を用いると $\lvert -9\rvert_3 = \lvert 9\rvert_3$ に帰着できます。さらに $9 = 3^2$ より $v_3(9) = 2$、よって
+\[
+  \lvert 26 - 35\rvert_3 = \lvert 9\rvert_3 = 3^{-2} = \frac{1}{9}.
+\]
+
+Lean での証明は次のとおりです。
+\begin{enumerate}
+  \item 差分 $26 - 35$ を $-9$ として簡約、$\texttt{padicNorm.neg}$ を用いて符号を除去。
+  \item $9 = 3 \cdot 3$ と分解し、再び \texttt{padicNorm.mul} で $\lvert 3\rvert_3$ の積に還元。
+  \item $\lvert 3\rvert_3 = 3^{-1}$ を既知の補題から取得し、$3^{-1} \cdot 3^{-1}$ を $1/9$ に評価。
+\end{enumerate}
+
+\section{Lean 実装との対応}
+以下は実際に Lean で記述した定理の要約です。
+\begin{align*}
+  \texttt{theorem\ S12\_P02} &: \; \lvert 25\rvert_5 = 1/25,\\
+  \texttt{theorem\ S12\_P03} &: \; \lvert 26 - 35\rvert_3 = 1/9.
+\end{align*}
+いずれも \texttt{classical} コンテキストで素数性の事実 \texttt{Fact (Nat.Prime p)} を導入し、$p$ 進ノルムに関する標準補題を組み合わせて証明しています。
+
+\section{おわりに}
+$P02$ と $P03$ は $p$ 進ノルムの基本公式を活用する典型例です。整数を素因数分解し、付値 $v_p$ に変換することで計算が簡潔になります。今回の Lean 実装は Codex (OpenAI) により生成され、同じく本 TeX ドキュメントも Codex (OpenAI) が作成しました。今後はより高次の $p$ 進解析に進む基礎として、これらの手順を確実に押さえておくと良いでしょう。
+
+\end{document}
