@@ -1,0 +1,60 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+\title{Session\,13 基本問題の数学的解説\\\large (作成: CODEX (OpenAI))}
+\author{CODEX (OpenAI)\\\small Leanファイルおよび本TeXファイルはCODEX (OpenAI)が生成}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{概要}
+本資料では、課題 S13 のうち挑戦問題(CH)を除く P01--P05 について、得られた Lean 証明の背景となる数学的アイデアを簡潔に整理します。
+
+\section{P01: $5$ 進収束}
+数列 $a_n = 5^{n+1}$ の $5$ 進ノルムは
+\[
+  \lvert a_n \rvert_5 = 5^{-(n+1)}
+\]
+となり $n \to \infty$ で $0$ に近づきます。これは $5^{n+1}$ の $5$ 進付値が $n+1$ であることから直ちに分かります。Lean では `padicValRat` と `padicNorm.eq_zpow_of_nonzero` を用いて指数計算に帰着しました。
+
+\section{P02: $5$ 進整数の特徴付け}
+有理数 $2/3$ と $1/5$ の $5$ 進ノルムを求めると
+\[
+  \left|\frac{2}{3}\right|_5 = 1, \qquad \left|\frac{1}{5}\right|_5 = 5
+\]
+となります。分子・分母に $5$ が現れない $2/3$ は $5$ 進整数ですが、分母に $5$ を含む $1/5$ はノルムが $>1$ であり $5$ 進整数ではありません。Lean では `padicValRat.div` と `padicValNat.eq_zero_of_not_dvd` を組み合わせています。
+
+\section{P03: $x^2 = -1$ の $5$ 進解}
+$\mathbb{Z}/5\mathbb{Z}$ 上では $2^2 = 4 \equiv -1$ であるため、$x^2 \equiv -1 \pmod{5}$ の解は $x \equiv 2$ です。さらに $\mathbb{Z}/25\mathbb{Z}$ では $x = 7$ が $x^2 = -1$ を満たすことを直接検算できます。Lean では計算ライブラリ (`decide`) を利用し、存在証明を `use` に相当するコンストラクタで与えています。
+
+\section{P04: 強三角不等式の具体例}
+$15 + 10 = 25$ であり、$5$ 進ノルムに関しては
+\[
+  \lvert 25 \rvert_5 = 5^{-2}, \qquad \lvert 15 \rvert_5 = \lvert 10 \rvert_5 = 5^{-1}
+\]
+なので $\lvert 25 \rvert_5 \le \max\{\lvert 15 \rvert_5, \lvert 10 \rvert_5\}$ が成り立ちます。Lean では `padicNorm.nonarchimedean` を直接適用し、一般形の強三角不等式から結論を得ました。
+
+\section{P05: $p$ 進対数の収束条件}
+$5$ 進対数 $\log_5(1+x)$ は $\lvert x \rvert_5 < 1$ のとき収束します。ここでは $x = 5$ とし、
+\[
+  \lvert 5 \rvert_5 = 5^{-1} < 1
+\]
+より条件を満たすと確認します。Lean では `padicNorm.padicNorm_p_lt_one_of_prime` を呼び出し、素数 $p=5$ に対してノルムが $<1$ である事実を直接利用しました。
+
+\section*{圏論的観点からの図式}
+以下の図式は、整数環 $\mathbb{Z}$ から $5$ 進整数環 $\mathbb{Z}_5$、さらに商環 $\mathbb{Z}/5^n\mathbb{Z}$ への射影が互いに整合的であることを表しています。
+\[
+\begin{tikzcd}[row sep=large, column sep=large]
+\mathbb{Z} \arrow[r, "\phi_{5^n}"] \arrow[d, "\iota"'] & \mathbb{Z}/5^n\mathbb{Z} \\
+\mathbb{Z}_5 \arrow[ur, "\pi_n"'] &
+\end{tikzcd}
+\]
+ここで $\iota$ は自然な埋め込み、$\phi_{5^n}$ は剰余類への射影、$\pi_n$ は逆極限構造を定める射です。$5$ 進ノルムによる収束や整数判定は、この射影系を通じて理解するとニコラ・ブルバキ風の「構造化された順序対」の精神に合致します。
+
+\end{document}

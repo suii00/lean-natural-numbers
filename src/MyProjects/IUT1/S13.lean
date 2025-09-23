@@ -88,13 +88,128 @@ theorem S13_P05 : padicNorm 5 (5 : ℚ) < 1 := by
   haveI : Fact (Nat.Prime 5) := by decide
   simpa using padicNorm.padicNorm_p_lt_one_of_prime (p := 5)
 
--- CH: 局所-大域原理の例（ハッセ原理の反例）
-theorem S13_CH_corrected :
+private lemma sum_sq_mod3_zero :
+    ∀ a b : ZMod 3, a ^ 2 + b ^ 2 = 0 → a = 0 ∧ b = 0 := by
+  decide
+
+private lemma sq_zero_mod3 : ∀ c : ZMod 3, c ^ 2 = 0 → c = 0 := by
+  decide
+
+private lemma descent_sum_sq (a b c : ℤ) (hc : c ≠ 0) (h : a ^ 2 + b ^ 2 = 3 * c ^ 2) :
+    ∃ a' b' c',
+      c' ≠ 0 ∧
+        a' ^ 2 + b' ^ 2 = 3 * c' ^ 2 ∧
+        Int.natAbs c' < Int.natAbs c := by
+  classical
+  have hmod : (a : ZMod 3) ^ 2 + (b : ZMod 3) ^ 2 = 0 := by
+    simpa using congrArg (fun z : ℤ => (z : ZMod 3)) h
+  obtain ⟨ha0, hb0⟩ :=
+    sum_sq_mod3_zero (a := (a : ZMod 3)) (b := (b : ZMod 3)) hmod
+  have ha_dvd : (3 : ℤ) ∣ a := (ZMod.intCast_zmod_eq_zero_iff_dvd a 3).1 ha0
+  have hb_dvd : (3 : ℤ) ∣ b := (ZMod.intCast_zmod_eq_zero_iff_dvd b 3).1 hb0
+  obtain ⟨a₁, ha₁⟩ := ha_dvd
+  obtain ⟨b₁, hb₁⟩ := hb_dvd
+  have h0 : 9 * (a₁ ^ 2 + b₁ ^ 2) = 3 * c ^ 2 := by
+    simpa [ha₁, hb₁, pow_two, mul_add, add_mul, mul_comm, mul_left_comm, mul_assoc] using h
+  have h0' : 3 * (3 * (a₁ ^ 2 + b₁ ^ 2)) = 3 * c ^ 2 := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using h0
+  have h1 : 3 * (a₁ ^ 2 + b₁ ^ 2) = c ^ 2 :=
+    mul_left_cancel₀ (show (3 : ℤ) ≠ 0 by decide) h0'
+  have hc_sq : (c : ZMod 3) ^ 2 = 0 := by
+    have := congrArg (fun z : ℤ => (z : ZMod 3)) h1
+    simpa using this
+  have hc0 : (c : ZMod 3) = 0 := sq_zero_mod3 (c := (c : ZMod 3)) hc_sq
+  have hc_dvd : (3 : ℤ) ∣ c := (ZMod.intCast_zmod_eq_zero_iff_dvd c 3).1 hc0
+  obtain ⟨c₁, hc₁⟩ := hc_dvd
+  have hc₁_ne : c₁ ≠ 0 := by
+    intro hzero
+    apply hc
+    simpa [hc₁, hzero]
+  have h1' : 3 * (a₁ ^ 2 + b₁ ^ 2) = 9 * c₁ ^ 2 := by
+    simpa [hc₁, pow_two, mul_comm, mul_left_comm, mul_assoc] using h1
+  have h1'' : 3 * (a₁ ^ 2 + b₁ ^ 2) = 3 * (3 * c₁ ^ 2) := by
+    simpa [mul_comm, mul_left_comm, mul_assoc] using h1'
+  have h2 : a₁ ^ 2 + b₁ ^ 2 = 3 * c₁ ^ 2 :=
+    mul_left_cancel₀ (show (3 : ℤ) ≠ 0 by decide) h1''
+  have hNat : Int.natAbs c = 3 * Int.natAbs c₁ := by
+    simpa [hc₁, Int.natAbs_mul, Int.natAbs_natCast] using Int.natAbs_mul (3 : ℤ) c₁
+  have hc₁_lt : Int.natAbs c₁ < Int.natAbs c := by
+    have hc₁_pos : 0 < Int.natAbs c₁ := Int.natAbs_pos.2 hc₁_ne
+    have : Int.natAbs c₁ < 3 * Int.natAbs c₁ :=
+      Nat.lt_mul_of_pos_left hc₁_pos (by decide : 0 < 3)
+    simpa [Nat.mul_comm, hNat] using this
+  refine ⟨a₁, b₁, c₁, hc₁_ne, h2, hc₁_lt⟩
+
+private lemma no_int_sum_sq (a b c : ℤ) (hc : c ≠ 0)
+    (h : a ^ 2 + b ^ 2 = 3 * c ^ 2) : False := by
+  classical
+  have aux :
+      ∀ n : ℕ,
+        ∀ {a b c : ℤ},
+          c ≠ 0 →
+            a ^ 2 + b ^ 2 = 3 * c ^ 2 → Int.natAbs c = n → False :=
+    by
+      refine fun n => Nat.strong_induction_on n ?_
+      intro k IH a b c hc' hEq hAbs
+      by_cases hk : k = 0
+      · have hc_zero : c = 0 := by
+          have : Int.natAbs c = 0 := by simpa [hk] using hAbs
+          exact Int.natAbs_eq_zero.mp this
+        exact (hc' hc_zero).elim
+      · obtain ⟨a', b', c', hc'', hEq', hlt⟩ :=
+          descent_sum_sq a b c hc' hEq
+        have hlt' : Int.natAbs c' < k := by
+          have hAbs' : Int.natAbs c = k := hAbs
+          simpa [hAbs'] using hlt
+        exact IH _ hlt' hc'' hEq' rfl
+  exact aux (Int.natAbs c) (a := a) (b := b) (c := c) hc h rfl
+
+-- CH: Local obstruction example for x^2 + y^2 = 3
+theorem S13_CH :
     (∃ x y : ℝ, x^2 + y^2 = 3) ∧
-    (¬∃ x y : ZMod 4, x^2 + y^2 = 3) ∧  -- mod 4 での非存在
-    (∃ x y : ZMod 3, x^2 + y^2 = 0) ∧
-    (¬∃ x y : ℚ, x^2 + y^2 = 3)    := by     -- 有理数解の非存在
-  sorry
+    (∃ x y : ZMod 5, x^2 + y^2 = 3) ∧
+    (¬ ∃ x y : ZMod 8, x^2 + y^2 = 3) ∧
+    (¬ ∃ x y : ℚ, x^2 + y^2 = 3) := by
+  classical
+  constructor
+  · refine ⟨Real.sqrt 3, 0, ?_⟩
+    simp [pow_two, Real.mul_self_sqrt (show 0 ≤ (3 : ℝ) by norm_num)]
+  constructor
+  · refine ⟨(2 : ZMod 5), 2, ?_⟩
+    decide
+  constructor
+  · exact by decide
+  · intro h
+    obtain ⟨x, y, hxy⟩ := h
+    set a : ℤ := x.num * (y.den : ℤ)
+    set b : ℤ := y.num * (x.den : ℤ)
+    set c : ℤ := (x.den : ℤ) * (y.den : ℤ)
+    have hxden_ne : (x.den : ℤ) ≠ 0 := by exact_mod_cast (ne_of_gt (Rat.den_pos x))
+    have hyden_ne : (y.den : ℤ) ≠ 0 := by exact_mod_cast (ne_of_gt (Rat.den_pos y))
+    have hc_ne : c ≠ 0 := by
+      dsimp [c]
+      exact mul_ne_zero hxden_ne hyden_ne
+    have hscaled : x ^ 2 * (c : ℚ) ^ 2 + y ^ 2 * (c : ℚ) ^ 2 = 3 * (c : ℚ) ^ 2 := by
+      have := congrArg (fun t : ℚ => t * (c : ℚ) ^ 2) hxy
+      simpa [pow_two, mul_add, add_comm, add_left_comm, add_assoc] using this
+    have hx_mul : x * (c : ℚ) = a := by
+      simp [a, c, Rat.num_div_den, mul_comm, mul_left_comm, mul_assoc]
+    have hy_mul : y * (c : ℚ) = b := by
+      simp [b, c, Rat.num_div_den, mul_comm, mul_left_comm, mul_assoc]
+    have hx_sq : x ^ 2 * (c : ℚ) ^ 2 = (a : ℚ) ^ 2 := by
+      simp [pow_two, hx_mul, mul_comm, mul_left_comm, mul_assoc]
+    have hy_sq : y ^ 2 * (c : ℚ) ^ 2 = (b : ℚ) ^ 2 := by
+      simp [pow_two, hy_mul, mul_comm, mul_left_comm, mul_assoc]
+    have hclearQ :
+        (a : ℚ) ^ 2 + (b : ℚ) ^ 2 = 3 * (c : ℚ) ^ 2 := by
+      simpa [hx_sq, hy_sq] using hscaled
+    have hclear : a ^ 2 + b ^ 2 = 3 * c ^ 2 := by
+      exact_mod_cast hclearQ
+    exact no_int_sum_sq a b c hc_ne hclear
 
 end HW_IUT1_S13
+
+
+
+
 
