@@ -95,74 +95,83 @@ private lemma sum_sq_mod3_zero :
 private lemma sq_zero_mod3 : ∀ c : ZMod 3, c ^ 2 = 0 → c = 0 := by
   decide
 
-private lemma descent_sum_sq (a b c : ℤ) (hc : c ≠ 0) (h : a ^ 2 + b ^ 2 = 3 * c ^ 2) :
+private lemma factor_three (a b c : ℤ)
+    (h : a ^ 2 + b ^ 2 = 3 * c ^ 2) :
     ∃ a' b' c',
-      c' ≠ 0 ∧
-        a' ^ 2 + b' ^ 2 = 3 * c' ^ 2 ∧
-        Int.natAbs c' < Int.natAbs c := by
+      a = 3 * a' ∧
+        b = 3 * b' ∧
+          c = 3 * c' ∧
+            a' ^ 2 + b' ^ 2 = 3 * c' ^ 2 := by
   classical
   have hmod : (a : ZMod 3) ^ 2 + (b : ZMod 3) ^ 2 = 0 := by
-    simpa using congrArg (fun z : ℤ => (z : ZMod 3)) h
-  obtain ⟨ha0, hb0⟩ :=
-    sum_sq_mod3_zero (a := (a : ZMod 3)) (b := (b : ZMod 3)) hmod
+    simpa [show (3 : ZMod 3) = 0 by decide] using
+      congrArg (fun z : ℤ => (z : ZMod 3)) h
+  obtain ⟨ha0, hb0⟩ := sum_sq_mod3_zero (a := (a : ZMod 3)) (b := (b : ZMod 3)) hmod
   have ha_dvd : (3 : ℤ) ∣ a := (ZMod.intCast_zmod_eq_zero_iff_dvd a 3).1 ha0
   have hb_dvd : (3 : ℤ) ∣ b := (ZMod.intCast_zmod_eq_zero_iff_dvd b 3).1 hb0
-  obtain ⟨a₁, ha₁⟩ := ha_dvd
-  obtain ⟨b₁, hb₁⟩ := hb_dvd
-  have h0 : 9 * (a₁ ^ 2 + b₁ ^ 2) = 3 * c ^ 2 := by
-    simpa [ha₁, hb₁, pow_two, mul_add, add_mul, mul_comm, mul_left_comm, mul_assoc] using h
-  have h0' : 3 * (3 * (a₁ ^ 2 + b₁ ^ 2)) = 3 * c ^ 2 := by
+  obtain ⟨a', ha'⟩ := ha_dvd
+  obtain ⟨b', hb'⟩ := hb_dvd
+  have h0 : 9 * (a' ^ 2 + b' ^ 2) = 3 * c ^ 2 := by
+    simpa [ha', hb', pow_two, mul_add, add_mul, mul_comm, mul_left_comm, mul_assoc] using h
+  have h0' : 3 * (3 * (a' ^ 2 + b' ^ 2)) = 3 * c ^ 2 := by
     simpa [mul_comm, mul_left_comm, mul_assoc] using h0
-  have h1 : 3 * (a₁ ^ 2 + b₁ ^ 2) = c ^ 2 :=
+  have h1 : 3 * (a' ^ 2 + b' ^ 2) = c ^ 2 :=
     mul_left_cancel₀ (show (3 : ℤ) ≠ 0 by decide) h0'
   have hc_sq : (c : ZMod 3) ^ 2 = 0 := by
     have := congrArg (fun z : ℤ => (z : ZMod 3)) h1
-    simpa using this
+    have hc' : (0 : ZMod 3) = (c : ZMod 3) ^ 2 := by
+      simpa [show (3 : ZMod 3) = 0 by decide, pow_two, mul_comm, mul_left_comm, mul_assoc] using this
+    simpa [eq_comm] using hc'
   have hc0 : (c : ZMod 3) = 0 := sq_zero_mod3 (c := (c : ZMod 3)) hc_sq
   have hc_dvd : (3 : ℤ) ∣ c := (ZMod.intCast_zmod_eq_zero_iff_dvd c 3).1 hc0
-  obtain ⟨c₁, hc₁⟩ := hc_dvd
-  have hc₁_ne : c₁ ≠ 0 := by
-    intro hzero
-    apply hc
-    simpa [hc₁, hzero]
-  have h1' : 3 * (a₁ ^ 2 + b₁ ^ 2) = 9 * c₁ ^ 2 := by
-    simpa [hc₁, pow_two, mul_comm, mul_left_comm, mul_assoc] using h1
-  have h1'' : 3 * (a₁ ^ 2 + b₁ ^ 2) = 3 * (3 * c₁ ^ 2) := by
+  obtain ⟨c', hc'⟩ := hc_dvd
+  have h1' : 3 * (a' ^ 2 + b' ^ 2) = 9 * c' ^ 2 := by
+    simpa [hc', pow_two, mul_comm, mul_left_comm, mul_assoc] using h1
+  have h1'' : 3 * (a' ^ 2 + b' ^ 2) = 3 * (3 * c' ^ 2) := by
     simpa [mul_comm, mul_left_comm, mul_assoc] using h1'
-  have h2 : a₁ ^ 2 + b₁ ^ 2 = 3 * c₁ ^ 2 :=
+  have h2 : a' ^ 2 + b' ^ 2 = 3 * c' ^ 2 :=
     mul_left_cancel₀ (show (3 : ℤ) ≠ 0 by decide) h1''
-  have hNat : Int.natAbs c = 3 * Int.natAbs c₁ := by
-    simpa [hc₁, Int.natAbs_mul, Int.natAbs_natCast] using Int.natAbs_mul (3 : ℤ) c₁
-  have hc₁_lt : Int.natAbs c₁ < Int.natAbs c := by
-    have hc₁_pos : 0 < Int.natAbs c₁ := Int.natAbs_pos.2 hc₁_ne
-    have : Int.natAbs c₁ < 3 * Int.natAbs c₁ :=
-      Nat.lt_mul_of_pos_left hc₁_pos (by decide : 0 < 3)
-    simpa [Nat.mul_comm, hNat] using this
-  refine ⟨a₁, b₁, c₁, hc₁_ne, h2, hc₁_lt⟩
+  refine ⟨a', b', c', ?_, ?_, ?_, h2⟩
+  · simpa [ha']
+  · simpa [hb']
+  · simpa [hc']
 
-private lemma no_int_sum_sq (a b c : ℤ) (hc : c ≠ 0)
-    (h : a ^ 2 + b ^ 2 = 3 * c ^ 2) : False := by
+private lemma factor_three_iter (a b c : ℤ)
+    (h : a ^ 2 + b ^ 2 = 3 * c ^ 2) :
+    ∀ n : ℕ, ∃ a' b' c',
+      a = (3 : ℤ) ^ n * a' ∧
+        b = (3 : ℤ) ^ n * b' ∧
+          c = (3 : ℤ) ^ n * c' ∧
+            a' ^ 2 + b' ^ 2 = 3 * c' ^ 2 := by
   classical
-  have aux :
-      ∀ n : ℕ,
-        ∀ {a b c : ℤ},
-          c ≠ 0 →
-            a ^ 2 + b ^ 2 = 3 * c ^ 2 → Int.natAbs c = n → False :=
-    by
-      refine fun n => Nat.strong_induction_on n ?_
-      intro k IH a b c hc' hEq hAbs
-      by_cases hk : k = 0
-      · have hc_zero : c = 0 := by
-          have : Int.natAbs c = 0 := by simpa [hk] using hAbs
-          exact Int.natAbs_eq_zero.mp this
-        exact (hc' hc_zero).elim
-      · obtain ⟨a', b', c', hc'', hEq', hlt⟩ :=
-          descent_sum_sq a b c hc' hEq
-        have hlt' : Int.natAbs c' < k := by
-          have hAbs' : Int.natAbs c = k := hAbs
-          simpa [hAbs'] using hlt
-        exact IH _ hlt' hc'' hEq' rfl
-  exact aux (Int.natAbs c) (a := a) (b := b) (c := c) hc h rfl
+  refine Nat.rec ?base ?step
+  · exact ⟨a, b, c, by simp, by simp, by simp, h⟩
+  · intro n ih
+    obtain ⟨a', b', c', ha', hb', hc', h'⟩ := ih
+    obtain ⟨aa, bb, cc, haa, hbb, hcc, h''⟩ := factor_three a' b' c' h'
+    refine ⟨aa, bb, cc, ?_, ?_, ?_, h''⟩
+    · have hpow : (3 : ℤ) ^ (n + 1) = (3 : ℤ) ^ n * (3 : ℤ) := by
+        simpa [pow_succ] using (pow_succ (3 : ℤ) n)
+      simp [ha', haa, hpow, mul_comm, mul_left_comm, mul_assoc]
+    · have hpow : (3 : ℤ) ^ (n + 1) = (3 : ℤ) ^ n * (3 : ℤ) := by
+        simpa [pow_succ] using (pow_succ (3 : ℤ) n)
+      simp [hb', hbb, hpow, mul_comm, mul_left_comm, mul_assoc]
+    · have hpow : (3 : ℤ) ^ (n + 1) = (3 : ℤ) ^ n * (3 : ℤ) := by
+        simpa [pow_succ] using (pow_succ (3 : ℤ) n)
+      simp [hc', hcc, hpow, mul_comm, mul_left_comm, mul_assoc]
+
+private lemma three_pow_ge_succ (n : ℕ) : 3 ^ n ≥ n + 1 := by
+  induction' n with n ih
+  · simp
+  · have : 3 ^ (n + 1) = 3 * 3 ^ n := by simpa [pow_succ]
+    calc
+      3 ^ (n + 1) = 3 * 3 ^ n := this
+      _ ≥ 3 * (n + 1) := by gcongr; exact ih
+      _ = (n + 1) + 2 * (n + 1) := by ring
+      _ ≥ (n + 1) + 1 := by
+        have : 0 < 2 * (n + 1) := by
+          exact Nat.mul_pos (by decide) (Nat.succ_pos _)
+        exact add_le_add_left (Nat.succ_le_of_lt this) _
 
 -- CH: Local obstruction example for x^2 + y^2 = 3
 theorem S13_CH :
@@ -181,35 +190,63 @@ theorem S13_CH :
   · exact by decide
   · intro h
     obtain ⟨x, y, hxy⟩ := h
-    set a : ℤ := x.num * (y.den : ℤ)
-    set b : ℤ := y.num * (x.den : ℤ)
-    set c : ℤ := (x.den : ℤ) * (y.den : ℤ)
-    have hxden_ne : (x.den : ℤ) ≠ 0 := by exact_mod_cast (ne_of_gt (Rat.den_pos x))
-    have hyden_ne : (y.den : ℤ) ≠ 0 := by exact_mod_cast (ne_of_gt (Rat.den_pos y))
-    have hc_ne : c ≠ 0 := by
-      dsimp [c]
+    set a0 : ℤ := x.num * (y.den : ℤ)
+    set b0 : ℤ := y.num * (x.den : ℤ)
+    set c0 : ℤ := (x.den : ℤ) * (y.den : ℤ)
+    have hxden_pos : 0 < x.den := Rat.den_pos _
+    have hyden_pos : 0 < y.den := Rat.den_pos _
+    have hxden_ne : (x.den : ℤ) ≠ 0 := by exact_mod_cast (ne_of_gt hxden_pos)
+    have hyden_ne : (y.den : ℤ) ≠ 0 := by exact_mod_cast (ne_of_gt hyden_pos)
+    have hc0_ne : c0 ≠ 0 := by
+      dsimp [c0]
       exact mul_ne_zero hxden_ne hyden_ne
-    have hscaled : x ^ 2 * (c : ℚ) ^ 2 + y ^ 2 * (c : ℚ) ^ 2 = 3 * (c : ℚ) ^ 2 := by
-      have := congrArg (fun t : ℚ => t * (c : ℚ) ^ 2) hxy
-      simpa [pow_two, mul_add, add_comm, add_left_comm, add_assoc] using this
-    have hx_mul : x * (c : ℚ) = a := by
-      simp [a, c, Rat.num_div_den, mul_comm, mul_left_comm, mul_assoc]
-    have hy_mul : y * (c : ℚ) = b := by
-      simp [b, c, Rat.num_div_den, mul_comm, mul_left_comm, mul_assoc]
-    have hx_sq : x ^ 2 * (c : ℚ) ^ 2 = (a : ℚ) ^ 2 := by
-      simp [pow_two, hx_mul, mul_comm, mul_left_comm, mul_assoc]
-    have hy_sq : y ^ 2 * (c : ℚ) ^ 2 = (b : ℚ) ^ 2 := by
-      simp [pow_two, hy_mul, mul_comm, mul_left_comm, mul_assoc]
-    have hclearQ :
-        (a : ℚ) ^ 2 + (b : ℚ) ^ 2 = 3 * (c : ℚ) ^ 2 := by
+    let cQ : ℚ := (c0 : ℚ)
+    have hx_mul : x * cQ = a0 := by
+      simp [cQ, a0, c0, Rat.num_div_den]
+    have hy_mul : y * cQ = b0 := by
+      simp [cQ, b0, c0, Rat.num_div_den]
+    have hx_sq : x ^ 2 * cQ ^ 2 = (a0 : ℚ) ^ 2 := by
+      have := congrArg (fun t : ℚ => t ^ 2) hx_mul
+      simpa [pow_two, mul_comm, mul_left_comm, mul_assoc] using this
+    have hy_sq : y ^ 2 * cQ ^ 2 = (b0 : ℚ) ^ 2 := by
+      have := congrArg (fun t : ℚ => t ^ 2) hy_mul
+      simpa [pow_two, mul_comm, mul_left_comm, mul_assoc] using this
+    have hscaled : x ^ 2 * cQ ^ 2 + y ^ 2 * cQ ^ 2 = 3 * cQ ^ 2 := by
+      have := congrArg (fun t : ℚ => t * cQ ^ 2) hxy
+      simpa [mul_add, add_comm, add_left_comm, add_assoc] using this
+    have hclearQ : (a0 : ℚ) ^ 2 + (b0 : ℚ) ^ 2 = 3 * (c0 : ℚ) ^ 2 := by
       simpa [hx_sq, hy_sq] using hscaled
-    have hclear : a ^ 2 + b ^ 2 = 3 * c ^ 2 := by
+    have hclear : a0 ^ 2 + b0 ^ 2 = 3 * c0 ^ 2 := by
       exact_mod_cast hclearQ
-    exact no_int_sum_sq a b c hc_ne hclear
+    let n : ℕ := Int.natAbs c0 + 1
+    obtain ⟨a1, b1, c1, ha1, hb1, hc1, h1⟩ := factor_three_iter a0 b0 c0 hclear n
+    have hc_abs : Int.natAbs c0 = (3 : ℕ) ^ n * Int.natAbs c1 := by
+      have := congrArg Int.natAbs hc1
+      simp [Int.natAbs_mul, Int.natAbs_pow, Int.natAbs_ofNat] at this
+      simpa using this
+    have hpow_gt : (3 : ℕ) ^ n > Int.natAbs c0 := by
+      have hge := three_pow_ge_succ n
+      have : (3 : ℕ) ^ n ≥ Int.natAbs c0 + 1 := by
+        simpa [n, add_comm, add_left_comm, add_assoc] using hge
+      exact Nat.lt_of_le_of_lt this (Nat.lt_succ_self _)
+    have hc1_abs : Int.natAbs c1 = 0 := by
+      by_contra hc1_pos
+      have hc1_pos' : 0 < Int.natAbs c1 := Nat.pos_of_ne_zero hc1_pos
+      have hm : 1 ≤ Int.natAbs c1 := Nat.succ_le_of_lt hc1_pos'
+      have hle : (3 : ℕ) ^ n ≤ (3 : ℕ) ^ n * Int.natAbs c1 := by
+        simpa using Nat.mul_le_mul_left ((3 : ℕ) ^ n) hm
+      have hle' : (3 : ℕ) ^ n ≤ Int.natAbs c0 := by
+        simpa [hc_abs, Nat.mul_comm] using hle
+      exact (not_le_of_gt hpow_gt) hle'
+    have hc1_zero : c1 = 0 := Int.natAbs_eq_zero.mp hc1_abs
+    have hc0_zero : c0 = 0 := by
+      simpa [hc1_zero] using hc1
+    have : (x.den : ℤ) * (y.den : ℤ) = 0 := by simpa [c0] using hc0_zero
+    have : (x.den : ℤ) = 0 ∨ (y.den : ℤ) = 0 := by
+      exact mul_eq_zero.mp this
+    cases this with
+    | inl hxzero => exact (hxden_ne hxzero).elim
+    | inr hyzero => exact (hyden_ne hyzero).elim
+
 
 end HW_IUT1_S13
-
-
-
-
-
