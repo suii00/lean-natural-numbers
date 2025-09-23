@@ -173,7 +173,7 @@ private lemma three_pow_ge_succ (n : ℕ) : 3 ^ n ≥ n + 1 := by
           exact Nat.mul_pos (by decide) (Nat.succ_pos _)
         exact add_le_add_left (Nat.succ_le_of_lt this) _
 
--- CH: Local obstruction example for x^2 + y^2 = 3
+-- CH: CH を「Hasse 反例」ではなく「2 進局所障害の例」に差し替えた
 theorem S13_CH :
     (∃ x y : ℝ, x^2 + y^2 = 3) ∧
     (∃ x y : ZMod 5, x^2 + y^2 = 3) ∧

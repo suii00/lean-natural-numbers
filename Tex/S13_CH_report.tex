@@ -1,0 +1,89 @@
+\documentclass{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{セッション13挑戦問題 (CH) の進捗報告}
+\author{TeX生成: CODEX (OpenAI)\\Lean生成: CODEX (OpenAI)}
+\date{2025年9月23日}
+
+\begin{document}
+
+\maketitle
+
+\section{はじめに}
+本稿は、課題ファイル \texttt{S13.lean} における挑戦問題 (CH)
+\[
+ x^2 + y^2 = 3
+\]
+の形式化が未完成である現状を整理し、数学的背景と既存の進捗、そして今後必要な補題を解説する報告書である。
+
+\section{問題の概要}
+挑戦問題は、実数体および各種局所体での解の存在を確認しつつ、\( \mathbb{Q} \) では解が存在しないことを示す、いわゆるハッセ原理への反例の構築である。Lean 形式化では以下を目標としている。
+\begin{align*}
+  & (\exists x, y \in \mathbb{R})\; x^2 + y^2 = 3, \\
+  & (\exists x, y \in \mathbb{Z}/5\mathbb{Z})\; x^2 + y^2 = 3, \\
+  & (\nexists x, y \in \mathbb{Z}/8\mathbb{Z})\; x^2 + y^2 = 3, \\
+  & (\nexists x, y \in \mathbb{Q})\; x^2 + y^2 = 3.
+\end{align*}
+
+\section{現状のLean開発状況}
+\begin{itemize}
+  \item 実数および有限体（\( \mathbb{Z}/5\mathbb{Z} \)、\( \mathbb{Z}/8\mathbb{Z} \)）での部分証明は Lean で構築済み。
+  \item 有理解から整理解を導く補題の途中で、分母払い後の等式整理が未完。
+  \item Mod 4 を用いた整理解の不存在証明において、偶奇分解と降下法の実装が未完成。
+\end{itemize}
+
+\section{数理的背景整理}
+\subsection{局所的可解性}
+実数体では \( (\sqrt{3}, 0) \) が直接的な解となる。\( \mathbb{Z}/5\mathbb{Z} \) でも \( 2^2 \equiv -1 \mod 5 \) を用いて Hensel の持ち上げが可能である。
+
+\subsection{整理解の不存在}
+\begin{theorem}[平方和の剰余による矛盾]
+任意の整数 \(A, B\) に対して、\( A^2 \) および \( B^2 \) の 4 を法とする剰余は \(0\) か \(1\) に限られる。そのため \( A^2 + B^2 \equiv 3 \pmod 4 \) は実現しない。
+\end{theorem}
+\begin{proof}
+4 を法とした場合の平方数一覧を調べればよい。Lean では全探索 (\texttt{by decide}) により証明可能である。
+\end{proof}
+
+\begin{theorem}[降下法の構想]
+もし \( A^2 + B^2 = 3C^2 \) を満たす整数三つ組 \((A,B,C)\) が存在すると仮定すると、\(C\) が偶数か奇数かで場合分けし、いずれも矛盾へ導かれる。
+\end{theorem}
+\begin{proof}[証明のスケッチ]
+\begin{enumerate}
+  \item \(C\) が奇数なら mod 4 で矛盾。
+  \item \(C\) が偶数なら \(A,B\) も偶数となり、\((A/2, B/2, C/2)\) が同型の解を与える。これは無限降下と矛盾する。
+\end{enumerate}
+Lean ではこの降下を実装中であり、偶奇判定の補題および \(\mathbb{Z}\) の parity ライブラリ活用が鍵となる。
+\end{proof}
+
+\section{分母払いの方針}
+有理解 \((x, y)\) が存在したと仮定し、\(x = a/c, y = b/d\) と表せば、\((ad)^2 + (bc)^2 = 3 (cd)^2\) を得る。現状の Lean 実装では、\(\mathbb{Q}\) の内部構造に関する補題（特に \texttt{Rat.num}, \texttt{Rat.den} の性質）を活用し切れていない。以下の整備が必要である。
+\begin{itemize}
+  \item \texttt{Rat.mul\_num} のような補題を組み合わせた分母払いの自動化。
+  \item \(\mathbb{Z}\) への射影時に必要な \texttt{norm\_cast} 系補題の整理。
+\end{itemize}
+
+\section{図式による全体像}
+\begin{center}
+\begin{tikzcd}
+  & (\mathbb{R}, \exists) \arrow[dr, "局所可解"] & \\
+  \mathbb{Q} \arrow[ur, dashed, "期待する反例"] \arrow[dr, dashed, "整理解へ降下"] & & \text{局所体群} \arrow[d, dashed, "\text{すべて可解}" ] \\
+  & (\mathbb{Z}, ?) \arrow[ur, dashed, "mod\;4\;\text{で矛盾}" ] & \text{有限剰余体群}
+\end{tikzcd}
+\end{center}
+点線部分が未完成の証明箇所を示している。
+
+\section{今後の作業計画}
+\begin{enumerate}
+  \item \(\mathbb{Q}\) から \(\mathbb{Z}\) への分母払い補題の完成。
+  \item \(\mathbb{Z}\) における mod 4 矛盾および偶奇降下を Lean 上で形式化。
+  \item 最終定理 \texttt{S13\_CH} の \texttt{intro}/\texttt{cases} 構造を整理し、既存の補題と接続。
+\end{enumerate}
+
+\section{まとめ}
+挑戦問題の Lean 形式化は進捗しているものの、有理解の不存在部分が未完成である。分母払いと無限降下の formalization を補えば定理の完了が見込まれる。今後は Mathlib の既存補題の再利用を徹底し、計算補助を充実させる予定である。
+
+\end{document}
