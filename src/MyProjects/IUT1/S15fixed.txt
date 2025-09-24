@@ -1,0 +1,17 @@
+作業を進めたものの、以下のような大きな問題に突き当たり、現状では lake build MyProjects.IUT1.S15fixed が通らない状態です。
+
+rad まわりで利用した Finset.prod_union の引数の与え方が合っておらず、再定義が必要。
+Squarefree を Nat.squarefree のように扱ってしまったため、参照先が解決できずエラーになっている。
+S15_P01 で IsPrincipalIdealRing.principal の使い方を誤解しており、生成元を取り出す箇所が失敗している。
+Hensel の補題を用いた部分 (S15_P03) で評価やノルム計算が正しくない（PadicInt.norm_p の戻り値型などを取り違え）。
+Zsqrtd に対する演算を全面的に展開してしまい、Zsqrtd.mul のような存在しない名前を使っている。
+Squarefree 判定で by decide を直接使った結果、証明が展開されずに停止している。
+最後の end の書き方を間違えて、名前付き名前空間を閉じられていない。
+つまり、証明方針そのものは提示できても、型付け・補題の呼び出しをすべて整え直さないとビルドに到達しません。かなり大規模な修正になるため、まずは
+
+rad まわりの補題を Squarefree（大文字）に合わせて書き直す。
+ℤ のイデアル生成では Ideal.isPrincipal (I := I) の形で生成元を取得する。
+Hensel の部分は simp [pow_two] などで z^2 = 2 を導き、PadicInt.norm_intCast_eq_one_iff などを正確に使う。
+Zsqrtd では simp で Zsqrtd.mul を参照するのではなく、定義から直接 ext で実部と虚部を計算する。
+Squarefree 30 のような例は、simp や既存の補題で（あるいは既知の分解から）証明する。
+といった流れで整理し直す必要があります。すべて手直しするのにかなり時間が掛かる見込みなので、どこから優先的に進めるか指示をいただければ助かります。

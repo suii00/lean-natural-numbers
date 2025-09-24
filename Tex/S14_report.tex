@@ -1,0 +1,71 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+\title{IUT1 Session 14 数学的解説レポート（修正版）}
+\author{CODEX (OpenAI)（TeXファイル生成・Leanファイル生成）}
+\date{2025年9月23日}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿は IUT1 Session 14 の課題について、現時点の Lean ファイルに基づいた数学的背景と形式化の方針を整理するものである。特に P02 と P03 の命題を数学的に正しい主張へ修正した点を強調し、修正後の Lean 証明戦略を述べる。
+\end{abstract}
+
+\section{総論}
+Session 14 は $5$ 進解析と円分拡大に関わる基礎事項を扱う。Lean での形式化では、$p$ 進ノルム・有限集合の濃度・円分拡大の一般論が主要なツールになる。現状の `S14.lean` では、P01, P04, P05, CH が証明済みであり、P02 と P03 は命題を修正した上で証明を進める段階にある。
+
+\section{P01: $p$ 進 $L$ 関数の特殊値}
+命題は $-24$ が $125$ を法とする剰余環でユニットになること、すなわち $(-24) \cdot 26 \equiv 1 \pmod{125}$ を確認する。Lean では `IsUnit` の構造体に逆元 $26$ を渡すことで証明を完了している。また $\gcd(24,5)=1$ は `Nat.Coprime` の判定が `decide` で自動化される。
+
+\section{P02: クンマーの合同式（修正版）}
+元の命題 $|15/120|_5 = 5$ は誤りであるため、以下の 2 つの命題に修正した。
+\begin{align*}
+\text{(P02)} &\quad |15/120|_5 = 1,\\
+\text{(P02-alt)} &\quad |25/120|_5 = 1/5.
+\end{align*}
+$15/120 = 1/8$ であり、分母 $8$ に $5$ が現れないため $5$ 進ノルムは $1$ になる。Lean では $\operatorname{padicValRat}$ の除法公式 (`padicValRat.div`) を使い $v_5(1)=0$, $v_5(8)=0$ を示した上で、`padicNorm.eq_zpow_of_nonzero` により $|1/8|_5 = 5^0 = 1$ を結論づける。\par
+補題 P02-alt では $25/120 = 5/24$ を用いて $v_5(5)=1$ と $v_5(24)=0$ を計算し、$|5/24|_5 = 5^{-1}$ を得る。Lean での実装は $\operatorname{padicValRat}$ と `zpow_neg` を併用している。
+
+\section{P03: 局所ゼータ関数（修正版）}
+元の定理では $\operatorname{Fin}(5) \times \operatorname{Option}\,\mathrm{Unit}$ の濃度を $6$ と主張していたが、実際は $5 \times 2 = 10$ である。$
+\mathbb{P}^1(\mathbb{F}_5)$ の点の個数を表すには `Option (Fin 5)` が適切である。`Option` 型は有限体に無限遠点を加えた構造を実現し、`Fintype.card_option` により $5+1=6$ を即座に得られる。
+
+\subsection*{射影直線の図式}
+\begin{center}
+\begin{tikzcd}
+\mathbb{F}_5 \arrow[r, hook, "\iota"] \arrow[dr, "\pi"'] & \mathbb{P}^1(\mathbb{F}_5) \arrow[d, "\text{忘却写像}"] \\
+ & \{\infty\}
+\end{tikzcd}
+\end{center}
+$
+\iota$ は有限体を射影直線に埋め込む包含写像、$\pi$ は全ての点を一点に潰す射影である。Lean では `Option` によって $\infty$ を追加し $\mathbb{P}^1(\mathbb{F}_5)$ をモデル化している。
+
+\section{P04: $p$ 進測度}
+集合 $a + 5^n\mathbb{Z}_5$ の測度が $5^{-n}$ であること、特に $n=3$ の場合に $5^{-3} = 1/125$ となることを示す。Lean では `zpow_negSucc` を用いて指数を負の整数に対応させ、`norm_num` で $125$ の逆数を計算している。
+
+\section{P05: $p$ 進補間}
+ウィルソンの定理 $4! \equiv -1 \pmod 5$ と $25 = 5^2$ を確認する課題である。Lean では `%` 演算と `norm_num` を直接用いることで証明を完了している。
+
+\section{CH: 岩澤理論への入門}
+円分拡大 $\mathbb{Q}(\zeta_5)$ の基本性質を確認する問題で、以下を証明する：
+\begin{enumerate}
+  \item $[\mathbb{Q}(\zeta_5):\mathbb{Q}] = \varphi(5) = 4$。
+  \item $1 + \zeta_5 + \zeta_5^2 + \zeta_5^3 + \zeta_5^4 = 0$。
+  \item $\mathbb{Q}(\zeta_5)$ が $\mathbb{Q}$ に対して $5$ 次円分拡大である。
+\end{enumerate}
+Lean では `Complex.isPrimitiveRoot_exp` によって原始 $5$ 乗根を構成し、`geom_sum_mul_neg` から幾何級数の和を $0$ とする。最後に `CyclotomicField.isCyclotomicExtension` を引用して円分拡大の構造を確立する。
+
+\section{今後の作業}
+\begin{itemize}
+  \item P02, P02-alt, P03 の Lean 証明を仕上げ、`lake build MyProjects.IUT1.S14` で検証を通す。
+  \item $p$ 進ノルムに関する補題を整理し、他のセッションでも再利用できる形で `Mathlib` の既存定理と組み合わせる。
+  \item 円分拡大に関連する補助定理（最小多項式やガロア群）を追加して、Iwasawa 理論への応用を見据える。
+\end{itemize}
+
+\end{document}

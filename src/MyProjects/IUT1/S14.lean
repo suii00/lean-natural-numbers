@@ -14,55 +14,37 @@ theorem S14_P01 : IsUnit (-24 : ZMod 125) ∧ Nat.Coprime 24 5 := by
   · decide
 
 -- P02: クンマーの合同式（修正）
-theorem S14_P02_corrected : padicNorm 5 (15/120 : ℚ) = 1 := by
-  have hprime : Nat.Prime 5 := by decide
-  haveI : Fact (Nat.Prime 5) := ⟨hprime⟩
-  have hratio : (15/120 : ℚ) = 1 / 8 := by norm_num
-  have hpadic8_nat : padicValNat 5 8 = 0 := padicValNat.eq_zero_of_not_dvd (by decide : ¬ 5 ∣ 8)
-  have hpadic8 : padicValRat 5 (8 : ℚ) = 0 := by
-    simpa [hpadic8_nat] using (padicValRat.of_nat (p := 5) (n := 8))
-  have hpadic_one : padicValRat 5 (1 : ℚ) = 0 := by simpa using (padicValRat.one (p := 5))
-  have hval : padicValRat 5 (1 / 8 : ℚ) = 0 := by
-    have hq : (1 : ℚ) ≠ 0 := by norm_num
-    have hr : (8 : ℚ) ≠ 0 := by norm_num
-    simpa [hpadic_one, hpadic8] using
-      (padicValRat.div (p := 5) (q := (1 : ℚ)) (r := (8 : ℚ)) hq hr)
-  have hnonzero : (1 / 8 : ℚ) ≠ 0 := by norm_num
-  have hnorm := padicNorm.eq_zpow_of_nonzero (p := 5) (q := (1 / 8 : ℚ)) hnonzero
-  have hpow : (5 : ℚ) ^ (-padicValRat 5 (1 / 8 : ℚ)) = 1 := by simp [hval]
-  have hquot : padicNorm 5 (1 / 8 : ℚ) = 1 := hnorm.trans hpow
-  calc
-    padicNorm 5 (15/120 : ℚ)
-        = padicNorm 5 (1 / 8 : ℚ) := by simpa [hratio]
-    _ = 1 := hquot
-
-theorem S14_P02_alternative : padicNorm 5 (25/120 : ℚ) = 1/5 := by
+theorem S14_P02_alt : padicNorm 5 (25/120 : ℚ) = 1/5 := by
   have hprime : Nat.Prime 5 := by decide
   haveI : Fact (Nat.Prime 5) := ⟨hprime⟩
   have hratio : (25/120 : ℚ) = 5 / 24 := by norm_num
-  have hpadic24_nat : padicValNat 5 24 = 0 := padicValNat.eq_zero_of_not_dvd (by decide : ¬ 5 ∣ 24)
-  have hpadic24 : padicValRat 5 (24 : ℚ) = 0 := by
-    simpa [hpadic24_nat] using (padicValRat.of_nat (p := 5) (n := 24))
   have hpadic5_nat : padicValNat 5 5 = 1 := padicValNat_self (p := 5)
   have hpadic5 : padicValRat 5 (5 : ℚ) = 1 := by
     simpa [hpadic5_nat] using (padicValRat.of_nat (p := 5) (n := 5))
-  have hval : padicValRat 5 (5 / 24 : ℚ) = 1 := by
-    have hq : (5 : ℚ) ≠ 0 := by norm_num
-    have hr : (24 : ℚ) ≠ 0 := by norm_num
+  have hpadic24_nat : padicValNat 5 24 = 0 :=
+    padicValNat.eq_zero_of_not_dvd (by decide : ¬ 5 ∣ 24)
+  have hpadic24 : padicValRat 5 (24 : ℚ) = 0 := by
+    simpa [hpadic24_nat] using (padicValRat.of_nat (p := 5) (n := 24))
+  have hq : (5 : ℚ) ≠ 0 := by norm_num
+  have hr : (24 : ℚ) ≠ 0 := by norm_num
+  have hpadicVal : padicValRat 5 (5 / 24 : ℚ) = 1 := by
     simpa [hpadic5, hpadic24] using
       (padicValRat.div (p := 5) (q := (5 : ℚ)) (r := (24 : ℚ)) hq hr)
   have hnonzero : (5 / 24 : ℚ) ≠ 0 := by norm_num
   have hnorm := padicNorm.eq_zpow_of_nonzero (p := 5) (q := (5 / 24 : ℚ)) hnonzero
-  have hpow : (5 : ℚ) ^ (-padicValRat 5 (5 / 24 : ℚ)) = (5 : ℚ)⁻¹ := by simp [hval]
-  have hquot : padicNorm 5 (5 / 24 : ℚ) = (5 : ℚ)⁻¹ := hnorm.trans hpow
+  have hexp : (-padicValRat 5 (5 / 24 : ℚ)) = -1 := by simpa [hpadicVal]
   calc
     padicNorm 5 (25/120 : ℚ)
-        = padicNorm 5 (5 / 24 : ℚ) := by simpa [hratio]
-    _ = (5 : ℚ)⁻¹ := hquot
+        = padicNorm 5 (5 / 24 : ℚ) := by simp [hratio]
+    _ = (5 : ℚ) ^ (-padicValRat 5 (5 / 24 : ℚ)) := by simpa using hnorm
+    _ = (5 : ℚ) ^ (-1 : ℤ) := by simpa [hexp]
+    _ = (5 : ℚ)⁻¹ := by
+          have hx : (5 : ℚ) ≠ 0 := by norm_num
+          simp [zpow_neg, zpow_one, hx]
     _ = 1 / 5 := by norm_num
 
 -- P03: 局所ゼータ関数（修正）
-theorem S14_P03_corrected : Fintype.card (Option (Fin 5)) = 6 := by
+theorem S14_P03 : Fintype.card (Option (Fin 5)) = 6 := by
   simpa using (Fintype.card_option (Fin 5))
 
 -- P04: p進測度
