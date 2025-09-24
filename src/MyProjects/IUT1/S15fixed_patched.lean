@@ -28,6 +28,10 @@ noncomputable section
 /-- The radical of a natural number: the product of its distinct prime factors. -/
 def rad (n : ℕ) : ℕ := ∏ p ∈ n.primeFactors, p
 
+@[simp] lemma rad_zero : rad 0 = 1 := by
+  classical
+  simpa [rad] using (Finset.prod_empty : (∏ _p ∈ (∅ : Finset ℕ), ℕ) = 1)
+
 @[simp] lemma rad_one : rad 1 = 1 := by
   classical
   simp [rad]
@@ -38,12 +42,12 @@ lemma rad_mul_of_coprime {m n : ℕ} (h : Nat.Coprime m n) :
   have hdisj : Disjoint m.primeFactors n.primeFactors := h.disjoint_primeFactors
   have hunion : (m * n).primeFactors = m.primeFactors ∪ n.primeFactors :=
     h.primeFactors_mul
-  have hprod : ∏ p ∈ m.primeFactors ∪ n.primeFactors, p =
-      (∏ p ∈ m.primeFactors, p) * ∏ p ∈ n.primeFactors, p := by
-    simpa using
-      Finset.prod_union (s₁ := m.primeFactors) (s₂ := n.primeFactors)
-        (f := fun p : ℕ => p) hdisj
-  simpa [rad, hunion] using hprod
+  calc
+    rad (m * n)
+        = ∏ p ∈ m.primeFactors ∪ n.primeFactors, p := by simpa [rad, hunion]
+    _ = (∏ p ∈ m.primeFactors, p) * ∏ p ∈ n.primeFactors, p :=
+        Finset.prod_union hdisj
+    _ = rad m * rad n := by simp [rad]
 
 lemma rad_pow {n k : ℕ} (hk : k ≠ 0) : rad (n ^ k) = rad n := by
   classical
@@ -53,8 +57,8 @@ lemma rad_prime_pow {p n : ℕ} (hp : Nat.Prime p) (hn : 0 < n) :
     rad (p ^ n) = p := by
   classical
   have hk : n ≠ 0 := Nat.pos_iff_ne_zero.mp hn
-  have hpf : (p ^ n).primeFactors = {p} := Nat.primeFactors_prime_pow hk hp
-  simp [rad, hpf]
+  have hrad : rad (p ^ n) = rad p := rad_pow (n := p) (k := n) hk
+  simpa [rad, hp.primeFactors] using hrad
 
 lemma rad_of_squarefree {n : ℕ} (hn : Squarefree n) : rad n = n := by
   classical
@@ -228,9 +232,3 @@ example : rad 2 = 2 := by
   simpa using rad_prime_pow (p := 2) (n := 1) (by decide) this
 
 end HW_IUT1_S15
-
-
-
-
-
-
