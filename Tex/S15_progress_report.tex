@@ -1,0 +1,91 @@
+\documentclass[12pt]{ltjsarticle}
+
+% LuaLaTeX を想定
+\usepackage{luatexja}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{physics}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{S15 課題進捗レポート\\\large -- Lean4 実装状況の数学的整理 --}
+\author{CODEX (OpenAI)\\Lean ファイル生成: CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{概要}
+本レポートでは、課題 S15 に含まれる命題 \textbf{P03}, \textbf{P05}, \textbf{CH} を中心に、現在の Lean4 実装状況と数学的論点を整理する。特に、自然数のラディカルの性質を整備した成果と、残されている課題について述べる。
+
+\section{ラディカル \texorpdfstring{$\mathrm{rad}$}{rad} の整備}
+現在の Lean ファイルでは、自然数 \( n \) に対して
+\[
+  \mathrm{rad}(n) = \prod_{p \in \mathrm{primeFactors}(n)} p
+\]
+を定義し、以下の補題を実装済みである。
+\begin{itemize}[leftmargin=2em]
+  \item \( \mathrm{rad}(0) = 1 \), \( \mathrm{rad}(1) = 1 \)
+  \item 互いに素な \( m, n \) に対して \( \mathrm{rad}(mn) = \mathrm{rad}(m)\mathrm{rad}(n) \)
+  \item 任意の \( k \neq 0 \) について \( \mathrm{rad}(n^k) = \mathrm{rad}(n) \)
+  \item 素数 \( p \) と \( n>0 \) に対して \( \mathrm{rad}(p^n) = p \)
+  \item \( n \) が平方自由ならば \( \mathrm{rad}(n) = n \)
+\end{itemize}
+これにより、命題 CH の証明で必要となるラディカルの基本性質はほぼ準備できている。
+
+\section{命題ごとの現状}
+\subsection*{P03 (7 進数での Hensel リフティング)}
+7 進整数 \( \mathbb{Z}_7 \) における多項式 \( f(X)=X^2-2 \) について Hensel の補題を適用する構成を進めている。具体的には初期近似 \( a=3 \) に対して
+\begin{align*}
+  f(a) &= 7, & f'(a) &= 6,\\
+  \norm{f(a)}_7 &= 7^{-1}, & \norm{f'(a)}_7 &= 1
+\end{align*}
+を確認し、条件 \( \norm{f(a)}_7 < \norm{f'(a)}_7^2 \) を満たすところまで整理済みである。ただし、Lean におけるノルムの取り扱いや、$\mathbb{Z}_7$ から各種商環への写像化で追加の補題整理が必要である。
+
+\subsection*{P05 (\(\mathbb{Z}[\sqrt{-5}]\) における 2 の非素元性)}
+素元判定を \( \mathrm{IsPrime} \) から \( \mathrm{Prime} \) へ置き換える作業が必要であり、積 \( (1+\sqrt{-5})(1-\sqrt{-5}) = 6 \) を成分計算で示す準備ができている。ノルム評価では
+\[
+  \mathrm{N}(2) = 4,\quad \mathrm{N}(1\pm\sqrt{-5}) = 6
+\]
+を明示的に計算し、\(4\mid 6\) から矛盾を導く構成にする予定である。成分計算には \texttt{Zsqrtd.re\_mul}, \texttt{Zsqrtd.im\_mul} を利用する必要がある。
+
+\subsection*{CH (ラディカルを用いた不等式)}
+ラディカルの補題を利用して
+\[
+  \mathrm{rad}(1\cdot (2^n-1) \cdot 2^n) = 2(2^n-1)
+\]
+を導き、さらに
+\[
+  2^n < \bigl(2(2^n-1)\bigr)^2
+\]
+を実数不等式として示す段階にある。現状では、\( \mathbb{R} \) での不等式証明に \texttt{nlinarith} を用いる際の補題整理が課題となっている。
+
+\section{図式による整理}
+以下の図式は、平方自由性からラディカルの値が一致する流れを図示したものである。
+\begin{center}
+\begin{tikzcd}
+  \text{Squarefree}(n) \arrow[d, "\text{rad-of-squarefree}"'] \arrow[r, "\text{factorization}" ]
+    & \prod p^{e_p} \arrow[d, "\text{forget exponents}" ] \\
+  \mathrm{rad}(n) \arrow[r, dashed]
+    & n
+\end{tikzcd}
+\end{center}
+矢印は Lean 補題の依存関係を模式的に表したもので、左側の補題が証明済みであることを示している。
+
+\section{将来の展望}
+今後の作業計画は以下の通りである。
+\begin{enumerate}[label=\textbf{Step\arabic*}., leftmargin=2.5em]
+  \item P05 について、素元判定を \( \mathrm{Prime} \) ベースに書き換え、ノルム計算を成分単位で確定させる。
+  \item P03 の Hensel 証明で必要な 7 進ノルムの補題を追加し、商環への射の扱いを統一する。
+  \item CH における不等式部分を整理し、\texttt{nlinarith} で処理できる形に補題化する。
+  \item それぞれの命題に対応するドキュメント (Lean docstring と本 TeX ファイル) を随時更新する。
+\end{enumerate}
+
+\section*{謝辞}
+本レポートおよび関連する Lean ファイルは、すべて CODEX (OpenAI) によって生成されたものである。
+
+\end{document}
