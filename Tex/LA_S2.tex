@@ -1,0 +1,126 @@
+%!TEX program = lualatex
+\documentclass{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{physics}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, calc}
+\usepackage{enumerate}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=30mm}
+
+\title{線形代数S2課題の数学的解説}
+\author{受講者名（編集者）\\Codex (OpenAI, TeX生成)\\Codex (OpenAI, Lean生成)}
+\date{2025年9月24日}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿は、ZEN大学「線形代数1」S2課題に含まれる命題\texttt{S2\_P01}〜\texttt{S2\_P05}およびチャレンジ問題\texttt{S2\_CH}について、ニコラ・ブルバキの射と構造の観点を踏まえた数学的解説を行う。Lean 4 + mathlib4 上で Codex (OpenAI) が作成した Lean 証明\footnote{Codex (OpenAI, Lean生成) が \texttt{S2.lean} 内の証明を実装した。}に対応する概念的背景を整理し、射影、内積、行列式を射の合成・構造保存写像として読み替える。
+\end{abstract}
+
+\tableofcontents
+
+\section{全体方針：構造と射による整理}
+ニコラ・ブルバキの枠組みでは、線形空間は体 $\mathbb{R}$ 上の加群とみなされ、射（線形写像）を通じて構造が理解される。本課題で用いる座標ベクトル $(x, y, z)$ は、標準基底から誘導される順序対の集合（厳密には $\mathbb{R}^3$ の直積構造）であり、加法やスカラー倍は各成分への射影（射）として記述できる。以下の命題でも、この「構造を保つ射」を中心に議論を進める。
+
+\section{命題\texttt{S2\_P01}: 平面上の点の構成}
+\subsection{命題の数学的内容}
+係数 $A,B,C,D \in \mathbb{R}$ と $C \neq 0$ を仮定する。任意の $x,y \in \mathbb{R}$ に対して
+\[
+P(x, y) = \left(x,\; y,\; \frac{D - Ax - By}{C}\right)
+\]
+と定めると、$P(x,y)$ の第3成分は $z$-座標が平面 $Ax + By + Cz = D$ を満たすように調整されている。明示的に代入すると
+\[
+Ax + By + C\left(\frac{D - Ax - By}{C}\right) = D
+\]
+となり、分母が消去される。
+
+\subsection{Lean 証明との対応}
+Lean では \verb|field_simp [hC]| が分母 $C$ を消去し、その後 \verb|ring| によって多項式恒等式を検証した。これは、体の射としての除算が可逆射であることを明示的な等式に落とし込んだ操作と等価である。
+
+\section{命題\texttt{S2\_P02}: 2点を結ぶ射影線分のパラメータ表示}
+\subsection{命題の数学的内容}
+$P, Q \in \mathbb{R}^3$ に対し、線分のパラメータ表示を
+\[
+L(t) = P + t(Q - P)
+\]
+とすれば、$t=0$ で $P$、$t=1$ で $Q$ に戻る。これは射 $t \mapsto P + t(Q-P)$ が $[0,1]$ を $P$ と $Q$ を結ぶ射影（アフィン写像）に対応していることを意味する。
+
+\subsection{Lean 証明との対応}
+Lean では \verb|ext| により各成分への射影を取り出し、\verb|simp [lineParam, sub_eq_add_neg]| で自明化した。これは、積構造からの成分射 $\pi_i : \mathbb{R}^3 \to \mathbb{R}$ が加法・スカラー倍を保存する事実を直接的に反映している。
+
+\section{命題\texttt{S2\_P03}: ドット積の加法性}
+\subsection{命題の数学的内容}
+ベクトル $u, v, w \in \mathbb{R}^3$ に対し、内積の定義を展開すると
+\[
+\langle u + w, v \rangle = \langle u, v \rangle + \langle w, v \rangle
+\]
+が成り立つ。これは双線形写像としての内積が第1引数について線形であることを強調している。
+
+\subsection{Lean 証明との対応}
+Lean では \verb|simp [dot3, add_mul]| の後に \verb|ring_nf| を適用して成分ごとの多項式計算を正規化した。双線形性という射の性質を、定義展開と環計算で示した形である。
+
+\section{命題\texttt{S2\_P04}: ドット積の斉次性}
+\subsection{命題の数学的内容}
+スカラー $a \in \mathbb{R}$ に対し、
+\[
+\langle a u, v \rangle = a \langle u, v \rangle
+\]
+が成り立つ。これは内積が第1引数について $\mathbb{R}$-線形であること、すなわちスカラー倍という射が線形構造を保つことを表している。
+
+\subsection{Lean 証明との対応}
+Lean での \verb|ring_nf| は、斉次性を成分ごとに確認する手続きを自動化したものであり、双線形性の一部として理解できる。
+
+\section{命題\texttt{S2\_P05}: 単位ベクトルへの射影の固定点}
+\subsection{命題の数学的内容}
+単位ベクトル $u$ と $v = a u$ に対し、正射影
+\[
+\operatorname{proj}_u(v) = \langle v, u \rangle u
+\]
+は $v$ 自身に一致する。これは射影写像が $u$ の張る1次元部分空間上で恒等射となることを示す。
+
+\subsection{Lean 証明との対応}
+Lean では \verb|S2_P04| を利用して $\langle a u, u \rangle = a$ を得た上で、\verb|projUnit3| の定義を展開し、成分ごとの射影が一致することを示した。ここでも積構造からの射影が重要な役割を果たしている。
+
+\subsection{図式的理解}
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[scale=2, >=Latex]
+    % Axes
+    \draw[->] (-0.2,0) -- (1.4,0) node[right]{$u$ の張る部分空間};
+    \draw[->] (0,-0.2) -- (0,1.2) node[above]{$u$ に直交する方向};
+    % Unit vector u
+    \draw[->, thick, color=blue] (0,0) -- (1,0) node[below right]{$u$};
+    % Vector v = a u
+    \draw[->, thick, color=green!60!black] (0,0) -- (0.9,0) node[above right]{$v = a u$};
+    % Projection arrow (degenerate onto same line)
+    \draw[->, dashed, color=orange] (0.9,0) -- (0.9,0) node[right]{$\operatorname{proj}_u(v)=v$};
+  \end{tikzpicture}
+  \caption{射影写像は $\operatorname{span}\{u\}$ 上で恒等射になる}
+\end{figure}
+
+この図式は、射影が部分空間を保つ自己射であることを視覚化している。
+
+\section{命題\texttt{S2\_CH}: 行列式と体積の射}
+\subsection{命題の数学的内容}
+行列 $A$ と、行ベクトルとして $u,v,w$ を並べた行列 $B$ に対し、行列式は行列積に関して乗法的である。
+\[
+\det(AB) = \det(A)\det(B)
+\]
+体積は絶対値を取ることで向きを忘れた測度となるため、
+\[
+\lvert \det(AB) \rvert = \lvert \det(A) \rvert \cdot \lvert \det(B) \rvert
+\]
+が成立する。これは線形変換が平行六面体の体積をどのように伸縮させるかを表現する射であり、ブルバキ的には測度の構造を保つ射（モノイド写像）と理解できる。
+
+\subsection{Lean 証明との対応}
+Lean では \verb|Matrix.det_mul| により行列積の行列式を積に分解し、\verb|abs_mul| で絶対値の乗法性を適用した。これらはいずれも mathlib における行列式の普遍性に関する既知の結果である。
+
+\section{結語}
+本稿は、課題に付随する Lean 証明を数学的な言葉で再解釈し、順序対の集合と射による構造的理解を強調した。計算機証明は射の合成が構造を保つことを機械的に検証しており、ブルバキの精神と調和している。今後は、行列式の概念を他の線形空間（例えば列ベクトル表現）に拡張した射論的視点も探求すると良い。
+
+\end{document}
+

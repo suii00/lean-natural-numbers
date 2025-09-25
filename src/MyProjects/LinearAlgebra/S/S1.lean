@@ -38,18 +38,23 @@ theorem S1_P02 (p q : ℝ × ℝ) (h : p.1 ≠ q.1) :
     let b := p.2 - m * p.1
     (p.2 = m * p.1 + b) ∧ (q.2 = m * q.1 + b) := by
   classical
-  intro m b
+  set m := (q.2 - p.2) / (q.1 - p.1) with hm
+  set b := p.2 - m * p.1 with hb
+  have h₁ : q.1 - p.1 ≠ 0 := sub_ne_zero.mpr (ne_comm.mp h)
+  suffices (p.2 = m * p.1 + b) ∧ (q.2 = m * q.1 + b) by
+    simpa [hm, hb]
   constructor
-  · simp [m, b]
+  · simp [hb]
   ·
-    have h₁ : q.1 - p.1 ≠ 0 := sub_ne_zero.mpr (ne_comm.mp h)
     have h' :
-        (q.2 - p.2) / (q.1 - p.1) * q.1
-            + (p.2 - (q.2 - p.2) / (q.1 - p.1) * p.1)
+        ((q.2 - p.2) / (q.1 - p.1)) * q.1
+            + (p.2 - ((q.2 - p.2) / (q.1 - p.1)) * p.1)
             = q.2 := by
       field_simp [h₁]
       ring
-    exact (eq_comm.mp (by simpa [m, b] using h'))
+    have h'' : m * q.1 + b = q.2 := by
+      simpa [hm, hb] using h'
+    exact (eq_comm.mp h'')
 
 
 /-! ## S1_P03

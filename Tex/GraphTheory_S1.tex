@@ -1,0 +1,107 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{physics}
+\usepackage{tikz}
+\usetikzlibrary{graphs, graphs.standard, positioning}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=teal,
+  citecolor=red
+}
+
+\title{グラフ理論 S1 の数学的解説}
+\author{CODEX (OpenAI)\\TeXファイル生成: CODEX (OpenAI)\\Leanファイル生成: CODEX (OpenAI)}
+\date{2025年9月24日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、課題ファイル \texttt{S1.lean} に実装された六つの命題（基本問題五題とチャレンジ問題）について、ニコラ・ブルバキ『数学原論』にならった順序対および射の視点から数学的背景と証明の概要を解説する。単純グラフの基本的性質（隣接関係の対称性・次数・サイクルの局所構造・到達可能性・補グラフ）と、有限グラフにおけるハンドシェイク補題を図式とともに整理する。
+\end{abstract}
+
+\section{基礎事項と記法}
+本稿で扱う単純グラフ $G=(V,E)$ は自己ループと多重辺を持たず、無向辺集合 $E$ は順序対の同値類（無序対）で表される。Leanにおける \verb|SimpleGraph V| は、対称的かつ反射性を持たない二項関係 \verb|Adj : V → V → Prop| を通じて $E$ を暗黙裡に規定している。
+
+次数 $\deg_G(v)$ は隣接頂点集合の濃度であり、Lean では \verb|G.degree v| として \verb|neighborFinset v| の濃度として定義される。また補グラフ $G^{\complement}$ は \verb|Gᶜ| により実装され、既存の関係を反転させる。
+
+\section{各問題の解説}
+\subsection*{S1\_P01: 隣接関係の対称性}
+単純グラフでは $G.Adj\,u\,v$ から $G.Adj\,v\,u$ が直ちに従う。Lean の定理 \verb|adj_comm| は対称性を順序対 $(u,v)$ に関する写像で保証し、命題論理の同値から前向き含意を抽出することで証明が完結する。
+
+\subsection*{S1\_P02: 完全グラフ $K_3$ の次数}
+有限集合 $\mathrm{Fin}\,3$ 上の完全グラフでは各頂点が他の二頂点と接続されるため、次数は常に $2$ である。Lean では場合分け（\verb|fin_cases|）と判定手続き（\verb|decide|）により、各順序対の存在が自動判定される。
+
+\subsection*{S1\_P03: サイクル $C_4$ の局所構造}
+$p=0$ の頂点から見ると、隣接順序対は $(0,1)$ と $(0,3)$ のみであり、$0$ と $2$ は距離 2 の位置にあるため非隣接である。Lean では \verb|cycleGraph 4| の定義を利用し、具体的な組 $(i,j)$ に対して \verb|decide| が隣接性の真偽を返す。
+
+\subsection*{S1\_P04: 到達可能性の反射性}
+到達可能性（\verb|Reachable|）は関係の推移閉包に対応する。零長パス（\verb|Walk.nil|）が存在することから、任意の頂点 $v$ に対して $v$ から $v$ へ到達可能である。
+
+\subsection*{S1\_P05: 補グラフでの排反性}
+もし $G$ で $u$ と $v$ が隣接するならば、補グラフ $G^{\complement}$ では同じ順序対は辺を持たない。Lean の定理 \verb|compl_adj| は補グラフの定義を明示し、命題論理による簡約（\verb|simp|）で矛盾を回避する。
+
+\subsection*{S1\_CH: ハンドシェイク補題}
+有限集合 $V$ において、全次数の総和は双方向の射影によって各辺が二度数えられるため
+\begin{equation}
+  \sum_{v\in V} \deg_G(v) = 2\,|E|.
+\end{equation}
+Lean では \verb|sum_degrees_eq_twice_card_edges| が既にライブラリで証明されており、必要な可換性（\verb|DecidableEq|）と可判定性（\verb|DecidableRel|）を与えることで命題は即座に示される。
+
+\section{図式による直観}
+図\ref{fig:graphs} に $K_3$ と $C_4$ を示す。各辺は順序対の同値類を射影したものであり、補グラフは射の反転に相当する。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[scale=1.1]
+    \begin{scope}[every node/.style={circle, draw, fill=gray!10, minimum size=8mm}]
+      \node (0) at (0,1) {$0$};
+      \node (1) at (-0.87,-0.5) {$1$};
+      \node (2) at (0.87,-0.5) {$2$};
+    \end{scope}
+    \draw[thick] (0) -- (1) -- (2) -- (0);
+    \node[below=8mm of 1, anchor=north west] {$K_3$ の射影図式};
+  \end{tikzpicture}
+  \qquad
+  \begin{tikzpicture}[scale=1.1]
+    \begin{scope}[every node/.style={circle, draw, fill=gray!10, minimum size=8mm}]
+      \node (a0) at (0,1) {$0$};
+      \node (a1) at (-1,0) {$1$};
+      \node (a2) at (0,-1) {$2$};
+      \node (a3) at (1,0) {$3$};
+    \end{scope}
+    \draw[thick] (a0)--(a1)--(a2)--(a3)--(a0);
+    \node[below=8mm of a2, anchor=north] {$C_4$ の射影図式};
+  \end{tikzpicture}
+  \caption{完全グラフ $K_3$ とサイクルグラフ $C_4$ の射による構造化}
+  \label{fig:graphs}
+\end{figure}
+
+\section{Lean 実装との対応}
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{S1\_P01}: \verb|adj_comm| に基づく対称性の写像観。
+  \item \textbf{S1\_P02}: \verb|fin_cases| と \verb|decide| による有限集合の全射列挙。
+  \item \textbf{S1\_P03}: \verb|cycleGraph| の構造定数を用いた局所的射影。
+  \item \textbf{S1\_P04}: \verb|Walk.nil| が射影の単位射として機能。
+  \item \textbf{S1\_P05}: 補グラフが反射子として働き、同じ順序対が再出現しない。
+  \item \textbf{S1\_CH}: 各辺が二つの射影を持つというブルバキ的観点の一般化。
+\end{itemize}
+
+Lean ファイル \texttt{S1.lean} は CODEX (OpenAI) により生成・検証済みであり、本 TeX 文書も同じく CODEX (OpenAI) が Lua\LaTeX 用に作成した。
+
+\section{今後の展望}
+到達可能性から連結成分、そして補グラフを通じた双対性へと議論を拡張することで、ブルバキ的枠組みにおける射影と順序対の役割をさらに明確化できる。次のステップとしては、歩道（walk）の合成を射の合成と見なす圏論的整理、およびハンドシェイク補題の一般化（例：多重グラフや重み付きグラフ）を検討するとよい。
+
+\end{document}

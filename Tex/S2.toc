@@ -1,0 +1,21 @@
+\contentsline {section}{\numberline {1}全体方針：構造と射による整理}{2}{section.1}%
+\contentsline {section}{\numberline {2}命題\texttt {S2\_P01}: 平面上の点の構成}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}命題の数学的内容}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Lean 証明との対応}{2}{subsection.2.2}%
+\contentsline {section}{\numberline {3}命題\texttt {S2\_P02}: 2点を結ぶ射影線分のパラメータ表示}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}命題の数学的内容}{2}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Lean 証明との対応}{2}{subsection.3.2}%
+\contentsline {section}{\numberline {4}命題\texttt {S2\_P03}: ドット積の加法性}{3}{section.4}%
+\contentsline {subsection}{\numberline {4.1}命題の数学的内容}{3}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Lean 証明との対応}{3}{subsection.4.2}%
+\contentsline {section}{\numberline {5}命題\texttt {S2\_P04}: ドット積の斉次性}{3}{section.5}%
+\contentsline {subsection}{\numberline {5.1}命題の数学的内容}{3}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Lean 証明との対応}{3}{subsection.5.2}%
+\contentsline {section}{\numberline {6}命題\texttt {S2\_P05}: 単位ベクトルへの射影の固定点}{3}{section.6}%
+\contentsline {subsection}{\numberline {6.1}命題の数学的内容}{3}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Lean 証明との対応}{3}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}図式的理解}{3}{subsection.6.3}%
+\contentsline {section}{\numberline {7}命題\texttt {S2\_CH}: 行列式と体積の射}{4}{section.7}%
+\contentsline {subsection}{\numberline {7.1}命題の数学的内容}{4}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Lean 証明との対応}{4}{subsection.7.2}%
+\contentsline {section}{\numberline {8}結語}{4}{section.8}%
