@@ -61,6 +61,44 @@ noncomputable def cost (w : α → α → Cost) : ∀ {x y : α}, Path neighbors
     cost (neighbors:=neighbors) w (Path.cons hxy rest) =
       w x y + cost (neighbors:=neighbors) w rest := rfl
 
+
+/-- パスを連結する操作 -/
+def append : ∀ {x y z : α},
+    Path neighbors x y → Path neighbors y z → Path neighbors x z
+  | _, _, _, Path.nil _, q => q
+  | _, _, _, Path.cons hxy rest, q =>
+      Path.cons hxy (append rest q)
+
+@[simp] lemma append_nil_left {x y : α} (p : Path neighbors x y) :
+    append (Path.nil (neighbors:=neighbors) x) p = p := rfl
+
+@[simp] lemma append_cons {x y z w : α}
+    (hxy : y ∈ neighbors x) (p : Path neighbors y z) (q : Path neighbors z w) :
+    append (Path.cons hxy p) q = Path.cons hxy (append p q) := rfl
+
+@[simp] lemma cost_append (w : α → α → Cost)
+    {x y z : α} (p : Path neighbors x y) (q : Path neighbors y z) :
+    cost (neighbors:=neighbors) w (append p q) =
+      cost (neighbors:=neighbors) w p + cost (neighbors:=neighbors) w q := by
+  induction p with
+  | nil => simp [append, cost]
+  | cons hxy rest ih =>
+      rename_i x y z
+      have ihq := ih q
+      calc
+        cost (neighbors:=neighbors) w (append (Path.cons hxy rest) q) =
+            w x y + cost (neighbors:=neighbors) w (append rest q) := by
+              simp [append, cost]
+        _ = w x y + (cost (neighbors:=neighbors) w rest +
+              cost (neighbors:=neighbors) w q) := by
+              simp [ihq]
+        _ = (w x y + cost (neighbors:=neighbors) w rest) +
+              cost (neighbors:=neighbors) w q := by
+              simp [add_assoc]
+        _ = cost (neighbors:=neighbors) w (Path.cons hxy rest) +
+              cost (neighbors:=neighbors) w q := by
+              simp [cost]
+
 end Path
 
 /-- 問題クラス：目標述語・近傍・エッジコスト・真の目標距離（抽象） -/
