@@ -1,0 +1,71 @@
+\documentclass[luatex]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz}
+\usetikzlibrary{positioning,decorations.pathmorphing}
+
+\title{S3\_CH: 二部グラフ構成と Lean 検証}
+\author{TeX執筆: CODEX (OpenAI) \\ Lean 実装: CODEX (OpenAI)}
+\date{2025年9月25日}
+
+\begin{document}
+\maketitle
+
+\section{問題設定の整理}
+課題 S3\_CH は、頂点集合を \(V = \{0,1,2,3,4,5\} \cong \mathrm{Fin}\,6\) とする単純グラフで、完全二部グラフ \(K_{3,3}\) から辺 \(\{0,3\}\) を 1 本取り除いたものが二部グラフであり、さらに辺数が 8 であることを示す問題である。二部性は頂点分割 \(L = \{0,1,2\},\ R = \{3,4,5\}\) によって証明できる。
+
+\section{具体的構成}
+完全二部グラフ \(K_{3,3}\) の辺集合は \(L\) と \(R\) の直積全体であり 9 本存在する。本問題では以下の 8 本の辺のみを残す。
+\[
+E = \{(0,4),(0,5),(1,3),(1,4),(1,5),(2,3),(2,4),(2,5)\}.
+\]
+辺 \(\{0,3\}\) を除くことで、依然として全ての辺が \(L\) から \(R\) への接続となり、同一側に属する頂点を結ぶ辺は存在しない。
+
+\section{二部性の確認}
+頂点分割 \((L,R)\) が二部性を与えることは、任意の辺が必ず \(L\) の頂点と \(R\) の頂点を結んでいることを確かめればよい。集合 \(E\) を成分ごとに確かめれば明らかであり、取り除いた \(\{0,3\}\) 以外の辺はすべて条件を満たしている。
+
+\section{辺数の検算}
+\(K_{3,3}\) には 9 本の辺が存在し、そこから 1 本を取り除いたので \(|E| = 8\) である。集合として重複がないことは単純なケース分けで確かめられる。
+
+\section{Lean での実装概要}
+Lean ファイル \texttt{S3A.lean} では、次のステップで証明が構成されている。
+\begin{enumerate}
+  \item \textbf{具体的辺集合の定義}: リスト \texttt{almostK33EdgesList} から \texttt{Finset} を生成し、重複がないことを決定手続き \texttt{decide} で確定する。
+  \item \textbf{単純グラフ \texttt{almostK33} の構築}: `SimpleGraph` 構造体に隣接関係を与え、対称性とループが無いことを証明する。ループ無しは補助補題 \texttt{no\_loop} を通じて個別に確認する。
+  \item \textbf{二部性補題 \texttt{edge\_forces\_partition}}: 任意の辺が \(L\) と \(R\) の相対位置に従うことを有限ケース分解と \texttt{decide} で示す。
+  \item \textbf{主定理 \texttt{S3\_CH}}: 上記の補題を組み合わせ、二部性と辺数 8 の同時成立を与える存在定理として結論付ける。
+\end{enumerate}
+
+\section{図式による可視化}
+図\ref{fig:almostK33} に、頂点分割と欠損した辺を含む構造を示す。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[scale=1.0, every node/.style={circle, draw, inner sep=1pt}]
+    \node (l0) at (0,2) {0};
+    \node (l1) at (0,0) {1};
+    \node (l2) at (0,-2) {2};
+    \node (r3) at (4,2) {3};
+    \node (r4) at (4,0) {4};
+    \node (r5) at (4,-2) {5};
+
+    % remaining edges
+    \foreach \u/\v in {l0/r4,l0/r5,l1/r3,l1/r4,l1/r5,l2/r3,l2/r4,l2/r5}
+      \draw (\u) -- (\v);
+
+    % dashed missing edge
+    \draw[dashed, thick, red] (l0) -- (r3);
+
+    \node[draw=none] at (-0.7,2) {$L$};
+    \node[draw=none] at (4.7,2) {$R$};
+    \node[draw=none] at (2,-2.7) {$\text{欠損辺 } \{0,3\}$};
+  \end{tikzpicture}
+  \caption{完全二部グラフ \(K_{3,3}\) から辺 \(\{0,3\}\) を除いたグラフ}
+  \label{fig:almostK33}
+\end{figure}
+
+\section{まとめ}
+具体的な辺集合を固定し有限検査を用いることで、二部性および辺数の主張は迅速に確認できる。Lean 上でも同様の構造を反映し、`Fin` の場合分けと `decide` に頼ることで自動化された検証が行える。
+
+\end{document}

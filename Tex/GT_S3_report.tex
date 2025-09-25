@@ -1,0 +1,72 @@
+\documentclass[uplatex]{article}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathmorphing, calc}
+\title{Graph Theory Assignment 3 基礎問題メモ}
+\author{作成: CODEX (OpenAI) \and Lean実装支援: CODEX (OpenAI)}
+\date{2025年9月25日}
+
+\begin{document}
+\maketitle
+
+本資料では、課題 S3 のうちチャレンジ問題以外の 5 問について、数学的観点からの要点を整理する。各節は問題文に対応し、最後に簡単な図式を添える。
+
+\section{S3\_P01 完全グラフの隣接性}
+\begin{itemize}
+  \item 完全グラフ $K_n$ では、任意の 2 頂点が辺で結ばれる。\newline
+  \item 線形順序や具体的な色分けは不要で、単に定義から全ての頂点対が隣接することを確認すればよい。
+\end{itemize}
+
+\section{S3\_P02 完全二部グラフ $K_{2,3}$ の分割}
+\begin{itemize}
+  \item 二部グラフは頂点集合を 2 つの独立集合 $A,B$ に分割でき、同じ側に属する頂点同士は隣接しない。
+  \item 完全二部グラフ $K_{2,3}$ では、左側の頂点 $\{u_1,u_2\}$、右側の頂点 $\{v_1,v_2,v_3\}$ で標準的に分割される。
+\end{itemize}
+
+\section{S3\_P03 サイクルグラフ $C_4$ の次数}
+\begin{itemize}
+  \item $C_4$ は 4 頂点の閉路。各頂点は 2 本ずつ辺を持つため、次数は一様に $2$。
+  \item 明示的には、頂点 $i$ は $i-1$ と $i+1$ (mod 4) にのみ接続する。
+\end{itemize}
+
+\section{S3\_P04 スターグラフの中心次数}
+\begin{itemize}
+  \item スターグラフ $S_n$ は中心頂点 1 つと、他の $n-1$ 頂点が放射状に接続した構造。
+  \item 中心頂点の次数は $n-1$、外側の頂点はすべて次数 1。
+\end{itemize}
+
+\section{S3\_P05 補グラフと完全グラフ}
+\begin{itemize}
+  \item 空グラフ（辺が 0 本）の補グラフは、同じ頂点集合に対して全ての辺を追加した完全グラフになる。
+  \item 補操作は二回適用すると元に戻る involution である点にも注目できる。
+\end{itemize}
+
+\section*{付録: 図式 (TikZ)}
+下図は $K_{2,3}$ の分割と $C_4$ の構造を同時に示した例である。
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  % K_{2,3}
+  \node (u1) at (-2,1) {$u_1$};
+  \node (u2) at (-2,-1) {$u_2$};
+  \node (v1) at (0,2) {$v_1$};
+  \node (v2) at (0,0) {$v_2$};
+  \node (v3) at (0,-2) {$v_3$};
+  \foreach \u in {u1,u2}
+    \foreach \v in {v1,v2,v3}
+      \draw (\u) -- (\v);
+  \node at (-1,-2.5) {$K_{2,3}$};
+
+  % C4
+  \node (c1) at (3,1) {$0$};
+  \node (c2) at (5,1) {$1$};
+  \node (c3) at (5,-1) {$2$};
+  \node (c4) at (3,-1) {$3$};
+  \draw (c1) -- (c2) -- (c3) -- (c4) -- (c1);
+  \node at (4,-2) {$C_4$};
+\end{tikzpicture}
+\end{center}
+
+\end{document}
