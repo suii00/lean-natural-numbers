@@ -1,7 +1,4 @@
 import Mathlib.Topology.Category.TopCat.Basic
-import Mathlib.Topology.Category.TopCat.Adjunctions
-import Mathlib.CategoryTheory.Adjunction.Basic
-import Mathlib.CategoryTheory.ConcreteCategory.Basic
 import MyProjects.BourbakiStyle.Topology.ContinuousComposition
 
 open CategoryTheory
@@ -16,9 +13,8 @@ Bourbaki-style topological spaces organised as a category.
 
 We package a type and its Bourbaki topology together with morphisms as ordered
 pairs `(f, proof)` so that identities and composition satisfy the categorical
-axioms.  Comparison functors with `TopCat` plus the forgetful functor to `Type`
-allow us to transport categorical structure, and discrete/indiscrete adjunctions
-mirror the standard `TopCat` API within the Bourbaki presentation.
+axioms.  A forgetful functor back to `TopCat` witnesses compatibility with
+Mathlib's `TopologicalSpace` universe.
 -/
 
 universe u v w
@@ -125,142 +121,8 @@ example (h : Z ⟶ BTop.mk Z.α Z.τ) : (f ≫ g) ≫ h = f ≫ (g ≫ h) := by
   apply BourbakiMorphism.ext
   intro x
   rfl
+
 end Examples
-
-attribute [simp, reassoc] Category.comp_id Category.id_comp Category.assoc
-
-@[simp] lemma forgetToTopCat_obj (X : BTop) :
-    forgetToTopCat.obj X = TopCat.of X := rfl
-
-noncomputable def ofTopCatObj (X : TopCat) : BTop :=
-  { α := X
-    τ := ofTopologicalSpace inferInstance }
-
-noncomputable def ofTopCatMap {X Y : TopCat} (f : X ⟶ Y) :
-    ofTopCatObj X ⟶ ofTopCatObj Y :=
-  BourbakiMorphism.ofContinuous (X := X) (Y := Y) (f := f) f.continuous
-
-noncomputable def ofTopCat : TopCat ⥤ BTop where
-  obj X := ofTopCatObj X
-  map f := ofTopCatMap f
-  map_id X := by
-    apply BourbakiMorphism.ext
-    intro x
-    rfl
-  map_comp f g := by
-    apply BourbakiMorphism.ext
-    intro x
-    rfl
-
-@[simp] lemma ofTopCat_map_apply {X Y : TopCat}
-    (f : X ⟶ Y) (x : X) :
-    ((ofTopCat.map f).toFun) x = f x := rfl
-
-noncomputable def unitIso : 𝟭 BTop ≅ forgetToTopCat ⋙ ofTopCat :=
-  NatIso.ofComponents
-    (fun X =>
-      { hom :=
-          { toFun := fun x => x
-            isContinuous := by
-              intro U hU
-              have hU' :
-                  U ∈ (ofTopologicalSpace (toTopologicalSpace X.τ)).carrier := by
-                simpa [Functor.comp, forgetToTopCat, ofTopCat, ofTopCatObj,
-                  toTopCatObj] using hU
-              simpa [BourbakiTopology.of_toTopologicalSpace] using hU'
-          }
-        inv :=
-          { toFun := fun x => x
-            isContinuous := by
-              intro U hU
-              have hU' :
-                  U ∈ (ofTopologicalSpace (toTopologicalSpace X.τ)).carrier := by
-                simpa [BourbakiTopology.of_toTopologicalSpace] using hU
-              simpa [Functor.comp, forgetToTopCat, ofTopCat, ofTopCatObj,
-                toTopCatObj] using hU'
-          }
-        hom_inv_id := by
-          apply BourbakiMorphism.ext
-          intro x
-          rfl
-        inv_hom_id := by
-          apply BourbakiMorphism.ext
-          intro x
-          rfl })
-    (by
-      intro X Y f
-      apply BourbakiMorphism.ext
-      intro x
-      rfl)
-
-noncomputable def counitIso : ofTopCat ⋙ forgetToTopCat ≅ 𝟭 TopCat :=
-  NatIso.ofComponents
-    (fun X => Iso.refl _)
-    (by
-      intro X Y f
-      ext x
-      rfl)
-
-noncomputable def equivTopCat : BTop ≌ TopCat :=
-{ functor := forgetToTopCat
-  inverse := ofTopCat
-  unitIso := unitIso
-  counitIso := counitIso
-  functor_unitIso_comp := by
-    intro X
-    ext x
-    simp [unitIso, counitIso]
-}
-
-noncomputable def forget : BTop ⥤ Type u where
-  obj X := X
-  map f := f.toFun
-  map_id X := rfl
-  map_comp f g := rfl
-
-@[simp] lemma forget_obj (X : BTop) : forget.obj X = X := rfl
-
-@[simp] lemma forget_map_apply {X Y : BTop}
-    (f : X ⟶ Y) (x : X) : forget.map f x = f x := rfl
-
-instance : (forget : BTop ⥤ Type u).Faithful := by
-  classical
-  constructor
-  intro X Y f g hfg
-  apply BourbakiMorphism.ext
-  intro x
-  have := congrArg (fun h => h x) hfg
-  simpa using this
-
-instance : HasForget BTop := ⟨forget⟩
-
-instance : HasForget₂ BTop TopCat := ⟨forgetToTopCat⟩
-
-instance : HasForget₂ BTop (Type u) := ⟨forget⟩
-
-noncomputable def disc : Type u ⥤ BTop :=
-  TopCat.discrete ⋙ ofTopCat
-
-noncomputable def indisc : Type u ⥤ BTop :=
-  TopCat.trivial ⋙ ofTopCat
-
-noncomputable def disc_adj_forget : disc ⊣ forget :=
-  (TopCat.adj₁ (u := u)).comp (equivTopCat.symm.toAdjunction)
-
-noncomputable def forget_adj_indisc : forget ⊣ indisc :=
-  (equivTopCat.toAdjunction).comp (TopCat.adj₂ (u := u))
-
-section Examples'
-
-variable {α : Type u} {X : BTop}
-
-example (f : disc.obj α ⟶ X) :
-    disc_adj_forget.homEquiv α X f = forget.map f := rfl
-
-example (g : forget.obj X → α) :
-    forget.map ((disc_adj_forget.homEquiv α X).symm g) = g := rfl
-
-end Examples'
 
 end BTop
 
