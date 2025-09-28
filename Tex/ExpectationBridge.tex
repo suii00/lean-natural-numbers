@@ -1,0 +1,118 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Noto Serif CJK JP}
+\setsansjfont{Noto Sans CJK JP}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{amsthm}
+\usepackage{bm}
+\usepackage{tikz-cd}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+\title{ブルバキ的測度論ブリッジ\thanks{本文および Lean ファイル \texttt{ExpectationBridge.lean} は Codex (OpenAI) により生成されました。}}
+\author{Codex (OpenAI)}
+\date{\today}
+
+\newtheorem{definition}{定義}
+\newtheorem{proposition}{命題}
+\newtheorem{example}{例}
+
+\DeclareMathOperator{\E}{\mathbb{E}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は学部生向けの導入として、ニコラ・ブルバキの「数学原論」に着想を得た測度論的確率構造を概説する。特に、Lean 4 で実装された \texttt{ExpectationBridge.lean} をもとに、ランダム変数をボレル構造への射とみなす枠組みと、期待値の定義がどのように整合的に構成されるかを説明する。
+\end{abstract}
+
+\section{動機と全体像}
+測度論的確率論では、確率空間 $(\Omega, \mathcal{F}, \mu)$ とボレル可測空間 $(X, \mathcal{B}(X))$ の間の可測写像がランダム変数を表す。ブルバキ的視点では、$\sigma$-構造（集合族）と写像の組を「順序対」として厳密に扱うことで、対象と射の性質を明確に追跡する。本稿で扱う Lean ファイルでは、
+\begin{itemize}
+  \item $\sigma$-構造を保持する写像を \emph{BourbakiMorphism} として実装し、
+  \item 連続写像に対応する可測性を確認し、
+  \item ランダム変数と分布の押し出し測度を定義し、
+  \item さらに積分可能なランダム変数と期待値を導入する。
+\end{itemize}
+これにより、期待値の振る舞いをボレル構造と測度の相互作用として捉えることが可能になる。
+
+\section{Bourbaki 型ランダム変数の復習}
+Lean 実装では、$\sigma$-構造 $\tau_\Omega$ と位相空間 $X$ に対し、\emph{BourbakiMorphism} を用いて次のようにランダム変数を定義する：
+\begin{definition}[Bourbaki 型ランダム変数]
+$\mathrm{RandomVariable}(\tau_\Omega, X)$ とは、
+\begin{itemize}
+  \item 基本集合 $\Omega$ 上の $\sigma$-構造 $\tau_\Omega$ と、
+  \item 位相空間 $X$ に付随するボレル $\sigma$-構造 $\mathcal{B}(X)$
+\end{itemize}
+の間の BourbakiMorphism $\tau_\Omega \to \mathcal{B}(X)$ である。これは実質的には Borel 可測写像 $\xi \colon \Omega \to X$ を表す。
+\end{definition}
+連続写像 $g \colon X \to Y$ による合成はランダム変数を保ち、分布は押し出し測度 $\mu \mapsto \mu \circ \xi^{-1}$ として表現される。これらは Lean 内で補題として既に証明されている。
+
+\section{積分可能ランダム変数と期待値}
+期待値を定義するため、実数値ランダム変数が $L^1$ に属すること、すなわち積分可能であることを仮定する。
+\begin{definition}[積分可能ランダム変数]
+測度 $\mu$ を備えた $\sigma$-構造 $\tau_\Omega$ 上で、\emph{積分可能ランダム変数}
+\[
+\mathrm{IntegrableRandomVariable}(\tau_\Omega, \mu)
+\]
+とは次の順序対である：
+\begin{enumerate}
+  \item Bourbaki 型ランダム変数 $\xi \colon \Omega \to \mathbb{R}$、
+  \item $\xi$ が $\mu$ に関して $L^1$ に属することを示す積分可能性の証明。
+\end{enumerate}
+Lean ではこれを構造体として実装し、写像部分は自動的に $\Omega \to \mathbb{R}$ として評価できる。
+\end{definition}
+
+\begin{definition}[期待値]
+$\xi \in \mathrm{IntegrableRandomVariable}(\tau_\Omega, \mu)$ に対し、その期待値を
+\[
+\E_{\mu}[\xi] = \int_{\Omega} \xi(\omega)\,d\mu(\omega)
+\]
+と定義する。Lean では単に \verb|∫ ω, ξ ω ∂μ| と記述される。
+\end{definition}
+
+この定義は、測度を変更せずに積分を用いた標準的な期待値の導入と一致する。
+
+\section{定数ランダム変数の例}
+定数写像 $\xi_c(\omega) = c$ は自明に可測であり、有限測度下では積分可能である。Lean 実装では `const` 構築子として定義され、
+\[
+\E_{\mu}[\xi_c] = c \cdot \mu(\Omega)
+\]
+が示される。特に $\mu$ が確率測度であれば $\mu(\Omega) = 1$ なので $\E_{\mu}[\xi_c] = c$ が得られる。
+
+\begin{example}[Dirac 確率測度]
+$\mu = \delta_{x_0}$ を点 $x_0 \in \mathbb{R}$ に集中した Dirac 測度とする。任意の定数ランダム変数 $\xi_c$ に対して
+\[
+\E_{\delta_{x_0}}[\xi_c] = c
+\]
+が成立する。Lean の `example` でも同様の計算が確認できる。
+\end{example}
+
+\section{図式でみる期待値の構造}
+期待値は「測度付きの射影」を通じた二段階の過程として表現できる。まずランダム変数 $\xi$ が測度空間から実数のボレル構造へと射を与え、その後ボレル測度 $\xi_{\#}\mu$ を実数の Lebesgue 測度に関して積分する。
+
+\begin{center}
+\begin{tikzcd}[column sep=huge,row sep=large]
+  (\Omega,\tau_\Omega,\mu)
+    \arrow[r,"\xi"]
+    \arrow[dr,swap,"\mu\text{-expectation}"] &
+  (\mathbb{R},\mathcal{B}(\mathbb{R}),\xi_{\#}\mu)
+    \arrow[d,"\displaystyle \int_{\mathbb{R}} x\,d(\xi_{\#}\mu)(x) = \E_{\mu}[\xi]"] \\
+  & (\mathbb{R},\text{標準構造})
+\end{tikzcd}
+\end{center}
+
+図式は、まず押し出し測度を経由し、最後に実数直線上の積分によって期待値が得られるという "測度論的橋渡し (bridge)" を視覚化している。
+
+\section{学習のための補足}
+\begin{itemize}
+  \item 期待値の線形性や連続写像による分布変換は、既存の Lean 補題と整合する。
+  \item 今後の発展として、条件付き期待値やマルチンゲールなどを同じ枠組みで扱う準備が整っている。
+  \item Lua\LaTeX{} でコンパイルすることで、日本語組版と TikZ 図式を自然に扱える。
+\end{itemize}
+
+\section*{おわりに}
+本資料は、Lean で構築されたブルバキ的測度論モジュールと期待値の定式化を、学部レベルのベクトル解析や線形代数を履修済みの読者が理解できるよう意図してまとめた。型理論を背景にした実装であっても、基礎的な測度論の知識があれば対応する数学的概念を追えることを示している。
+
+\end{document}

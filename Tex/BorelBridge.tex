@@ -1,0 +1,73 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{xeCJK}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+
+\title{Borel構造とブルバキ流測度射の架橋}
+\author{CODEX (OpenAI)\thanks{このTeXファイルおよび対応する Lean ファイル\texttt{BorelBridge.lean}は CODEX (OpenAI) によって生成されました。}}
+\date{2025年9月27日}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+本稿では、位相空間から生成されるBorel測度構造をブルバキ流の\emph{順序対による構造化}で捉え直し、
+Leanファイル\texttt{BorelBridge.lean}における定義\texttt{borelSigmaStructure}および定理\texttt{continuous\_implies\_borel\_measurable}の数学的背景を解説する。
+
+Bourbakiの精神では、構造は集合とその上の特定の集合族（例えば\(\sigma\)-代数）から構成され、射は構造保存的な写像の順序対で表現される。本稿では、この枠組みをBorel測度構造に適用する。
+
+\section{Borel測度構造のブルバキ的定義}
+位相空間\((X,\tau)\)に対し、標準的なBorel\(\sigma\)-代数\(\mathcal{B}(X)\)は開集合族\(\tau\)から生成される最小の\(\sigma\)-代数である。Leanでは\verb|borel X|として実装され、これは\verb|MeasurableSpace X|のインスタンスを与える。
+
+ブルバキ流の観点では、\(\sigma\)-構造は以下の順序対で表される：
+\[
+\mathcal{S} = (\mathcal{C}, \mathrm{axioms})
+\]
+ここで\(\mathcal{C} \subseteq \mathcal{P}(X)\)は集合族であり、\(\mathrm{axioms}\)は空集合、補集合、可算和集合に対する閉性を保証する。
+Lean ファイルでは、これを構造体\verb|BourbakiSigmaStructure|として定義し、Borel構造を以下のように移し替える：
+\[
+\mathrm{borelSigmaStructure}(X) := \mathrm{ofMeasurableSpace}(\mathrm{borel}(X)).
+\]
+
+\section{構造保存射と連続写像}
+ブルバキ流射\verb|BourbakiMorphism|は、写像\(f : X \to Y\)と「すべての可測集合で前像が可測である」ことの証明との順序対で定義される。Lean では
+\begin{align*}
+\texttt{continuous\_implies\_borel\_measurable} :
+\quad &\texttt{Continuous} \ f \\ &\Longrightarrow \texttt{BourbakiMorphism}\bigl(\mathrm{borelSigmaStructure}(X),\mathrm{borelSigmaStructure}(Y)\bigr)
+\end{align*}
+と形式化され、連続写像が自動的にBorel可測写像になる事実を証明している。
+
+この証明の核心は、連続写像がBorel可測であるという古典的事実（\verb|Continuous.borel_measurable|）を用い、それをブルバキ流の射へ変換する関数\verb|BourbakiMorphism.ofMeasurable|で順序対化することである。
+
+\section{射の合成と構造的一貫性}
+一般のブルバキ流射の合成は以下の図式により表せる：
+\[
+\begin{tikzcd}
+X \arrow[r, "f"] \arrow[dr, "g \circ f"'] & Y \arrow[d, "g"] \\
+ & Z
+\end{tikzcd}
+\]
+Lean ファイル\texttt{MeasurableComposition.lean}で証明したように、可測性の合成は再び可測である。これにより、Borel構造の世界でも射の合成が閉じていることが保証される。
+
+\section{例：恒等写像}
+恒等写像\(\mathrm{id}_X : X \to X\)は自明に連続なため、Borel構造上でもブルバキ流射となる。Lean では次の一行で表現される：
+\begin{verbatim}
+by simpa using continuous_implies_borel_measurable ...
+\end{verbatim}
+これは、恒等写像の連続性（\verb|continuous_id|）を用いて自動的に射を構成している。
+
+\section{まとめ}
+\begin{itemize}
+  \item Borel構造は\(\sigma\)-代数のブルバキ的表現を通じて、集合族と閉性公理の順序対として再定式化できる。
+  \item 連続写像はBorel可測であり、そのままブルバキ流測度射として扱える。
+  \item Lean 実装では、\verb|borelSigmaStructure|と\verb|continuous_implies_borel_measurable|がこの橋渡しを形式的に保証し、射の合成閉性が別ファイル\texttt{MeasurableComposition.lean}の定理と整合している。
+\end{itemize}
+
+以上により、Borel測度構造とブルバキ流の順序対的視点が調和的に接続されることを示した。
+
+\end{document}

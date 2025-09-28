@@ -1,0 +1,92 @@
+% LuaLaTeX 文書
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usetikzlibrary{arrows.meta}
+
+\title{Bourbaki的測度構造と確率論的射の橋渡し}
+\author{CODEX (OpenAI)\\Lean 実装: CODEX (OpenAI)}
+\date{2025年9月27日}
+
+\begin{document}
+\maketitle
+
+\section*{概要}
+本稿では、`src/MyProjects/BourbakiStyle/MeasureTheory/ProbabilityBridge.lean` に実装されたブルバキ流のランダム変数と分布の構成を、日本語で解説する。対象は、ブルバキの順序対的精神に則り、$\sigma$-構造と射（射影）としての可測写像を明確に位置づけることで、確率測度の押し出し（pushforward）を構造化するものである。
+
+\section{ブルバキ式ランダム変数の定義}
+\subsection{背景構成}
+\begin{itemize}[leftmargin=2em]
+  \item ブルバキ式$\sigma$-構造 $\tau_\Omega$ は `BourbakiSigmaStructure` として準備済みであり、集合族 $\tau_\Omega.\mathrm{carrier}$ が $\sigma$-代数の公理を満たす。
+  \item トポロジーを備えた空間 $X$ に対し、`borelSigmaStructure X` が `borel X` と一致することを補題 `toMeasurableSpace_borelSigmaStructure` により確認する。
+\end{itemize}
+
+\subsection{定義}
+Lean 上では次のように定式化される。
+\begin{align*}
+\texttt{structure RandomVariable} (\tau_\Omega : \mathrm{BourbakiSigmaStructure}\,\Omega)
+    (X : \mathrm{Type}) [\mathrm{TopologicalSpace}\,X]
+    :\; &\mathrm{Type} := \\
+  &\{\, f : \Omega \to X \mid f \text{ が } \tau_\Omega \text{ から } \mathrm{borelSigmaStructure}\,X \text{ へのブルバキ的射}\,\}.
+\end{align*}
+すなわち、`RandomVariable` は `BourbakiMorphism` を内包する構造であり、可測性が射の形で明示的に保持される。補題 `RandomVariable.measurable` は、この射が Mathlib の `Measurable` にも適合することを保証する。
+
+\section{分布の押し出しの構成}
+\subsection{定義と直観}
+確率空間 $(\Omega,\tau_\Omega,\mu)$ とランダム変数 $\xi$ に対し、分布は測度の押し出しとして
+\begin{equation*}
+  \mathrm{distribution}\,\mu\,\xi := \mathrm{Measure.map}\,\xi\,\mu
+\end{equation*}
+と定義される。Lean では型クラス自動化の都合上、$\mu$ を `@Measure Ω (toMeasurableSpace τΩ)` として、ブルバキ構造から誘導される可測空間を明示した。
+
+\subsection{確率測度性の保存}
+定理 `distribution_isProbability` は、\emph{押し出し測度が確率測度としての性質を維持する}ことを述べる。証明は `RandomVariable.measurable` から得られる $\mathrm{AEMeasurable}$ 性と、Mathlib の `isProbabilityMeasure_map` を組み合わせることで完成する。
+
+\subsection{連続写像による変換}
+連続写像 $g : X \to Y$ でランダム変数を後ろから合成した場合、分布は二段の押し出しに分解される。Lean の補題
+\[
+  \texttt{distribution\_compContinuous}\colon
+  \mathrm{distribution}\,\mu\,(\xi \circ g)
+  = \mathrm{Measure.map}\,g\,(\mathrm{distribution}\,\mu\,\xi)
+\]
+は `Measure.map_map` の組合せから導かれる。
+
+\section{図式による俯瞰}
+押し出しの振る舞いは以下の可換図式で視覚化できる。
+\begin{center}
+\begin{tikzcd}[ampersand replacement=\&, row sep=large, column sep=large]
+  (\Omega,\tau_\Omega,\mu) \arrow[r, "\xi"] \arrow[dr, swap, "\mu"]
+    \& (X, \mathrm{borel}~X, \mu_X) \arrow[d, "\mathrm{distribution}" ] \\
+  \& (Y, \mathrm{borel}~Y, \mu_Y)
+\end{tikzcd}
+\end{center}
+ここで $\mu_X = \mathrm{Measure.map}\,\xi\,\mu$、$\mu_Y = \mathrm{Measure.map}\,g\,\mu_X$ と置くと、上記図式は `distribution_compContinuous` の可換性を反映する。
+
+\section{Lean コードとの対応表}
+\begin{table}[h]
+  \centering
+  \begin{tabular}{ll}
+    \hline
+    数学的概念 & Lean 実装 \cr
+    \hline
+    ランダム変数 & `RandomVariable` (構造体) \cr
+    分布の定義 & `distribution` (非計算的定義) \cr
+    確率測度性の保存 & `distribution_isProbability` (補題) \cr
+    連続写像による分布の遷移 & `distribution_compContinuous` (補題) \cr
+    恒等写像の例 & `example ... = μ` (末尾の例) \cr
+    \hline
+  \end{tabular}
+  \caption{概念と Lean コードの対応}
+\end{table}
+
+\section{結び}
+本稿で示したように、ブルバキ的抽象を Lean 上で整理することで、確率測度の押し出しに関する基本結果を型安全かつ再利用可能な形で実装できる。今後は、`RandomVariable` を確率収束や大数の法則などの定理群へ拡張し、より複雑な図式（例えば Kolmogorov 拡張定理における円筒$\sigma$-代数）へと一般化することが考えられる。
+
+\bigskip
+\noindent\textbf{備考.} 本文および Lean ファイルはすべて CODEX (OpenAI) により生成された。
+
+\end{document}

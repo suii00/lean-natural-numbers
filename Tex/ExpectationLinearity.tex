@@ -1,0 +1,141 @@
+% !TeX program = lualatex
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\geometry{margin=25mm}
+
+\title{ブルバキ的測度論における可積分ランダム変数の線形性}
+\author{CODEX (OpenAI)\\\small TeXファイルおよび Lean ファイルを生成}
+\date{2025年9月28日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿では、ニコラ・ブルバキの『数学原論』の精神に従い、可測構造とランダム変数を順序対として扱う形式的枠組みを学部生向けに解説する。特に、CODEX (OpenAI) によって生成された Lean ファイル\\texttt{ExpectationLinearity.lean}で実装した「期待値の線形性」を、数学的背景とともに丁寧に説明する。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+確率論と測度論では、ランダム変数や期待値を定義するために可測空間と測度が基礎となる。本稿では、ブルバキ流の抽象化に基づき、可測構造を\\emph{順序対}として扱い、ランダム変数を「写像とその可測性証明」の組として定義する。
+
+Lean 実装では、\\texttt{IntegrableRandomVariable}構造体を用いて、関数とその可積分性を一体として保持している。本稿の目標は、期待値演算子が線形写像であること、すなわちスカラー倍と加法に対して保存的であることを示すことである。
+
+\section{ブルバキ型\\texorpdfstring{$\sigma$}{σ}-構造}
+ブルバキ流の立場では、\\sigma-集合族を以下のように定義する。
+
+\begin{definition}[ブルバキ型\\texorpdfstring{$\sigma$}{σ}-構造]
+集合 $\Omega$ 上の集合族 $\tau$ が以下を満たすとき、\\emph{ブルバキ型\\sigma-構造}と呼ぶ。
+\begin{enumerate}[label=\textup{(\roman*)}]
+  \item $\emptyset \in \tau$。
+  \item $A \in \tau$ ならば $A^c \in \tau$。
+  \item 可算族 $\{A_n\}_{n=1}^\infty \subseteq \tau$ に対し $\bigcup_{n=1}^\infty A_n \in \tau$。
+\end{enumerate}
+このとき対 $(\Omega,\tau)$ をブルバキ型測度空間と呼ぶ。
+\end{definition}
+
+Lean コードでは、\\texttt{BourbakiSigmaStructure} がこの概念を具現化しており、\\texttt{carrier} フィールドに集合族を保持する。
+
+\subsection{ブリッジとしての図式}
+ブルバキ型構造と通常の可測空間の行き来は、以下の図式で表される。
+\begin{center}
+\begin{tikzcd}[column sep=large]
+  \text{集合族} \tau \arrow[r, "\\texttt{toMeasurableSpace}"] & \text{Mathlib の可測空間} \\
+  \text{集合族} \mathcal{M} \arrow[u, "\\texttt{ofMeasurableSpace}"] &
+\end{tikzcd}
+\end{center}
+二つの構造を往復することで、抽象的な順序対の世界と、Lean/mathlib が提供する可測空間の API を橋渡ししている。
+
+\section{ブルバキ的ランダム変数}
+\begin{definition}[ブルバキ型ランダム変数]
+ブルバキ型測度空間 $(\Omega,\tau)$ と位相空間 $X$ に対し、\\emph{ブルバキ型ランダム変数}は、\
+\[
+  (f, \pi) \in (\Omega \to X) \times \text{証明}\bigl(f \text{ は可測}\bigr)
+\]
+の順序対である。Lean では\\texttt{RandomVariable}がこの構造を表現する。
+\end{definition}
+
+特に $X = \mathbb{R}$ としたとき、実数値のランダム変数を得る。可積分性を併せ持つ構造体を次のように定義する。
+
+\begin{definition}[ブルバキ型可積分ランダム変数]
+測度 $\mu$ を備えた $(\Omega,\tau)$ に対し、\\texttt{IntegrableRandomVariable} は
+\[
+  \xi = (f, \pi, h)
+\]
+という順序対である。ここで $f: \Omega \to \mathbb{R}$ は可測写像、$\pi$ はその可測性証明、$h$ は Bochner 積分の可積分性を主張する。
+\end{definition}
+
+Lean ファイルでは、\\texttt{IntegrableRandomVariable.coe} を通じて通常の関数としても扱えるようにしている。
+
+\section{期待値の線形性}
+この節では、期待値
+\[
+  \mathbb{E}[\xi] = \int_{\Omega} \xi(\omega)\, d\mu(\omega)
+\]
+が線形写像になることを示す。Lean での中心命題は\\texttt{expectation\_linear} である。
+
+\subsection{スカラー倍と加法の実装}
+Lean 実装では、以下の順序で線形性を確立した。
+\begin{enumerate}[label=\textup{(\alph*)}]
+  \item スカラー倍を\\texttt{smul}として定義し、$a \cdot \xi$ の可測性と可積分性を確認。
+  \item 加法を\\texttt{add}として定義し、$\xi+\eta$ が可測・可積分であることを確認。
+  \item それぞれに対応する平易な評価補題（\\texttt{coe\_smul}, \\texttt{coe\_add}）を証明。
+\end{enumerate}
+これにより、期待値演算子を積分へ還元して扱える。
+
+\subsection{期待値の線形性の証明}
+\begin{theorem}[期待値の線形性]
+$a,b \in \mathbb{R}$ と可積分ランダム変数 $\xi,\eta$ に対し、
+\[
+  \mathbb{E}[a\xi + b\eta] = a\,\mathbb{E}[\xi] + b\,\mathbb{E}[\eta]\quad
+	ext{が成り立つ。}
+\]
+\end{theorem}
+\begin{proof}
+Bochner 積分の線形性より、まず $a\xi$ と $b\eta$ が可積分であることから
+\[
+  \int (a \xi + b \eta) \, d\mu = \int a\xi \, d\mu + \int b\eta \, d\mu
+\]
+が成り立つ。さらに積分におけるスカラー倍の性質 $\int a\xi = a \int \xi$ を組み合わせることで、所望の等式が得られる。Lean の証明では、この流れを\\texttt{integral\_add} と\\texttt{integral\_const\_mul} を組み合わせることで機械的に検証している。
+\end{proof}
+
+\section{Lean 実装との対応}
+Lean ファイル\\texttt{ExpectationLinearity.lean}では、次の流れで証明が構成されている。
+\begin{enumerate}[label=\textup{(\arabic*)}]
+  \item \\texttt{coercions}: ランダム変数を関数として扱う同一視補題。
+  \item \\texttt{expectation\_add}: Bochner 積分の加法性を利用。
+  \item \\texttt{expectation\_smul}: Bochner 積分のスカラー倍の性質を利用。
+  \item \\texttt{expectation\_linear}: 前二者を組み合わせて線形性を示す最終命題。
+\end{enumerate}
+
+Lean の証明と人間による証明が一致することは、記号操作を厳密に確認できるという観点で教育的にも有益である。
+
+\section{まとめと展望}
+本稿では、ブルバキ流の抽象的な枠組みが Lean の世界でどのように実装され、期待値の線形性が確かめられるかを示した。今後の学習として、以下のテーマが挙げられる。
+\begin{itemize}
+  \item Jensen の不等式や Chebyshev の不等式など、期待値を用いた不等式の機械証明。
+  \item 条件付き期待値やマルチンゲールなど、情報構造を導入した高次構造への拡張。
+\end{itemize}
+
+\section*{謝辞}
+本ドキュメントおよび Lean ファイルは、いずれも CODEX (OpenAI) によって自動生成された。
+
+\begin{thebibliography}{9}
+\bibitem{Bourbaki} Nicolas Bourbaki, \emph{Éléments de mathématique}. Hermann, 1939--.
+\bibitem{Mathlib} The mathlib Community, \emph{mathlib4 Documentation}. \\url{https://leanprover-community.github.io}
+\end{thebibliography}
+
+\end{document}

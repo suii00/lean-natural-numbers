@@ -1,0 +1,104 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\title{連続写像の合成とブルバキ的構造化\thanks{Lean ファイルと TeX ファイルはいずれも CODEX (OpenAI) が生成しました。}}
+\author{CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\newtheorem{example}{例}
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}
+
+\begin{document}
+
+\maketitle
+
+\section*{導入}
+本資料は、学部レベルの位相空間論において「連続写像の合成が連続である」ことを、ニコラ・ブルバキ『数学原論』の構造的な観点から説明する。対応する Lean ファイルは \texttt{Topology/ContinuousComposition.lean} であり、\texttt{MyProjects.BourbakiStyle.Topology.ContinuousComposition} モジュールとして定式化されている。
+
+\section{ブルバキ的位相構造}
+ブルバキの枠組みでは、位相空間 $X$ は順序対 $(X, \mathcal{O})$ として捉えられる。ここで $\mathcal{O}$ は $X$ の部分集合の族であり、以下の公理を満たす。
+
+\begin{definition}[ブルバキ位相]
+集合 $X$ 上の部分集合族 $\mathcal{O}$ が \textbf{位相} であるとは、次を満たすことである。
+\begin{enumerate}[label=\arabic*)]
+  \item 空集合と全体集合が開集合: $\varnothing, X \in \mathcal{O}$。
+  \item 有限交わりの安定性: 任意の $U,V \in \mathcal{O}$ に対して $U \cap V \in \mathcal{O}$。
+  \item 任意和の安定性: 任意の部分集合族 $\mathscr{U}$ で $\mathscr{U} \subseteq \mathcal{O}$ ならば、$\bigcup_{U \in \mathscr{U}} U \in \mathcal{O}$。
+\end{enumerate}
+このとき $(X,\mathcal{O})$ を 
+\textbf{ブルバキ位相空間} と呼ぶ。
+\end{definition}
+
+Lean ファイルでは、\texttt{BourbakiTopology} 構造体としてこれらのデータが実装され、順序対の精神が形式的に保持されている。
+
+\section{ブルバキ射と連続性}
+一般の射も順序対として扱う。位相空間 $(X,\mathcal{O}_X)$ と $(Y,\mathcal{O}_Y)$ の間の写像 $f : X \to Y$ が連続であるとは、像側の開集合を逆像で引き戻したときに始域側の開集合に戻ることで特徴付けられる。
+
+\begin{definition}[ブルバキ射]
+ブルバキ位相空間 $(X,\mathcal{O}_X)$ と $(Y,\mathcal{O}_Y)$ の間の \textbf{連続射}（ブルバキ射）とは、順序対
+\[
+(f, \; f^{-1}(\mathcal{O}_Y) \subseteq \mathcal{O}_X)
+\]
+であり、任意の $U \in \mathcal{O}_Y$ に対して逆像 $f^{-1}(U)$ が $\mathcal{O}_X$ に属することが条件となる。
+\end{definition}
+
+Lean では \texttt{BourbakiMorphism} として表現され、\texttt{isContinuous} 成分が上述の包含命題を担っている。
+
+\section{連続写像の合成定理}
+ブルバキの精神では、連続写像の合成が連続であることは、逆像操作が射の合成と整合することに尽きる。以下に命題と図式的理解を示す。
+
+\begin{theorem}[連続写像の合成]
+ブルバキ位相空間 $(X,\mathcal{O}_X),(Y,\mathcal{O}_Y),(Z,\mathcal{O}_Z)$ と連続写像
+\[
+(X,\mathcal{O}_X) \xrightarrow{f} (Y,\mathcal{O}_Y) \xrightarrow{g} (Z,\mathcal{O}_Z)
+\]
+が与えられたとき、合成写像 $g \circ f : X \to Z$ も連続である。
+\end{theorem}
+
+\begin{proof}
+$W \in \mathcal{O}_Z$ を任意に取る。仮定より $g^{-1}(W) \in \mathcal{O}_Y$。さらに $f$ の連続性から
+\[
+(g \circ f)^{-1}(W) = f^{-1}(g^{-1}(W)) \in \mathcal{O}_X
+\]
+である。従って $g \circ f$ は逆像で開集合を保ち、連続である。
+\end{proof}
+
+上の議論は次の図式で視覚化できる。逆像は矢印を反転させる操作であることを示す反変性を強調する。
+
+\begin{center}
+\begin{tikzcd}
+(Z,\mathcal{O}_Z) \arrow[r, "g^{-1}", dashed] & (Y,\mathcal{O}_Y) \arrow[r, "f^{-1}", dashed] & (X,\mathcal{O}_X) \\
+X \arrow[u, "g \circ f" description] \arrow[ur, "f" description] & & Y \arrow[ul, "g" description]
+\end{tikzcd}
+\end{center}
+
+Lean コードでは \texttt{BourbakiMorphism.comp} が順序対の合成を与え、\texttt{continuous\_comp\_of\_morphisms} が上記定理の形式的証明に対応する。Mathlib の既存定理 \texttt{Continuous.comp} との互換性は \texttt{continuous\_comp\_mathlib} で確かめられている。
+
+\section{Mathlib トポロジーとの架け橋}
+ブルバキ的データを Mathlib の \texttt{TopologicalSpace} に送り出すには、単に開集合述語を移すだけで良い。
+\begin{align*}
+\operatorname{toTopologicalSpace}(X,\mathcal{O}_X) &: \text{開集合} = \mathcal{O}_X, \\
+\operatorname{ofTopologicalSpace}(X,\tau) &: \mathcal{O}_X = \{U \subseteq X \mid U \text{ は } \tau \text{ に関して開}\}.
+\end{align*}
+この二つが互いに整合するため、ブルバキ的定式化と Mathlib のライブラリの間を自由に行き来できる。Lean では各変換が定義済みであり、`continuous_def` を用いて連続性の条件を証明している。
+
+\section{学部生へのメッセージ}
+連続性の基本定義は「任意の開集合の逆像が開集合」であり、ブルバキ的な射の発想はこの命題を順序対のレベルで固定化することである。合成に対する安定性は、逆像の合成公式
+\[
+(g \circ f)^{-1}(W) = f^{-1}(g^{-1}(W))
+\]
+という単純な等式に端を発し、構造的に見れば「開集合族を保存する矢印の圏」で合成が定義できるという普遍的事実になっている。
+
+\section*{参考事項}
+\begin{itemize}
+  \item Lean 実装: \texttt{MyProjects.BourbakiStyle.Topology.ContinuousComposition}
+  \item 主要補題: \texttt{BourbakiMorphism.comp}, \texttt{continuous\_of\_morphism}, \texttt{continuous\_comp\_mathlib}
+  \item 推奨コンパイラ: LuaLaTeX (\texttt{lualatex})
+\end{itemize}
+
+\end{document}

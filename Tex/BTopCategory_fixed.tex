@@ -1,0 +1,89 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{Bourbaki 風トポロジー圏入門}
+\author{Codex (OpenAI)（TeX生成）\\Codex (OpenAI)（Lean生成）}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿では、Lean ファイル \texttt{BTopCategory.lean}（MyProjects.BourbakiStyle.Topology.BTopCategory）を基礎に、Bourbaki 流の開集合系と連続写像を用いて構成される圏 $\mathbf{BTop}$ を学部生向けに解説する。Lean 実装と対応させながら、対象・射・合成・恒等射、さらに標準的なトポロジー圏 $\mathbf{Top}$ への忘却関手について紹介する。
+\end{abstract}
+
+\section{動機と背景}
+集合論的視点から位相空間を捉えるために、ニコラ・ブルバキの ``集合＋構造＋射'' という理念にならい、開集合の族と連続性をひとつの構造としてまとめる。Lean では \texttt{BourbakiTopology} 構造体が開集合族を保持し、\texttt{BourbakiMorphism} が連続性を証明付きで保持する。
+
+\section{Bourbaki トポロジーの定義}
+型 $X$ に対して、Bourbaki トポロジーとは以下を満たす開集合族 $\tau \subseteq \mathcal{P}(X)$ である。
+\begin{itemize}
+  \item 空集合 $\varnothing$ と全体集合 $X$ を含む。
+  \item 有限交叉について閉じている。
+  \item 任意和について閉じている（Lean 実装では $\sigma$ 和で表現）。
+\end{itemize}
+Lean では以下の構造体で実装される。
+\begin{align*}
+\texttt{structure BourbakiTopology (X : Type)} :\equiv {} & \{\,\texttt{carrier : Set (Set X)},\\
+ & \texttt{empty\_mem : \varnothing \in carrier},\\
+ & \texttt{univ\_mem : X \in carrier},\\
+ & \texttt{inter\_mem : \ldots},\\
+ & \texttt{sUnion\_mem : \ldots}\,\} .
+\end{align*}
+
+\section{射: BourbakiMorphism}
+対象 $(X,\tau_X)$, $(Y,\tau_Y)$ に対し、射は連続写像 $f : X \to Y$ と ``開集合の逆像が開集合になる'' という証明からなる有序対である。Lean では
+\[
+\mathtt{structure~BourbakiMorphism}\,(\tau_X,\tau_Y) := \{\,\texttt{toFun : X \to Y},~\texttt{isContinuous : \ldots}\,\}
+\]
+と定義される。連続性の条件は Lean の補題 \texttt{Set.preimage\_preimage} などを利用して合成でも保たれることが示されている。
+
+\section{$\mathbf{BTop}$ の圏構造}
+\subsection{対象と射}
+新しい構造体 \texttt{BTop} は型 $\alpha$ とその上の Bourbaki トポロジー $\tau$ を束ねる。Lean 側では
+\[
+\texttt{structure BTop := \{ α : Type,~ τ : BourbakiTopology α \}}
+\]
+と宣言される。射は単に \texttt{BourbakiMorphism X.τ Y.τ} の別名 \texttt{Hom X Y} である。
+
+\subsection{恒等射と合成}
+恒等射は Lean の \texttt{BourbakiMorphism.id} を用い、合成は \texttt{BourbakiMorphism.comp} の ``順番注意'' バージョンを採用する。
+\begin{align*}
+\text{恒等射}: &~\mathrm{id}_X = \texttt{BourbakiMorphism.id X.τ},\\
+\text{合成}: &~g \circ f = \texttt{BourbakiMorphism.comp}\; g\; f.
+\end{align*}
+Lean では外延性補題 \texttt{BourbakiMorphism.ext} を証明し、\texttt{id\_comp}、\texttt{comp\_id}、\texttt{assoc} を点ごとに確認している。
+
+\section{標準位相圏 $\mathbf{Top}$ への忘却}
+Lean 実装では \texttt{toTopCatObj} と \texttt{toTopCatMap} により、Bourbaki トポロジーから Mathlib 標準の位相空間 $\texttt{TopCat}$ への変換を行う。忘却関手
+\[
+\texttt{forgetToTopCat : BTop \to TopCat}
+\]
+は対象を同じ underlying set に写し、射を対応する \texttt{ContinuousMap} に変換する。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[column sep=large]
+    \mathbf{BTop} \arrow[rr, "\texttt{forgetToTopCat}"] \arrow[dr, swap, "\text{恣意的対象 $X$"}] & & \mathbf{Top} \\
+    & (X,\tau_X) \arrow[r, mapsto, "f"] & (X,\mathcal{T}_X)
+  \end{tikzcd}
+  \caption{Lean 実装における忘却関手のイメージ}
+  \label{fig:forgetful}
+\end{figure}
+
+ここで $\mathcal{T}_X$ は \texttt{toTopologicalSpace X.τ} により得られる通常の開集合系であり、射の連続性は補題 \texttt{BourbakiMorphism.continuous\_of\_morphism} により保証される。
+
+\section{例と練習問題}
+\begin{enumerate}
+  \item 恒等射は常に BourbakiMorphism になる。Lean 例: `example : BourbakiMorphism τ τ := ...`。
+  \item 定数写像は常に連続であることを BourbakiMorphism として表せる。Lean では `continuous_const` を利用。
+  \item 練習: 集合 $X=\mathbb{R}$ 上の通常の位相を BourbakiTopology として定義し、恒等射と定数写像を撮る BourbakiMorphism を手計算で確認せよ。
+\end{enumerate}
+
+\section{まとめと展望}
+Lean で構築した \texttt{BTopCategory.lean} は、集合論的な位相空間論を圏論的枠組みに落とし込み、標準的な $\mathbf{Top}$ への橋渡しを明確化する。今後の発展として、有限積・引き戻しなどの極限構造が Bourbaki 表現でどのように記述できるかを調べることや、測度論とのアナロジー（Bourbaki sigma-代数）を同様の形式で扱うことが挙げられる。
+
+\end{document}
