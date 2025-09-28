@@ -4,6 +4,7 @@ import Mathlib.Topology.Category.TopCat.Limits.Basic
 import Mathlib.CategoryTheory.Adjunction.Basic
 import Mathlib.CategoryTheory.Adjunction.Limits
 import Mathlib.CategoryTheory.ConcreteCategory.Basic
+import Mathlib.Topology.Order
 import MyProjects.BourbakiStyle.Topology.ContinuousComposition
 
 open CategoryTheory Limits
@@ -62,7 +63,7 @@ instance : CoeSort BTop (Type u) := ⟨fun X => X.α⟩
 instance instBourbakiTopology (X : BTop) : BourbakiTopology X := X.τ
 
 instance instTopologicalSpace (X : BTop) : TopologicalSpace X :=
-  toTopologicalSpace X.τ
+  toTopologicalSpace (X.τ)
 
 abbrev Hom (X Y : BTop) := BourbakiMorphism X.τ Y.τ
 
@@ -277,6 +278,164 @@ noncomputable instance : HasForget₂ BTop (Type u) where
   forget₂ := forget
   forget_comp := rfl
 
+section InitialFinal
+
+variable {ι : Type v} {X : Type u}
+
+noncomputable def initialTopology (F : ι → BTop) (φ : ∀ i, X → F i) :
+    BourbakiTopology X :=
+  ofTopologicalSpace
+    (⨅ i, TopologicalSpace.induced (φ i) (toTopologicalSpace ((F i).τ)))
+
+noncomputable def initial (F : ι → BTop) (φ : ∀ i, X → F i) : BTop :=
+  { α := X
+    τ := initialTopology (X := X) F φ }
+
+noncomputable def initialProjection (F : ι → BTop) (φ : ∀ i, X → F i) (i : ι) :
+    initial (X := X) F φ ⟶ F i := by
+  classical
+  have h₀ :
+      @Continuous X (F i)
+        (TopologicalSpace.induced (φ i) (toTopologicalSpace ((F i).τ)))
+        (toTopologicalSpace ((F i).τ)) (φ i) := by
+    simpa using (continuous_induced_dom (t := toTopologicalSpace ((F i).τ)) (f := φ i))
+  have h₁ :
+      @Continuous X (F i)
+        (⨅ j, TopologicalSpace.induced (φ j) (toTopologicalSpace ((F j).τ)))
+        (toTopologicalSpace ((F i).τ)) (φ i) :=
+    continuous_iInf_dom
+      (t₁ := fun j => TopologicalSpace.induced (φ j) (toTopologicalSpace ((F j).τ)))
+      (t₂ := toTopologicalSpace ((F i).τ))
+      (i := i) (f := φ i) h₀
+  have h₂ :
+      @Continuous (initial (X := X) F φ) (F i)
+        (toTopologicalSpace ((initial (X := X) F φ).τ))
+        (toTopologicalSpace ((F i).τ)) (fun x => φ i x) := by
+    simpa [initial, initialTopology, to_ofTopologicalSpace] using h₁
+  exact BourbakiMorphism.ofContinuous h₂
+
+@[simp] lemma initialProjection_apply (F : ι → BTop) (φ : ∀ i, X → F i)
+    (i : ι) (x : initial (X := X) F φ) :
+    initialProjection (X := X) F φ i x = φ i x := rfl
+
+noncomputable def finalTopology (F : ι → BTop) (ψ : ∀ i, F i → X) :
+    BourbakiTopology X :=
+  ofTopologicalSpace
+    (⨆ i, TopologicalSpace.coinduced (ψ i) (toTopologicalSpace ((F i).τ)))
+
+noncomputable def final (F : ι → BTop) (ψ : ∀ i, F i → X) : BTop :=
+  { α := X
+    τ := finalTopology (X := X) F ψ }
+
+noncomputable def finalInclusion (F : ι → BTop) (ψ : ∀ i, F i → X) (i : ι) :
+    F i ⟶ final (X := X) F ψ := by
+  classical
+  have h₀ :
+      @Continuous (F i) X
+        (toTopologicalSpace ((F i).τ))
+        (TopologicalSpace.coinduced (ψ i) (toTopologicalSpace ((F i).τ))) (ψ i) := by
+    simpa using
+      (continuous_coinduced_rng (t := toTopologicalSpace ((F i).τ)) (f := ψ i))
+  have h₁ :
+      @Continuous (F i) X
+        (toTopologicalSpace ((F i).τ))
+        (⨆ j, TopologicalSpace.coinduced (ψ j) (toTopologicalSpace ((F j).τ))) (ψ i) :=
+    continuous_iSup_rng
+      (t₁ := toTopologicalSpace ((F i).τ))
+      (t₂ := fun j => TopologicalSpace.coinduced (ψ j) (toTopologicalSpace ((F j).τ)))
+      (i := i) (f := ψ i) h₀
+  have h₂ :
+      @Continuous (F i) (final (X := X) F ψ)
+        (toTopologicalSpace ((F i).τ))
+        (toTopologicalSpace ((final (X := X) F ψ).τ)) (fun x => ψ i x) := by
+    simpa [final, finalTopology, to_ofTopologicalSpace] using h₁
+  exact BourbakiMorphism.ofContinuous h₂
+
+@[simp] lemma finalInclusion_apply (F : ι → BTop) (ψ : ∀ i, F i → X)
+    (i : ι) (x : F i) :
+    finalInclusion (X := X) F ψ i x = ψ i x := rfl
+
+lemma initial_continuous_iff {Z : BTop} (F : ι → BTop) (φ : ∀ i, X → F i)
+    (f : Z → X) :
+    @Continuous Z X (toTopologicalSpace (Z.τ))
+        (toTopologicalSpace ((initial (X := X) F φ).τ)) f ↔
+      ∀ i,
+        @Continuous Z (F i) (toTopologicalSpace (Z.τ))
+          (toTopologicalSpace ((F i).τ)) fun x => φ i (f x) := by
+  classical
+  have h :=
+    (continuous_iInf_rng
+      (t₁ := toTopologicalSpace (Z.τ))
+      (t₂ := fun j => TopologicalSpace.induced (φ j) (toTopologicalSpace ((F j).τ)))
+      (f := f))
+  simpa [initial, initialTopology, to_ofTopologicalSpace, continuous_induced_rng,
+    Function.comp] using h
+
+lemma final_continuous_iff {Z : BTop} (F : ι → BTop) (ψ : ∀ i, F i → X)
+    (f : X → Z) :
+    @Continuous X Z (toTopologicalSpace ((final (X := X) F ψ).τ))
+        (toTopologicalSpace (Z.τ)) f ↔
+      ∀ i,
+        @Continuous (F i) Z (toTopologicalSpace ((F i).τ))
+          (toTopologicalSpace (Z.τ)) fun x => f (ψ i x) := by
+  classical
+  have h :=
+    (continuous_iSup_dom
+      (t₁ := fun j => TopologicalSpace.coinduced (ψ j) (toTopologicalSpace ((F j).τ)))
+      (t₂ := toTopologicalSpace (Z.τ))
+      (f := f))
+  simpa [final, finalTopology, to_ofTopologicalSpace, continuous_coinduced_dom,
+    Function.comp] using h
+
+noncomputable def initialLift {Z : BTop} (F : ι → BTop) (φ : ∀ i, X → F i)
+    (f : Z → X)
+    (hf : ∀ i,
+      @Continuous Z (F i) (toTopologicalSpace (Z.τ))
+        (toTopologicalSpace ((F i).τ)) fun x => φ i (f x)) :
+    Z ⟶ initial (X := X) F φ := by
+  classical
+  have hf' :=
+    (initial_continuous_iff (X := X) (F := F) (φ := φ) (Z := Z) f).2 hf
+  have hf'' :
+      @Continuous Z (initial (X := X) F φ)
+        (toTopologicalSpace (Z.τ))
+        (toTopologicalSpace ((initial (X := X) F φ).τ)) f := by
+    simpa [initial] using hf'
+  exact BourbakiMorphism.ofContinuous hf''
+
+@[simp] lemma initialLift_apply {Z : BTop} (F : ι → BTop) (φ : ∀ i, X → F i)
+    (f : Z → X) (hf : ∀ i,
+      @Continuous Z (F i) (toTopologicalSpace (Z.τ))
+        (toTopologicalSpace ((F i).τ)) fun x => φ i (f x))
+    (x : Z) :
+    initialLift (X := X) F φ f hf x = f x := rfl
+
+noncomputable def finalDesc {Z : BTop} (F : ι → BTop) (ψ : ∀ i, F i → X)
+    (f : X → Z)
+    (hf : ∀ i,
+      @Continuous (F i) Z (toTopologicalSpace ((F i).τ))
+        (toTopologicalSpace (Z.τ)) fun x => f (ψ i x)) :
+    final (X := X) F ψ ⟶ Z := by
+  classical
+  have hf' :=
+    (final_continuous_iff (X := X) (F := F) (ψ := ψ) (Z := Z) f).2 hf
+  have hf'' :
+      @Continuous (final (X := X) F ψ) Z
+        (toTopologicalSpace ((final (X := X) F ψ).τ))
+        (toTopologicalSpace (Z.τ)) f := by
+    simpa [final] using hf'
+  exact BourbakiMorphism.ofContinuous hf''
+
+@[simp] lemma finalDesc_apply {Z : BTop} (F : ι → BTop) (ψ : ∀ i, F i → X)
+    (f : X → Z)
+    (hf : ∀ i,
+      @Continuous (F i) Z (toTopologicalSpace ((F i).τ))
+        (toTopologicalSpace (Z.τ)) fun x => f (ψ i x))
+    (x : final (X := X) F ψ) :
+    finalDesc (X := X) F ψ f hf x = f x := rfl
+
+end InitialFinal
+
 noncomputable def disc : Type u ⥤ BTop :=
   TopCat.discrete ⋙ ofTopCat
 
@@ -310,6 +469,25 @@ example (x : X) : ((𝟙 X ≫ f) x) = f x := by
 example (x : X) : ((f ≫ g) x) = g (f x) := by
   simp
 
+variable {ι : Type v} {α : Type u}
+variable (F : ι → BTop) (φ : ∀ i, α → F i) (ψ : ∀ i, F i → α)
+variable {Z₁ Z₂ : BTop}
+variable (f₁ : Z₁ → α) (f₂ : α → Z₂)
+
+example (hf : ∀ i,
+    @Continuous Z₁ (F i) (toTopologicalSpace (Z₁.τ))
+      (toTopologicalSpace ((F i).τ)) fun x => φ i (f₁ x)) :
+    @Continuous Z₁ α (toTopologicalSpace (Z₁.τ))
+      (toTopologicalSpace ((initial (X := α) F φ).τ)) f₁ :=
+  (initial_continuous_iff (X := α) (F := F) (φ := φ) (Z := Z₁) f₁).2 hf
+
+example (hg : ∀ i,
+    @Continuous (F i) Z₂ (toTopologicalSpace ((F i).τ))
+      (toTopologicalSpace (Z₂.τ)) fun x => f₂ (ψ i x)) :
+    @Continuous α Z₂ (toTopologicalSpace ((final (X := α) F ψ).τ))
+      (toTopologicalSpace (Z₂.τ)) f₂ :=
+  (final_continuous_iff (X := α) (F := F) (ψ := ψ) (Z := Z₂) f₂).2 hg
+
 end Examples
 
 end BTop
@@ -319,3 +497,5 @@ end
 end Topology
 end BourbakiStyle
 end MyProjects
+
+
