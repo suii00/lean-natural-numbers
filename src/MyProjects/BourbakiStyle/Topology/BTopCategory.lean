@@ -1,4 +1,7 @@
 import Mathlib.Topology.Category.TopCat.Basic
+import Mathlib.Topology.Category.TopCat.Adjunctions
+import Mathlib.CategoryTheory.Adjunction.Basic
+import Mathlib.CategoryTheory.ConcreteCategory.Basic
 import MyProjects.BourbakiStyle.Topology.ContinuousComposition
 
 open CategoryTheory
@@ -233,6 +236,49 @@ noncomputable def equivTopCat : BTop ≌ TopCat :=
   functor_unitIso_comp := by
     intro X
     simp }
+
+noncomputable def forget : BTop ⥤ Type u where
+  obj X := X
+  map f := f.toFun
+  map_id X := rfl
+  map_comp f g := rfl
+
+@[simp] lemma forget_obj (X : BTop) : forget.obj X = X := rfl
+
+@[simp] lemma forget_map_apply {X Y : BTop}
+    (f : X ⟶ Y) (x : X) : forget.map f x = f.toFun x := rfl
+
+instance : (forget : BTop ⥤ Type u).Faithful := by
+  constructor
+  intro X Y f g hfg
+  apply BourbakiMorphism.ext
+  intro x
+  have := congrArg (fun h => h x) hfg
+  simpa using this
+
+noncomputable instance : HasForget BTop where
+  forget := forget
+  forget_faithful := inferInstance
+
+noncomputable instance : HasForget₂ BTop TopCat where
+  forget₂ := forgetToTopCat
+  forget_comp := rfl
+
+noncomputable instance : HasForget₂ BTop (Type u) where
+  forget₂ := forget
+  forget_comp := rfl
+
+noncomputable def disc : Type u ⥤ BTop :=
+  TopCat.discrete ⋙ ofTopCat
+
+noncomputable def indisc : Type u ⥤ BTop :=
+  TopCat.trivial ⋙ ofTopCat
+
+noncomputable def disc_adj_forget : disc ⊣ forget := by
+  simpa [disc, forget] using (TopCat.adj₁).comp (equivTopCat.symm.toAdjunction)
+
+noncomputable def forget_adj_indisc : forget ⊣ indisc := by
+  simpa [forget, indisc] using (equivTopCat.toAdjunction).comp (TopCat.adj₂)
 
 section Examples
 
