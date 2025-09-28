@@ -1,0 +1,129 @@
+% !TeX program = lualatex
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\title{学部生のための Bourbaki 型位相空間カテゴリ入門}
+\author{CODEX (OpenAI)\\CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本ノートは、Lean 4 環境で実装した `BTopCategory.lean` の内容を、学部レベルの視点から整理したものです。実装も本文も CODEX (OpenAI) によって生成されたことを明記します。\par
+位相空間を ``型 + Bourbaki 的位相'' の組として捉えた圏 \(\mathbf{BTop}\) を定義し、標準的な位相空間の圏 \(\mathbf{Top}\) との同値、忘却関手、離散・濃密（無限小）位相による随伴を解説します。
+\end{abstract}
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+\section{Lean 実装の概観}
+Lean 4 ファイル `BTopCategory.lean` では以下を構築しました。
+\begin{enumerate}[label=\arabic*)]
+  \item Bourbaki 型位相構造 `BourbakiTopology` と連続写像 `BourbakiMorphism`。
+  \item 物体を `\langle \alpha, \tau \rangle` とする圏 \(\mathbf{BTop}\) と圏構造。
+  \item 標準的な位相空間の圏 \(\mathbf{Top}\) への忘却関手 \(F : \mathbf{BTop} \to \mathbf{Top}\) と、その逆向きの関手 \(G : \mathbf{Top} \to \mathbf{BTop}\)。
+  \item 自然同型による圏の同値 \(\mathbf{BTop} \simeq \mathbf{Top}\)。
+  \item `Type` への忘却関手、`HasForget`／`HasForget₂` インスタンス、および離散位相と濃密位相による随伴。
+\end{enumerate}
+以下では、これらを数学的に噛み砕いて説明します。
+
+\section{Bourbaki 型位相と圏 \(\mathbf{BTop}\)}
+\subsection{BourbakiTopology の定義}
+集合 \(X\) 上の Bourbaki 型位相 \(\tau\) とは、次を満たす開集合族です。
+\begin{itemize}
+  \item 空集合と全体集合を含む。
+  \item 有限交叉に閉じている。
+  \item 任意和に閉じている。
+\end{itemize}
+Lean では `carrier : \mathcal{P}(\mathcal{P}(X))` とその閉性をフィールドに持つ構造体として表現しました。\par
+これにより、開集合判定 \(U \in \tau\) を ``証明を伴うデータ'' として扱えるため、証明支援系での操作が容易になります。
+
+\subsection{射としての BourbakiMorphism}
+二つの Bourbaki 位相 \(\tau_X, \tau_Y\) の間の射は
+\[
+  f : (X, \tau_X) \longrightarrow (Y, \tau_Y)
+\]
+が連続であること、すなわち \(U \in \tau_Y\) ならば \(f^{-1}(U) \in \tau_X\) を満たす写像です。Lean ではこの条件を構造体フィールド `isContinuous` として保持し、合成・恒等射が構成できることを示しました。
+
+\subsection{圏構造}
+物体を \((\alpha, \tau)\)、射を BourbakiMorphism とすると、恒等射と合成は点ごとの評価で証明できます。`@[ext]` 補題を用いることで、射の同一性は点ごとの一致に還元され、Lean 側での証明も軽量化されます。
+
+\section{Top への忘却関手と逆関手}
+\subsection{忘却関手 \(F : \mathbf{BTop} \to \mathbf{Top}\)}
+各物体 \((\alpha, \tau)\) を通常の位相空間 \(\alpha\) に写し、射は underlying map に写します。Lean では `TopCat.of` と `BourbakiMorphism.continuous_of_morphism` を利用しました。
+
+\subsection{逆向き関手 \(G : \mathbf{Top} \to \mathbf{BTop}\)}
+対象 \(X\) に対し、既存の位相構造から BourbakiTopology を生成して返します。射は `ContinuousMap` の連続性を `BourbakiMorphism.ofContinuous` によって移し替えます。
+
+\subsection{圏の同値}
+単位 \(\eta : \mathrm{id}_{\mathbf{BTop}} \Rightarrow G F\) と余単位 \(\varepsilon : F G \Rightarrow \mathrm{id}_{\mathbf{Top}}\) を恒等射として定義し、自然性を点ごとの評価で確認すると、\(F\) と \(G\) は圏の同値を与えます。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[row sep=large, column sep=huge]
+    \mathbf{BTop} \arrow[rr, shift left=1.0ex, "F = \text{forgetToTopCat}"] &&
+    \mathbf{Top} \arrow[ll, shift left=1.0ex, "G = \text{ofTopCat}"]
+    \\[-1ex]
+    & \scriptstyle{\eta} \searrow \quad \nearrow \scriptstyle{\varepsilon} &
+  \end{tikzcd}
+  \caption{圏 \(\mathbf{BTop}\) と \(\mathbf{Top}\) の同値}
+\end{figure}
+
+\section{Type への忘却と HasForget 構造}
+\subsection{忘却関手 \(U : \mathbf{BTop} \to \mathrm{Type}_u\)}
+単に underlying set を返す関手です。射のマップは underlying function。Lean では `Faithful` インスタンスを `BourbakiMorphism.ext` で証明しました。
+
+\subsection{HasForget / HasForget₂ の実装}
+`HasForget` は ``forgetful functor + 忠実性'' をパッケージ化した type class です。既に `Faithful` を得ているため、`noncomputable instance : HasForget BTop` を定義できます。また `HasForget₂` は二つの concrete category を結ぶ忘却関手とその合成条件を要請するクラスで、`forgetToTopCat` および `forget` をそのまま代入できました。
+
+\section{離散・濃密位相と随伴}
+\subsection{離散・無分化（濃密）位相の関手}
+型 \(A\) に標準的な離散位相（全ての部分集合が開）を付ける関手を \(\mathrm{disc} : \mathrm{Type}_u \to \mathbf{BTop}\)、全ての点を貼り付けた最小の開集合族を付ける関手を \(\mathrm{indisc}\) とします。Lean では Mathlib の `TopCat.discrete`, `TopCat.trivial` を `ofTopCat` と合成して得ました。
+
+\subsection{忘却関手との随伴}
+\begin{itemize}
+  \item 離散化関手は忘却関手の左随伴：
+  \[
+    \mathrm{disc} \dashv U.
+  \]
+  \item 忘却関手は濃密化関手の左随伴：
+  \[
+    U \dashv \mathrm{indisc}.
+  \]
+\end{itemize}
+これらは既存の `TopCat.adj₁`, `TopCat.adj₂` と同値 \(\mathbf{BTop} \simeq \mathbf{Top}\) を組み合わせて構成しました。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[column sep=huge]
+    \mathrm{Type}_u \arrow[r, shift left=1.0ex, "\mathrm{disc}"] &
+    \mathbf{BTop} \arrow[l, shift left=1.0ex, "U = \text{forget}"] \arrow[r, shift left=1.0ex, "\text{forgetToTopCat}"] &
+    \mathbf{Top} \arrow[l, shift left=1.0ex, "\text{ofTopCat}"]
+  \end{tikzcd}
+  \caption{忘却関手と随伴関係}
+\end{figure}
+
+\section{教育的視点でのまとめ}
+\begin{enumerate}[label=\arabic*)]
+  \item 型と位相の組を明示的に扱うことで、位相構造の変換・比較がプログラム的に制御できます。
+  \item 圏同値を Lean 上で確認すると、定義した構造が既存の Mathlib と互換であることが保証されます。
+  \item `HasForget` や随伴の設定は、アーベル圏やトポスなど他の分野へも応用可能です。
+\end{enumerate}
+
+\section*{謝辞}
+この TeX 文書および対応する Lean ファイルは CODEX (OpenAI) によって生成・構成されました。
+
+\end{document}

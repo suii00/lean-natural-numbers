@@ -1,10 +1,12 @@
 import Mathlib.Topology.Category.TopCat.Basic
 import Mathlib.Topology.Category.TopCat.Adjunctions
+import Mathlib.Topology.Category.TopCat.Limits.Basic
 import Mathlib.CategoryTheory.Adjunction.Basic
+import Mathlib.CategoryTheory.Adjunction.Limits
 import Mathlib.CategoryTheory.ConcreteCategory.Basic
 import MyProjects.BourbakiStyle.Topology.ContinuousComposition
 
-open CategoryTheory
+open CategoryTheory Limits
 open Set
 
 namespace MyProjects
@@ -17,12 +19,16 @@ Bourbaki-style topological spaces organised as a category.
 We package a type and its Bourbaki topology together with morphisms as ordered
 pairs `(f, proof)` so that identities and composition satisfy the categorical
 axioms.  A forgetful functor back to `TopCat` witnesses compatibility with
-Mathlib's `TopologicalSpace` universe.
+Mathlib's `TopologicalSpace` universe and yields an explicit equivalence
+`equivTopCat : BTop ≌ TopCat`, allowing categorical structure to be
+transferred to or from `TopCat` when needed.
 -/
 
 universe u v w
 
 open scoped Classical
+
+noncomputable section
 
 namespace BourbakiMorphism
 
@@ -80,11 +86,14 @@ instance : Category BTop where
     intro x
     rfl
 
+instance instCoeFun {X Y : BTop} : CoeFun (X ⟶ Y) (fun _ => X → Y) :=
+  ⟨fun f => f.toFun⟩
+
 @[simp] lemma id_apply (X : BTop) (x : X) :
-    (𝟙 X : X ⟶ X).toFun x = x := rfl
+    (𝟙 X : X ⟶ X) x = x := rfl
 
 @[simp] lemma comp_apply {X Y Z : BTop} (f : X ⟶ Y) (g : Y ⟶ Z) (x : X) :
-    (f ≫ g).toFun x = g.toFun (f.toFun x) := rfl
+    (f ≫ g) x = g (f x) := rfl
 
 noncomputable def toTopCatObj (X : BTop) : TopCat :=
   TopCat.of X
@@ -92,7 +101,7 @@ noncomputable def toTopCatObj (X : BTop) : TopCat :=
 noncomputable def toTopCatMap {X Y : BTop} (f : X ⟶ Y) :
     toTopCatObj X ⟶ toTopCatObj Y :=
   TopCat.ofHom
-    { toFun := f.toFun
+    { toFun := f
       continuous_toFun :=
         BourbakiMorphism.continuous_of_morphism (τX := X.τ) (τY := Y.τ) f }
 
@@ -108,7 +117,7 @@ noncomputable def forgetToTopCat : BTop ⥤ TopCat where
 
 @[simp] lemma forgetToTopCat_map_apply {X Y : BTop}
     (f : X ⟶ Y) (x : X) :
-    (forgetToTopCat.map f : X → Y) x = f.toFun x := rfl
+    (forgetToTopCat.map f : X → Y) x = f x := rfl
 
 @[simp] lemma forgetToTopCat_obj (X : BTop) :
     forgetToTopCat.obj X = TopCat.of X := rfl
@@ -138,7 +147,7 @@ noncomputable def ofTopCat : TopCat ⥤ BTop where
 
 @[simp] lemma ofTopCat_map_apply {X Y : TopCat}
     (f : X ⟶ Y) (x : X) :
-    ((ofTopCat.map f).toFun) x = f x := rfl
+    (ofTopCat.map f) x = f x := rfl
 
 @[simp] lemma forgetToTopCat_comp_obj (X : BTop) :
     ((forgetToTopCat ⋙ ofTopCat).obj X) = X := by
@@ -211,19 +220,19 @@ noncomputable def counitIso : ofTopCat ⋙ forgetToTopCat ≅ 𝟭 TopCat :=
   simpa [Functor.comp] using ofTopCat_comp_obj (X := X)
 
 @[simp] lemma unitIso_hom_app_apply (X : BTop) (x : X) :
-    (unitIso.hom.app X).toFun x = x := rfl
+    (unitIso.hom.app X) x = x := rfl
 
-@[simp] lemma forgetToTopCat_map_unitIso_hom (X : BTop) :
+@[simp, reassoc] lemma forgetToTopCat_map_unitIso_hom (X : BTop) :
     forgetToTopCat.map (unitIso.hom.app X) = 𝟙 _ := by
   ext x
   rfl
 
-@[simp] lemma counitIso_hom_app (X : TopCat) :
+@[simp, reassoc] lemma counitIso_hom_app (X : TopCat) :
     counitIso.hom.app X = 𝟙 _ := by
   cases X
   rfl
 
-@[simp] lemma counitIso_inv_app (X : TopCat) :
+@[simp, reassoc] lemma counitIso_inv_app (X : TopCat) :
     counitIso.inv.app X = 𝟙 _ := by
   cases X
   rfl
@@ -239,14 +248,14 @@ noncomputable def equivTopCat : BTop ≌ TopCat :=
 
 noncomputable def forget : BTop ⥤ Type u where
   obj X := X
-  map f := f.toFun
+  map f := f
   map_id X := rfl
   map_comp f g := rfl
 
 @[simp] lemma forget_obj (X : BTop) : forget.obj X = X := rfl
 
 @[simp] lemma forget_map_apply {X Y : BTop}
-    (f : X ⟶ Y) (x : X) : forget.map f x = f.toFun x := rfl
+    (f : X ⟶ Y) (x : X) : forget.map f x = f x := rfl
 
 instance : (forget : BTop ⥤ Type u).Faithful := by
   constructor
@@ -295,9 +304,17 @@ example (h : Z ⟶ BTop.mk Z.α Z.τ) : (f ≫ g) ≫ h = f ≫ (g ≫ h) := by
   intro x
   rfl
 
+example (x : X) : ((𝟙 X ≫ f) x) = f x := by
+  simp
+
+example (x : X) : ((f ≫ g) x) = g (f x) := by
+  simp
+
 end Examples
 
 end BTop
+
+end
 
 end Topology
 end BourbakiStyle
