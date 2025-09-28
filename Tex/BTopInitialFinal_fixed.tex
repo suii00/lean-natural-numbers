@@ -1,0 +1,127 @@
+\documentclass[]{jlreq}
+% --- Engine guard for LuaLaTeX ---
+\providecommand{\epTeXinputencoding}[1]{}
+% --- end guard ---
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\usepackage{hyperref}
+\geometry{margin=25mm}
+\title{BTop類における初期位相と終期位相\thanks{LuaLaTeX 用に作成されています。}}
+\author{CODEX (OpenAI) -- Leanファイル生成 \and CODEX (OpenAI) -- TeXファイル生成}
+\date{2025年9月28日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{remark}
+\newtheorem{remark}{補足}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+本稿の目的は、Bourbaki 流のトポロジー圏 $\mathbf{BTop}$ において、初期位相と終期位相がどのように構成され、その普遍性がどのように利用されるかを、学部生にも親しみやすい形で説明することである。
+Lean 4／mathlib 上で実装された `BTopCategory.lean` を下敷きに、構造と随伴の姿を図示しながら解説する。
+
+\section{Bourbaki 的トポロジーの考え方}
+Bourbaki の立場では、位相は開集合族そのものとして与えられる。
+具体的には、集合 $X$ の上の位相 $\tau$ は \emph{開集合族} $\mathcal{O}\subseteq\mathcal{P}(X)$ であり、空集合と全体集合を含み、有限交叉と任意和に閉じている。
+Lean 実装では次のような構造体としてまとめられる：
+\begin{definition}
+\texttt{structure BourbakiTopology (X : Type u)} は、キャリア $\mathrm{carrier}$ に開集合族を持ち、空集合・全体集合・有限交叉・任意合併の安定性をフィールドとして格納する。
+\end{definition}
+
+同様に、連続写像は順序対 $(f, \text{continuity})$ として、写像と連続性の証明を合わせて一つの矢と見なす。
+
+\section{圏 $\mathbf{BTop}$ と $\mathbf{Top}$ の同値}
+Lean ファイルでは、対象を $\texttt{BTop}$、射を `BourbakiMorphism` として圏構造を実装し、Mathlib が提供する $\mathbf{Top}$ (ファイバーを持つ圏 `TopCat`) との間に忘却関手
+\[\mathrm{forgetToTopCat} : \mathbf{BTop} \to \mathbf{Top}\]
+を与えている。
+逆向きには Mathlib の位相を Bourbaki 形式に戻す関手 `ofTopCat` があり、両者は圏論的な同値
+\[\mathrm{equivTopCat} : \mathbf{BTop} \simeq \mathbf{Top}
+\]
+を形成する。以下の図式がすべてをまとめる：
+\begin{center}
+\begin{tikzcd}
+\mathbf{BTop} \arrow[r, shift left=1.5, "\mathrm{forgetToTopCat}"] \arrow[d, "\mathrm{forget}"'] & \mathbf{Top} \arrow[l, shift left=1.5, "\mathrm{ofTopCat}"] \arrow[d, "\mathrm{forget}_{\mathbf{Top}}"] \\
+\mathbf{Set} \arrow[r, equal] & \mathbf{Set}
+\end{tikzcd}
+\end{center}
+縦方向は集合忘却関手であり、上段の同値により $\mathbf{Top}$ で知られている極限・余極限、随伴などが $\mathbf{BTop}$ に輸送できる。
+
+\section{初期位相}
+\subsection{構成}
+$X$ を集合、$\{F_i\}_{i\in I}$ を $\mathbf{BTop}$ の対象、$\varphi_i : X \to F_i$ を集合写像の族とする。
+最弱の位相で各 $\varphi_i$ を連続にするものが \emph{初期位相} である。
+Lean では次の定義に一致する：
+\[
+\texttt{initialTopology F φ} = \texttt{ofTopologicalSpace}\Big(\bigwedge_{i\in I} \mathrm{TopologicalSpace.induced}(\varphi_i, \tau_{F_i})\Big).
+\]
+この位相を持つ $X$ を対象とみなしたものが `initial F φ` である。
+
+\subsection{普遍性}
+任意の $Z\in\mathbf{BTop}$ と写像 $f : Z \to X$ について、$f$ の連続性は各 $\varphi_i \circ f$ の連続性と同値である：
+\[
+ f \text{ が }\texttt{initial F φ} \text{ に関して連続}\quad\Longleftrightarrow\quad \forall i,~\varphi_i\circ f \text{ が }F_i\text{ へ連続}.
+\]
+Lean 命題 `initial_continuous_iff` がこれを形式的に表す。
+普遍性により、族 $\varphi_i$ を通じて $Z$ から $X$ へ「持ち上げる」準同型 `initialLift` を構成でき、これは $f$ をそのまま関数として持つ。
+
+\section{終期位相}
+\subsection{構成}
+$\{F_i\}_{i\in I}$ と写像 $\psi_i : F_i \to X$ の族を考える。
+各 $\psi_i$ を連続にする最強の位相が \emph{終期位相} であり、Lean 定義は
+\[
+\texttt{finalTopology F ψ} = \texttt{ofTopologicalSpace}\Big(\bigvee_{i\in I} \mathrm{TopologicalSpace.coinduced}(\psi_i, \tau_{F_i})\Big)
+\]
+で与えられる。これにより `final F ψ` が得られる。
+
+\subsection{普遍性}
+任意の $Z$ と写像 $f : X \to Z$ について、$f$ が終期位相に関して連続であることは、各 $f\circ\psi_i$ が連続であることと同値：
+\[
+ f \text{ が }\texttt{final F ψ} \text{ に関して連続}\quad\Longleftrightarrow\quad \forall i,~f\circ\psi_i \text{ が }Z\text{ へ連続}.
+\]
+Lean 命題 `final_continuous_iff` が対応する。
+これに基づき、`finalDesc` は $X$ から $Z$ への写像 $f$ を終期位相のもとで射として下降させる。
+
+\section{随伴と図式}
+初期位相は忘却関手 $\mathrm{forget} : \mathbf{BTop} \to \mathbf{Set}$ の左随伴（不変な集合写像から最弱位相を付与）を、終期位相は右随伴（最強位相を付与）を提供する。
+Lean での定義 `disc_adj_forget` と `forget_adj_indisc` は、$\mathbf{BTop}$ が $\mathbf{Top}$ と同値である事実を用いて Mathlib の `TopCat.discrete` と `TopCat.trivial` の随伴を輸送したものだ。
+
+\begin{center}
+\begin{tikzcd}
+\text{初期位相付与} \dashv \mathrm{forget} \dashv \text{終期位相付与}
+\end{tikzcd}
+\end{center}
+
+\section{Lean 実装との対応表}
+\begin{center}
+\begin{tabular}{ll}
+\hline
+数学的概念 & Lean 中の識別子 \\
+\hline
+初期位相 & \texttt{initialTopology}, \texttt{initial} \\
+終期位相 & \texttt{finalTopology}, \texttt{final} \\
+普遍性(初期) & \texttt{initial\_continuous\_iff} \\
+普遍性(終期) & \texttt{final\_continuous\_iff} \\
+持ち上げ射 & \texttt{initialLift}, \texttt{initialLift\_apply} \\
+下降射 & \texttt{finalDesc}, \texttt{finalDesc\_apply} \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{例：積位相と商位相}
+\begin{itemize}
+  \item 直積空間の積位相は、射影写像の族に対する初期位相として得られる。
+  \item 商位相は、商写像の族を終期位相として捉えると普遍性が即座に確認できる。
+\end{itemize}
+Lean ではこれらの構成が `initial`／`final` を土台に記述でき、普遍性クラスの証明が `simp` で片付く補題が付随している。
+
+\section{学習のためのリソース}
+\begin{itemize}
+  \item Nicolas Bourbaki, \textit{Éléments de mathématique}, Topologie générale.
+  \item Mathlib documentation: \url{https://leanprover-community.github.io/mathlib4_docs/}
+\end{itemize}
+
+\end{document}
