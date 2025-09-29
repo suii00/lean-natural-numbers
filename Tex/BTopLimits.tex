@@ -1,0 +1,102 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz-cd}
+\usepackage{physics}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\title{BTopにおける直積・直和の普遍性}
+\author{TeX生成: CODEX (OpenAI) \and Lean生成: CODEX (OpenAI)}
+\date{2025年9月29日}
+
+\begin{document}
+\maketitle
+
+\section{はじめに}
+本ノートの目的は、\texttt{BTopLimits.lean} に実装した内容を学部生レベルで解説することです。
+BTopとは、型 $X$ とその上のブルバキ的位相 $\tau$ を組にして得られる圏であり、
+射は開集合の逆像が開集合になるような関数です。
+Lean ファイルでは、この構造を \texttt{BTop} 型として定式化し、
+直積や直和の普遍性を証明する補題・例を整備しました。
+
+\section{BTopの基本構造}
+対象は $(X,\tau)$、射は $f\colon (X,\tau_X)\to (Y,\tau_Y)$ で
+$U\in\tau_Y \Rightarrow f^{-1}(U)\in\tau_X$ を満たす関数です。
+Leanではこれを \verb|BourbakiMorphism| として実装し、恒等射と合成が
+期待通りに定まることを示しています。
+
+\section{直積 (product) の構成}
+族 $F\colon \iota\to\texttt{BTop}$ に対して、要素の視点では直積
+$\prod_{i\in\iota} F(i)$ を取り、その直積に ``最も弱い'' 位相を入れます。
+この位相は、各射影写像
+\[
+\pi_i\colon \prod_{j\in\iota} F(j) \longrightarrow F(i)
+\]
+が連続となるように定義され、Lean 上では \verb|piObj| として与えられます。
+
+\subsection{射の持ち上げ (lift)}
+任意の対象 $Z$ と連続写像族 $(f_i)_{i\in\iota}$に対し、
+\verb|piLift| は一つの射
+\[
+\langle f_i\rangle \colon Z \longrightarrow \prod_{i\in\iota} F(i)
+\]
+を与えます。これは $z\in Z$ に対して $(f_i(z))_i$ を対応させる写像です。
+Lean では \verb|piLift_apply| が成分評価を確認し、
+以下の図式の可換性が自動的に示されます。
+
+\begin{center}
+\begin{tikzcd}
+ & Z \arrow[dl, "f_i"'] \arrow[dr, "\pi_i\circ \langle f_j\rangle"] & \\
+F(i) && F(i)
+\end{tikzcd}
+\end{center}
+
+さらに、\verb|piLift_unique| は「すべての成分が一致するならば持ち上げ射も一意」という
+普遍性を表しています。
+
+\section{直和 (coproduct) の構成}
+直和 $\coprod_{i\in\iota} F(i)$ は型論的には $\sum_{i\in\iota} F(i)$
+（添字付き直和）であり、各包含写像
+\[
+\iota_i\colon F(i) \longrightarrow \coprod_{j\in\iota} F(j)
+\]
+が連続になるような ``最も強い'' 位相を入れます。Leanでは \verb|sigmaObj|
+として実装されています。
+
+\subsection{射の下降 (desc)}
+任意の対象 $Z$ と連続写像族 $(f_i)_{i\in\iota}$ に対して、
+\verb|sigmaDesc| は因子化射
+\[
+\coprod_{i\in\iota} F(i) \longrightarrow Z
+\]
+を与え、次の図式を可換にします。
+
+\begin{center}
+\begin{tikzcd}
+F(i) \arrow[rr, "f_i"] \arrow[dr, "\iota_i"'] && Z \\
+& \coprod_j F(j) \arrow[ur, "\mathrm{desc}(f_i)"'] &
+\end{tikzcd}
+\end{center}
+
+\verb|sigmaDesc_unique| は、この下降射が普遍的に一意であることを保証します。
+
+\section{極限・余極限の移送}
+Lean では `equivTopCat : BTop ≌ TopCat` を既に構成済みです。
+`TopCat` が全ての極限・余極限を持つことは Mathlib によって実装済みであるため、
+この同値を用いて `HasLimits BTop` と `HasColimits BTop` を輸送します。
+これにより BTop で任意の図式の極限・余極限が存在することが即座に従います。
+
+\section{例と確認}
+Lean ファイル末尾では、次のような例で実装の妥当性を確認しています。
+\begin{itemize}[nosep]
+  \item `example : Limits.HasBinaryProducts BTop := inferInstance`
+  \item `example : Limits.HasCoequalizers BTop := inferInstance`
+\end{itemize}
+これらは、双直積や等化子が BTop に存在することを型クラス推論により証明しています。
+
+\section{今後の展望}
+今回整備した API を起点として、商位相や写像空間の扱い、さらに測度論的構造への
+移植 (BTop の C 側) へと展開できます。
+Lean 側では \verb|Examples| セクションに追加のテストを加えることで、
+自動化された証明戦略の確認も可能です。
+
+\end{document}
