@@ -66,7 +66,7 @@ noncomputable def piLift {Z : BTop} (F : ι → BTop) (f : ∀ i, Z ⟶ F i) :
     (z : Z) (i : ι) :
     piLift (F := F) f z i = f i z := rfl
 
-@[simp, reassoc] lemma piProj_comp_piLift {Z : BTop} (F : ι → BTop)
+lemma piProj_comp_piLift {Z : BTop} (F : ι → BTop)
     (f : ∀ i, Z ⟶ F i) (i : ι) :
     piLift (F := F) f ≫ piProj (F := F) i = f i := by
   apply BourbakiMorphism.ext
@@ -117,7 +117,7 @@ noncomputable def sigmaDesc {Z : BTop} (F : ι → BTop) (f : ∀ i, F i ⟶ Z) 
     (s : sigmaObj F) :
     sigmaDesc (F := F) f s = f s.1 s.2 := rfl
 
-@[simp, reassoc] lemma sigmaIn_desc {Z : BTop} (F : ι → BTop)
+lemma sigmaIn_desc {Z : BTop} (F : ι → BTop)
     (f : ∀ i, F i ⟶ Z) (i : ι) :
     sigmaInl (F := F) i ≫ sigmaDesc (F := F) f = f i := by
   apply BourbakiMorphism.ext
@@ -183,6 +183,9 @@ noncomputable instance instHasLimits : HasLimits BTop :=
 noncomputable instance instHasColimits : HasColimits BTop :=
   Adjunction.has_colimits_of_equivalence (equivTopCat.functor)
 
+-- Ensure the key congruence lemmas remain globally available for rewriting.
+attribute [simp, reassoc] piProj_comp_piLift sigmaIn_desc
+
 end Limits
 
 section Examples
@@ -210,3 +213,5 @@ end
 end Topology
 end BourbakiStyle
 end MyProjects
+
+
