@@ -15,11 +15,13 @@ We specialise the Bourbaki-style topology API to categorical constructions.
 The key point is to promote the ordered-pair morphisms from the initial/final
 lemmata to categorical lifts and descents, then register the universal
 properties for products and coproducts.  Finally we transport global
-(co)limits along the equivalence `equivTopCat : BTop ≌ TopCat`.
+(co)limits along the equivalence `equivTopCat : BTop ≌ TopCat`, so every
+construction matches the existing one in `TopCat`.
 
 * `piLift`, `sigmaDesc` wrap universal arrows as ordered pairs.
 * `@[simp, reassoc]` lemmas `piProj_comp_piLift` and `sigmaIn_desc` expose
-  the "existence" half of uniqueness; the `*_unique` lemmas supply the reverse.
+  the "existence" half of uniqueness, while the `*_unique` lemmas and their
+  ⇔ counterparts record the reverse implication.
 * `isLimit_piFan`, `isColimit_sigmaCofan` exhibit the canonical cones.
 * `HasLimits`/`HasColimits` follow from the equivalence with `TopCat`.
 -/
@@ -83,6 +85,17 @@ lemma piLift_unique {Z : BTop} (F : ι → BTop) (f : ∀ i, Z ⟶ F i)
   have hz := congrArg (fun k => k z) (h i)
   simpa [comp_apply, piProj_apply, piLift_apply] using hz
 
+lemma piLift_unique_iff {Z : BTop} (F : ι → BTop) (f : ∀ i, Z ⟶ F i)
+    (g : Z ⟶ piObj F) :
+    (∀ i, g ≫ piProj (F := F) i = f i) ↔ g = piLift (F := F) f := by
+  constructor
+  · intro h
+    simpa using (piLift_unique (F := F) (f := f) (g := g) h)
+  · intro h
+    subst h
+    intro i
+    simp [piProj_comp_piLift]
+
 end Pi
 
 section Sigma
@@ -133,6 +146,17 @@ lemma sigmaDesc_unique {Z : BTop} (F : ι → BTop) (f : ∀ i, F i ⟶ Z)
   rcases s with ⟨i, x⟩
   have hx := congrArg (fun k => k x) (h i)
   simpa [comp_apply, sigmaInl_apply, sigmaDesc_apply] using hx
+
+lemma sigmaDesc_unique_iff {Z : BTop} (F : ι → BTop) (f : ∀ i, F i ⟶ Z)
+    (g : sigmaObj F ⟶ Z) :
+    (∀ i, sigmaInl (F := F) i ≫ g = f i) ↔ g = sigmaDesc (F := F) f := by
+  constructor
+  · intro h
+    simpa using (sigmaDesc_unique (F := F) (f := f) (g := g) h)
+  · intro h
+    subst h
+    intro i
+    simp [sigmaIn_desc]
 
 end Sigma
 
@@ -193,12 +217,12 @@ section Examples
 variable {ι : Type v}
 
 example {Z : BTop} (F : ι → BTop) (f : ∀ i, Z ⟶ F i) (i : ι) :
-    (piLift (F := F) f ≫ piProj (F := F) i) = f i :=
-  piProj_comp_piLift (F := F) f i
+    (piLift (F := F) f ≫ piProj (F := F) i) = f i := by
+  simp
 
 example {Z : BTop} (F : ι → BTop) (f : ∀ i, F i ⟶ Z) (i : ι) :
-    (sigmaInl (F := F) i ≫ sigmaDesc (F := F) f) = f i :=
-  sigmaIn_desc (F := F) f i
+    (sigmaInl (F := F) i ≫ sigmaDesc (F := F) f) = f i := by
+  simp
 
 example : Limits.HasBinaryProducts BTop := inferInstance
 
