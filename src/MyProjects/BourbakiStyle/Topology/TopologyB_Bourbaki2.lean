@@ -123,7 +123,6 @@ maps versus a single continuous map into the product, matching the Bourbaki
 ordered-pair perspective.
 -/
 
-/-
 section TopCatAdjunction
 
 open CategoryTheory
@@ -145,13 +144,7 @@ it acts via `ContinuousMap.prodMap`.
 def prodTop : TopCat × TopCat ⥤ TopCat where
   obj X := TopCat.of (X.1 × X.2)
   map {X Y} (f : X ⟶ Y) :=
-    (⟨(fun p : X.1 × X.2 => (f.1 p.1, f.2 p.2)), by
-      -- continuity by components
-      have h1 : Continuous fun p : X.1 × X.2 => f.1 p.1 := by
-        simpa using ((ContinuousMap.continuous (f.1)).comp continuous_fst)
-      have h2 : Continuous fun p : X.1 × X.2 => f.2 p.2 := by
-        simpa using ((ContinuousMap.continuous (f.2)).comp continuous_snd)
-      exact h1.prodMk h2⟩ : ContinuousMap (X.1 × X.2) (Y.1 × Y.2))
+    TopCat.ofHom <| ContinuousMap.prodMap f.1.hom f.2.hom
   map_id X := by
     -- identity acts componentwise
     ext p <;> rfl
@@ -159,32 +152,31 @@ def prodTop : TopCat × TopCat ⥤ TopCat where
     -- composition is componentwise
     ext p <;> rfl
 
+@[simp] lemma prodTop_map_id (X : TopCat × TopCat) :
+    prodTop.map (𝟙 X) = 𝟙 _ := rfl
+
+
 /- The hom-set equivalence for the adjunction. -/
 noncomputable def homEquivDeltaProd
     (X : TopCat) (YZ : TopCat × TopCat) :
     ((deltaTop.obj X) ⟶ YZ) ≃ (X ⟶ prodTop.obj YZ) :=
 { toFun :=
     fun fg =>
-      (⟨(fun x => (fg.1 x, fg.2 x)), by
-        simpa using ((ContinuousMap.continuous (fg.1)).prodMk (ContinuousMap.continuous (fg.2)))⟩ :
-        ContinuousMap X (YZ.1 × YZ.2))
+      TopCat.ofHom <| ContinuousMap.prodMk fg.1.hom fg.2.hom
 , invFun :=
     fun h =>
-      ((⟨(fun x => (h x).1), by
-          simpa using (continuous_fst.comp (ContinuousMap.continuous h))⟩ : ContinuousMap X YZ.1),
-       (⟨(fun x => (h x).2), by
-          simpa using (continuous_snd.comp (ContinuousMap.continuous h))⟩ : ContinuousMap X YZ.2))
+      ((TopCat.ofHom <| ContinuousMap.comp ContinuousMap.fst h.hom),
+       (TopCat.ofHom <| ContinuousMap.comp ContinuousMap.snd h.hom))
 , left_inv := by
     intro fg; ext x <;> rfl
 , right_inv := by
-    intro h; ext p <;> rfl }
+    intro h; ext x <;> rfl }
 
 /- The adjunction Δ ⊣ × specialized to `TopCat`. -/
 -- (Optional) One can package `homEquivDeltaProd` into an adjunction using
 -- `Adjunction.mkOfHomEquiv`. We keep the hom-set equivalence explicit here.
 
 end TopCatAdjunction
--/
 
 /-
 ## A'. Exponential direction (skeleton)
@@ -403,7 +395,7 @@ first skeleton, focusing on the core decomposition datum.
     change p ((d.e.symm (u, i)).1) = u.1
     set s := d.e.symm (u, i)
     have hs : d.e s = (u, i) := by
-      subst s; simp [sheetMap] using (d.e.left_inv (u, i))
+      subst s; simpa using (d.e.left_inv (u, i))
     have hb : ((d.e s).1 : Subtype fun x : B => x ∈ d.U).1 = p s.1 := d.base s
     -- From `hs`, the first projection equals `u` as a subtype.
     have hfst : ((d.e s).1) = u := congrArg Prod.fst hs
@@ -449,7 +441,7 @@ first skeleton, focusing on the core decomposition datum.
     -- Left-hand side under `d.e`.
     have lhs : d.e (d.sheetMap (d.sheetIndexAt e hUE) ⟨p e, hUE⟩)
         = (⟨p e, hUE⟩, d.sheetIndexAt e hUE) := by
-      simp [sheetMap] using d.e.left_inv (⟨p e, hUE⟩, d.sheetIndexAt e hUE)
+      simpa [sheetMap] using d.e.left_inv (⟨p e, hUE⟩, d.sheetIndexAt e hUE)
     -- Right-hand side under `d.e` equals `(⟨p e, hUE⟩, d.sheetIndexAt e hUE)`.
     have hfst : (d.e ⟨e, hUE⟩).1 = ⟨p e, hUE⟩ := by
       apply Subtype.ext
@@ -463,7 +455,7 @@ first skeleton, focusing on the core decomposition datum.
     simpa [hrs] using lhs
 
   /-- Local lift of `γ` along the `i`-th sheet. -/
-  noncomputable def liftAlong (d : EvenlyCoveredAt p b) (_h : CoveringMap p)
+  noncomputable def liftAlong (d : EvenlyCoveredAt p b) (h : CoveringMap p)
       (i : d.I) (γ : ContinuousMap Z B) (hγ : ∀ z, γ z ∈ d.U) :
       ContinuousMap Z E :=
     ((d.inclE).comp (d.sheetMap i)).comp (d.toSubtype γ hγ)
@@ -479,7 +471,7 @@ first skeleton, focusing on the core decomposition datum.
     have hβ := EvenlyCoveredAt.sheet_comp_eq_inclB (p:=p) (h:=h) (d:=d) (i:=i)
     -- hβ : ((⟨p,_⟩).comp d.inclE).comp (d.sheetMap i) = d.inclB
     ext z
-    simp [toSubtype, inclB, ContinuousMap.comp_apply, hβ]
+    simp [liftAlong, toSubtype, inclB, ContinuousMap.comp_apply, hβ]
 
   end LocalLift
 
@@ -541,16 +533,17 @@ first skeleton, focusing on the core decomposition datum.
           apply Subtype.ext
           simpa [h₀]
         -- transport along equality on the input
-        simp [EvenlyCoveredAt.sheetMap, Heq] using Hsheet
+        simpa [EvenlyCoveredAt.sheetMap, Heq] using Hsheet
       -- Now change from `b₀` to the true start `γ t0` using `γ.source`.
       have hγ0 : γ t0 = b₀ := by simpa [t0] using (path_source_I0 (γ := γ))
       have Hstart : (d.sheetMap i ⟨γ t0, hU0⟩).1 = e₀ := by
         have Heq : (⟨γ t0, hU0⟩ : Subtype fun x : B => x ∈ d.U)
           = ⟨b₀, by simpa [h₀] using d.memU⟩ := by
           apply Subtype.ext; simpa [hγ0]
-        simp [EvenlyCoveredAt.sheetMap, Heq] using Hbase_b0
+        simpa [EvenlyCoveredAt.sheetMap, Heq] using Hbase_b0
       -- unfold the definition of γE at 0
-      simp [γE, EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype, EvenlyCoveredAt.inclE, EvenlyCoveredAt.sheetMap]
+      simpa [γE, EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype,
+              EvenlyCoveredAt.inclE, EvenlyCoveredAt.sheetMap]
         using Hstart
     -- Package as a path by taking the underlying bundled map and endpoints.
     refine
@@ -575,7 +568,8 @@ first skeleton, focusing on the core decomposition datum.
       (i:=i) (γ:=γ.toContinuousMap) (hγ:=hγU)
     -- evaluate both sides at `t`
     -- simplify both sides to pointwise equality
-    simp [liftPathLocal, path_map_apply, EvenlyCoveredAt.liftAlong, EvenlyCoveredAt.toSubtype, ContinuousMap.comp_apply]
+    simpa [liftPathLocal, path_map_apply, EvenlyCoveredAt.liftAlong,
+            EvenlyCoveredAt.toSubtype, ContinuousMap.comp_apply]
       using congrArg (fun F => F t) hβ
 
   -- Uniqueness for the local lift with fixed start can be proved by transporting
@@ -856,12 +850,14 @@ first skeleton, focusing on the core decomposition datum.
     , source' := by simpa using (Path.refl b₀).source
     , target' := by
         -- Target must be `γ (cov.pts ⟨0, _hk0⟩)`; align `cov.start` index first.
-        have hidx : (0 : Fin (cov.n+1)) = ⟨0, _hk0⟩ := by rfl
-        have hstart0 : cov.pts 0 = I0 := by simpa using cov.start
-        have h0' : γ (cov.pts ⟨0, _hk0⟩) = b₀ := by
-          simpa [hstart0] using (path_source_I0 (γ := γ))
-        have h0 : b₀ = γ (cov.pts ⟨0, _hk0⟩) := h0'.symm
-        simpa [h0] using (Path.refl b₀).target }
+        have hidx : (⟨0, _hk0⟩ : Fin (cov.n+1)) = ⟨0, Nat.succ_pos _⟩ := by
+          ext; rfl
+        have hstart0 : cov.pts ⟨0, _hk0⟩ = I0 := by
+          simpa [hidx] using (cov.start)
+        have hsource : γ I0 = b₀ := path_source_I0 (γ := γ)
+        have h0 : γ (cov.pts ⟨0, _hk0⟩) = b₀ := hstart0 ▸ hsource
+        have h0symm : b₀ = γ (cov.pts ⟨0, _hk0⟩) := h0.symm
+        exact (Path.refl b₀).target.trans h0symm }
   | ⟨Nat.succ k, hk⟩ =>
     -- Induction: concatenate previous segment with subpath on [pts i.castSucc, pts i.succ]
     let hklt : k < cov.n := Nat.succ_lt_succ_iff.mp hk
@@ -914,12 +910,17 @@ first skeleton, focusing on the core decomposition datum.
     let build : ∀ k, (hk : k ≤ cov.n) → Path b₀ (γ (cov.pts ⟨k, Nat.lt_succ_of_le hk⟩))
     | 0, hk =>
       -- At k = 0, `pts 0 = 0`, so the trivial path works.
+      have hsource : γ I0 = b₀ := path_source_I0 (γ := γ)
       have h0 : γ (cov.pts ⟨0, Nat.succ_pos _⟩) = b₀ := by
-        simpa [cov.start] using (path_source_I0 (γ := γ))
+        have hstart : cov.pts ⟨0, Nat.succ_pos _⟩ = I0 := by
+          simpa using (cov.start)
+        exact hstart ▸ hsource
       -- Adjust the target via rewriting to match the required type.
       { toContinuousMap := (Path.refl b₀).toContinuousMap
       , source' := by simpa using (Path.refl b₀).source
-      , target' := by simpa [h0] using (Path.refl b₀).target }
+      , target' := by
+          have h0symm : b₀ = γ (cov.pts ⟨0, Nat.succ_pos _⟩) := h0.symm
+          exact (Path.refl b₀).target.trans h0symm }
     | (Nat.succ k), hk =>
       -- Previous stage
       have hk' : k ≤ cov.n := le_trans (Nat.le_succ k) hk
@@ -938,15 +939,6 @@ first skeleton, focusing on the core decomposition datum.
 
   /-- Glue local lifts along the subintervals of a `PathCover` to obtain a global lift
   over the whole interval. Returns the endpoint in the fiber and the lifted path. -/
-  noncomputable def liftPathOnCover
-      (h : CoveringMap p) {b₀ b₁ : B}
-      (γ : Path b₀ b₁)
-      (cov : PathCover (p:=p) γ)
-      (e₀ : E) (h₀ : p e₀ = b₀) :
-      Σ e : E, Path e₀ e :=
-  by
-    classical
-    -- Strong recursion storing the endpoint relation `p e_k = γ (pts k)`.
   private noncomputable def liftPathOnCover.build
       (h : CoveringMap p) {b₀ b₁ : B}
       (γ : Path b₀ b₁) (cov : PathCover (p:=p) γ)
@@ -958,11 +950,11 @@ first skeleton, focusing on the core decomposition datum.
     intro k
     induction' k with k ih generalizing e₀
     · intro hk
-      exact
-        ⟨e₀, (Path.refl e₀, by
-          have : γ (cov.pts ⟨0, Nat.succ_pos _⟩) = b₀ := by
-            simpa [cov.start] using (path_source_I0 (γ := γ))
-          simpa [this] using h₀)⟩
+      have hsource : γ I0 = b₀ := path_source_I0 (γ := γ)
+      have hstart : cov.pts ⟨0, Nat.succ_pos _⟩ = I0 := by
+        simpa using (cov.start)
+      have hγ0 : γ (cov.pts ⟨0, Nat.succ_pos _⟩) = b₀ := hstart ▸ hsource
+      exact ⟨e₀, (Path.refl e₀, h₀.trans hγ0.symm)⟩
     · intro hkSucc
       have hk' : k ≤ cov.n := le_trans (Nat.le_succ k) hkSucc
       rcases ih hk' with ⟨e_k, Γ_k, hkrel⟩
@@ -978,7 +970,7 @@ first skeleton, focusing on the core decomposition datum.
         have hβ := liftPathLocalOn_map_apply (p:=p) h γ (cov.pts i.castSucc) (cov.pts i.succ)
           (cov.charts i) e_k hstart (cov.inU i) I1
         simpa [Γseg, path_map_apply, Bourbaki.TopologyB.Path.subpath,
-          ContinuousMap.comp_apply] using hβ
+               ContinuousMap.comp_apply] using hβ
       exact ⟨Γseg I1, (Γ_k.trans Γseg, by simpa using hend)⟩
 
   lemma liftPathOnCover.build_map_apply
@@ -995,15 +987,21 @@ first skeleton, focusing on the core decomposition datum.
     · intro hk e₀ h₀ t
       have hidx : (⟨0, Nat.lt_succ_of_le hk⟩ : Fin (cov.n + 1)) = ⟨0, Nat.succ_pos _⟩ := by
         ext; rfl
-      have hpts0 : cov.pts ⟨0, Nat.lt_succ_of_le hk⟩ = I0 := by
+      have hpts : cov.pts ⟨0, Nat.lt_succ_of_le hk⟩ = I0 := by
         simpa [hidx] using cov.start
-      have hstart : γ (cov.pts ⟨0, Nat.lt_succ_of_le hk⟩) = b₀ := by
-        simpa [hpts0] using (path_source_I0 (γ := γ))
-      have hstart0 : cov.pts 0 = I0 := by simpa [hidx] using cov.start
-      have hstartγ : γ (cov.pts 0) = b₀ := by simpa [hstart0] using (path_source_I0 (γ := γ))
-      have : ((Path.refl e₀).map (f := p) h.continuous) t = p e₀ := by simp [path_map_apply]
-      simp [liftPathOnCover.build, coverConcatCore, path_map_apply, h₀, hstart0, hidx, hstartγ, this]
-
+      have hsource : γ I0 = b₀ := path_source_I0 (γ := γ)
+      have hγ0 : γ (cov.pts ⟨0, Nat.lt_succ_of_le hk⟩) = b₀ := hpts ▸ hsource
+      have hp : ((Path.refl e₀).map (f := p) h.continuous) t = p e₀ := by
+        simp [path_map_apply]
+      have hcover :
+          (coverConcatCore γ cov ⟨0, Nat.lt_succ_of_le hk⟩) t = b₀ := by
+        simp [coverConcatCore, hidx]
+      refine
+        (calc
+          ((Path.refl e₀).map (f := p) h.continuous) t = p e₀ := hp
+          _ = b₀ := h₀
+          _ = (coverConcatCore γ cov ⟨0, Nat.lt_succ_of_le hk⟩) t := by
+            simpa using hcover.symm)
     · intro hkSucc e₀ h₀ t
       have hk' : k ≤ cov.n := Nat.le_of_lt_succ hkSucc
       have hklt : k < cov.n := lt_of_lt_of_le (Nat.lt_succ_self k) hkSucc
@@ -1049,7 +1047,7 @@ first skeleton, focusing on the core decomposition datum.
     let data := liftPathOnCover.build (h:=h) γ cov e₀ h₀ cov.n le_rfl
     exact ⟨data.1, data.2.1⟩
 
-  /-- β-rule for liftPathOnCover: after composing with p, one recovers the
+  /-- β-rule for `liftPathOnCover`: after composing with `p`, one recovers the
   canonical concatenation of the base path determined by the cover. -/
   lemma liftPathOnCover_map_apply
       (h : CoveringMap p) {b₀ b₁ : B}
