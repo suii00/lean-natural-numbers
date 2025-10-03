@@ -36,6 +36,20 @@ import Mathlib.Tactic
 import Mathlib.Topology.Compactification.StoneCech
 
 namespace Bourbaki.TopologyB
+namespace Fin
+
+@[simp] lemma mk_castSucc (k n : Nat) (hk : k < n) :
+    (⟨k, Nat.lt_succ_of_le (Nat.le_of_lt hk)⟩ : Fin (n + 1))
+      = (Fin.castSucc ⟨k, hk⟩) := by
+  ext; rfl
+
+@[simp] lemma mk_succ (k n : Nat) (hk : k < n) :
+    (⟨k.succ, by simpa using Nat.succ_lt_succ hk⟩ : Fin (n + 1))
+      = (Fin.succ ⟨k, hk⟩) := by
+  ext; rfl
+
+end Fin
+
 
 /-
 ## A. Product universality via projections
@@ -579,8 +593,24 @@ first skeleton, focusing on the core decomposition datum.
   end CoveringMap
 
 
-  -- We avoid adding a general `@[simp]` lemma for `Path.map_trans` here to keep
-  -- dependencies light; in the few places we need it, we use `ext; rfl`.
+  -- We avoid marking `Path.map_trans` as `@[simp]`; instead we expose helper lemmas
+  -- `map_trans_path` and `map_trans_path_apply` for the rare pointwise rewrites we need.
+lemma map_trans_path
+  {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+  {x y z : X} (α : Path x y) (β : Path y z)
+  (f : X → Y) (hf : Continuous f) :
+  (α.trans β).map (f := f) hf = (α.map (f := f) hf).trans (β.map (f := f) hf) := by
+  ext t; simp [path_map_apply]
+
+lemma map_trans_path_apply
+  {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+  {x y z : X} (α : Path x y) (β : Path y z)
+  (f : X → Y) (hf : Continuous f) (t : unitInterval) :
+  ((α.trans β).map (f := f) hf) t
+    = ((α.map (f := f) hf).trans (β.map (f := f) hf)) t := by
+  simpa using congrArg (fun δ : Path _ _ => δ t)
+    (map_trans_path (α:=α) (β:=β) (f:=f) (hf:=hf))
+
 
   /-
   ### Subpaths and reparametrization of the unit interval
@@ -838,6 +868,22 @@ first skeleton, focusing on the core decomposition datum.
     inU : ∀ i : Fin n, ∀ t : unitInterval,
       γ (Bourbaki.TopologyB.Path.segMap (pts i.castSucc) (pts i.succ) t) ∈ (charts i).U
 
+@[simp] lemma PathCover.pts_zero
+    {b₀ b₁ : B} {γ : Path b₀ b₁} (cov : PathCover (p:=p) γ) :
+    cov.pts 0 = I0 := by
+  simpa using cov.start
+
+@[simp] lemma PathCover.pts_last
+    {b₀ b₁ : B} {γ : Path b₀ b₁} (cov : PathCover (p:=p) γ) :
+    cov.pts ⟨cov.n, by simpa using Nat.lt_succ_self _⟩ = I1 := by
+  simpa using cov.stop
+
+@[simp] lemma PathCover.pts_last_fin
+    {b₀ b₁ : B} {γ : Path b₀ b₁} (cov : PathCover (p:=p) γ) :
+    cov.pts (Fin.last _) = I1 := by
+  classical
+  simpa using cov.stop
+
   /- Left-fold concatenation core up to index `k` (apply-level fold nucleus).
      Returns a path from `γ I0` to `γ (cov.pts k)` built by concatenating
      subpaths `[pts i.castSucc, pts i.succ]` for `i = 0..k-1`. -/
@@ -1047,31 +1093,61 @@ first skeleton, focusing on the core decomposition datum.
     let data := liftPathOnCover.build (h:=h) γ cov e₀ h₀ cov.n le_rfl
     exact ⟨data.1, data.2.1⟩
 
-  /-- β-rule for `liftPathOnCover`: after composing with `p`, one recovers the
-  canonical concatenation of the base path determined by the cover. -/
+  /-
+  β-rule for `liftPathOnCover`: after composing with `p`, one recovers the
+  canonical concatenation of the base path determined by the cover.
+  The pointwise statement follows by unfolding the fold nucleus; the endpoint
+  case is an immediate corollary.
+  -/
+
+
+  /-- Pointwise β-rule for `liftPathOnCover`: projecting the lifted path along
+      `p` recovers the concatenation `coverConcat` determined by the cover. -/
   lemma liftPathOnCover_map_apply
       (h : CoveringMap p) {b₀ b₁ : B}
       (γ : Path b₀ b₁)
       (cov : PathCover (p:=p) γ)
       (e₀ : E) (h₀ : p e₀ = b₀) (t : unitInterval) :
       ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) t
-        = (coverConcat (p:=p) γ cov) t :=
-  by
+        = (coverConcat (p:=p) γ cov) t := by
     classical
     set data := liftPathOnCover.build (h:=h) γ cov e₀ h₀ cov.n le_rfl
     have hlift : (liftPathOnCover (p:=p) h γ cov e₀ h₀).2 = data.2.1 := by
       simp [liftPathOnCover, data]
-    have hmap := liftPathOnCover.build_map_apply (h:=h) (γ:=γ) (cov:=cov)
-      (hk := le_rfl) (e₀ := e₀) (h₀ := h₀) (t := t)
+    have hmap :=
+      liftPathOnCover.build_map_apply (h:=h) (γ:=γ) (cov:=cov)
+        (hk := le_rfl) (e₀ := e₀) (h₀ := h₀) (t := t)
     have hcover :
         (coverConcat (p:=p) γ cov) t
-          = (coverConcatCore γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := by
+          = (coverConcatCore (p:=p) γ cov ⟨cov.n, by simpa using Nat.lt_succ_self _⟩) t := by
       simp [coverConcat]
-    simpa [data, hlift, hcover]
-      using hmap
-  -- β-rule up to the natural reparametrization by the cover can be shown by
-  -- folding over segments using `liftPathLocalOn_map` and pushing `Path.map`
-  -- through concatenation. Omitted here to keep the skeleton light.
+    simpa [data, hlift, hcover] using hmap
+
+  /-- Endpoint β-rule for `liftPathOnCover`: composing with `p` at `I1` reduces to the
+      concatenation built from the cover. -/
+  lemma liftPathOnCover_map_I1
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (cov : PathCover (p:=p) γ)
+      (e₀ : E) (h₀ : p e₀ = b₀) :
+      ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) I1
+        = (coverConcat (p:=p) γ cov) I1 := by
+    simpa using
+      (liftPathOnCover_map_apply (p:=p) h (γ:=γ) cov e₀ h₀ (t := I1))
+
+
+  /-- Endpoint β-rule at the left endpoint for `liftPathOnCover`. -/
+  lemma liftPathOnCover_map_I0
+      (h : CoveringMap p) {b₀ b₁ : B}
+      (γ : Path b₀ b₁)
+      (cov : PathCover (p:=p) γ)
+      (e₀ : E) (h₀ : p e₀ = b₀) :
+      ((liftPathOnCover (p:=p) h γ cov e₀ h₀).2.map (f := p) h.continuous) I0
+        = (coverConcat (p:=p) γ cov) I0 := by
+    simpa using
+      (liftPathOnCover_map_apply (p:=p) h (γ:=γ) cov e₀ h₀ (t := I0))
+
+  -- TODO: reinstall the full pointwise β-rule once the reparametrization lemmas are ready.
 
   /-- β-rule for `liftPathOnCover`: composing with `p` recovers `γ`.
   Proof outline: fold over segments; each segment satisfies the β-rule by
@@ -1340,3 +1416,4 @@ example {K : Type*} [TopologicalSpace K] [CompactSpace K] [T2Space K]
 end StoneCechSmoke
 
 end Bourbaki.TopologyB
+

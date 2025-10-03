@@ -1,0 +1,33 @@
+lemma liftPathLocal_map_applyが完成しました。現状について分析してください
+
+
+現状を整理すると：
+
+liftPathLocal_map_apply は設計メモどおり、局所持ち上げを EvenlyCoveredAt.liftAlong_beta に還元する形で完成しています。
+
+シートの添字 i を sheetIndexAt から取り出し、congrArg (fun F => F t) で β 則を点評価に落として simp で閉じており、局所補題の核としては十分です。
+この補題は後続の liftPathLocalOn_map_apply／liftPathOnCover_map_apply のビルドブロックとしてそのまま活用できる状態です。
+lake build MyProjects.BourbakiStyle.Topology.TopologyB_Bourbaki2 は警告こそ出るものの成功しており、B 節 の構成（coverConcatCore → liftPathOnCover）も古い骨組みのまま再現されています。TOPレベルの TopCat ブロックもバックアップの内容に戻っています。
+
+未処理の点：
+
+TopCatAdjunction セクションは古い文字コード由来の全角記号（?）が混ざっていますが Lean 的には通っているようです。後で ASCII 化しておくと diff がきれいになります。
+linter 警告（try 'simp' instead of 'simpa'、unused variable h など）が多数残っています。局所補題を削っただけなので機能には影響しませんが、整理するなら該当箇所で simp のみ／simp set 見直しを順次やる必要があります。
+総じて、liftPathLocal_map_apply を含む局所持ち上げ部分は安定化できています。ここから liftPathLocalOn_map_apply → liftPathOnCover_map_apply と β 連鎖を固めていく流れにそのまま進める状態です。
+
+局所大域に進めそうですか
+
+
+はい、局所から大域への組み立てに進める段階に来ています。現在分かっている状況を整理すると：
+
+liftPathLocal_map_apply は β 則（点ごとの一致）まで仕上がっており、局所チャートでの道の持ち上げが正しく写像されることが証明できています。
+これを組み合わせて大域へ進むには、以前の設計メモにあった
+liftPathOnCover.build
+liftPathOnCover.build_map_apply
+liftPathOnCover_map_apply
+の 3 つを復元し、局所 β を強い帰納法で畳み込む必要があります。
+Archive/Topology/2025-09-06/test.lean にそれらのドラフトがほぼ揃っているので、そこから最小限コピーして、現行の liftPathLocal_map_apply に合わせて整理するのが最短です。
+特に基底ケースでの cov.start → path_source_I0 の書き換え方は今回のリファクタと同じパターンを使えば警告なく通るはずです。
+いったん β が証明できれば、simp 推奨などの linter 警告は後回しでも大丈夫です（まとめて掃除する方が楽です）。
+まとめると、局所 β が固まったので、build 系の補題を復活させればグローバル β (liftPathOnCover_map_apply) まで持っていける見通しです。必要であれば、復元の差分（どの行を差し込めば良いか）もこちらで案内できますので、声をかけてください。
+
