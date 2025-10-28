@@ -1,0 +1,63 @@
+% !TeX program = lualatex
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\title{Topology B 節の現状と展望}
+\author{CODEX (OpenAI)\footnote{TeXファイルおよび Lean ファイルは CODEX (OpenAI) が生成した。}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{導入}
+本ノートは、Bourbaki 風味の位相幾何ノートにおける節 B --- すなわち被覆写像と経路持ち上げに関する部分 --- の現状と今後の方針を、学部生向けに平易な数学的言葉でまとめたものである。構成の核は、被覆写像  \colon E \to B$ の局所構造と、その上での経路持ち上げの存在・一意性である。
+
+\section{現状整理}
+\subsection{Evenly Covered Neighborhood と局所構造}
+現在の Lean 実装では、$ の各点 $ ごとに $ の開集合 $ と離散集合 $ を組み合わせて、
+\[
+  p^{-1}(U) \cong U \times I
+\]
+となる局所トリビアリゼーションを備えている。型としては \texttt{EvenlyCoveredAt} がこのデータを保持し、$ の離散位相を明示的に装備することで、後続の証明で扱いやすい基盤を提供する。
+
+\subsection{経路持ち上げの局所的構成}
+経路 $\gamma \colon [0,1] \to B$ の像がひとつの $ に収まるとき、選択したシート  \in I$ に沿って経路を持ち上げる写像
+\[
+  \widetilde{\gamma} \colon [0,1] \to E
+\]
+を構成する \texttt{liftPathLocal} および \texttt{liftPathLocalOn} が実装済みである。Lean ファイルでは \texttt{liftAlong} の \emph{β-則} が証明されており、持ち上げた経路を $ で押し下げると元の経路 $\gamma$ に戻る。
+
+\subsection{大域持ち上げのための被覆}
+区間分割と各部分区間ごとの局所トリビアリゼーションをまとめる構造として \texttt{PathCover} が導入されている。以下の図式は、各シートへの持ち上げと被覆写像の関係を表すものである。
+
+\begin{center}
+  \begin{tikzcd}
+    \displaystyle \bigcup_{i \in I} (U_i \times \{i\}) \arrow[dr, "p"] \arrow[rr, dashed, "\widetilde{\gamma}"] & & E \arrow[dl, "p"] \\
+    & B &
+  \end{tikzcd}
+\end{center}
+
+現在は、局所的な β-則と経路の端点に関する性質までは確認されており、大域的な一意性証明に向けた骨格 (たとえば \texttt{liftPathOnCover.build}) が整備されている。
+
+\section{今後の課題と展望}
+\subsection{一意性証明の完全化}
+離散ファイバー上の連続写像が定数であることを明示的に扱う補題 (\texttt{continuous\_unitInterval\_to\_discrete\_const}) を活用し、局所持ち上げの一意性を Lean 上で形式化する。さらに、これを折り畳んだ大域的な経路持ち上げの一意性補題を証明し、既存の \texttt{liftPathOnCover} 系列を仕上げる計画である。
+
+\subsection{自然性と図式整合性の強化}
+経路の像に連続写像 $ を後置した場合の振る舞い (Path.map による自然性) を整理し、被覆写像のラッパーを追加する。図式的には、
+\[
+  f \circ p_E = p_F \circ \widetilde{f}
+\]
+を満たす持ち上げ $\widetilde{f}$ を追跡する補題を整備することが目標である。
+
+\subsection{ドキュメンテーションと例}
+完成した API をドキュメント化し、学部生が参照しやすい例 (円周の普遍被覆など) を追加する。これにより、形式化された定理が具体的な直感と結び付くようになる。
+
+\section{まとめ}
+節 B は、被覆空間の局所構造と経路持ち上げの理論を Lean/M Lean で再構築するロードマップを提供している。現状では局所的なツールが揃いつつあり、大域的な一意性と自然性の精緻化が次のマイルストーンである。学部生の皆さんには、局所トリビアリゼーションという視点が被覆写像を理解する鍵であることを覚えておいてほしい。
+
+\end{document}

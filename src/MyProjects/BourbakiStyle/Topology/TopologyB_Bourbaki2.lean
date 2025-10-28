@@ -880,9 +880,9 @@ lemma map_trans_path_apply
 
 @[simp] lemma PathCover.pts_last_fin
     {b₀ b₁ : B} {γ : Path b₀ b₁} (cov : PathCover (p:=p) γ) :
-    cov.pts (Fin.last _) = I1 := by
+    cov.pts (Fin.last cov.n) = I1 := by
   classical
-  simpa using cov.stop
+  simpa [Fin.last] using cov.stop
 
   /- Left-fold concatenation core up to index `k` (apply-level fold nucleus).
      Returns a path from `γ I0` to `γ (cov.pts k)` built by concatenating

@@ -1,0 +1,108 @@
+\documentclass[10pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Yu Mincho}
+\setsansjfont{Yu Gothic}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{集合論的視点から見る基礎構造\\――Bourbaki 流精神に基づく Lean 証明の解説}
+\author{Codex (OpenAI)\\[2mm]
+{\small この \TeX{} ファイルは Codex (OpenAI) によって生成され、対応する Lean ファイル \texttt{P1.lean} も Codex (OpenAI) により生成されています。}}
+\date{2025年10月27日}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+
+\section{序論}
+本資料では、ニコラ・ブルバキの『数学原論』集合論編の精神に従って構成された Lean 4 ファイル \texttt{P1.lean} の内容を、日本語で数理的に解説します。対象読者は学部生を念頭に置き、順序構造・束・群・位相空間など、抽象構造がどのように統一的に扱えるかを示します。各節では Lean で形式化された命題を紹介し、その数学的背景と証明戦略を述べます。最後に、有限直積のコンパクト性を図式付きで整理します。
+
+\section{前順序の推移律}
+\subsection{命題の説明}
+型 $E$ 上に前順序 $\,\leq\,$ が与えられたとき、Lean では型クラス \verb|[Preorder E]| がその公理（反射性と推移性）を提供します。命題
+\[
+  x \leq y \;\land\; y \leq z \;\Rightarrow\; x \leq z
+\]
+は推移性そのものです。Lean 側では \verb|le_trans h₁ h₂| を呼ぶだけで証明が終了し、これはまさに前順序の構造が持つ推移律を利用していることを意味します。
+
+\subsection{補足図}
+\begin{tikzcd}
+  x \arrow[r, "\leq"] \arrow[dr, dashed, "\leq"'] & y \arrow[d, "\leq"] \\
+  & z
+\end{tikzcd}
+
+\noindent
+図では $x$ から $y$、$y$ から $z$ へと矢印が伸びており、推移律により破線で示す $x \to z$ が導かれる様子を表しています。
+
+\section{半順序集合と最小上界の一意性}
+\subsection{IsLUB の意味}
+半順序集合 $(E,\leq)$ と部分集合 $A \subseteq E$ について、元 $s$ が $A$ の最小上界（least upper bound, LUB）であるとは、
+\begin{enumerate}
+  \item すべての $a \in A$ が $s$ 以下であり（$A$ は $s$ で上に抑えられる）、
+  \item $s$ より小さい別の上界は存在しない、
+\end{enumerate}
+ことを意味します。Lean ではこれは \verb|IsLUB A s| として定義されており、「上界の中で最小」という集合論的定義がカプセル化されています。
+
+\subsection{一意性の証明方針}
+二つの元 $s, s'$ が同じ集合 $A$ の最小上界だと仮定します。すると $s$ は $A$ の上界なので $s \leq s'$、同様に $s' \leq s$ が得られ、反対称律から $s = s'$ が結論されます。Lean の \verb|IsLUB.unique| はこの議論を直接コード化した補題です。
+
+\section{束と分配不等式}
+\subsection{束の基礎}
+束（lattice）とは任意の二元 $x,y$ に対して上限 $x \lor y$ と下限 $x \land y$ が存在する順序集合です。Lean では \verb|[Lattice L]| がこの構造を提供します。
+
+\subsection{分配不等式}
+任意の束で成り立つ不等式
+\[
+  (x \land y) \lor (x \land z) \leq x \land (y \lor z)
+\]
+は、左辺が $x$ かつ $y$ あるいは $z$ を含む元であることから、右辺の ``より小さい'' 元であると分かるという論理を形式化したものです。Lean では \verb|sup_le| と \verb|le_inf| を組み合わせて証明します。
+
+\subsection{分配束での等式}
+さらに \verb|[DistribLattice L]| を仮定すると、
+\[
+  x \land (y \lor z) = (x \land y) \lor (x \land z), \qquad
+  x \lor (y \land z) = (x \lor y) \land (x \lor z)
+\]
+が成立します。数学的には「束の分配法則」にあたり、Lean では \verb|inf_sup_left| や \verb|sup_inf_left| といった定理を利用して即座に等式を得ます。
+
+\section{群準同型の像と部分群}
+\subsection{像が部分群となる理由}
+群準同型 $f : G \to H$ の像 $\operatorname{Im}(f)$ は $H$ の部分群です。これは以下の事実から従います。
+\begin{enumerate}
+  \item 単位元の保存：$f(e_G) = e_H$。
+  \item 積の保存：$f(g_1 g_2) = f(g_1) f(g_2)$。
+  \item 逆元の保存：$f(g^{-1}) = f(g)^{-1}$。
+\end{enumerate}
+Lean では \verb|MonoidHom.range| が既に部分群として定義されており、これにより像に関する閉性（積・逆元に閉じる性質）が自動的に付与されます。
+
+\section{Hausdorff 空間におけるコンパクト集合の閉性}
+\subsection{コンパクト性と閉性の関係}
+Hausdorff 空間 $(X,\mathcal{T})$ では、任意のコンパクト集合 $K$ が閉集合になります。直観的には「外部の点 $x \notin K$ は、$K$ と $x$ を分離する互いに素な開集合によって隔てられるため」です。Lean では既に定理 \verb|IsCompact.isClosed| が整備されており、これを呼び出すだけで証明が完了します。
+
+\subsection{分離の具体像}
+点 $x \notin K$ に対し、$K$ を覆う開集合族と $x$ の近傍を組み合わせ、有限部分被覆を抽出することで分離開集合を構成します。このプロセスは Bourbaki の位相基礎論で強調される「コンパクト性と分離性の相互作用」を反映しています。
+
+\section{有限直積のコンパクト性}
+\subsection{二つのコンパクト集合の直積}
+コンパクト集合 $K \subseteq X$ と $L \subseteq Y$ に対して、直積集合 $K \times L$ もコンパクトです。数学的には、開被覆の積構造を解析し有限部分被覆を与えることで示します。Lean では \verb|IsCompact.prod| が用意されており、形式的証明はシンプルです。
+
+\subsection{有限個の直積への拡張}
+有限族 $(K_i)_{i \in I}$ がそれぞれコンパクトであるとき、直積 $\prod_{i \in I} K_i$ もコンパクトです。Lean の \verb|isCompact_univ_pi| は Tychonoff の定理（無限積）を背景に持ち、有限積はこの特殊化です。
+
+\subsection{図式による直積のイメージ}
+\begin{tikzcd}
+  K \times L \arrow[r, hook] \arrow[d, two heads] &
+  X \times Y \\
+  K \arrow[ur, "i_K \times i_L"']
+\end{tikzcd}
+
+\noindent
+射影によって $K \times L$ を $X \times Y$ に埋め込むことで、有限被覆の情報が $K$ と $L$ 双方から持ち上げられる様子を表しています。
+
+\section{結語}
+Bourbaki 的な抽象化は、集合論的な枠組みのもとで様々な数学構造を統一的に扱う視点を与えます。Lean による形式化は、こうした抽象議論が論理的に一貫していることを機械的に確認する手段となります。学部生の皆さんには、これらの命題を通じて「構造とその公理」への意識を高め、将来的な高次の数学への足がかりとしていただければ幸いです。
+
+\end{document}

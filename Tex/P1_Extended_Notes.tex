@@ -1,0 +1,198 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+% \usepackage{inconsolata}   % ←コメントアウト
+\usepackage{fontspec}
+\setmonofont{Latin Modern Mono}[Scale=MatchLowercase] % or: TeX Gyre Cursor
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows.meta, positioning}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{listings}
+\usepackage{amsthm}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  language=Lean,
+  morekeywords={structure, theorem, example, lemma},
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  columns=fullflexible
+}
+
+\title{P1\_Extended.lean の Bourbaki 的解説ノート}
+\author{CODEX (OpenAI)---TeXファイル生成 \\ CODEX (OpenAI)---Leanファイル生成}
+\date{\today}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=cyan,
+  pdftitle={P1_Extended Lean ファイル解説},
+  pdfauthor={CODEX (OpenAI)}
+}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}{補題}[section]
+\newtheorem{proposition}{命題}[section]
+\theoremstyle{remark}
+\newtheorem{remark}{注意}[section]
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本ノートは \texttt{src/MyProjects/Set/P1\_Extended.lean} で形式化された内容を、学部生向けに
+数学的背景を解説する目的でまとめたものである。
+Lean ファイルと同じく Bourbaki の「構造の母体」的観点を強調し、順序論・群論・位相空間論・距離空間論を横断的に扱う。
+各節では Lean で証明された補題や定理を日本語で説明し、必要に応じて図式やコード断片を提示する。
+\end{abstract}
+
+\tableofcontents
+
+\section{Bourbaki 的視点と Lean 形式化の概要}
+\subsection{母構造からのアプローチ}
+Bourbaki の方法論では、個別の数学的対象よりも、その背後にある構造（母構造）を
+明示し、それらの間の普遍的性質を重視する。
+\texttt{Bourbaki\_Lean\_Guide.lean} では、
+順序集合における上限の一意性や \texttt{StructureTower} といった概念を抽出し、
+それらが様々な分野に共通する抽象骨格として働くことを示している。
+
+\subsection{Lean での記述}
+Lean では構造化されたデータ型や型クラスを用いて、定義と定理を可読的に記述できる。
+例えば閉包作用素を表す構造体
+\texttt{BourbakiClosureOperator} は、単なる関数ではなく、
+単調性・冪等性などの性質をまとめて保持するオブジェクトとして実装されている。
+
+\section{ガロア接続と順序理論}
+\subsection{ガロア接続の基礎}
+Lean ファイルでは \texttt{galois\_connection\_composition} が
+「ガロア接続は合成に対して閉じている」ことを証明している。
+この性質は以下のような図式を通じて理解できる。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzcd}[column sep=large]
+    \alpha \arrow[r, "l_1"] \arrow[d, "l_2 \circ l_1"'] & \beta \arrow[d, "l_2"] \\
+    \gamma & \gamma \arrow[l, "u_2"']
+  \end{tikzcd}
+  \caption{ガロア接続の合成（左 adjoint の合成）}
+\end{figure}
+
+Lean の定理を言い換えると、$\alpha, \beta, \gamma$ を前順序集合とし、
+$(l_1, u_1)$ および $(l_2, u_2)$ がガロア接続のペアであれば、
+$(l_2 \circ l_1, u_1 \circ u_2)$ もガロア接続を与える。
+これは「抽象的な像と逆像の対応関係が二段階の構造を経ても保たれる」ことを意味し、
+具体的には像と逆像からなる関手の合成が再び adjoint なペアになる。
+
+\subsection{下随伴が上限を保つ性質}
+定理 \texttt{galois\_lower\_preserves\_sup} では、ガロア接続の左随伴
+（lower adjoint）が上限（上限元）を保存することを形式化している。
+具体的には、集合 $s \subseteq \alpha$ の上限 $\sup s$ を取った後に $l$ を適用しても、
+先に $l$ を適用してから像の上限を取っても同じ値を得る。
+これは「情報を抽象化する操作（$l$）は、大域的な極値構造を崩さない」という
+Bourbaki 的観点を表している。
+
+\section{閉包作用素と塔の構造}
+\subsection{閉包作用素の定義}
+\texttt{BourbakiClosureOperator} は次のデータを持つ。
+\begin{itemize}[nosep]
+  \item 関数 $c\colon \alpha \to \alpha$。
+  \item 単調性 $x \le y \Rightarrow c(x) \le c(y)$。
+  \item 包含性 $x \le c(x)$。
+  \item 冪等性 $c(c(x)) = c(x)$。
+\end{itemize}
+このような作用素は位相的閉包、線型包、凸包など、様々な場面で現れる。
+
+\subsection{固定点集合と \texttt{StructureTower}}
+Lean では固定点（$c(x) = x$ を満たす元）に対して、
+meet（$\sqcap$）が安定であることを補題 \texttt{closureFixed\_inf} で確認している。
+さらに \texttt{StructureTower} を用いて、
+各元 $x$ に対し $\{y \mid y \le c(x)\}$ という「下に閉じた階層」を組み立て、
+すべての元がどこかの階層に属する（\texttt{tower\_union}）ことを示す。
+これは Bourbaki の「階層的母構造」を具現化しており、
+閉包作用素が作る世界が完全格子に類似したふるまいを示すことを可視化している。
+
+\section{群論：核と正規部分群}
+群準同型 $f\colon G \to H$ の核 $\ker f$ が正規部分群であることは、
+代数学の基本的事実である。
+Lean では \texttt{Subgroup.normal\_ker} を使うことで
+核が正規である理由を直接示し、補題 \texttt{kernel\_is\_normal} として抽出している。
+ポイントは、$\ker f$ の任意の元 $n$ と任意の群元 $g$ に対し、
+共役 $g^{-1}ng$ も核に属することを証明することである。
+
+\begin{example}[Lean コード断片]
+\begin{lstlisting}
+theorem kernel_is_normal {H : Type*} [Group H] (f : G →* H) :
+    ∀ (n : G) (g : G), n ∈ MonoidHom.ker f → g⁻¹ * n * g ∈ MonoidHom.ker f := by
+  intro n g hn
+  have hnormal : (MonoidHom.ker f).Normal := inferInstance
+  simpa using hnormal.conj_mem n hn g⁻¹
+\end{lstlisting}
+\end{example}
+
+\section{位相空間での連結性と正規性}
+\subsection{連結空間の特徴付け}
+Lean の定理 \texttt{connected\_iff\_no\_clopen\_partition} は、
+位相空間 $X$ が連結であることと「開閉集合が自明であること」が同値であることを示す。
+この証明では \texttt{connectedSpace\_iff\_clopen} という一般結果を活用し、
+連結性というグローバルな概念を、開閉集合という局所的な性質に還元している。
+
+\subsection{連結性の保存}
+さらに、\texttt{connected\_continuous\_image} は
+連結空間から別の位相空間への連続写像を考えると、
+像の集合も連結であることを述べている。
+これは「構造を保つ写像は、連結性というトポロジー的情報を失わない」という
+重要な性質である。
+
+\subsection{Urysohn の補題}
+Lean では \texttt{exists\_continuous\_zero\_one\_of\_isClosed} を呼び出すことで、
+正規空間における Urysohn の補題を形式的に利用している。
+本ノートでは詳細な構成には立ち入らないが、
+「離れた閉集合を連続関数で分離できる」という結論が
+多くの位相的議論の原動力になることを強調しておく。
+
+\section{距離空間とコーシー列}
+\subsection{Cauchy 列の Lean 表現}
+Lean では距離空間 $(X, d)$ のコーシー列を \texttt{CauchySeq} として扱い、
+「任意の $\varepsilon > 0$ に対し、十分大きな番号以降は全て $\varepsilon$ 以下になる」という
+条件をフィルターの言葉で表現している。
+
+\subsection{一様連続性による保存}
+定理 \texttt{uniformContinuous\_maps\_cauchy} は、
+一様連続写像 $f\colon X \to Y$ がコーシー列をコーシー列へ写像することを保証する。
+これは完備性の議論で重要な一歩であり、完備距離空間（Banach 空間など）での解析学的議論の土台になる。
+
+\section{Bourbaki 風まとめと今後の課題}
+\begin{itemize}
+  \item \textbf{抽象化の力：} ガロア接続や閉包作用素などの抽象的構造を理解すると、
+        個々の例（集合論、代数、解析）を統一的に扱える。
+  \item \textbf{Lean と数学教育：} Lean 形式化を追体験することで、
+        証明の論理的ステップを丁寧に追う習慣が身につく。
+  \item \textbf{今後の発展：} 完備束や圏論的視点（随伴、極限・余極限）を加えると、
+        さらに Bourbaki的世界観に近づく。Lean 側でも \texttt{Mathlib} の高度な機能を活用できる。
+\end{itemize}
+
+\section*{参考文献とリソース}
+\begin{itemize}
+  \item Nicolas Bourbaki, \textit{Éléments de mathématique}, Série I.
+  \item Lean Community: \url{https://leanprover-community.github.io/}
+  \item Mathlib4 Documentation: \url{https://leanprover-community.github.io/mathlib4_docs/}
+\end{itemize}
+
+\end{document}

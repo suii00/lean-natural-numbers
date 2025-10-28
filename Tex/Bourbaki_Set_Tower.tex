@@ -1,0 +1,113 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=30mm}
+
+\title{Bourbaki的閉包作用素と構造塔の入門ノート}
+\author{CODEX (OpenAI)\\Leanファイル生成: CODEX (OpenAI)\\TeXファイル生成: CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{はじめに}
+
+本ノートでは、Nicolas Bourbaki の『数学原論』に触発された抽象的集合論の考え方を、学部生向けに丁寧に解説します。特に、\textbf{閉包作用素（closure operator）}と\textbf{構造塔（structure tower）}という 2 つの概念に焦点を当て、Lean で形式化した結果（\texttt{Bourbaki\_Lean\_Guide.lean}, \texttt{P1\_Extended.lean}）を下敷きにしています。以下では集合の基本を復習しつつ、Bourbaki が強調する「構造の階層性」を図式とともに紹介します。
+
+\section{閉包作用素の基礎}
+
+\begin{definition}
+  $\alpha$ を半順序集合とします。写像 $c \colon \alpha \to \alpha$ が閉包作用素であるとは、以下の 3 条件を満たすことを言います。
+  \begin{enumerate}[label=(\roman*)]
+    \item \textbf{単調性 (Monotonicity):} $x \le y$ ならば $c(x) \le c(y)$。
+    \item \textbf{広義性 (Extensivity):} 任意の $x$ について $x \le c(x)$。
+    \item \textbf{冪等性 (Idempotence):} 任意の $x$ について $c(c(x)) = c(x)$。
+  \end{enumerate}
+\end{definition}
+
+\noindent
+例えば、$\alpha$ を $\mathbb{R}$ の部分集合全体（包含順序つき）とし、$c(A)$ を集合 $A$ の閉包と定めれば、上の三条件を満たします。
+
+閉包作用素の固定点（$c(x) = x$ を満たす点）集合は、直感的には「既に閉じている」対象を表します。Lean ではこれを
+\[
+  \texttt{closureFixed}(x) := c(x) = x
+\]
+と定義し、トップロジーの標準的な \texttt{IsClosed} と区別しました。
+
+\section{構造塔（Structure Tower）の考え方}
+
+\begin{definition}
+  半順序集合 $I$ と集合 $X$ に対し、写像
+  \[
+  T \colon I \to \mathcal{P}(X)
+  \]
+  が \textbf{構造塔}であるとは、$i \le j$ ならば $T(i) \subseteq T(j)$ を満たすことを言います。$I$ の要素を「階層」や「ステージ」とみなすと、$T(i)$ はステージ $i$ で利用可能な構造の集まりを表します。
+\end{definition}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzcd}[row sep=large, column sep=huge]
+    T(i) \arrow[hookrightarrow]{r}{i \le j} \arrow[hookrightarrow]{dr}[swap]{i \le k} &
+    T(j) \arrow[hookrightarrow]{d}{j \le k} \\
+    & T(k)
+  \end{tikzcd}
+  \caption{順序を通じた「構造の積み上げ」}
+  \label{fig:tower}
+\end{figure}
+
+Lean ファイルでは、任意の半順序集合 $I$ と集合 $X$ に対して、構造塔を以下のように定義しました。
+\[
+  \texttt{StructureTower.level} \colon I \to \mathcal{P}(X), \qquad
+  \texttt{StructureTower.monotone\_level} \colon i \le j \Rightarrow \texttt{level}(i) \subseteq \texttt{level}(j).
+\]
+
+また、構造塔の「全体」を
+\[
+  \bigcup_{i \in I} T(i)
+\]
+と置くと、各ステージの元がすべてこの和集合に入ります。Lean では \texttt{StructureTower.level\_subset\_union} として実装し、塔が要素を「包摂」する様子を形式化しています。
+
+\section{閉包作用素から得られる構造塔}
+
+閉包作用素 $c$ から自然に構造塔 $T$ を定義できます。半順序集合 $\alpha$ を添字集合として、
+\[
+  T(x) := \{\, y \in \alpha \mid y \le c(x) \,\}
+\]
+と置けば、$x \le x'$ のとき $c(x) \le c(x')$ となるため、確かに $T(x) \subseteq T(x')$ が成立します。Lean でも
+\[
+  \texttt{tower}(c) := \texttt{StructureTower.ofMonotone} \bigl(\lambda x, \{ y \mid y \le c(x) \}\bigr)
+\]
+と構築しました。
+
+\section{典型例：自然数の初期区間}
+
+より具体的には、自然数 $\mathbb{N}$ の初期区間
+\[
+  T(n) := \{\, k \in \mathbb{N} \mid k \le n \,\}
+\]
+は構造塔の最も身近な例です。任意の $n$ について $n \in T(n)$ が成り立ち、全体の和集合は $\mathbb{N}$ 全体と一致します。
+
+\[
+  \bigcup_{n \in \mathbb{N}} T(n) = \mathbb{N}.
+\]
+
+Lean では \texttt{natInitialSegments} と \texttt{natInitialSegments\_union} により形式化し、「各段階の構造がどのように全体を生成するのか」を機械的に確認しました。
+
+\section{まとめと今後の学習}
+
+本ノートでは、閉包作用素や構造塔を通じた抽象的な階層構造を紹介しました。Bourbaki の観点では、具体例よりも一般的な構造を押さえた上で、後から各分野への適用を見てゆくことが強調されます。Lean による形式化は、これらの抽象概念を確実に扱う良い訓練になります。次のステップとしては、以下のようなテーマが挙げられます。
+
+\begin{itemize}
+  \item 完備格子理論における閉包作用素の役割を調べる。
+  \item 代数的構造（群、環など）における正規部分群やイデアルの塔を解析する。
+  \item トポロジーでのクラスターポイントや位相的完備化を、構造塔の言葉で再考する。
+\end{itemize}
+
+Luatex でコンパイルする際は、\texttt{lualatex} を用いれば日本語と数学記号を統一的に扱えます。本稿を足掛かりに、Bourbaki の構造主義的視座を Lean とともに学び進めることを期待します。
+
+\end{document}
