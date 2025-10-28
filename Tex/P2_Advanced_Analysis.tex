@@ -1,0 +1,179 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz-cd}
+\usepackage{physics}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{bookmark}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdftitle={Advanced Analysis in the Bourbaki Spirit -- 学部生向け解説},
+  pdfauthor={CODEX (OpenAI)}
+}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{proposition}{命題}[section]
+\newtheorem{lemma}{補題}[section]
+
+\title{Bourbakiの精神による解析学の構造\texorpdfstring{\ \textemdash\ }{ }学部生向けガイド}
+\author{CODEX (OpenAI)（TeXファイル生成）\\CODEX (OpenAI)（Leanファイル生成）}
+\date{2025年10月28日}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本ノートは、Lean 4 で形式化された `P2\_Advanced\_Analysis.lean` をもとに、集合論から機能解析までを学部生向けに噛み砕いて解説した資料である。証明の厳密性は Lean に委ね、本文では定理の意味や背景、典型的な応用例に焦点を当てる。Lua\LaTeX を想定した文書クラスとし、図式によって理論の繋がりを視覚化した。
+\end{abstract}
+
+\tableofcontents
+
+\section{全体像と理論の流れ}
+Lean ファイルでは、以下の 5 つの柱が段階的に登場する。
+
+\begin{enumerate}[label=\arabic*.]
+  \item $\sigma$-加法族の性質（可算和に対する閉性）
+  \item 測度の $\sigma$-加法性
+  \item ルベーグ積分に関する収束定理（単調収束・支配収束）
+  \item $L^p$ 空間の基本不等式（Hölder, Minkowski）
+  \item 機能解析の基礎定理（Banach--Steinhaus, Hahn--Banach）
+\end{enumerate}
+
+これらの繋がりを図式で示す。
+
+\begin{center}
+\begin{tikzcd}[row sep=huge, column sep=large]
+  \text{集合論的構造} \ar[r, "\sigma\text{-加法族}"] &
+  \text{測度空間} \ar[r, "\text{ルベーグ積分}"] \ar[d, dashed, "\sigma\text{-加法性}" description] &
+  \text{$L^p$ 空間} \ar[r, "\text{函数解析}" description] &
+  \text{双対空間と関数解析の原理} \\
+  & \text{単調収束・支配収束} \ar[ur, dashed, "\text{不等式の証明}" description] & &
+\end{tikzcd}
+\end{center}
+
+図式の矢印は Lean の補題や定理
+\texttt{measurable\_iUnion\_structural},
+\texttt{measure\_iUnion\_structural},
+\texttt{monotone\_convergence\_lintegral},
+\texttt{dominated\_convergence\_integral},
+\texttt{holder\_inequality\_nnreal},
+\texttt{minkowski\_inequality\_nnreal},
+\texttt{uniform\_boundedness\_principle},
+\texttt{hahn\_banach\_extension\_norm\_eq}
+に対応する。
+
+\section{$\sigma$-加法族と測度}
+
+\subsection{$\sigma$-加法族の直観}
+\begin{definition}
+集合 $X$ の部分集合族 $\mathcal{A}$ が $\sigma$-加法族とは、
+\begin{enumerate}[label=\textup{(\alph*)}]
+  \item $X \in \mathcal{A}$,
+  \item $A \in \mathcal{A}$ ならば $A^c \in \mathcal{A}$,
+  \item $\{A_n\}_{n=0}^\infty \subseteq \mathcal{A}$ ならば $\bigcup_{n=0}^\infty A_n \in \mathcal{A}$
+\end{enumerate}
+を満たすことである。
+\end{definition}
+
+Lean の補題 \texttt{measurable\_iUnion\_structural} は (c) に相当し、可算族の和が再び可測であることを自動で利用できる。
+
+\subsection{測度の $\sigma$-加法性}
+\begin{definition}
+測度 $\mu$ は $\mathcal{A}$ 上の関数で、可算加法性
+$\mu\bigl(\bigsqcup_{n=0}^\infty A_n\bigr)=\sum_{n=0}^\infty \mu(A_n)$
+を満たす。
+\end{definition}
+補題 \texttt{measure\_iUnion\_structural} はこの可算加法性を Lean で証明済みであり、有限加法だけを仮定する古典的定義と比べて扱いやすい。
+
+\section{ルベーグ積分と収束定理}
+
+\subsection{単調収束定理 (Beppo Levi)}
+\begin{theorem}[単調収束定理]
+$f_n \le f_{n+1}$ を満たす非負可測関数列があるとき、
+\[
+\int \sup_{n} f_n \, d\mu = \sup_{n} \int f_n \, d\mu.
+\]
+Lean では \texttt{monotone\_convergence\_lintegral} として形式化されている。
+\end{theorem}
+
+\subsection{支配収束定理}
+\begin{theorem}[支配収束定理]
+$f_n \to f$ が a.e. 収束し、絶対値が可積分関数 $g$ によって一様に支配されているとき、
+\[\int f_n \, d\mu \to \int f \, d\mu.\]
+Lean の補題 \texttt{dominated\_convergence\_integral} はこの結果のベクトル値版である。
+\end{theorem}
+
+\subsection{学部生へのコメント}
+単調収束は「下からの近似」に、支配収束は「上からの一括管理」に対応する。多くの確率論や解析の応用で、極限と積分の交換を正当化する際に利用される。
+
+\section{$L^p$ 空間と基本不等式}
+
+\subsection{Hölder の不等式}
+\begin{theorem}[Hölder]
+$p,q>1$ とし $1/p+1/q=1$。非負可測関数 $f,g$ について
+\[
+\int |fg| \, d\mu \le \|f\|_{L^p}\,\|g\|_{L^q}.
+\]
+Lean の補題 \texttt{holder\_inequality\_nnreal} は $\mathbb{R}_{\ge 0}^\infty$ 値関数での実装である。
+\end{theorem}
+
+この不等式は Cauchy--Schwarz の一般化と捉えられ、$L^p$ 空間がノルム空間になることを保証する。
+
+\subsection{Minkowski の不等式}
+\begin{theorem}[Minkowski]
+$p \ge 1$ のとき
+\[
+\|f+g\|_{L^p} \le \|f\|_{L^p} + \|g\|_{L^p}.
+\]
+Lean では \texttt{minkowski\_inequality\_nnreal} として利用できる。
+\end{theorem}
+
+この結果は $L^p$ 空間がノルム空間であることを示す決定的ステップであり、正規化や確率分布の距離評価などに使われる。
+
+\section{機能解析の基礎原理}
+
+\subsection{Banach--Steinhaus (一様有界性原理)}
+\begin{theorem}
+Banach 空間からノルム空間への有界線形作用素族が点ごと有界であれば、作用素ノルムは一様に有界になる。
+\end{theorem}
+Lean の補題 \texttt{uniform\_boundedness\_principle} がその形式化である。実解析や PDE の極限操作で重宝する。
+
+\subsection{Hahn--Banach の延長定理}
+\begin{theorem}
+実ノルム線形空間の部分空間上の連続線形汎関数は、ノルムを保ったまま全体に延長できる。
+\end{theorem}
+Lean の補題 \texttt{hahn\_banach\_extension\_norm\_eq} は延長の存在を証明している。双対空間の構成や凸解析に必須のツールである。
+
+\section{具体例：定数関数に対する Hölder の不等式}
+Lean ファイル末尾の `example` は $f=g=1$ の場合の Hölder を確認するものだ。解析的には次を意味する。
+
+\begin{example}
+測度空間 $(X,\mu)$ を任意とする。$p=q=2$ のとき
+\[
+\int_X 1 \, d\mu \le \left(\int_X 1^2 \, d\mu\right)^{1/2} \left(\int_X 1^2 \, d\mu\right)^{1/2} = \mu(X).
+\]
+これは自明な恒等式だが、Hölder の枠組みが一貫して動作することを確認する良い練習になる。
+\end{example}
+
+\section*{参考文献と今後の学習}
+より深い理解のためには次の資料が有用である。
+
+\begin{itemize}
+  \item Nicolas Bourbaki, \emph{Elements de math\'ematique} --- 本資料の哲学的出発点となる。
+  \item G. B. Folland, \emph{Real Analysis: Modern Techniques and Their Applications} --- $\sigma$-代数とルベーグ積分の標準的教科書。
+  \item H. Brezis, \emph{Functional Analysis, Sobolev Spaces and Partial Differential Equations} --- 機能解析の応用の広がりを学べる。
+\end{itemize}
+
+Lean での形式化に触れながら学ぶことで、定理間の依存関係や証明戦略の骨格をより鮮明に理解できるだろう。
+
+\end{document}
