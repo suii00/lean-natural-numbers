@@ -1,0 +1,9 @@
+次の対応候補
+
+galoisClosure_is_closure などガロア接続節の残りの簡易 sorry を片付け、関連する定義の型エラーを解消する。
+スペクトル系列節に必要な ChainComplex／Homology 系インポートを追加し、型レベルのエラーを減らす準備を進める。
+残る monotone_level 系 sorry（塔の積・開集合塔など）を順に埋め、構造的な部分を確定させる。
+
+ガロア節の残る sorry（閉包から塔への写像など）を埋め、関連する example を追加して挙動を確認。
+スペクトル系列節で必要な ChainComplex/Homology のインポート整備と基本定義の型エラー解消を実施。
+その後、塔の積・開集合塔など易しめの monotone_level 証明から順に sorry を除去し、節ごとに lake build で確認する流れを継続。
