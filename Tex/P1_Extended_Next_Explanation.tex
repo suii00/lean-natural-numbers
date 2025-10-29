@@ -1,0 +1,110 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{P1\_Extended\_Next の数学的背景解説}
+\author{CODEX (OpenAI)\\TeX ファイル生成および Lean ファイル生成担当}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は \texttt{P1\_Extended\_Next.lean} の主要概念を学部生向けに解説したメモである。
+ブルバキ流の構造主義的視点を踏まえ、環論・ブール代数・フィルター・測度論の各節で
+どのような ``塔 (StructureTower)'' が構成されているかを紹介する。
+\end{abstract}
+
+\section{導入}
+
+Lean 4 形式化ファイル \texttt{P1\_Extended\_Next.lean} では、以下のテーマが統一的に扱われている。
+\begin{itemize}
+  \item 環準同型の像とイデアル格子
+  \item ブール代数の補元構造と Stone 双対性への動機付け
+  \item フィルター・フィルトレーションを StructureTower で捉える視点
+  \item 素朴な $\sigma$-代数から測度論的塔を得る枠組み
+\end{itemize}
+本メモはそれぞれの節を学部レベルの数式と図式で要約する。
+
+\section{環とイデアルの塔}
+
+Lean ファイルでは、環準同型 $f:R \to S$ の像が部分環になることを
+\[
+  \mathrm{imageSubring}(f) := f(R) \subseteq S
+\]
+として \texttt{Subring} に格納している。さらに、イデアル全体を前半順序付き集合とみなして
+StructureTower を構成し、各レベルがイデアル $I \lhd R$ に対応する。
+
+\subsection*{第一同型定理の位置づけ}
+環の第一同型定理 $R/\ker f \cong \operatorname{Im} f$ を念頭に置くと、
+以下のような図式が自然に現れる。
+\[
+  \ker f \subseteq R \xrightarrow{f} S,\qquad R/\ker f \xrightarrow{\cong} \operatorname{Im} f.
+\]
+Lean 側では \texttt{RingHom.quotientKerEquivRange f} がこの同型を実装している。
+
+\subsection*{イデアル塔の例}
+StructureTower を使うと、各元 $x\in R$ が自身の生成するイデアル $\langle x\rangle$ のレベルに属すること、
+全レベルの合併が $R$ 全体を覆うことが簡潔に示せる。これは「元 $\mapsto$ 包含するイデアル」という
+ブルバキ風の ``母構造'' を視覚化したものである。
+
+\section{ブール代数と補元不動点}
+
+ブール代数 $B$ に対して、補元演算が自分自身を保つ元の集合
+\[
+  \mathrm{ComplementFixed}(B) = \{x \in B \mid x^c = x\}
+\]
+を考えると、$B$ が非自明 ($\bot \neq \top$) である限り空集合となることが Lean で証明されている。
+これは $x = x^c$ ならば $x = \bot = \top$ を意味し矛盾するという初等的議論である。
+
+この考察は Stone 双対性に向けた第一歩であり、補元がどのように
+位相的な ``clopen 集合'' の振る舞いと平行するかを示している。
+
+\section{フィルターとフィルトレーション}
+
+集合 $X$ 上のフィルター $F$ を用いて、レベルを
+\[
+  \mathrm{level}(A) = \{x \in X \mid A \in F,\ x \in A\}
+\]
+と定義すると StructureTower を得る。ここで $A$ はフィルターに属する集合である。
+これは「大きい集合」を段階的に眺める際の便利な抽象化である。
+
+\subsection*{有限フィルトレーションの例}
+$\mathbb{N}$ の場合、$F_n = \{k \in \mathbb{N} \mid k \le n\}$ とおくと
+単調性 $F_n \subseteq F_{n+1}$ が成り立ち、限界において全体 $\mathbb{N}$ を覆う。
+Lean ファイルでも \texttt{natFiniteFiltration} として同様の構成が導入されている。
+
+\section{測度論的構造への足がかり}
+
+最後の節では、集合族 $g \subseteq \mathcal{P}(\alpha)$ から生成される $\sigma$-代数
+$\sigma(g)$ を文字通りの定義に従って構成し、これに自然な順序を入れて StructureTower を得る。
+さらに、可測空間を既に持っている場合には
+\[
+  \mathrm{sigmaAlgebraOfMeasurable}(\alpha) = \{A \subseteq \alpha \mid A \text{ が可測}\}
+\]
+として ``測度論的塔'' を構成している。
+
+\subsection*{図式: 生成された $\sigma$-代数}
+以下の図式は、生成過程の概念的流れを示したものである。
+\begin{center}
+\begin{tikzcd}
+g \arrow[hookrightarrow]{r} & \mathcal{P}(\alpha) \arrow[d, dashed, "\text{閉包操作}"] \\
+ & \sigma(g)
+\end{tikzcd}
+\end{center}
+点線矢印は、補集合と可算和に関する閉包を施して得られる最小の $\sigma$-代数を表す。
+
+\section{まとめと今後の見通し}
+
+本稿では Lean 実装の骨格を学部生向けに解説した。今後は以下の発展が期待される。
+\begin{itemize}
+  \item Stone 双対性の完全な形式化（Ultrafilter Stone 空間と clopen アルジェブラの同型）
+  \item 連続実数値函数の前層が Lean 上でもシーフ条件を満たすことの証明
+  \item StructureTower をカテゴリ的視点から解析し、普遍性を明示する
+\end{itemize}
+これらが実現されれば、ブルバキ的 ``母構造'' をさらに高次元で探索する土台が整う。
+
+\end{document}
