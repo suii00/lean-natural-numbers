@@ -1,0 +1,92 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\setmainfont{Noto Serif CJK JP}
+\setsansfont{Noto Sans CJK JP}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue
+}
+
+\title{構造塔による離散時間確率論入門}
+\author{CODEX (OpenAI)\thanks{本TeXファイルおよび付随する Lean ファイル \texttt{src/MyProjects/ST/Probability.lean} は CODEX (OpenAI) が生成しました。}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本ノートでは、離散時間フィルトレーションと構造塔 (\textit{Structure Tower with Minimal Layer}) の対応関係を学部生向けに概説する。N.~Bourbaki の集合論的精神に従い、情報の階層構造がどのように図式化され、Lean 形式化へと接続されるのかを丁寧に説明する。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+確率論においてフィルトレーションは「時間の経過とともに情報が増大する様子」を表す。離散時間では時刻 $n \in \mathbb{N}$ ごとに $\sigma$-代数 $\mathcal{F}_n$ が与えられ、$\mathcal{F}_n \subseteq \mathcal{F}_{n+1}$ が成立する。本稿では集合論的枠組みを保ちつつ、\emph{構造塔} $T$ を通じてフィルトレーションを再解釈する。特に Lean ファイル \texttt{Probability.lean} で定義した \texttt{DiscreteFiltration} と \texttt{StructureTowerWithMin} の橋渡しを中心に解説する。
+
+\section{離散時間フィルトレーション}
+\subsection{定義}
+基礎集合 $\Omega$ 上の離散時間フィルトレーションとは次のデータである。
+\begin{itemize}
+  \item 集合族 $\sigma : \mathbb{N} \to \mathcal{P}(\mathcal{P}(\Omega))$。
+  \item 単調性：$m \leq n$ ならば $\sigma(m) \subseteq \sigma(n)$。
+  \item 被覆性：任意の事象 $E \subseteq \Omega$ に対し、ある $n$ で $E \in \sigma(n)$。
+\end{itemize}
+この設定は Lean の \texttt{DiscreteFiltration} 構造体で忠実に表現されており、集合族の単調性は命題 \texttt{mem\_of\_le} として証明されている。
+
+\subsection{情報の最小出現時刻}
+集合 $E$ が最初に現れる時刻 $\operatorname{minLayer}(E)$ は自然数の整列性に依存する。Lean では \texttt{Nat.find} を用いて
+\[
+  \operatorname{minLayer}(E) = \min \{ n \in \mathbb{N} \mid E \in \sigma(n)\}
+\]
+として定義し、$E$ がその層に属すること、そしてそれ以前の層には属さないことを証明している。
+
+\section{構造塔とフィルトレーション}
+\subsection{構造塔の定義}
+構造塔 $T$ は次のデータからなる。
+\begin{itemize}
+  \item 基礎集合 $T.\mathrm{carrier}$。
+  \item 添字集合 $T.\mathrm{Index}$ とその前順序。
+  \item 層 $T.\mathrm{layer}(i) \subseteq T.\mathrm{carrier}$。
+  \item 最小層選択 $\mathrm{minLayer} : T.\mathrm{carrier} \to T.\mathrm{Index}$。
+\end{itemize}
+Lean ファイル \texttt{CAT2\_complete.lean} において一般的な構造塔が定義され、\texttt{Probability.lean} 内の \texttt{toStructureTowerWithMin} によりフィルトレーションが構造塔へと送られる。具体的には、キャリアを「事象の集合」、層を「時刻 $n$ で測定可能な事象」とすることで、自然な対応が得られる。
+
+\subsection{図式による可視化}
+時刻が進むにつれ情報が増加する様子は次の図式で表現できる。
+\[
+  \begin{tikzcd}[column sep=large]
+    \Omega \arrow[dr, "\mathcal{F}_0"'] \arrow[drr, bend left=20, "\mathcal{F}_1"] \arrow[drrr, bend left=30, "\mathcal{F}_2"] & & & \\
+    & T.\mathrm{layer}(0) \arrow[r, hook] & T.\mathrm{layer}(1) \arrow[r, hook] & T.\mathrm{layer}(2)
+  \end{tikzcd}
+\]
+図式は、事象がより高い層へ単調に埋め込まれていくことを視覚的に強調する。
+
+\section{停止時刻と最小層}
+\subsection{停止時刻の概念}
+停止時刻 $\tau : \Omega \to \mathbb{N}$ は、$n$ 時点までに $\{\omega \mid \tau(\omega) \leq n\}$ が観測可能（すなわち $\mathcal{F}_n$ に属する）であるような関数である。Lean の \texttt{StoppingTime} 構造体はこの定義を抽象的に保持し、適合性命題 \texttt{adapted} によって条件を保証する。
+
+\subsection{構造塔との整合}
+停止時刻が与える事象 $\{\tau \leq n\}$ は層 $T.\mathrm{layer}(n)$ に含まれる。構造塔の観点では、$\tau$ が各標本点ごとに「到達層」を割り当てる写像として解釈でき、$\mathrm{minLayer}$ の概念と自然に接続される。
+
+\section{具体例}
+\subsection{コイン投げフィルトレーション}
+Lean ファイル \texttt{Probability\_Examples.lean} ではコイン投げ列 $(\omega_n)_{n \in \mathbb{N}}$ から生成されるフィルトレーションを定義し、各層が単調に増大することを証明している。本稿の構造塔視点を通じて、これらの命題が抽象的枠組みの特別な場合であることが理解できる。
+
+\subsection{自明なフィルトレーション}
+すべての事象が時刻 $0$ で既に観測可能なフィルトレーションでは、$\mathrm{minLayer}(E)=0$ が常に成立する。Lean 上でも \texttt{example} として確認でき、構造塔の最小層が一定である一例である。
+
+\section{まとめと今後の展望}
+本稿では、離散時間フィルトレーションと構造塔の間にある対応を整理し、停止時刻や例を通じて概念の意味を具体化した。今後は、条件付き期待値やマルチンゲールを構造塔の射として扱うことで、さらなる抽象化を進めることが可能である。\texttt{Probability.lean} の実装を拡張し、射の合成や普遍性に関する結果を Lean 上で証明することが次のステップとなる。
+
+\section*{謝辞}
+このノートおよび対応する Lean コードは CODEX (OpenAI) が生成し、Bourbaki の「構造」の視点を現代的に再解釈することを目的としている。
+
+\end{document}
