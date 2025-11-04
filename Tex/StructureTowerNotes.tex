@@ -1,0 +1,132 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Yu Mincho}
+\setsansjfont{Yu Gothic}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[strings]{underscore}
+
+\title{構造塔の忘却関手と積の概観}
+\author{CODEX (OpenAI) --- TeXファイル生成\\CODEX (OpenAI) --- Leanファイル生成}
+\date{\today}
+
+\newtheorem{definition}{定義}[section]
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{remark}[definition]{注意}
+
+\begin{document}
+
+\maketitle
+
+\section{導入}
+
+本稿は、StructureTower と呼ばれるデータの圏論的性質について、学部生向けに直感的な解説を与えるものである。特に、忘却関手や自然変換、そして積の普遍性に関連する構成を整理する。\textbf{Lean 形式化は CODEX (OpenAI) により行われており}、本稿の TeX 文書も同じく CODEX (OpenAI) によって生成された。
+
+\section{StructureTower の定義と例}
+
+StructureTower は、基礎集合 $X$ の上にインデックス集合 $I$ と層の族 $(X_i)_{i\in I}$ を持つデータであり、以下の要件を満たす。
+
+\begin{definition}
+StructureTower とは、型 $\mathrm{carrier}$、インデックス型 $\mathrm{Index}$、順序 $\leq$、層 $\mathrm{layer} : \mathrm{Index} \to \mathcal{P}(\mathrm{carrier})$ を備え、
+\begin{enumerate}[label=\arabic*)]
+  \item 被覆性: 任意の元 $x$ に対し、$x \in \mathrm{layer}(i)$ を満たす $i$ が存在する。
+  \item 単調性: $i \leq j$ ならば $\mathrm{layer}(i) \subseteq \mathrm{layer}(j)$。
+\end{enumerate}
+このとき $\mathrm{layer}(i)$ を第 $i$ 層と呼ぶ。
+\end{definition}
+
+最も基本的な例は、自然数上の初期区間である。$\mathrm{carrier} = \mathbb{N}$、$\mathrm{Index} = \mathbb{N}$ とし、層を
+\[
+  \mathrm{layer}(n) = \{ k \in \mathbb{N} \mid k \leq n \}
+\]
+で与えれば、被覆性・単調性ともに自明に満たされる。
+
+\section{忘却関手と自然変換}
+
+StructureTower から「基礎集合だけを取り出す」関手を忘却関手と呼ぶ。Lean での実装では
+\[
+  \mathrm{forgetCarrier}(T) = T.\mathrm{carrier}
+\]
+となり、射 $(f,\varphi)$ を $f$ に送る。同様に、インデックス集合だけを忘却する関手 \texttt{forgetIndex} も存在する。
+
+忘却関手の間には恒等自然変換が存在する。
+
+\begin{definition}
+StructureTower $T$ に対し、恒等自然変換の成分は $\eta_T = \mathrm{id}_{T.\mathrm{carrier}}$ で定義される。
+\end{definition}
+
+\noindent このとき自然性条件 $f \circ \eta_T = \eta_{T'} \circ f$ が成り立つ。Lean では `funext` を用いることで等式を要素単位に示す。
+
+\section{層の保存と図式}
+
+StructureTower 同士の射 $f : T \to T'$ は、基礎写像 $f.\mathrm{map}$ とインデックス写像 $f.\mathrm{indexMap}$ の組から成る。重要な条件は「層の保存性」である。
+
+\begin{lemma}
+$f : T \to T'$、$i \in T.\mathrm{Index}$ に対し、$f.\mathrm{map}(T.\mathrm{layer}(i)) \subseteq T'.\mathrm{layer}(f.\mathrm{indexMap}(i))$。
+\end{lemma}
+
+忘却関手を通じて層の保存性を図式で表すと以下のようになる。
+
+\begin{center}
+  \begin{tikzcd}
+    T.\mathrm{layer}(i) \arrow{r}{f.\mathrm{map}} \arrow[hookrightarrow]{d} &
+    T'.\mathrm{layer}(f.\mathrm{indexMap}(i)) \arrow[hookrightarrow]{d} \\
+    T.\mathrm{carrier} \arrow{r}{f.\mathrm{map}} & T'.\mathrm{carrier}
+  \end{tikzcd}
+\end{center}
+
+左縦の射は包含写像であり、四角形は可換である。
+
+\section{積の構成と普遍性（存在部分）}
+
+二つの StructureTower $T_1, T_2$ の積は基礎集合の直積と層の直積で与えられる。
+
+\begin{definition}
+積 $T_1 \times T_2$ の構造は次で定義される。
+\begin{align*}
+  (T_1 \times T_2).\mathrm{carrier} &= T_1.\mathrm{carrier} \times T_2.\mathrm{carrier},\\
+  (T_1 \times T_2).\mathrm{Index} &= T_1.\mathrm{Index} \times T_2.\mathrm{Index},\\
+  (T_1 \times T_2).\mathrm{layer}(i,j) &= T_1.\mathrm{layer}(i) \times T_2.\mathrm{layer}(j).
+\end{align*}
+\end{definition}
+
+射影 $\pi_1, \pi_2$ はそれぞれ第1・第2成分を抜き出す写像により定まる。さらに、任意の塔 $T$ から $T_1, T_2$ へ射 $f_1, f_2$ が与えられると、積への射
+\[
+  \langle f_1, f_2 \rangle : T \to T_1 \times T_2,
+  \qquad x \mapsto (f_1(x), f_2(x))
+\]
+が存在する。Lean では `prodUniversal` がこれに対応し、層の保存性・順序保存性を成分ごとにチェックしている。
+
+\begin{center}
+  \begin{tikzcd}
+    & T \arrow[ld, "f_1"'] \arrow[rd, "f_2"] \arrow[dashed]{d}{\langle f_1, f_2 \rangle} & \\
+    T_1 & T_1 \times T_2 \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & T_2
+  \end{tikzcd}
+\end{center}
+
+\noindent この図式は、存在する射 $\langle f_1, f_2 \rangle$ が射影と可換になることを示す。現在の Lean ファイルでは一意性証明は保留にしているが、存在部分は完全に形式化されている。
+
+\section{自由構造塔の普遍性（存在部分）}
+
+任意集合 $X$ に対し、\emph{自由構造塔} $\mathrm{freeStructureTower}(X)$ を考える。これは層を単元集合で与える。
+
+\begin{align*}
+  \mathrm{carrier} &= X, & \mathrm{Index} &= X, \\
+  \mathrm{layer}(x) &= \{x\}.
+\end{align*}
+
+任意の StructureTower $T$ と写像 $f : X \to T.\mathrm{carrier}$ に対し、層の被覆性を用いれば、層を保存する射が少なくとも一つ存在する。この射は Lean 側で `freeStructureTower_universal` の存在部分に対応する。将来的に一意性を確立するためには、添字写像の扱いに追加の工夫が必要である（方針A/B/C 参照）。
+
+\section{今後の展望}
+
+本稿では存在部分に焦点を当て、積・自由構造塔の普遍射が構成できることを見た。一意性を確立するには、層の分類を強化する、添字写像を Prop 化するなどの拡張が考えられる。Lean 形式化と連携しながら、より洗練された理論へと発展させることが期待される。
+
+\section*{謝辞}
+
+Lean による定義およびこの TeX 文書は CODEX (OpenAI) が生成した。
+
+\end{document}
