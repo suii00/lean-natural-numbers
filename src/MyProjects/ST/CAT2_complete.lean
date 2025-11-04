@@ -2,6 +2,7 @@ import Mathlib.Data.Set.Basic
 import Mathlib.Order.Basic
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.CategoryTheory.Functor.Basic
+import Mathlib.CategoryTheory.ConcreteCategory.Basic
 
 universe u v
 
@@ -150,14 +151,14 @@ def comp (f : Iso T T') (g : Iso T' T'') : Iso T T'' where
     calc
       (f.hom ≫ g.hom) ≫ (g.inv ≫ f.inv)
           = f.hom ≫ (g.hom ≫ g.inv) ≫ f.inv := by simp [Category.assoc]
-      _ = f.hom ≫ 𝟙 _ ≫ f.inv := by simpa [Category.assoc, g.hom_inv_id]
+      _ = f.hom ≫ 𝟙 _ ≫ f.inv := by simp [g.hom_inv_id]
       _ = f.hom ≫ f.inv := by simp
       _ = 𝟙 _ := by simpa using f.hom_inv_id
   inv_hom_id := by
     calc
       (g.inv ≫ f.inv) ≫ (f.hom ≫ g.hom)
           = g.inv ≫ (f.inv ≫ f.hom) ≫ g.hom := by simp [Category.assoc]
-      _ = g.inv ≫ 𝟙 _ ≫ g.hom := by simpa [Category.assoc, f.inv_hom_id]
+      _ = g.inv ≫ 𝟙 _ ≫ g.hom := by simp [f.inv_hom_id]
       _ = g.inv ≫ g.hom := by simp
       _ = 𝟙 _ := by simpa using g.inv_hom_id
 
@@ -259,17 +260,21 @@ theorem freeStructureTowerMin_universal (X : Type u) [Preorder X]
   · intro x; rfl
   · -- 一意性: ψ が条件を満たすなら ψ = φ₀
     intro ψ hψ
-    have hmap : ψ.map = φ₀.map := by funext x; simpa [φ₀] using hψ x
+    have hmap : ψ.map = φ₀.map := by
+      funext x
+      dsimp [φ₀]
+      exact hψ x
     have hindex : ψ.indexMap = φ₀.indexMap := by
       funext x
       have hψmap : ψ.map x = f x := hψ x
       calc
         ψ.indexMap x
-            = T.minLayer (ψ.map x) := by
-              simpa using (ψ.minLayer_preserving x).symm
-        _ = T.minLayer (f x) := by simpa [hψmap]
+            = T.minLayer (ψ.map x) := (ψ.minLayer_preserving x).symm
+        _ = T.minLayer (f x) := by simp [hψmap]
         _ = φ₀.indexMap x := by simp [φ₀]
     exact StructureTowerWithMin.Hom.ext hmap hindex
+
+namespace StructureTowerWithMin
 
 /-! ## 直積と射影 -/
 
@@ -295,8 +300,6 @@ def prod (T₁ T₂ : StructureTowerWithMin.{u, v}) :
   minLayer_minimal := by
     intro ⟨x, y⟩ ⟨i, j⟩ ⟨hx, hy⟩
     exact ⟨T₁.minLayer_minimal x i hx, T₂.minLayer_minimal y j hy⟩
-
-namespace StructureTowerWithMin
 
 variable {T T₁ T₂ : StructureTowerWithMin.{u, v}}
 
@@ -328,8 +331,19 @@ def prodUniversal (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂) : T ⟶ prod T₁ T₂
     exact ⟨f₁.layer_preserving i x hx, f₂.layer_preserving i x hx⟩
   minLayer_preserving := by
     intro x
-    simp [prod]
-    exact ⟨f₁.minLayer_preserving x, f₂.minLayer_preserving x⟩
+    refine Prod.ext ?_ ?_
+    · change
+        ((StructureTowerWithMin.prod T₁ T₂).minLayer
+            (⟨f₁.map x, f₂.map x⟩ : T₁.carrier × T₂.carrier)).1
+          = (⟨f₁.indexMap (T.minLayer x), f₂.indexMap (T.minLayer x)⟩ :
+              T₁.Index × T₂.Index).1
+      simp [StructureTowerWithMin.prod, f₁.minLayer_preserving x]
+    · change
+        ((StructureTowerWithMin.prod T₁ T₂).minLayer
+            (⟨f₁.map x, f₂.map x⟩ : T₁.carrier × T₂.carrier)).2
+          = (⟨f₁.indexMap (T.minLayer x), f₂.indexMap (T.minLayer x)⟩ :
+              T₁.Index × T₂.Index).2
+      simp [StructureTowerWithMin.prod, f₂.minLayer_preserving x]
 
 /-- 普遍射が射影と可換（第一成分） -/
 theorem prodUniversal_proj₁ (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂) :
@@ -391,6 +405,10 @@ example : ∃! (φ : natTowerMin ⟶ natTowerMin),
   have hf : Monotone fun x : ℕ => Nat.succ x := by
     intro x y hxy; exact Nat.succ_le_succ hxy
   exact freeStructureTowerMin_universal ℕ natTowerMin Nat.succ hf
+
+/-- 直積の射影が第一成分を取り出す具体例 -/
+example (x y : ℕ) :
+    (StructureTowerWithMin.proj₁ natTowerMin natTowerMin).map (x, y) = x := rfl
 
 /-! ## 学習のまとめ -/
 

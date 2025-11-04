@@ -1,0 +1,156 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Yu Mincho}
+\setsansjfont{Yu Gothic}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{microtype}
+\usepackage{physics}
+\usepackage{bm}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=teal,
+  citecolor=purple,
+  urlcolor=magenta
+}
+
+\title{構造塔と最小層の圏論的理解}
+\author{CODEX (OpenAI)\thanks{本TeXファイルは CODEX (OpenAI) が Lua\LaTeX{} で生成しました。} \and CODEX (OpenAI)\thanks{対応する Lean 形式化 \texttt{MyProjects/ST/CAT2\_complete.lean} も CODEX (OpenAI) が生成しました。}}
+\date{2025年11月4日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{theorem}[definition]{定理}
+\theoremstyle{remark}
+\newtheorem{remark}[definition]{注意}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本ノートは、ニコラ・ブルバキ『数学原論』に着想を得た構造塔（Structure Tower）の考え方を、学部レベルの集合論と圏論の知識で理解できるよう解説する。特に、最小層（\emph{minLayer}）を備えた構造塔がどのように圏をなし、自由対象や直積といった普遍性を満たすかを、図式とともに丁寧に説明する。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+ブルバキは「構造」を集合とその上の関係・演算の階層として捉えた。本ノートでは、集合 $X$ に対し、添字集合 $I$ によってパラメータ付けされた部分集合族 $(X_i)_{i\in I}$ を用いて、$X$ に複数の「層」を与える。加えて、任意の元 $x\in X$ が属する最小の層を指示する関数
+\[
+  \operatorname{minLayer} \colon X \to I
+\]
+を指定する。これによって層構造が決定的になり、圏論的構成が可能となる。
+
+\section{最小層付き構造塔の定義}
+\begin{definition}[StructureTowerWithMin]
+型 $X$、半順序集合 $(I,\leq)$、$I$ による部分集合族 $X_i\subseteq X$、関数 $\operatorname{minLayer}\colon X\to I$ の四つ組
+\[
+  \mathcal{T} = (X, I, (X_i)_{i\in I}, \operatorname{minLayer})
+\]
+が以下を満たすとき、\emph{最小層付き構造塔}と呼ぶ。
+\begin{enumerate}
+  \item \textbf{被覆性：} 任意の $x\in X$ に対してある $i$ が存在し $x\in X_i$。
+  \item \textbf{単調性：} $i\leq j$ のとき $X_i\subseteq X_j$。
+  \item \textbf{最小性：} $x\in X_i$ なら $\operatorname{minLayer}(x)\leq i$。
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+最小層があることで「$x$ はまずどの層で捕捉されるか」が一意に決まり、構造塔間の射を定義する際に決定性が得られる。ブルバキ的「付加構造を忘れた後に必要な最小のものを記憶する」という精神がここに現れている。
+\end{remark}
+
+\section{構造塔の圏と忘却関手}
+
+\subsection{射の定義}
+二つの構造塔 $\mathcal{T},\mathcal{T}'$ の間の射は、基礎集合写像 $f \colon X \to X'$ と添字写像 $\varphi \colon I\to I'$ の組で、次を満たすものとする。
+\begin{itemize}
+  \item $\varphi$ は半順序を保存する： $i\leq j$ なら $\varphi(i)\leq \varphi(j)$。
+  \item 層が保存される： $x\in X_i$ なら $f(x)\in X'_{\varphi(i)}$。
+  \item 最小層が一致する： $\operatorname{minLayer}'(f(x)) = \varphi(\operatorname{minLayer}(x))$。
+\end{itemize}
+この条件により射の合成と恒等射が自然に定義でき、\textbf{構造塔は圏を形成する}。
+
+\subsection{忘却関手}
+構造塔の付加構造を忘れて基礎集合だけを見る忘却関手
+\[
+  U_\mathrm{carr} \colon \mathbf{ST}_{\min} \to \mathbf{Set},\qquad
+  \mathcal{T} \mapsto X
+\]
+および添字集合を取り出す関手
+\[
+  U_\mathrm{idx} \colon \mathbf{ST}_{\min} \to \mathbf{Set}_{\operatorname{ord}},\qquad
+  \mathcal{T} \mapsto I
+\]
+が定義できる。Lean ファイル \texttt{CAT2\_complete.lean} では、いずれも \texttt{Mathlib.CategoryTheory.ConcreteCategory.Basic} を用いて具体化されている。
+
+\subsection{図式的理解}
+射 $(f,\varphi)\colon \mathcal{T}\to \mathcal{T}'$ と元素 $x\in X$ に対して次の図式が可換となる。
+\[
+\begin{tikzcd}
+X \arrow[d, "\operatorname{minLayer}"'] \arrow[r, "f"] & X' \arrow[d, "\operatorname{minLayer}'"] \\
+I \arrow[r, "\varphi"'] & I'
+\end{tikzcd}
+\]
+この可換性こそが最小層の保存条件であり、圏論的な整合性を保証する。
+
+\section{自由構造塔と普遍性}
+\begin{definition}[自由構造塔]
+半順序集合 $(X,\leq)$ に対して、各 $i\in X$ について $X_i=\{x\in X \mid x\leq i\}$ と定め、$\operatorname{minLayer}(x)=x$ とする構造塔を自由構造塔と呼ぶ。
+\end{definition}
+
+\begin{theorem}[普遍性]
+任意の構造塔 $\mathcal{T}'$ と単調写像 $f \colon X \to X'$ が与えられるとき、自由構造塔から $\mathcal{T}'$ への射がただ一つ存在し、基礎写像として $f$ を実現する。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+最小層の保存条件を用いて添字写像を $\varphi(i) = \operatorname{minLayer}'(f(i))$ と定めると、条件が自動的に満たされる。Lean 形式化ではこの証明が \texttt{freeStructureTowerMin\_universal} として実装されている。
+\end{proof}
+
+\section{直積と射影}
+二つの構造塔 $\mathcal{T}_1, \mathcal{T}_2$ の直積 $\mathcal{T}_1 \times \mathcal{T}_2$ は、基礎集合・添字集合ともに直積で構成し、層を直積集合 $X_{1,i} \times X_{2,j}$ と定める。
+
+\subsection{普遍性の図式}
+\[
+\begin{tikzcd}
+ & \mathcal{T} \arrow[ld, "f_1"'] \arrow[rd, "f_2"] \arrow[d, dashed, "\langle f_1,f_2\rangle"] & \\
+\mathcal{T}_1 & \mathcal{T}_1 \times \mathcal{T}_2 \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & \mathcal{T}_2
+\end{tikzcd}
+\]
+射 $\langle f_1,f_2\rangle$ は基礎集合での対 $(f_1(x),f_2(x))$ と添字レベルでの対 $(\varphi_1(i),\varphi_2(i))$ によって決まり、最小層の保存条件を満たす唯一の射となる。
+
+\subsection{Lean での確認}
+Lean 形式化では \texttt{prodUniversal}、\texttt{prodUniversal\_proj\_1/2}、\texttt{prodUniversal\_unique} として直積の普遍性が実装され、最小層が座標ごとに保存されることが証明されている。
+
+\section{自然数構造塔の例}
+\begin{example}
+基礎集合を自然数 $\mathbb{N}$、添字集合も $\mathbb{N}$、層を
+\[
+  X_n = \{0,1,\dots,n\}
+\]
+で定義するとき、$\operatorname{minLayer}(x)=x$ が最小層となる。後者関数 $\operatorname{succ}$ は直ちに単調であり、自由構造塔の普遍性から $\mathbb{N}$ から $\mathbb{N}$ への射が一意に誘導される。
+\end{example}
+
+\begin{remark}
+Lean ファイル \texttt{natTowerMin} がこの例に対応し、\texttt{example} 宣言として後者関数に対応する一意な射を構築している。
+\end{remark}
+
+\section{まとめと展望}
+最小層付き構造塔は、集合論的構成を圏論の枠組みで統一する試みである。今後の課題として、以下が挙げられる。
+\begin{itemize}
+  \item 随伴関手の完全な形式化：忘却関手と自由関手の随伴性を証明する。
+  \item 限・余限の存在性：直積以外の普遍構成の可否を調べる。
+  \item 実解析・代数系への応用：層構造を追加した具体例を構築する。
+\end{itemize}
+Lean 形式化と並行して学習することで、抽象構造がどのように計算機上で検証されるかを体験できるだろう。
+
+\section*{謝辞}
+本ノートの作成にあたり、\texttt{Mathlib} および Lean コミュニティの豊富な資料を参照した。Lua\LaTeX{} での組版に感謝する。
+
+\end{document}

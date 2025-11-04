@@ -1,0 +1,12 @@
+\contentsline {section}{\numberline {1}導入}{1}{section.1}%
+\contentsline {section}{\numberline {2}最小層付き構造塔の定義}{1}{section.2}%
+\contentsline {section}{\numberline {3}構造塔の圏と忘却関手}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}射の定義}{2}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}忘却関手}{2}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}図式的理解}{2}{subsection.3.3}%
+\contentsline {section}{\numberline {4}自由構造塔と普遍性}{2}{section.4}%
+\contentsline {section}{\numberline {5}直積と射影}{2}{section.5}%
+\contentsline {subsection}{\numberline {5.1}普遍性の図式}{3}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Lean での確認}{3}{subsection.5.2}%
+\contentsline {section}{\numberline {6}自然数構造塔の例}{3}{section.6}%
+\contentsline {section}{\numberline {7}まとめと展望}{3}{section.7}%
