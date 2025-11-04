@@ -1,0 +1,120 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathrsfs}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{Structure Tower と離散濾過の学部生向けガイド}
+\author{CODEX (OpenAI)---TeX生成 \and CODEX (OpenAI)---Lean生成}
+\date{2025年11月4日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\newtheorem{example}{例}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、Lean ファイル \texttt{src/MyProjects/ST/Probability\_Examples.lean} の内容をもとに、
+確率空間上の濾過と Structure Tower の関係を学部生向けに解説します。
+実装そのものは Lean で行われていますが、$\LaTeX$ ドキュメントも含めて CODEX (OpenAI)
+が自動生成したことを記録として本文中に明記しておきます。
+\end{abstract}
+
+\section{はじめに}
+確率論における \emph{濾過}（filtration）は、時間の進行に伴って情報が蓄積される様子を
+数理的に記述するための枠組みです。Lean では構造塔
+\texttt{StructureTowerWithMin} を用いて、時間ごとに増大する可測構造の族を扱います。
+本ノートでは、コイン投げの離散時間モデルを軸に、次の流れで解説します。
+\begin{enumerate}[label=\arabic*.]
+  \item コイン投げ確率空間の定義と、各時刻で得られる情報を表す可測構造。
+  \item 濾過が単調増加することの数学的意味と、Lean 実装との対応。
+  \item Structure Tower の観点から見た濾過の層構造。
+\end{enumerate}
+
+\section{コイン投げ確率空間}
+コインが「表」か「裏」のどちらかの状態をとる集合を
+\[
+  \mathrm{CoinFlip} = \{\text{Heads}, \text{Tails}\}
+\]
+と定めます。Lean では次の帰納型 \texttt{CoinFlip} として実装されており、
+自然な可測空間構造として離散可測空間 $\top$ が与えられます。
+
+コインを無限回投げる試行 $\omega$ を「自然数から \texttt{CoinFlip} への写像」
+$\omega : \mathbb{N} \to \mathrm{CoinFlip}$ として表現します。
+各時刻 $n$ の観測 $\omega(n)$ を取り出す写像を
+\[
+  \mathrm{coinEval}_n : (\mathbb{N} \to \mathrm{CoinFlip}) \to \mathrm{CoinFlip},\qquad
+  \mathrm{coinEval}_n(\omega) = \omega(n)
+\]
+と書くと、$n$ 回目までに得られた情報で生成される可測構造は
+\[
+  \mathcal{F}_0 = \mathrm{coinEval}_0^\ast(\top),\qquad
+  \mathcal{F}_{n+1} = \mathcal{F}_n \vee \mathrm{coinEval}_{n+1}^\ast(\top)
+\]
+の形で再帰的に構成されます（Lean の \texttt{coinFiltration}）。
+この列 $(\mathcal{F}_n)_{n \in \mathbb{N}}$ が \emph{離散濾過}です。
+
+\section{濾過の単調性と Structure Tower}
+時間が進むほど情報が増えることは、可測構造の包含関係
+\[
+  \mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots
+\]
+として現れます。Lean の補題 \texttt{coinFiltration\_monotone} は、
+関数 $\texttt{coinFiltration} : \mathbb{N} \to \mathrm{MeasurableSpace}(\mathbb{N}\to\mathrm{CoinFlip})$
+が単調関数であることを形式的に証明します。
+
+濾過を Structure Tower の言葉で表現すると、各層 $n$ に
+「$n$ 回目までの観測で判定できる事象の集合族」が置かれており、最小層（初期情報）は
+$n=0$ に対応します。Lean では
+\[
+  \texttt{discreteFiltration}(\Omega,F)
+  : \texttt{StructureTowerWithMin}
+\]
+を構成し、$\Omega = \mathbb{N} \to \mathrm{CoinFlip}$、
+$F = \texttt{coinFiltration}$ を代入することで \texttt{coinTower} を得ています。
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzcd}[row sep=3em,column sep=4em]
+    \mathcal{F}_0 \arrow[r, hookrightarrow, "\subseteq"] \arrow[dr, hookrightarrow, "\subseteq"'] &
+    \mathcal{F}_1 \arrow[d, hookrightarrow, "\subseteq"] \\
+    & \mathcal{F}_2 \arrow[r, hookrightarrow, "\subseteq"] \arrow[d, hookrightarrow, "\subseteq"] &
+    \mathcal{F}_3 \arrow[d, hookrightarrow, "\subseteq"] \\
+    & \vdots \arrow[r, hookrightarrow, "\subseteq"] &
+    \mathcal{F}_{n}
+  \end{tikzcd}
+  \caption{離散濾過 $(\mathcal{F}_n)$ の包含関係と Structure Tower の層構造}
+\end{figure}
+
+この図式は、Structure Tower の層が包含射で繋がれることを視覚的に示しています。
+Lean 実装では \texttt{layer} フィールドが「$n$ を添字に持つ層」を返し、
+\texttt{monotone} が包含関係の証明を担います。
+
+\section{Lean 実装との対応表}
+最後に、Lean ファイルと本稿の対応関係を表にまとめます。
+
+\begin{center}
+\begin{tabular}{ll}
+  \hline
+  Lean の識別子 & 本文での意味 \\
+  \hline
+  \texttt{CoinFlip} & コインの表裏を表す集合 $\{ \mathrm{Heads}, \mathrm{Tails} \}$ \\
+  \texttt{coinFiltration} & 離散濾過 $(\mathcal{F}_n)$ の生成過程 \\
+  \texttt{coinFiltration\_monotone} & 単調性 $\mathcal{F}_n \subseteq \mathcal{F}_{n+1}$ の証明 \\
+  \texttt{discreteFiltration} & 一般の離散濾過を Structure Tower として構成 \\
+  \texttt{coinTower} & コイン投げ濾過の Structure Tower 化 \\
+  \hline
+\end{tabular}
+\end{center}
+
+\section{おわりに}
+CODEX (OpenAI) による Lean 実装では、抽象的な構造塔の枠組みと確率論の具体的な対象を
+接続する設計が採用されています。本ノートも同じく CODEX (OpenAI) により自動生成されました。
+図式やまとめを通じて、Structure Tower の応用と濾過理論の接点を直感的に掴む助けとなれば幸いです。
+
+\end{document}
