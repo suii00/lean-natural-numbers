@@ -1,0 +1,59 @@
+\documentclass[lualatex]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{enumitem}
+\title{構造塔とその圏: 学部生向けノート}
+\author{学部生読者 \\ CODEX (OpenAI) -- 本TeXファイル生成 \\ CODEX (OpenAI) -- Leanファイル生成}
+\date{\today}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本ノートでは、Lean で形式化した構造塔 (Structure Tower) の概念と、その射がなす圏構造を学部生向けに解説する。特に、集合の塔や自然数の初期区間を例に、被覆性と単調性の役割を直感的に説明する。
+\end{abstract}
+
+\section{構造塔の定義}
+構造塔 $T$ とは、以下のデータからなる。
+\begin{enumerate}[label=\arabic*)]
+  \item 基礎集合 $X$。
+  \item 添字集合 $I$ とその前順序 $\leq$。
+  \item 各添字 $i\in I$ に対し、部分集合 $X_i\subseteq X$ (「層」)。
+  \item 被覆性: 任意の $x\in X$ に対し、ある $i$ が存在して $x\in X_i$。
+  \item 単調性: $i\leq j$ ならば $X_i\subseteq X_j$。
+\end{enumerate}
+Lean ファイル \texttt{CAT1.lean} では、これを \texttt{StructureTower} として実装した。
+
+\section{射と圏構造}
+構造塔の射 $f\colon T\to T'$ は、集合の写像 $f\colon X\to X'$ と添字写像 $\varphi\colon I\to I'$ の組で、以下を満たす。
+\begin{enumerate}[label=\alph*)]
+  \item $i\leq j$ ならば $\varphi(i)\leq \varphi(j)$。
+  \item $x\in X_i$ ならば $f(x)\in X'_{\varphi(i)}$。
+\end{enumerate}
+Lean では \texttt{StructureTower.Hom} として定義し、合成は $(g\circ f,\psi\circ\varphi)$、恒等射は $(\operatorname{id}_X,\operatorname{id}_I)$ である。
+
+\subsection{結合律と単位律}
+定義の段階でデータを直接組み合わせたため、結合律と左右単位律はすべて $rfl$ (定義の反射律) で証明できる。したがって、構造塔の全体は CategoryTheory ライブラリの \texttt{Category} インスタンスとして登録できる。
+
+\begin{tikzcd}
+T \arrow[r, "f"] \arrow[d, "\mathrm{id}_T"'] & T' \arrow[d, "g"] \\
+T \arrow[r, "g\circ f"'] & T''
+\end{tikzcd}
+
+この簡単な図式は、左単位律と合成のイメージを示している。
+
+\section{自然数の具体例}
+\texttt{natIntervalTower} は $X=\mathbb{N}$, $I=\mathbb{N}$, $X_n=\{0,1,\dots,n\}$ で定義される。被覆性は $x\in X_x$ を選べば良く、単調性は $i\leq j$ から $X_i\subseteq X_j$ が従う。Lean では恒等射が自明に射であり、恒等射同士の合成も恒等射になることを `example` で確認している。
+
+\section{直積構造塔}
+二つの塔 $T_1,T_2$ の直積 $T_1\times T_2$ は
+\[
+(X_1\times X_2, I_1\times I_2, (X_{1,i}\times X_{2,j}))
+\]
+で与える。被覆性は各成分を覆う層を組み合わせればよく、単調性は成分ごとの単調性から従う。Lean 実装では、$X_{1,i}\times X_{2,j}$ を \texttt{Set.prod} で表し、証明は写像ごとに分解している。
+
+\section*{まとめ}
+本ノートは CODEX (OpenAI) によって Lean ファイルと TeX ファイルの両方が生成されている。手計算と形式証明を行き来することで、構造塔の圏論的構造をより深く理解できるだろう。
+
+\end{document}

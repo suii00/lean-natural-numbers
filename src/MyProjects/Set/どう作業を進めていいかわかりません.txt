@@ -1,0 +1,42 @@
+どう作業を進めていいかわかりません
+
+
+いまの SpectralSequences 節は（特に FilteredComplex と associatedGraded 周辺で）かなり荒削りなので、次のように細かく分けて進めると整理しやすいと思います。
+
+1. 最小限で型が通るスケルトンに戻す
+
+まずは FilteredComplex を「鎖複体 + 単調なフィルタ列（ℕ → ChainComplex C ℕ）と、それを実際に含む射」という最小データだけにし、そこから先は “仮の構造” にしておく。
+gradedPiece は一旦 定義だけ置いておき、sorry を置かず「cokernel を使うつもりだが、まだ補題不足なので F.filtration (n+1) をそのまま返すダミー定義にする」など、まずはビルドが通るところまで単純化する。
+→ 目的は、“associatedGraded の型が合っていてコンパイルが通る”状況を先に作ること。
+2. ChainComplex カテゴリがアーベルカテゴリーであることを Lean に教える
+
+付近のエラーを見ると、cokernel を使うには ChainComplex C ℕ がアーベルカテゴリである必要があります。
+import Mathlib.Algebra.Homology.HomologicalComplexAbelian と open CategoryTheory までは済んでいるので、
+@[simp, aesop?] などの既存補題 (functorCategory, FunctorCategory.hasZeroMorphisms, HomologicalComplex.abelian) を活用しつつ
+「C がアーベル ⇒ ChainComplex C ℕ もアーベル」という事実を適切に instance で引き出す必要があります。
+具体的には、HomologicalComplexAbelian ファイルにある noncomputable instance : Abelian (HomologicalComplex C c) を使った補題を探し、必要なら simp で利用するよう明示する。
+3. cokernel を本格的に導入する
+
+gradedPiece (n+1) を cokernel (F.inclusionLe (Nat.le_succ n)) に変えるには、
+cokernel が存在するためのインスタンス (Abelian) を解決。
+F.inclusionLe が chain map として適切に型付けされているか確認。
+ChainComplex の hom は成分ごとの射に関する条件があるので、補助補題や既存の simp を参照する。
+この段階で、gradedPieceπ など cokernel の射も自然に定義できるようになります。
+4. associatedGraded / spectralSequence_E0 を再定義
+
+gradedPiece が安定したら、associatedGraded F n := F.gradedPiece n に戻し、
+spectralSequence_E0 もそれを使うように変更。
+5. homologyTower (塔) を段階ごとに簡素化
+
+今の homologyTower は「鎖複体の同型判定」をベースにしているため、型が煩雑です。
+まずは level n := {K | K = F.filtration n} など極端に単純な定義に戻し、StructureTower のフィールドに何が必要か再確認したうえで段階的に一般化するのが安全です。
+6. その後、spectralSequence_E0 からホモロジー計算へ進める
+
+ここまでが整ったら、初めて ChainComplex.homology などのAPIに入っていく。
+例えば「gradedPiece の各成分からホモロジーを取った束を StructureTower にする」など。
+補助的なヒント
+先に 1～3 を確実に終わらせ、ビルドが再び通る状態を作っておけば、sorry は残っていても「機械的な型エラー」に振り回されずに構成を拡張できます。
+もし cokernel を導入する準備がまだ十分でないと感じたら、
+「gradedPiece (n+1) を単に F.filtration (n+1) にしておき、コメントで TODO を付ける」という折衷案でも構いません。
+重要なのは、後で設計変更できるよう関数名やインターフェースを固めておくことです。
+以上の方針で、「まず簡略化 → 型が通る状態を確保 → 段階的に cokernel を導入」を意識すると、作業がブレずに進めやすくなると思います。

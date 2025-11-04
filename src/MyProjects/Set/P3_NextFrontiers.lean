@@ -15,6 +15,9 @@ import Mathlib.RingTheory.PrincipalIdealDomain
 import Mathlib.FieldTheory.Extension
 import Mathlib.Topology.Sheaves.Presheaf
 import Mathlib.CategoryTheory.Sites.Sheaf
+import Mathlib.Algebra.Homology.HomologicalComplex
+import Mathlib.Algebra.Homology.HomologicalComplexAbelian
+import Mathlib.Algebra.Homology.ShortComplex.Basic
 import Mathlib.Order.Closure
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import MyProjects.Set.Bourbaki_Lean_Guide
@@ -22,6 +25,7 @@ import MyProjects.Set.P1_Extended
 import MyProjects.Set.P1_Extended_Next
 
 open Classical
+open CategoryTheory
 open BourbakiLeanGuide P1ExtendedNext
 
 namespace P3NextFrontiers
@@ -330,21 +334,88 @@ variable {C : Type*} [Category C] [Abelian C]
 /-- A filtered complex: a chain complex with a filtration. -/
 structure FilteredComplex where
   complex : ChainComplex C ℕ
-  filtration : ℕ → Subcomplex complex
-  monotone_filt : Monotone filtration
+  filtration : ℕ → ChainComplex C ℕ
+  inclusion : ∀ n, filtration n ⟶ complex
+  inclusion_le :
+    ∀ ⦃m n : ℕ⦄, m ≤ n → filtration m ⟶ filtration n
+  inclusion_le_spec :
+    ∀ {m n : ℕ} (h : m ≤ n),
+      inclusion m = inclusion_le h ≫ inclusion n
+  inclusion_le_refl :
+    ∀ n, inclusion_le (le_rfl : n ≤ n) = 𝟙 (filtration n)
+  inclusion_le_trans :
+    ∀ {ℓ m n : ℕ} (h₁ : ℓ ≤ m) (h₂ : m ≤ n),
+      inclusion_le (le_trans h₁ h₂) =
+        inclusion_le h₁ ≫ inclusion_le h₂
 
-/-- Exercise: Define the associated graded complex. -/
-def associatedGraded (F : FilteredComplex) : ChainComplex C ℕ := by
-  sorry
+/-- Obtain the inclusion map corresponding to a monotonicity step in the filtration. -/
+noncomputable def FilteredComplex.inclusionLe
+    (F : FilteredComplex) {m n : ℕ} (h : m ≤ n) :
+    F.filtration m ⟶ F.filtration n :=
+  F.inclusion_le h
+
+@[simp]
+lemma FilteredComplex.inclusionLe_spec
+    (F : FilteredComplex) {m n : ℕ} (h : m ≤ n) :
+    F.inclusion m = F.inclusionLe h ≫ F.inclusion n :=
+  F.inclusion_le_spec h
+
+@[simp] lemma FilteredComplex.inclusionLe_refl
+    (F : FilteredComplex) (n : ℕ) :
+    F.inclusionLe (le_rfl : n ≤ n) = 𝟙 (F.filtration n) :=
+  F.inclusion_le_refl n
+
+lemma FilteredComplex.inclusionLe_trans
+    (F : FilteredComplex) {ℓ m n : ℕ} (h₁ : ℓ ≤ m) (h₂ : m ≤ n) :
+    F.inclusionLe (le_trans h₁ h₂) =
+      F.inclusionLe h₁ ≫ F.inclusionLe h₂ :=
+  F.inclusion_le_trans h₁ h₂
+
+/-- The `n`-th graded piece of the filtered complex, realised as the cokernel of the inclusion
+from level `n` into level `n + 1`.  For `n = 0` we simply take the first filtration stage. -/
+noncomputable def FilteredComplex.gradedPiece (F : FilteredComplex) : ℕ → ChainComplex C ℕ
+  | 0       => F.filtration 0
+  | (n + 1) =>
+      by
+        classical
+        exact cokernel (F.inclusionLe (Nat.le_succ n))
+
+@[simp] lemma FilteredComplex.gradedPiece_zero (F : FilteredComplex) :
+    F.gradedPiece 0 = F.filtration 0 := rfl
+
+@[simp] lemma FilteredComplex.gradedPiece_succ (F : FilteredComplex) (n : ℕ) :
+    F.gradedPiece (n + 1) = cokernel (F.inclusionLe (Nat.le_succ n)) := by
+  classical
+  rfl
+
+/-- The canonical projection from a filtration stage onto its graded piece. -/
+noncomputable def FilteredComplex.gradedPieceπ (F : FilteredComplex) (n : ℕ) :
+    F.filtration (n + 1) ⟶ F.gradedPiece (n + 1) :=
+  by
+    classical
+    change F.filtration (n + 1) ⟶ cokernel (F.inclusionLe (Nat.le_succ n))
+    exact cokernel.π _
+
+/-- The associated graded object, assigning to each filtration index its graded piece. -/
+noncomputable def associatedGraded (F : FilteredComplex) (n : ℕ) :
+    ChainComplex C ℕ :=
+  by
+    classical
+    F.gradedPiece n
 
 /-- Exercise: Show that filtrations induce a StructureTower on homology. -/
 def homologyTower (F : FilteredComplex) :
-    StructureTower ℕ (Homology F.complex 0) := by
-  sorry
+    StructureTower ℕ (ChainComplex C ℕ) where
+  level n := {K : ChainComplex C ℕ | ∃ m ≤ n, Nonempty (K ≅ F.filtration m)}
+  monotone_level := by
+    intro i j hij K hK
+    rcases hK with ⟨m, hm, hIso⟩
+    exact ⟨m, le_trans hm hij, hIso⟩
 
-/-- Exercise: The E_0 page of the spectral sequence. -/
-def spectralSequence_E0 (F : FilteredComplex) :=
-  fun n => Homology (associatedGraded F) n
+/-- Exercise: The E₀-page of the spectral sequence, given by the graded pieces. -/
+noncomputable def spectralSequence_E0 (F : FilteredComplex) (n : ℕ) :
+    ChainComplex C ℕ :=
+  associatedGraded F n
 
 end SpectralSequences
 

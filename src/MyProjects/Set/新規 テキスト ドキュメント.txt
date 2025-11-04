@@ -7,3 +7,95 @@ galoisClosure_is_closure などガロア接続節の残りの簡易 sorry を片
 ガロア節の残る sorry（閉包から塔への写像など）を埋め、関連する example を追加して挙動を確認。
 スペクトル系列節で必要な ChainComplex/Homology のインポート整備と基本定義の型エラー解消を実施。
 その後、塔の積・開集合塔など易しめの monotone_level 証明から順に sorry を除去し、節ごとに lake build で確認する流れを継続。
+
+対応内容
+galoisClosure_is_closure を実データとして構成し、galoisClosure が BourbakiClosureOperator の公理（単調性・伸長性・冪等性）を満たすことを証明しました (src/MyProjects/Set/P3_NextFrontiers.lean (line 124))。
+ガロア閉包の不動点集合に mathlib 提供の ClosureOperator から完備束構造を輸送し、noncomputable def galoisClosure_fixedPoints_complete_lattice として提供しました (src/MyProjects/Set/P3_NextFrontiers.lean (line 136))。
+付随例として、ガロア閉包が gc.closureOperator と一致すること、および恒等的なガロア接続の塔で「部分集合⊆」がそのまま階層条件になることを確認する example を追加しました (src/MyProjects/Set/P3_NextFrontiers.lean (line 142), src/MyProjects/Set/P3_NextFrontiers.lean (line 154))。
+galoisTower の単調性証明を実装し、塔の定義を完結させました (src/MyProjects/Set/P3_NextFrontiers.lean (line 145))。
+テスト
+
+lake build MyProjects.Set.P3_NextFrontiers（他セクションの未処理 sorry・未定義によるビルド失敗あり。今回のガロア節は型エラーなく通過。）
+今後の提案
+
+ガロア節の残り課題が無いことを確認後、Noetherian 節の noetherian_ideals_finitely_generated など、比較的扱いやすい sorry を順に解消。
+スペクトル系列節に必要な ChainComplex/Homology 関連インポートと定義調整を行い、型付けエラーを減らす。
+lake build を繰り返しつつ、石の塔・測度論など各節で残る monotone_level 証明や構成を小ステップで埋める。
+
+
+変更内容
+
+Mathlib.Order.Closure を追加インポートし、ガロア閉包が BourbakiClosureOperator を与えること、固定点部分が完備束を成すことを galoisClosure_is_closure・galoisClosure_fixedPoints_complete_lattice で証明し、付随する挙動確認用 example を設置しました。galoisTower の単調性も補いました（src/MyProjects/Set/P3_NextFrontiers.lean (lines 121-161)）。
+Noether 環節では、昇鎖の安定化を具体的に扱う補題 (chain_stabilizes_at_point, noetherian_tower_stabilizes) を整備し、昇鎖条件から有限生成性で矛盾を導くための補助構成 chainData／chainFinset／chain を導入。これを用いて noetherian_ideals_finitely_generated の sorry を解消しました（src/MyProjects/Set/P3_NextFrontiers.lean (lines 66-226)）。証明内では「各有限生成部分イデアルを strict に増やしていく鎖は存在しない」という典型的議論を Lean 化し、IsNoetherianRing.ascending_chain_condition から得た安定化と矛盾させています。
+参考情報
+
+現状 lake build MyProjects.Set.P3_NextFrontiers は他セクションの未実装 sorry・未導入の記号（Homology や Clopen など）により失敗する点は従来どおりです。今回の変更によって新たなビルドエラーは追加していません（警告「try 'simp'」は既存ファイルでも報告されていたもの）。
+今後の提案
+
+ChainComplex や Homology 周辺で発生しているシンボル未定義エラーを解消するため、必要なインポート（例：Mathlib/Algebra/Homology 系）と基本定義の整備を優先すると良いでしょう。
+SpectralSequences 以下の各 sorry は型チェックすら通っていない箇所が多いので、まずは要求されるシンボルを揃えたうえでステートメントを整形し、その後簡単な性質（例：associatedGraded の骨子）から順に埋めていくと作業を分割できます。
+
+ChainComplex や Homology 周辺で発生しているシンボル未定義エラーを解消するため、必要なインポート（例：Mathlib/Algebra/Homology 系）と基本定義の整備を優先すると良いでしょう。
+
+
+実施内容
+
+ChainComplex や HomologicalComplex を使えるように、Mathlib.Algebra.Homology.HomologicalComplex と Mathlib.Algebra.Homology.ShortComplex.Basic をファイル先頭のインポートに追加しました。これで鎖複体・短複体関連の基本定義を参照できるようになります。src/MyProjects/Set/P3_NextFrontiers.lean (lines 18-22)
+現状メモ
+
+まだ ChainComplex 節では CategoryTheory/Abelian 周りの型クラス解決や Homology の具体的な扱いを整備していないため、引き続きエラーが残っています。次は [Category C] [Abelian C] に伴う必要条件（Preadditive/HasZeroMorphisms など）の確認や、Homology を ChainComplex.homology 等の既存 API に沿わせる整理が必要です。
+
+
+SpectralSequences 以下の各 sorry は型チェックすら通っていない箇所が多いので、まずは要求されるシンボルを揃えたうえでステートメントを整形し、その後簡単な性質（例：associatedGraded の骨子）から順に埋めていく
+
+
+対応内容
+
+FilteredComplex を実装し直し、鎖複体本体とフィルトレーションを Lean が扱える最小限のデータ（ChainComplex, ℕ → Set C, 単調性など）として定義しました。src/MyProjects/Set/P3_NextFrontiers.lean (lines 332-337)
+associatedGraded を既存の鎖複体を返す形で骨組み定義し、まず型検査が通るよう整えました。src/MyProjects/Set/P3_NextFrontiers.lean (line 339)
+homologyTower は現段階では同一の要素を与える定数タワーに落とし込み、StructureTower の形そのものがコンパイルできるようにしました。src/MyProjects/Set/P3_NextFrontiers.lean (lines 342-345)
+spectralSequence_E0 を、関連付きグレード複体の各次数成分を並べる簡略版として定義しなおしました。src/MyProjects/Set/P3_NextFrontiers.lean (line 348)
+次の一手候補
+
+FilteredComplex のフィルトレーションを本来の “部分複体” に近づける：ChainComplex の部分を表す独自構造や inclusion map を設計し、後続のタワー構成が意味を持つようにする。
+homologyTower を実際のホモロジー対象へ拡張するために、chain complex のホモロジー API（例：ChainComplex.homologyObj 相当）を調査・導入する。
+上記が整ったら、associatedGraded を真の「商複体」になるよう段階的に精緻化し、spectralSequence_E0 との整合性を確認する。
+
+
+FilteredComplex のフィルトレーションを本来の “部分複体” に近づける：ChainComplex の部分を表す独自構造や inclusion map を設計し、後続のタワー構成が意味を持つようにする。
+
+
+対応内容
+
+ChainComplex の「部分複体」を明示的に扱えるよう、FilteredComplex を再定義し、各段階の鎖複体と元の複体への包含鎖写像 (inclusion) を保持する形に整備しました。これにより段階間の包含（m ≤ n）に対応する鎖写像が存在することを inclusion_le で表現しています。
+フィルトレーションから自然に得られる「塔」を StructureTower ℕ (ChainComplex C ℕ) として構成し直し、各レベルを {K | ∃ m ≤ n, K = F.filtration m} と定義することで単調性 (monotone_level) が成立するよう整理しました。
+associatedGraded は当面、元の鎖複体を返す単純な骨子とし、今後 quotient を導入する下地としています。
+spectralSequence_E0 もフィルトレーション各段階の鎖複体を返す簡素な定義に変更し、型チェックが具体的に通るよう調整しました。
+これでスペクトル系列節の基本シンボルはそろったので、次は inclusion_le を活用した具体的な構成（例：商複体の実装）や、本格的なホモロジー計算に向けた ChainComplex API の活用を進められます。
+
+
+対応状況
+
+FilteredComplex を再設計し、各段階の部分鎖複体と元の複体への包含写像 (inclusion) を保持するとともに、段階間の包含（inclusion_le）とその整合性条件（自己同一・合成則など）を明示的にフィールドとして追加しました。あわせて補助補題 FilteredComplex.inclusionLe / inclusionLe_spec / inclusionLe_refl / inclusionLe_trans を用意し、後続の構成でこのインターフェースを利用できるようにしました。
+フィルトレーションから構成する塔 homologyTower を、実際に「上限 index 以下の段階に鎖複体が同型で含まれる」ことを表す集合に更新し、将来的に真の商複体やグレード化の構成へ拡張できる足場を整えました。
+associatedGraded と spectralSequence_E0 は現時点では骨組みのままですが、新しいフィールドに対応するよう内部実装を調整しています。
+既知の課題
+
+homologyTower で Nonempty (K ≅ F.filtration m) を扱うための補題整備がまだ不十分で、lake build では他節の未着手部分とともにエラーが残っています。
+商複体（例えば cokernel (F.inclusionLe (Nat.leSucc _))）に基づく厳密なグレード化やホモロジー計算までは未実装です。
+次のステップ案
+
+FilteredComplex の新しい構造を使って、連鎖複体カテゴリーでの cokernel / kernel を利用した「グレード化された分割複体」(gradedPiece) を実装し、associatedGraded を真に商複体とみなせるように整備する。
+homologyTower を実際に ChainComplex の段階間 inclusion から生成される塔として完成させ、付随する同型・合成補題を追加して型エラーを解消する。
+その後 spectralSequence_E0 を各グレード化複体のホモロジーに置き換え、スペクトル系列の初期ページを計算するための ChainComplex API を検討する。
+
+
+
+sorry以外のエラーを解消出来ますか？
+
+
+現時点では FilteredComplex まわりで導入した新しい構造（gradedPiece を cokernel で定義する部分）に起因する型付けエラーが発生しており、lake build を通すことはできていません。具体的には、
+
+FilteredComplex.gradedPiece で cokernel (F.inclusionLe ...) を形成する際、Lean が必要とする型クラス（Abelian (ChainComplex C ℕ) など）を十分に供給する補題類がまだ整っておらず、「type expected, got …」「Invalid field notation …」といったエラーが残っています。
+associatedGraded や spectralSequence_E0 が新しい gradedPiece に依存するため、これらのエラーが連鎖的に波及しています。
+これらは sorry の置換ではなく型クラス解決の問題なので、追加の適切な補題やインスタンスを整備する必要があります。今のままでは他節にある多数の sorry を抜きにしてもビルドが通らないため、さらなる作業が必要です。
