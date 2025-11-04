@@ -72,6 +72,17 @@ structure Hom (T T' : StructureTowerWithMin) where
   indexMap_mono : ∀ {i j : T.Index}, i ≤ j → indexMap i ≤ indexMap j
   layer_preserving : ∀ (i : T.Index) (x : T.carrier),
     x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+  minLayer_preserving :
+    ∀ x, T'.minLayer (map x) = indexMap (T.minLayer x)
+
+@[ext]
+lemma Hom.ext {T T' : StructureTowerWithMin} {f g : Hom T T'}
+    (hmap : f.map = g.map) (hindex : f.indexMap = g.indexMap) : f = g := by
+  cases f
+  cases g
+  cases hmap
+  cases hindex
+  rfl
 
 /-- 射の合成 -/
 def Hom.comp (g : Hom T' T'') (f : Hom T T') : Hom T T'' where
@@ -80,6 +91,11 @@ def Hom.comp (g : Hom T' T'') (f : Hom T T') : Hom T T'' where
   indexMap_mono := fun hij => g.indexMap_mono (f.indexMap_mono hij)
   layer_preserving := fun i x hx =>
     g.layer_preserving (f.indexMap i) (f.map x) (f.layer_preserving i x hx)
+  minLayer_preserving := by
+    intro x
+    have h₁ := g.minLayer_preserving (f.map x)
+    have h₂ := f.minLayer_preserving x
+    simpa [h₂] using h₁
 
 /-- 恒等射 -/
 def Hom.id (T : StructureTowerWithMin) : Hom T T where
@@ -87,6 +103,7 @@ def Hom.id (T : StructureTowerWithMin) : Hom T T where
   indexMap := _root_.id
   indexMap_mono := fun hij => hij
   layer_preserving := fun _ _ hx => hx
+  minLayer_preserving := fun _ => rfl
 
 instance : CategoryTheory.Category StructureTowerWithMin where
   Hom := Hom
@@ -124,68 +141,63 @@ def freeStructureTowerMin (X : Type*) [Preorder X] : StructureTowerWithMin where
     exact hx
 
 /-- 【証明可能】自由構造塔の普遍性（完全な一意性）
-任意の写像 f : X → T.carrier に対して、一意的な構造塔の射が存在する -/
-theorem freeStructureTowerMin_universal [Preorder X] (X : Type*)
-    (T : StructureTowerWithMin) (f : X → T.carrier) :
+任意の写像 f : X → T.carrier として、`minLayer ∘ f` が単調なら
+唯一の構造塔の射が存在する -/
+theorem freeStructureTowerMin_universal (X : Type*) [Preorder X]
+    (T : StructureTowerWithMin) (f : X → T.carrier)
+    (hf : Monotone fun x => T.minLayer (f x)) :
     ∃! (φ : freeStructureTowerMin X ⟶ T), ∀ x : X, φ.map x = f x := by
-  use {
-    map := f
-    indexMap := fun x => T.minLayer (f x)
-    indexMap_mono := by
-      intro x y hxy
-      -- x ≤ y ならば f(x) ∈ layer(y) なので minLayer(f(x)) ≤ minLayer(f(y))
-      sorry  -- これは証明可能（ヒント参照）
-    layer_preserving := by
-      intro i x hx
-      -- x ∈ {x' | x' ≤ i} つまり x ≤ i
-      -- f(x) ∈ layer(minLayer(f(x))) は minLayer_mem から
-      exact T.minLayer_mem (f x)
-  }
-  · intro x
-    rfl
-  · -- 一意性：もし φ と ψ が両方とも条件を満たすなら φ = ψ
-    intro φ ψ hφ hψ
-    -- 射の等式を示すには map と indexMap が等しいことを示す
-    ext  -- 構造体の等式
-    · -- map が等しい
+  classical
+  let φ₀ : freeStructureTowerMin X ⟶ T :=
+    { map := f
+      indexMap := fun x => T.minLayer (f x)
+      indexMap_mono := by
+        intro x y hxy
+        exact hf hxy
+      layer_preserving := by
+        intro i x hx
+        have hle : T.minLayer (f x) ≤ T.minLayer (f i) := hf hx
+        have hmem : f x ∈ T.layer (T.minLayer (f x)) := T.minLayer_mem (f x)
+        exact T.monotone hle hmem
+      minLayer_preserving := by
+        intro x
+        rfl }
+  refine
+    ⟨φ₀, ?_, ?_⟩
+  · intro x; rfl
+  · intro ψ hψ
+    have hmap : ψ.map = φ₀.map := by
       funext x
-      rw [hφ, hψ]
-    · -- indexMap が等しい
+      simpa [φ₀] using hψ x
+    have hindex : ψ.indexMap = φ₀.indexMap := by
       funext x
-      -- φ.indexMap x と ψ.indexMap x が両方とも条件を満たす
-      -- minLayer の最小性から一意に決まる
-      sorry  -- これは証明可能（ヒント参照）
+      have hψmap : ψ.map x = f x := hψ x
+      calc
+        ψ.indexMap x
+            = T.minLayer (ψ.map x) := by
+              simpa using (ψ.minLayer_preserving x).symm
+        _ = T.minLayer (f x) := by
+              simpa [hψmap]
+        _ = φ₀.indexMap x := by
+              simp [φ₀]
+    exact StructureTowerWithMin.Hom.ext hmap hindex
 
-/-! ## ヒント: freeStructureTowerMin_universal の証明 -/
+/-! ## 例: ℕ 上での後者写像が誘導する自由構造塔の射 -/
 
-/- 
-**indexMap_mono の証明のヒント:**
-
-x ≤ y を仮定する。示すべきは minLayer(f(x)) ≤ minLayer(f(y))。
-
-1. 単調性から {z | z ≤ x} ⊆ {z | z ≤ y}
-2. layer_preserving から f(x) ∈ layer(y)（この部分を詳しく）
-3. minLayer_minimal から minLayer(f(x)) ≤ y
-4. 同様に minLayer(f(y)) ≤ y
-5. ... (追加の議論が必要)
-
-実は、この部分は追加の仮定（f が単調など）が必要かもしれません。
--/
-
-/- 
-**一意性の証明のヒント:**
-
-射 φ, ψ : freeStructureTowerMin X ⟶ T で ∀x, φ.map x = ψ.map x = f x を満たすとする。
-
-1. map の等しさは仮定から明らか
-2. indexMap の等しさを示す：
-   - φ.indexMap x は、φ.layer_preserving から x ∈ layer(x) → f(x) ∈ layer(φ.indexMap x)
-   - よって φ.indexMap x は f(x) を含む層
-   - minLayer_minimal から minLayer(f(x)) ≤ φ.indexMap x
-   - 逆向きも同様に示せるか？ → 実は追加の議論が必要
-
-実際には、layer_preserving の条件だけでは一意性が示せないかもしれません。
--/
+example :
+    ∃! (φ : freeStructureTowerMin ℕ ⟶ freeStructureTowerMin ℕ),
+        ∀ x : ℕ, φ.map x = Nat.succ x := by
+  classical
+  have hf' : Monotone fun x : ℕ => Nat.succ x := by
+    intro x y hxy
+    exact Nat.succ_le_succ hxy
+  have hf :
+      Monotone fun x : ℕ =>
+        (freeStructureTowerMin ℕ).minLayer (Nat.succ x) := by
+    simpa using hf'
+  simpa using
+    (freeStructureTowerMin_universal ℕ
+      (freeStructureTowerMin ℕ) (fun x => Nat.succ x) hf)
 
 /- ======================================================================
    Version B: 基礎写像のみの一意性（一般的な構造塔）
@@ -221,44 +233,45 @@ def Hom.comp (g : Hom T' T'') (f : Hom T T') : Hom T T'' where
   layer_preserving := fun i x hx =>
     g.layer_preserving (f.indexMap i) (f.map x) (f.layer_preserving i x hx)
 
-def Hom.id (T : StructureTower) : Hom T T where
-  map := _root_.id
-  indexMap := _root_.id
-  indexMap_mono := fun hij => hij
-  layer_preserving := fun _ _ hx => hx
-
-instance : CategoryTheory.Category StructureTower where
-  Hom := Hom
-  id := Hom.id
-  comp := fun f g => Hom.comp g f
-  id_comp := by intros; rfl
-  comp_id := by intros; rfl
-  assoc := by intros; rfl
-
 /-- 自由構造塔（最小層なし） -/
 def freeStructureTower (X : Type*) : StructureTower where
   carrier := X
   Index := X
   indexPreorder := by
-    refine ⟨fun i j => i = j, ?_, ?_, ?_⟩
-    · exact fun _ => rfl
-    · exact fun hij hjk => hij.trans hjk
-    · exact fun hij hji => hij
-  layer := fun i => {i}
+    classical
+    refine
+      { le := fun i j => i = j
+        , lt := fun _ _ => False
+        , le_refl := ?_
+        , le_trans := ?_
+        , lt_iff_le_not_ge := ?_ }
+    · intro i; rfl
+    · intro i j k hij hjk
+      simpa [hij, hjk]
+    · intro a b
+      constructor
+      · intro h
+        cases h
+      · intro h
+        rcases h with ⟨hab, hba⟩
+        have : (fun i j : X => i = j) b a := by
+          simpa [hab.symm]
+        exact hba this
+  layer := fun i => {x : X | x = i}
   covering := by
     intro x
     use x
     rfl
   monotone := by
     intro i j hij x hx
-    simp at hx ⊢
-    rw [hx, hij]
+    cases hij
+    simpa using hx
 
 /-- 【Version B】自由構造塔の存在性（一意性なし）
 任意の写像 f : X → T.carrier に対して、ある構造塔の射が存在する -/
 theorem freeStructureTower_existence (X : Type*) (T : StructureTower)
     (f : X → T.carrier) :
-    ∃ (φ : freeStructureTower X ⟶ T), ∀ x : X, φ.map x = f x := by
+    ∃ (φ : StructureTower.Hom (freeStructureTower X) T), ∀ x : X, φ.map x = f x := by
   -- covering を使って各 f(x) に対して層を選ぶ（選択公理を使用）
   choose idx hidx using T.covering
   use {
@@ -266,14 +279,15 @@ theorem freeStructureTower_existence (X : Type*) (T : StructureTower)
     indexMap := fun x => idx (f x)
     indexMap_mono := by
       intro i j hij
-      -- i = j なので自明
-      rw [hij]
+      cases hij
+      exact le_rfl
     layer_preserving := by
       intro i x hx
-      -- x ∈ {i} より x = i
-      simp at hx
-      rw [hx]
-      exact hidx (f i)
+      have hx' : x = i := by
+        simpa using hx
+      have : f x ∈ T.layer (idx (f i)) := by
+        simpa [hx'] using hidx (f i)
+      exact this
   }
   intro x
   rfl
@@ -281,7 +295,8 @@ theorem freeStructureTower_existence (X : Type*) (T : StructureTower)
 /-- 【Version B】基礎写像に関しては一意
 （射としては一意でないが、map だけは一意） -/
 theorem freeStructureTower_unique_map (X : Type*) (T : StructureTower)
-    (f : X → T.carrier) (φ ψ : freeStructureTower X ⟶ T)
+    (f : X → T.carrier)
+    (φ ψ : StructureTower.Hom (freeStructureTower X) T)
     (hφ : ∀ x, φ.map x = f x) (hψ : ∀ x, ψ.map x = f x) :
     φ.map = ψ.map := by
   funext x
@@ -310,20 +325,23 @@ namespace StructureTower
 
 variable {T T₁ T₂ : StructureTower}
 
-def proj₁ (T₁ T₂ : StructureTower) : prod T₁ T₂ ⟶ T₁ where
+def proj₁ (T₁ T₂ : StructureTower) :
+    Hom (prod T₁ T₂) T₁ where
   map := Prod.fst
   indexMap := Prod.fst
   indexMap_mono := fun h => h.1
   layer_preserving := fun _ _ h => h.1
 
-def proj₂ (T₁ T₂ : StructureTower) : prod T₁ T₂ ⟶ T₂ where
+def proj₂ (T₁ T₂ : StructureTower) :
+    Hom (prod T₁ T₂) T₂ where
   map := Prod.snd
   indexMap := Prod.snd
   indexMap_mono := fun h => h.2
   layer_preserving := fun _ _ h => h.2
 
 /-- 積への普遍射の構成 -/
-def prodUniversal (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂) : T ⟶ prod T₁ T₂ where
+def prodUniversal (f₁ : Hom T T₁) (f₂ : Hom T T₂) :
+    Hom T (prod T₁ T₂) where
   map := fun x => ⟨f₁.map x, f₂.map x⟩
   indexMap := fun i => ⟨f₁.indexMap i, f₂.indexMap i⟩
   indexMap_mono := by
@@ -334,23 +352,25 @@ def prodUniversal (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂) : T ⟶ prod T₁ T₂
     exact ⟨f₁.layer_preserving i x hx, f₂.layer_preserving i x hx⟩
 
 /-- 【証明可能】普遍射が射影と可換 -/
-theorem prodUniversal_proj₁ (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂) :
-    prodUniversal f₁ f₂ ≫ proj₁ T₁ T₂ = f₁ := by
+theorem prodUniversal_proj₁ (f₁ : Hom T T₁) (f₂ : Hom T T₂) :
+    Hom.comp (proj₁ T₁ T₂) (prodUniversal f₁ f₂) = f₁ := by
   rfl
 
-theorem prodUniversal_proj₂ (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂) :
-    prodUniversal f₁ f₂ ≫ proj₂ T₁ T₂ = f₂ := by
+theorem prodUniversal_proj₂ (f₁ : Hom T T₁) (f₂ : Hom T T₂) :
+    Hom.comp (proj₂ T₁ T₂) (prodUniversal f₁ f₂) = f₂ := by
   rfl
 
 /-- 【Version B】基礎写像に関しては一意
 （射としては一意でない） -/
-theorem prodUniversal_unique_map (f₁ : T ⟶ T₁) (f₂ : T ⟶ T₂)
-    (g : T ⟶ prod T₁ T₂)
-    (h₁ : g ≫ proj₁ T₁ T₂ = f₁)
-    (h₂ : g ≫ proj₂ T₁ T₂ = f₂) :
+theorem prodUniversal_unique_map (f₁ : Hom T T₁) (f₂ : Hom T T₂)
+    (g : Hom T (prod T₁ T₂))
+    (h₁ : Hom.comp (proj₁ T₁ T₂) g = f₁)
+    (h₂ : Hom.comp (proj₂ T₁ T₂) g = f₂) :
     g.map = (prodUniversal f₁ f₂).map := by
   funext x
-  have : g.map x = ⟨(g ≫ proj₁ T₁ T₂).map x, (g ≫ proj₂ T₁ T₂).map x⟩ := rfl
+  have : g.map x =
+      ⟨(Hom.comp (proj₁ T₁ T₂) g).map x,
+        (Hom.comp (proj₂ T₁ T₂) g).map x⟩ := rfl
   rw [h₁, h₂] at this
   exact this
 

@@ -1,0 +1,203 @@
+\documentclass[luatex,a4paper]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Noto Serif CJK JP}
+\setsansjfont{Noto Sans CJK JP}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=teal,
+  citecolor=magenta
+}
+
+\title{構造塔の普遍性と最小層選択\\--- Structure Tower 発展課題 ST-CAT-002 解説ノート ---}
+\author{Codex (OpenAI)\thanks{本資料（TeX）および対応する Lean ファイルは Codex (OpenAI) が生成しました。}}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\theoremstyle{remark}
+\newtheorem{remark}[definition]{注意}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+本ノートは Structure Tower 発展課題 ST-CAT-002 の改訂版 Lean ファイル
+\texttt{CAT2\_revised.lean}（Codex (OpenAI) により生成）をもとに、
+学部生を対象として構造塔の三つのバージョンを解説する。
+特に Version~A における「最小層選択」による普遍性の完全な一意性を強調し、
+Version~B, C との違いを理解できることを目標とする。
+
+\section{構造塔の基本概念}
+\subsection{層と被覆}
+\begin{definition}
+型 $T$ の\textbf{構造塔}とは、次のデータからなる。
+\begin{enumerate}[label=(\arabic*)]
+  \item 基礎集合（または型） $\mathrm{carrier}$。
+  \item 層を添字付ける集合 $\mathrm{Index}$。
+  \item 添字集合の前順序 $\leq$。
+  \item 各添字に対応する部分集合 $\mathrm{layer}(i) \subseteq \mathrm{carrier}$。
+\end{enumerate}
+これらは「被覆性」
+$\forall x,\, \exists i,\, x \in \mathrm{layer}(i)$ と
+「単調性」
+$i \leq j \Rightarrow \mathrm{layer}(i) \subseteq \mathrm{layer}(j)$
+を満たす。
+\end{definition}
+
+学部生の直感としては、層は「段階的に情報が蓄積する集合列」を捉える。
+ただし同じ要素が複数の層に同時に属してもよいため、
+どの層が「一番小さい」かは別途議論が必要になる。
+
+\subsection{射の考え方}
+二つの構造塔 $T, T'$ の間の射 $\varphi : T \to T'$ は、
+基礎写像 $\varphi_{\mathrm{map}} : T.\mathrm{carrier} \to T'.\mathrm{carrier}$ と
+添字写像 $\varphi_{\mathrm{index}} : T.\mathrm{Index} \to T'.\mathrm{Index}$ の組である。
+単調性と層の保存条件が課されるため、
+「層構造を壊さない」写像として理解できる。
+
+\section{Version A: 最小層を備える構造塔}
+\subsection{最小層選択}
+\begin{definition}
+各要素 $x$ に対し「$x$ を含む最小の層」を返す関数
+$\mathrm{minLayer} : T.\mathrm{carrier} \to T.\mathrm{Index}$ が存在していて、
+レーマ
+\[
+  x \in \mathrm{layer}(\mathrm{minLayer}(x)),
+  \qquad
+  x \in \mathrm{layer}(i) \Rightarrow \mathrm{minLayer}(x) \leq i
+\]
+が成立するとき、$T$ を\textbf{最小層付き構造塔}と呼ぶ。
+\end{definition}
+
+Lean 実装では \texttt{StructureTowerWithMin} として定義される。
+最小層は順序理論的な帰納的選択ではなく、
+「階層が良い形で並んでいる」という仮定を明示する手段である。
+
+\subsection{自由構造塔と普遍性}
+前順序集合 $X$ に対して自由構造塔 $\mathrm{freeStructureTowerMin}(X)$ を定義する。
+層は $\{\,x' \in X \mid x' \leq i\,\}$ で与えられ、最小層は恒等写像
+$\mathrm{minLayer}(x) = x$ である。
+
+\begin{theorem}
+$f : X \to T.\mathrm{carrier}$ を任意の写像とし、
+合成 $\mathrm{minLayer} \circ f$ が単調であると仮定する。
+このとき、自由構造塔から $T$ への射で基礎写像が $f$ に一致するものが
+一意的に存在する。
+\end{theorem}
+\begin{proof}[証明のアイデア]
+最小層の情報を添字写像に用いると、
+層の保存条件と単調性が自動的に満たされる。
+任意の射 $\varphi$ が $f$ を基礎写像として持つとき、
+最小層の性質から添字写像も一致することが分かり、一意性が導かれる。
+\end{proof}
+
+\paragraph{図式での理解}
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=huge]
+X \arrow[d, "i_X"'] \arrow[r, "f"] & T.\mathrm{carrier} \arrow[d, "\mathrm{minLayer}"] \\
+X \times X \arrow[r, "\mathrm{id} \times \mathrm{minLayer} \circ f"'] &
+T.\mathrm{Index}
+\end{tikzcd}
+\end{center}
+ここで $i_X$ は $x \mapsto (x,x)$ と書ける埋め込みであり、
+右下の写像が単調であることで図式が可換になる。
+
+\section{Version B: 一般的な構造塔}
+\subsection{最小層を仮定しない}
+最小層を備えない一般的な構造塔では、
+射の添字写像が一意に決まらない場合がある。
+Lean の定義 \texttt{StructureTower} では
+$\mathrm{minLayer}$ フィールドが存在しない。
+
+\subsection{自由構造塔と弱い一意性}
+自由構造塔 $\mathrm{freeStructureTower}(X)$ は
+層を一点集合 $\{i\}$ とし、添字の前順序を離散化することで構築される。
+\begin{proposition}
+任意の写像 $f : X \to T.\mathrm{carrier}$ に対して
+射 $\varphi$ は存在するが、一意性は
+基礎写像に限られる。すなわち
+$\varphi_{\mathrm{map}} = \psi_{\mathrm{map}}$ は示せるが、
+添字写像の一致は保証されない。
+\end{proposition}
+
+\subsection{積の普遍性（基礎写像レベル）}
+\begin{theorem}
+任意の二つの射 $f_1 : T \to T_1$, $f_2 : T \to T_2$ に対し、
+直積構造塔 $T_1 \times T_2$ への射 $\langle f_1,f_2 \rangle$ が存在する。
+さらに、射影との合成で元の射に戻る可換図式が成立する。
+\end{theorem}
+\begin{remark}
+ただしここでも、射 $\langle f_1,f_2 \rangle$ の添字写像は必ずしも一意とは限らない。
+\end{remark}
+
+\section{Version C: 分離された構造塔}
+\begin{definition}
+構造塔 $T$ が\textbf{分離されている}とは、
+異なる添字 $i \neq j$ に対し $\mathrm{layer}(i)$ と $\mathrm{layer}(j)$ が互いに素、
+すなわち $\mathrm{layer}(i) \cap \mathrm{layer}(j) = \emptyset$ であることをいう。
+\end{definition}
+このとき各要素はただ一つの層に属するため、
+Version~A の最小層を暗黙に持つ。
+しかし前提が強すぎる場合も多く、実用性は限定的である。
+
+\section{Version の比較}
+\begin{center}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{lccc}
+\hline
+特徴 & Version A & Version B & Version C \\
+\hline
+最小層 & 必須 & 不要 & 自動的に一意 \\
+普遍性 & 射そのものが一意 & 基礎写像のみ一意 & 射そのものが一意 \\
+一般性 & 中程度 & 高い & 低い \\
+実装の複雑さ & 中程度 & 高い (添字の選択が必要) & 低い \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Lean 実装で学ぶポイント}
+\begin{itemize}
+  \item \textbf{構造体による抽象化}: Lean の \texttt{structure} を用いることで、
+    数学的定義をそのままコード化できる。
+  \item \textbf{普遍性の形式化}: 「存在し一意」という性質は
+    Lean では \texttt{\textbackslash exists!} や
+    \texttt{Equiv} などで記述される。
+  \item \textbf{モノトン性の扱い}: 添字写像の単調性は
+    層の単調性を引き継ぐ形で証明できる。
+  \item \textbf{実装上の注意}: Version~B では
+    選択関数の扱いが難しく、Lean でも明示的な選択が必要となる。
+\end{itemize}
+
+\section{学習のための演習問題}
+\begin{enumerate}[label=\textbf{演習 \arabic*.}]
+  \item Version~A の自由構造塔において、
+    写像 $f : X \to T.\mathrm{carrier}$ が単調でない具体例を挙げ、
+    普遍性が失敗する様子を説明せよ。
+  \item Version~B の構造塔で、同じ基礎写像を持ちながら
+    添字写像が異なる二つの射を具体的に構成せよ。
+  \item Version~C の分離条件が壊れる例を作り、
+    そのとき自然な最小層が定義できない理由を考察せよ。
+\end{enumerate}
+
+\section{まとめ}
+構造塔の普遍性は「何を一意とみなすか」に依存する。
+Version~A の最小層仮定は実装をやや制限するものの、
+完全な一意性を保証し教育的価値が高い。
+Version~B は一般的だが、実装と証明で選択関数に注意が必要である。
+Version~C は特別な状況では簡潔に扱えるが、一般性を欠く。
+
+今回の Lean 実装と本ノートを併読することで、
+抽象概念が計算機上でどのように形式化されるか、
+そしてその際に必要となる追加条件が何かを理解してほしい。
+
+\end{document}
