@@ -1,0 +1,178 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[strings]{underscore}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=purple,
+  citecolor=teal,
+  pdftitle={Doob分解拡張ノート},
+  pdfauthor={Structure Tower Project / CODEX (OpenAI)}
+}
+
+\title{Doob分解拡張ノート\\{\large --- 学部生のためのガイド ---}}
+\author{Structure Tower Project / CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\bigskip
+\begin{center}
+  \textbf{注意.} 本文書および Lean ファイル
+  \texttt{Level2\_3\_EXTENSIONS.lean} は CODEX (OpenAI) が生成しました。
+\end{center}
+
+\section{導入}
+
+既に \texttt{Level2\_3\_DoobDecomposition.lean} で実装された簡略版 Doob 分解に対し、本資料では
+その「拡張」ファイル \texttt{Level2\_3\_EXTENSIONS.lean} の内容を学部レベルで解説します。
+
+\begin{itemize}[leftmargin=1.5em]
+  \item 存在・一意性といった基本定理を公理として導入（測度論は抽象化）。
+  \item 停止時刻や線形操作との整合性を Lean で整理。
+  \item 簡単な例題を通して拡張の使い方を理解。
+\end{itemize}
+
+図\ref{fig:decomposition} に、Doob 分解 $X=M+A$ における ``マルチンゲール部分'' と ``予測可能部分'' の関係を示します。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[x=2.4cm,y=0.8cm]
+    \tikzstyle{layer}=[draw,rounded corners,minimum height=0.6cm,minimum width=2.2cm,fill=blue!10]
+    \node[layer] (L0) at (0,0) {$\mathcal{F}_0$};
+    \node[layer] (L1) at (0,1) {$\mathcal{F}_1$};
+    \node[layer] (L2) at (0,2) {$\mathcal{F}_2$};
+    \node[layer] (L3) at (0,3) {$\mathcal{F}_3$};
+    \draw[->,thick] (L0) -- (L1) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L1) -- (L2) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L2) -- (L3) node[midway,right] {$\subseteq$};
+    \node at (0,3.7) {$\vdots$};
+    \node at (2.3,0.5) {$M$};
+    \draw[->,thick,orange!70!black] (2,0.5) -- ++(-0.8,1);
+    \node at (2.3,1.6) {$A$};
+    \draw[->,thick,green!70!black] (2,1.6) -- ++(-0.8,1.4);
+    \node at (0,-0.8) {Doob分解の概念図};
+  \end{tikzpicture}
+  \caption{マルチンゲール成分 $M$ と予測可能成分 $A$}
+  \label{fig:decomposition}
+\end{figure}
+
+\section{公理化された存在・一意性}
+
+\subsection{存在の公理}
+
+Doob 分解の構成的な証明は測度論の深い結果に依存します。
+本プロジェクトでは、以下のように「存在を仮定する」公理として登録しています：
+\[
+  \texttt{doob\_decomposition\_exists} :
+  \text{適合過程 } X \mapsto \text{Doob 分解 } D.
+\]
+適合性は $\{ \omega \mid X_n(\omega)\le r\}\in \mathcal{F}_n$ で表現されます。
+
+さらにマルチンゲール $M$ については、`of_martingale` により
+予測可能成分がゼロ過程となる具体的な分解を与えています。
+
+\subsection{一意性の公理}
+
+二つの分解 $X = M_1 + A_1 = M_2 + A_2$ が存在するとき、
+マルチンゲール部分・予測可能部分が一致することを公理化：
+\[
+  \texttt{doob\_decomposition\_unique} :
+  M_1 = M_2,\quad A_1 = A_2.
+\]
+
+この公理から、各時刻で成分が一致するという
+簡単な系（\texttt{doob\_decomposition\_unique\_pointwise}）が導かれます。
+
+\section{停止時刻との両立}
+
+停止時刻 $\tau$ を用いると ``停止後の過程'' $X^\tau$ が定義できます。
+拡張ファイルには、既存の分解 $X=M+A$ から
+停止後の分解 $X^\tau = M^\tau + A^\tau$ を構成する
+`doob_decomposition_of_stopped` を実装しています。
+
+Lean では停止後の予測可能成分を
+\[
+  A^\tau_n(\omega) = A_{\min(n,\tau(\omega))}(\omega)
+\]
+と定義し、初期値が定数であることを明示的に確認しています。
+
+\section{線形操作のテンプレート}
+
+有限な範囲での線形性を公理化するため、
+以下の補助関数を定義しています。
+\begin{align*}
+  &\texttt{processAdd}(X,Y)_n(\omega) = X_n(\omega) + Y_n(\omega),\\
+  &\texttt{zeroProcess}_n(\omega) = 0.
+\end{align*}
+
+そして仮定として与えられたマルチンゲール性
+$M^X + M^Y$ を元に、
+\[
+  \texttt{doob\_decomposition\_add } : X+Y \mapsto (M^X+M^Y,\; A^X+A^Y)
+\]
+という分解を構成する反省的定義を収録しています（証明は省略）。
+同様に、スカラー倍を扱う \texttt{doob\_decomposition\_smul} も準備されています。
+
+\section{追加された例題}
+
+\subsection*{例 1：自明分解の確認}
+
+\texttt{of\_martingale} で得られた分解の予測可能部分は常に 0。
+\[
+  A_n(\omega) = 0
+\]
+を Lean では `rfl` で証明しています。
+
+\subsection*{例 2：予測可能過程の評価}
+
+定数列から構成した予測可能過程
+$A_n(\omega) = \text{drift} \cdot n$ に対し、
+例えば $A_1(\omega) = \text{drift}$ が即座に分かります。
+
+\subsection*{例 3：停止後の分解}
+
+分解 $D$ と停止時刻 $\tau$ を仮定すると、
+\[
+  D^\tau := \texttt{doob\_decomposition\_of\_stopped } D \tau
+\]
+が再び Doob 分解となり、
+マルチンゲール成分は元の停止と一致することが定義から従います。
+
+\section{まとめ}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \texttt{Level2\_3\_EXTENSIONS.lean} は Doob 分解を扱う追加の道具箱であり、
+        大枠は公理化された存在・一意性を中心に据えています。
+  \item 停止時刻、線形操作に関するテンプレートが整えられており、
+        さらなる拡張（例えば Doob-Meyer 定理への発展）に備えた構造です。
+  \item 学部レベルでは「マルチンゲール部分 + 予測可能部分」という図式を
+        保ちつつ、抽象化された Lean コードと対応させる感覚を養うことができます。
+\end{itemize}
+
+今後は、Optional Stopping や線形操作の補題に証明を追加したり、
+サブマルチンゲールに対する増加過程の具体的構成を進めることで、
+より実践的な Doob 分解ツールへと近づけることが期待されます。
+
+\bigskip
+\noindent\textbf{謝辞.}
+本資料および Lean ファイルは CODEX (OpenAI) により生成されました。
+集合論的視点で Doob 分解の拡張を理解する一助となれば幸いです。
+
+\end{document}

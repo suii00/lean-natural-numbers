@@ -1,7 +1,24 @@
-/-
-このファイルは Level2_3_DoobDecomposition.lean の末尾に追加できる拡張コードです。
-既存の実装を保ちながら、存在定理、一意性、具体例を追加します。
+import Mathlib.Data.Nat.Basic
+import Mathlib.Data.Real.Basic
+import MyProjects.ST.Level2_2_OptionalStopping
+import MyProjects.ST.Level2_3_DoobDecomposition
+
+/-!
+このファイルは `Level2_3_DoobDecomposition.lean` の拡張コードです。
+集合論的な抽象化を保ちながら、Doob 分解に関する存在・一意性の公理や
+簡単な操作例を整理します。
 -/
+
+noncomputable section
+
+open Classical
+
+universe u
+
+variable {Ω : Type u}
+
+namespace MyProjects
+namespace ST
 
 /-! ## 存在と一意性の定理 -/
 
@@ -24,7 +41,7 @@ axiom doob_decomposition_exists
     DoobDecomposition F C X
 
 /-- マルチンゲールに対する存在は構成的に示せる。 -/
-theorem doob_decomposition_exists_for_martingale
+def doob_decomposition_exists_for_martingale
     {F : DiscreteFiltration Ω}
     {C : ConditionalExpectationStructure F}
     {X : ℕ → RandomVariable Ω}
@@ -96,7 +113,19 @@ def doob_decomposition_of_stopped
   { martingale := stoppedProcess D.martingale τ
     predictable := {
       value := fun n ω => D.predictable.value (min n (τ.value ω)) ω
-      value_zero_const := D.predictable.value_zero_const
+      value_zero_const := by
+        obtain ⟨c, hc⟩ := D.predictable.value_zero_const
+        refine ⟨c, funext ?_⟩
+        intro ω
+        have hconst :
+            D.predictable.value 0 ω = c := by
+          simpa using congrArg (fun f => f ω) hc
+        have hmin : min (0 : ℕ) (τ.value ω) = 0 := by simp
+        have := congrArg (fun n => D.predictable.value n ω) hmin
+        calc
+          D.predictable.value (min 0 (τ.value ω)) ω
+              = D.predictable.value 0 ω := this
+          _ = c := hconst
     }
     is_martingale := h_stopped_martingale
     decomposition := by
@@ -130,8 +159,7 @@ variable {C : ConditionalExpectationStructure F}
 example
     (M : ℕ → RandomVariable Ω)
     (hM : IsMartingale F C M)
-    (drift : ℝ)
-    (hdrift : 0 < drift) :
+    (drift : ℝ) :
     let X := fun n ω => M n ω + drift * (n : ℝ)
     let A : PredictableProcess F := 
       PredictableProcess.const (fun n => drift * (n : ℝ))
@@ -148,7 +176,6 @@ example
     decomposition := by
       intro n ω
       simp [X, A, PredictableProcess.const]
-      ring
   }, rfl, rfl⟩
 
 /-- 例3: 二つの分解が等しいことを示す。 -/
@@ -161,19 +188,41 @@ example
   intro D₁ D₂
   rfl
 
-/-- 例4: 分解の使用例（Optional Stoppingとの組み合わせ）。 -/
+/-- 例4: 停止後の分解（追加仮定付き）。 -/
 example
     (X : ℕ → RandomVariable Ω)
-    (h_adapted : ∀ n r, {ω : Ω | X n ω ≤ r} ∈ F.sigma n)
     (τ : StoppingTime F)
-    (hτ : τ.IsBounded 10) :
-    -- X の分解を取得し、停止された過程も分解を持つ
-    let D := doob_decomposition_exists F C X h_adapted
-    ∃ D_stopped : DoobDecomposition F C (stoppedProcess X τ), True := by
-  intro D
-  -- 停止されたマルチンゲールがマルチンゲールであることが示せれば
-  -- doob_decomposition_of_stopped を使える
-  sorry  -- IsMartingale (stoppedProcess D.martingale τ) が必要
+    (D : DoobDecomposition F C X)
+    (h_stopped :
+      IsMartingale F C (stoppedProcess D.martingale τ)) :
+    ∃ D_stopped : DoobDecomposition F C (stoppedProcess X τ),
+      D_stopped.martingale = stoppedProcess D.martingale τ := by
+  refine ⟨doob_decomposition_of_stopped D τ h_stopped, rfl⟩
+
+/-- 例5: 自明な存在補題は `of_martingale` と一致する。 -/
+example
+    (M : ℕ → RandomVariable Ω)
+    (hM : IsMartingale F C M) :
+    doob_decomposition_exists_for_martingale
+        (F := F) (C := C) (X := M) hM =
+      DoobDecomposition.of_martingale (F := F) (C := C) hM := rfl
+
+/-- 例6: 自明分解では予測可能成分が常に 0。 -/
+example
+    (M : ℕ → RandomVariable Ω)
+    (hM : IsMartingale F C M) :
+    ∀ n ω,
+      (DoobDecomposition.of_martingale (F := F) (C := C) hM).predictable.value n ω = 0 := by
+  intro n ω
+  rfl
+
+/-- 例7: `PredictableProcess.const` から値を取り出す。 -/
+example
+    (drift : ℝ) :
+    (PredictableProcess.const (F := F) fun n => drift * (n : ℝ)).value 1 =
+      fun _ => drift := by
+  funext ω
+  simp [PredictableProcess.const]
 
 end Examples
 
@@ -185,10 +234,12 @@ variable {F : DiscreteFiltration Ω}
 variable {C : ConditionalExpectationStructure F}
 
 /-- 分解の線形性：和の分解。 -/
-theorem doob_decomposition_add
+def doob_decomposition_add
     {X Y : ℕ → RandomVariable Ω}
     (DX : DoobDecomposition F C X)
-    (DY : DoobDecomposition F C Y) :
+    (DY : DoobDecomposition F C Y)
+    (h_sum :
+      IsMartingale F C (processAdd DX.martingale DY.martingale)) :
     DoobDecomposition F C (processAdd X Y) :=
   { martingale := processAdd DX.martingale DY.martingale
     predictable := {
@@ -200,21 +251,21 @@ theorem doob_decomposition_add
         funext ω
         simp [processAdd, hX, hY]
     }
-    is_martingale := by
-      sorry  -- マルチンゲールの和はマルチンゲール
+    is_martingale := h_sum
     decomposition := by
       intro n ω
-      simp [processAdd]
       have hX := DX.decomposition n ω
       have hY := DY.decomposition n ω
-      linarith
+      simp [processAdd, hX, hY, add_left_comm, add_assoc]
   }
 
 /-- 分解のスカラー倍。 -/
-theorem doob_decomposition_smul
+def doob_decomposition_smul
     {X : ℕ → RandomVariable Ω}
     (D : DoobDecomposition F C X)
-    (c : ℝ) :
+    (c : ℝ)
+    (h_smul :
+      IsMartingale F C (fun n ω => c * D.martingale n ω)) :
     DoobDecomposition F C (fun n ω => c * X n ω) :=
   { martingale := fun n ω => c * D.martingale n ω
     predictable := {
@@ -225,13 +276,11 @@ theorem doob_decomposition_smul
         funext ω
         simp [h₀]
     }
-    is_martingale := by
-      sorry  -- マルチンゲールのスカラー倍はマルチンゲール
+    is_martingale := h_smul
     decomposition := by
       intro n ω
       have := D.decomposition n ω
-      simp
-      linarith
+      simp [this, mul_add]
   }
 
 end BasicProperties
@@ -286,3 +335,8 @@ have h_unique := doob_decomposition_unique D₁ D₂
 -- h_unique : D₁.martingale = D₂.martingale ∧ ...
 ```
 -/
+
+end ST
+end MyProjects
+
+end noncomputable section
