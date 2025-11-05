@@ -1,0 +1,101 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{構造塔による確率論の基礎ノート}
+\author{CODEX (OpenAI) によるTeX生成\\[2pt]
+（Leanファイルも CODEX (OpenAI) により生成）}
+\date{2025年11月5日}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本ノートは \texttt{src/MyProjects/ST/Probability\_Extended.lean} で形式化された内容を、
+学部生向けに集合論的・構造塔的観点から解説したものである。
+対象読者は測度論的背景に触れた初学者を想定し、ニコラ・ブルバキ『数学原論』の精神に倣って
+定義間の対応を明瞭に示す。
+\end{abstract}
+
+\section{構造塔としての離散フィルトレーション}
+離散フィルトレーション $F$ は集合 $\Omega$ 上の可測部分集合族 $(\mathcal{F}_n)_{n \in \mathbb{N}}$ と考えられる。
+Lean ファイル \texttt{Probability.lean} では
+\[
+F : \mathbb{N} \to \mathcal{P}(\mathcal{P}(\Omega))
+\]
+とし、単調性 $F_m \subseteq F_n$（$m \le n$）と被覆性 $\forall E \subseteq \Omega\, \exists n \, (E \in F_n)$ を仮定した。
+これを構造塔
+\[
+T = F.\mathrm{toStructureTowerWithMin}
+\]
+に持ち上げると、層 $T.\mathrm{layer}(n)$ は $\mathcal{F}_n$ に一致し、最小層 $\mathrm{minLayer}(E)$ は
+$E$ が初めて現れるインデックスを返す。
+
+\begin{tikzcd}[column sep=huge]
+E \in \mathcal{F}_m \arrow[r, hook, "\text{単調性 }F.mono"] \arrow[d, dashed, "\exists n"'] &
+E \in \mathcal{F}_n \\
+T.\mathrm{layer}(k) \arrow[ur, dashed] &
+\end{tikzcd}
+
+上図は、層の包含とフィルトレーションの単調性が同一視できることを表す。
+
+\section{停止時刻とデビュー塔}
+停止時刻 $\tau : \Omega \to \mathbb{N}$ が $F$ に適合しているとは、集合
+\[
+\{\omega \mid \tau(\omega) \le n\}
+\]
+が $F_n$ に属することである。Lean ではこれを \texttt{StoppingTime F} と定義し、
+塔
+\[
+\tau.\mathrm{toTower} : \mathrm{StructureTowerWithMin}
+\]
+を構成する。各層は $\tau$ が時刻 $n$ までに訪れる $\omega$ の集合であり、
+最小層はちょうど $\tau$ 自身である（命題 \texttt{minLayer\_eq\_value}）。
+
+\section{適合確率過程}
+$F$ に対し、離散時間確率過程 $X$ を
+\[
+X : \mathbb{N} \times \Omega \to \beta
+\]
+（$\beta$ は可算な値域を想定）として、各 fiber
+$\{\omega \mid X_n(\omega) = b\}$ が $F_n$ に属することを
+\texttt{StochasticProcess F β} の \texttt{adapted} フィールドで表現する。
+特にトリビアル・フィルトレーション上の定数過程
+\[
+X_n(\omega) = c
+\]
+が適合することを Lean では \texttt{StochasticProcess.const} として示した。
+
+\section{条件付き期待値の塔性質}
+条件付き期待値を抽象的に扱うため、
+\[
+\texttt{ConditionalExpectationStructure cond tower}
+\]
+が導入されている。演算子 $\mathrm{cond}(n, X)$ は ``$E[X \mid \mathcal{F}_n]$'' に対応し、
+塔性質
+\[
+\mathrm{cond}(m, \mathrm{cond}(n, X)) = \mathrm{cond}(m, X) \quad (m \le n)
+\]
+が公理化される。Lean では \texttt{tower\_eval} や \texttt{tower\_idempotent} といった補題が
+評価点での等式を保証する。
+
+\section{フィルトレーション塔の直積}
+同じ $\Omega$ 上の二つのフィルトレーション $F_1, F_2$ が与えられると、
+構造塔の直積
+\[
+\texttt{filtrationTowerProd }F_1 F_2
+\]
+が定義できる。射影
+$\texttt{filtrationTowerProj}_1, \texttt{filtrationTowerProj}_2$ は
+構造塔の普遍性から自明に得られる。これは独立な情報の併合を抽象的に扱う手段であり、
+確率論での積フィルトレーションに対応する。
+
+\section*{おわりに}
+本ノートで述べた対応は、Lean ファイル \texttt{Probability\_Extended.lean} が証明する形式的事実と
+一致しており、構造塔という集合論的枠組みを通して確率論の基礎概念を整理する第一歩である。
+今後はマルチンゲールや停止定理の形式化へと発展させることができる。
+
+\end{document}
