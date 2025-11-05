@@ -1,0 +1,145 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage[strings]{underscore} % ← プリアンブル（\begin{document}の前）
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=purple,
+  citecolor=teal,
+  pdftitle={Doob分解と構造塔},
+  pdfauthor={Structure Tower Project / CODEX (OpenAI)}
+}
+
+\title{Doob分解と構造塔\\{\large --- 学部生のためのガイド ---}}
+\author{Structure Tower Project / CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\bigskip
+\begin{center}
+  \textbf{注意.} 本文書および対応する Lean ファイル
+  \texttt{Level2\_3\_DoobDecomposition.lean} は CODEX (OpenAI) が生成しました。
+\end{center}
+
+\section{導入}
+
+Doob分解とは、離散時間の適合過程 $X$ を
+\[
+  X = M + A
+\]
+と分ける定理であり、$M$ はマルチンゲール部分、$A$ は予測可能な単調増加部分を表します。
+ニコラ・ブルバキの集合論的精神を反映し、構造塔 (\emph{Structure Tower})
+を用いてこの分解を直観的に理解します。
+
+Leanファイル \texttt{Level2\_3\_DoobDecomposition.lean} では、
+測度論の細部を避け、集合論的抽象化に徹した定義と簡潔な補題を実装しました。
+
+\section{予測可能過程と増加過程}
+
+予測可能 (predictable) 過程とは、その値が「過去」の層に依存する過程です。
+抽象的には時刻 0 の値が定数であることから始められます。
+
+\begin{definition}[Lean: \texttt{PredictableProcess}]
+フィルトレーション $F$ に対し、予測可能過程は時刻ごとに実数値を返す写像 $\mathrm{value}\_n$ の族であり、
+時刻 0 に限り定数関数となることを要求します。
+\end{definition}
+
+さらに、各軌道 $\omega \mapsto A\_n(\omega)$ が単調増加する予測可能過程を考えます。
+
+\begin{definition}[Lean: \texttt{IncreasingProcess}]
+$A$ が予測可能で $A\_0=0$、さらに $m\le n$ ならば $A\_m(\omega)\le A\_n(\omega)$ が成り立つ。
+\end{definition}
+
+Lean の実装ではこれらを構造体として表現し、零過程や定数過程の例を与えています。
+
+\section{Doob分解の定義}
+
+Doob分解本体は次の情報を保持します：
+\begin{itemize}[leftmargin=1.5em]
+  \item マルチンゲール部分 $M$
+  \item 予測可能部分 $A$
+  \item $M$ がマルチンゲールである証明
+  \item 任意の $n$ について $X\_n = M\_n + A\_n$ であること
+\end{itemize}
+
+\begin{definition}[Lean: \texttt{DoobDecomposition}]
+$X$ に対し、構造体
+\(\langle M, A, \text{is\_martingale}, \text{decomposition}\rangle\) を与える。
+\end{definition}
+
+Lean では定数マルチンゲールに対する自明な分解を `of_martingale` として定義し、
+$A$ がゼロ過程であることを確認しています。
+
+\section{構造塔による図解}
+
+Doob分解は構造塔の層を通じて理解できます。図\ref{fig:tower}は層の上に
+マルチンゲール部分と予測可能部分がどのように配置されるかを示します。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[x=2.5cm,y=0.8cm]
+    \tikzstyle{layer}=[draw,rounded corners,minimum height=0.6cm,minimum width=2.2cm,fill=blue!10]
+    \node[layer] (L0) at (0,0) {$\mathcal{F}_0$};
+    \node[layer] (L1) at (0,1) {$\mathcal{F}_1$};
+    \node[layer] (L2) at (0,2) {$\mathcal{F}_2$};
+    \node[layer] (L3) at (0,3) {$\mathcal{F}_3$};
+    \draw[->,thick] (L0) -- (L1) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L1) -- (L2) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L2) -- (L3) node[midway,right] {$\subseteq$};
+    \node at (0,3.7) {$\vdots$};
+    \node at (2.3,0.5) {$M$};
+    \draw[->,thick,orange!70!black] (2,0.5) -- ++(-0.8,1);
+    \node at (2.3,1.5) {$A$};
+    \draw[->,thick,green!60!black] (2,1.5) -- ++(-0.8,1.5);
+    \node at (0,-0.8) {構造塔で見る $X=M+A$};
+  \end{tikzpicture}
+  \caption{マルチンゲールと予測可能部分の層構造}
+  \label{fig:tower}
+\end{figure}
+
+マルチンゲール部分 $M$ は層の情報を保ち、予測可能部分 $A$ は各層の「ずれ」を吸収します。
+
+\section{Lean 実装の概要}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item `processAdd`、`zeroProcess` によって過程の最小演算を定義。
+  \item `PredictableProcess.zero` や `IncreasingProcess.zero` が
+        自明な例を提供。
+  \item `DoobDecomposition.of_martingale` はマルチンゲールから
+        予測可能成分 $0$ の分解を構成。
+  \item `eq_martingale_of_predictable_zero`、
+        `is_martingale_of_predictable_zero` などの補題が、
+        予測可能成分が消える場合の性質を示す。
+\end{itemize}
+
+これらは将来の拡張（例えば実際の条件付き期待値や停止時刻との関係）に向けた基盤となります。
+
+\section{まとめ}
+
+Doob分解は「現在の情報」と「過去から予測できる部分」を分離する道具であり、
+構造塔を通じて「層を保つ射」と「層の差分を記録する射」の組み合わせと解釈できます。
+Lean 実装は抽象的ながら、この構造を保ちながら徐々に複雑な主張へ進む土台を提供します。
+
+\bigskip
+\noindent\textbf{謝辞.}
+本資料および Lean ファイルは CODEX (OpenAI) によって生成されました。
+構造塔の視点で Doob分解の直感を深める一助となれば幸いです。
+
+\end{document}

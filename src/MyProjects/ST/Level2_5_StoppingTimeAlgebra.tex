@@ -1,0 +1,133 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=purple,
+  citecolor=teal,
+  pdftitle={停止時刻の代数を構造塔で学ぶ},
+  pdfauthor={Structure Tower Project / CODEX (OpenAI)}
+}
+
+\title{停止時刻の代数を構造塔で学ぶ\\{\large --- 学部生のためのガイド ---}}
+\author{Structure Tower Project / CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\bigskip
+\begin{center}
+  \textbf{注意.} 本文書および対応する Lean ファイル
+  \texttt{Level2\_5\_StoppingTimeAlgebra.lean} は CODEX (OpenAI) が生成しました。
+\end{center}
+
+\section{導入}
+
+停止時刻には自然な演算が定義されます。たとえば2つの停止時刻 $\tau,\sigma$ に対し、
+\[
+  (\tau \wedge \sigma)(\omega)=\min\{\tau(\omega),\sigma(\omega)\},\qquad
+  (\tau \vee \sigma)(\omega)=\max\{\tau(\omega),\sigma(\omega)\}
+\]
+などの点wise 操作を考えることができます。ニコラ・ブルバキの『数学原論』に通じる集合論的視点では、これらを構造塔 (\emph{Structure Tower}) のminLayer 関数で理解できます。
+
+Lean ファイル \texttt{Level2\_5\_StoppingTimeAlgebra.lean} では、
+停止時刻を自然数値関数として扱い、測度論的閉性に立ち入らずに代数的性質を解析しました。本稿はその数学的説明版です。
+
+\section{点wise 順序とフィルトレーション}
+
+離散時間フィルトレーション $F$ 上の停止時刻 $\tau$ は写像 $\Omega\to\mathbb{N}$ として表され、構造塔の最小層 $\mathrm{minLayer}$ によって
+\[
+  \tau(\omega) = (F.\mathrm{toTowerWithMin}).\mathrm{minLayer}(\omega)
+\]
+と書けます。Lean では補題 \texttt{StoppingTime.value\_eq\_minLayer} がこの対応を保証します。
+
+停止時刻の点wise 順序は次の通りです。
+
+\begin{definition}[Lean: \texttt{StoppingTime.LE}]
+$\tau \le \sigma$ とは、任意の $\omega$ について $\tau(\omega)\le\sigma(\omega)$ が成り立つこと。
+\end{definition}
+
+この順序は自然数の順序から直接来ており、反射性・推移性は自明です。
+
+\section{点wise 演算と minLayer の図式}
+
+点wise 最小・最大・和の演算を定義します。
+\begin{align*}
+  (\tau\wedge\sigma)(\omega) &= \min(\tau(\omega),\sigma(\omega)),\\
+  (\tau\vee\sigma)(\omega) &= \max(\tau(\omega),\sigma(\omega)),\\
+  (\tau+\sigma)(\omega) &= \tau(\omega)+\sigma(\omega).
+\end{align*}
+Lean では \texttt{infValue}, \texttt{supValue}, \texttt{addValue} として実装されました。
+
+minLayer 観点でこれらを図示すると図\ref{fig:lattice}のようになります。各層の高さを表す棒が $\tau$ と $\sigma$ に対応し、最小・最大は自然数の演算として行われます。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[x=1.8cm,y=0.7cm]
+    \tikzstyle{bar}=[draw,fill=blue!20,minimum width=0.6cm,minimum height=0.4cm]
+    \node[bar,minimum height=3cm] (tau) at (0,0) {};
+    \node[bar,minimum height=1.8cm] (sigma) at (1.2,0) {};
+    \node[bar,minimum height=1.8cm,fill=green!30] (inf) at (2.4,0) {};
+    \node[bar,minimum height=3cm,fill=orange!40] (sup) at (3.6,0) {};
+    \node[below=0.2cm of tau] {$\tau(\omega)$};
+    \node[below=0.2cm of sigma] {$\sigma(\omega)$};
+    \node[below=0.2cm of inf] {$\min$};
+    \node[below=0.2cm of sup] {$\max$};
+  \end{tikzpicture}
+  \caption{minLayer の高さで見る停止時刻の最小・最大}
+  \label{fig:lattice}
+\end{figure}
+
+構造塔では $\mathrm{minLayer}$ が層の高さを返すため、図のように自然数の演算で表現できます。
+
+\section{停止時刻の事象集合}
+
+集合 $\{\tau\le n\} = \{\omega\mid \tau(\omega)\le n\}$ は $\tau$ が $n$ 以下で停止する全ての事象を表します。Lean の定義 \texttt{StoppingTime.atMost} はこれを実装し、
+\[
+  \{\tau\wedge\sigma \le n\} = \{\tau\le n\} \cup \{\sigma\le n\},\quad
+  \{\tau\vee\sigma \le n\} = \{\tau\le n\} \cap \{\sigma\le n\}
+\]
+が成立することを \texttt{mem\_infAtMost}、\texttt{mem\_supAtMost} で示しました。和に関しては $\{\tau+\sigma\le n\}=\{\tau(\omega)+\sigma(\omega)\le n\}$ と直訳されます。
+
+\section{有界性の伝播}
+
+停止時刻が $N$ で有界とは、$\tau(\omega)\le N$ が全 $\omega$ で成り立つこと。Lean では \texttt{StoppingTime.IsBounded} として定義されています。
+点wise 演算も自然数の演算であるため、有界性は次のように保たれます。
+\begin{align*}
+  \tau,\sigma \le N \quad &\Longrightarrow\quad \tau\wedge\sigma \le N,\ \tau\vee\sigma \le N,\\
+  \tau\le N,\ \sigma\le M \quad &\Longrightarrow\quad \tau+\sigma \le N+M.
+\end{align*}
+Lean の補題 \texttt{infValue\_bounded}, \texttt{supValue\_bounded}, \texttt{addValue\_bounded} がこれらを証明しています。
+
+\section{まとめと今後}
+
+構造塔の最小層関数を介して、停止時刻の点wise 操作が自然数の演算と一致することを見てきました。これにより、停止時刻の代数を測度論に頼らず直観的に理解できます。
+
+今後の課題としては：
+\begin{itemize}
+  \item 点wise 最小・最大が再び停止時刻となるための $\sigma$-代数的条件を形式化する。
+  \item 和演算を Optional Stopping の結果と結び付け、二段階停止の期待値計算を解析する。
+  \item 無限族の停止時刻に対する上限・下限を構造塔でどのように扱うかを考察する。
+\end{itemize}
+
+\bigskip
+\noindent\textbf{謝辞.}
+本資料と対応する Lean 実装は CODEX (OpenAI) によって生成されました。構造塔という抽象枠組みが停止時刻の代数を学ぶ手がかりとなれば幸いです。
+
+\end{document}
