@@ -1,0 +1,127 @@
+\documentclass[a4paper]{ltjsarticle}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{physics}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=teal,
+  citecolor=magenta
+}
+
+\title{離散時間フィルトレーションと測度論的構造塔の入門}
+\author{CODEX (OpenAI)\thanks{TeXファイルおよび Lean ファイルを CODEX (OpenAI) が生成}}
+\date{\today}
+
+\newtheorem{definition}{定義}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命題}
+\newtheorem{example}{例}
+\theoremstyle{remark}
+\newtheorem{remark}{補足}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本ノートは、Nicolas Bourbaki に着想を得た「構造塔」の言語を通して、確率論における離散時間フィルトレーションを学部生向けに解説する。特に、Lean ファイル \texttt{Claude\_Probability.lean} で形式化された \texttt{DiscreteFiltration} と \texttt{MeasurableTowerWithMin} の関係、さらには直積構成と簡単な例を紹介する。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+従来の確率論では、離散時間フィルトレーション $(\mathcal{F}_n)_{n\in \mathbb{N}}$ は、時間が進むにつれて情報が増える仕組みを表現する。本ノートでは、Bourbaki の「構造塔」の発想を活かし、フィルトレーションを \emph{層} の列として扱う。Lean 実装では、各層が集合の族ではなく可測空間 (\texttt{MeasurableSpace}) として格納され、最小層を与える関数 \texttt{minLayer} を通して停止時刻の考え方と自然に結びつく。
+
+以下で扱う主要な Lean 中の定義は次の通りである。
+\begin{itemize}[nosep]
+  \item \texttt{DiscreteFiltration}：型 $\Omega$ 上の自然数添字付き可測空間列。
+  \item \texttt{toMeasurableTower}：フィルトレーションを \texttt{MeasurableTowerWithMin} に変換。
+  \item \texttt{product}：二つの離散フィルトレーションの直積。
+\end{itemize}
+
+\section{離散時間フィルトレーション}
+
+\begin{definition}[離散時間フィルトレーション]
+型 $\Omega$ に可測空間構造が与えられているとき、\texttt{Claude\_Probability.lean} の定義 \texttt{DiscreteFiltration} は次を保持する。
+\begin{enumerate}[label=(\roman*),nosep]
+  \item 時刻 $n$ ごとの可測空間 $\sigma(n)$。
+  \item 単調性 $\sigma(m)\leq \sigma(n)$（$m\leq n$ のとき）。
+  \item 包含性 $\sigma(n)\leq \mathcal{M}$（背景可測空間 $\mathcal{M}$ を上界とする）。
+  \item 各 $\omega\in\Omega$ に対し、単点集合 $\{\omega\}$ を可測にする最小の時刻が存在。
+\end{enumerate}
+\end{definition}
+
+この最小時刻を与えるのが \texttt{minLayer} であり、Lean では自然数の選択公理的操作 \texttt{Nat.find} を用いて構成される。これは停止時刻 $\tau(\omega)$ の離散版とみなせる。
+
+\subsection{図式による可視化}
+
+\[
+\begin{tikzcd}[column sep=huge,row sep=large]
+\sigma(m) \arrow[r,hook,"F.\mathrm{mono}(m\leq n)"] \arrow[d,swap,"\text{包含写像}"] &
+\sigma(n) \arrow[d,"\text{包含写像}"] \\
+\mathcal{M}(\Omega) \arrow[r,equal] & \mathcal{M}(\Omega)
+\end{tikzcd}
+\]
+
+図式は、各層 $\sigma(m)$ がより上位の可測空間に包含されること、そして背景可測空間 $\mathcal{M}(\Omega)$ へ安定に埋め込まれることを表す。
+
+\section{構造塔への変換}
+
+Lean の関数 \texttt{DiscreteFiltration.toMeasurableTower} は、フィルトレーションを
+\[
+T = (\Omega,\ \text{layer}: \mathbb{N} \to \mathrm{MeasurableSpace}\,\Omega,\ \text{minLayer})
+\]
+という測度論的構造塔に変換する。ここで
+\begin{align*}
+T.\text{layer}(n) &= \sigma(n),\\
+T.\text{minLayer}(\omega) &= \min\{n \mid \{\omega\}\in\sigma(n)\}.
+\end{align*}
+この変換により、構造塔の理論で用いる単調性や最小性の公理を、そのままフィルトレーションに適用できる。
+
+\section{基本例}
+
+\subsection{自明なフィルトレーション}
+
+\begin{example}
+背景可測空間が単点集合を常に可測とする (\texttt{MeasurableSingletonClass}) と仮定すると、Lean の \texttt{trivial} で次が得られる。
+\[
+\sigma(n) = \mathcal{M}(\Omega)\quad (\forall n),
+\]
+したがって全ての事象は時刻 $0$ で観測可能である。
+\end{example}
+
+\subsection{直積フィルトレーション}
+
+二つのフィルトレーション $F_1,F_2$ の直積構成は
+\[
+(\sigma_1 \otimes \sigma_2)(n) = \sigma_1(n) \times \sigma_2(n)
+\]
+として定義される。Lean コード \texttt{product F1 F2} では、既存の \texttt{MeasurableTowerWithMin.prod} を活用して単調性・包含性・単点可測性が保たれることを示している。
+
+\begin{tikzcd}[column sep=huge]
+(\Omega_1,\sigma_1(n)) \arrow[r, "F_1.\mathrm{mono}"] \arrow[d,swap,"\times"] &
+(\Omega_1,\sigma_1(n+1)) \arrow[d,"\times"] \\
+(\Omega_2,\sigma_2(n)) \arrow[r,"F_2.\mathrm{mono}"] &
+(\Omega_2,\sigma_2(n+1))
+\end{tikzcd}
+
+\section{今後の展望}
+
+\begin{itemize}[nosep]
+  \item 連続時間（$\mathbb{R}_{\ge 0}$ 添字）のフィルトレーションへの拡張。
+  \item 停止時刻やマルチンゲールを構造塔の射として扱う一般化。
+  \item Lean 上での条件付き期待値や Doob 分解の形式化。
+\end{itemize}
+
+\section*{謝辞}
+
+本資料および対応する Lean コードは、すべて CODEX (OpenAI) によって自動生成された。luatex での組版を想定しており、必要に応じて \texttt{lualatex} でコンパイルできる。
+
+\end{document}

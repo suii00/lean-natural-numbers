@@ -1,0 +1,132 @@
+\documentclass[a4paper]{ltjsarticle}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=teal,
+  citecolor=magenta
+}
+
+\title{離散時間フィルトレーションと停止時刻の構造塔的理解}
+\author{CODEX (OpenAI)\thanks{TeXファイルおよび Lean ファイルは CODEX (OpenAI) によって自動生成されました。}}
+\date{\today}
+
+\newtheorem{definition}{定義}
+\newtheorem{proposition}{命題}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{例}
+\theoremstyle{remark}
+\newtheorem{remark}{補足}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本ノートは、Lean ファイル \texttt{Claude\_Probability\_Extended.lean} で形式化した停止時刻理論を学部生向けに解説する。Bourbaki 的な「構造塔」の言語を用いることで、フィルトレーション、停止時刻、ヒッティングタイムを断片化せず統一的に理解できることを示す。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+離散時間の確率論では、時刻 $n$ ごとに観測可能な事象の集まり $(\mathcal{F}\_n)\_{n\in\mathbb{N}}$ が与えられる。これを \emph{フィルトレーション} と呼ぶ。本研究では、Lean 上で実装した構造塔 \texttt{MeasurableTowerWithMin} を通じて、フィルトレーションと停止時刻の関係を明確にする。
+
+特に次の3点を中心に解説する。
+\begin{enumerate}[label=(\arabic*), nosep]
+  \item 停止時刻（Stopping Time）の定義と基本的な演算。
+  \item 構造塔の \texttt{minLayer} が停止時刻を定めること。
+  \item 可測集合列に対する最初のヒット時刻（first hitting time）および自然フィルトレーションの構成。
+\end{enumerate}
+
+\section{停止時刻の定義と演算}
+
+\begin{definition}[停止時刻]
+離散時間フィルトレーション $(\mathcal{F}\_n)$ に対し、写像 $\tau:\Omega\to\mathbb{N}$ が次を満たすとき停止時刻という：
+\[
+ \{\omega \mid \tau(\omega)\le n\} \in \mathcal{F}\_n \quad (\forall n\in\mathbb{N}).
+\]
+Lean では \texttt{StoppingTime} 構造体で表され、\texttt{τ} が停止時刻の値、\texttt{adapted} が上式の性質を表す。
+\end{definition}
+
+\subsection{基本例と演算}
+
+\begin{itemize}[nosep]
+  \item \textbf{定数停止時刻}：任意の $n\in\mathbb{N}$ に対して $\tau(\omega)=n$ とするもの。Lean の \texttt{StoppingTime.const} がこれに対応する。
+  \item \textbf{下限}$\;\sigma\wedge\tau$：二つの停止時刻の最小値を取ると再び停止時刻になる。Lean では \texttt{StoppingTime.inf}。
+  \item \textbf{上限}$\;\sigma\vee\tau$：最大値を取る \texttt{StoppingTime.sup}。
+\end{itemize}
+
+下図に停止時刻の生成と包含関係を示す。
+\[
+\begin{tikzcd}[column sep=huge,row sep=large]
+ & \mathbb{N} \arrow[dl,swap,"σ"] \arrow[dr,"τ"] \\
+ \mathbb{N} \arrow[dr,swap,"\min"] & & \mathbb{N} \arrow[dl,"\max"] \\
+ & \mathbb{N}
+\end{tikzcd}
+\]
+
+\section{構造塔 \texttt{minLayer} と停止時刻}
+
+構造塔 \texttt{MeasurableTowerWithMin} は「各 $\omega$ が初めて単点として可測になる層」を選ぶ関数 \texttt{minLayer} を備える。Lean コードでは
+\[
+ \texttt{minLayerStoppingTime}(F)\;:\;\omega\mapsto F.\texttt{toMeasurableTower.minLayer}\,\omega
+\]
+が停止時刻であることを示している。
+
+\begin{theorem}[最小性]
+任意の停止時刻 $\tau$ と $\omega\in\Omega$ に対し、$\{\omega\}$ が $\mathcal{F}\_{\tau(\omega)}$ で可測ならば
+\[
+ \texttt{minLayerStoppingTime}(F)(\omega) \le \tau(\omega).
+\]
+\end{theorem}
+
+この結果は Lean の \texttt{minLayerStoppingTime\_minimal} として形式化されている。
+
+\section{最初のヒット時刻}
+
+\subsection{定義}
+可測集合列 $A:\mathbb{N}\to\mathcal{P}(\Omega)$ が与えられたとする。各 $\omega$ に対し最初に $A\_k$ に入る時刻 $k$ が存在し、かつそれ以前では入らないと仮定する（Lean 上では \texttt{hStruct} として要求）。このとき
+\[
+ \texttt{firstHittingTime}(F,A) (\omega) := \min\{k \mid \omega\in A\_k\}
+\]
+が停止時刻となる。Lean 実装では \texttt{Classical.choose} を用いて最小要素を取得している。
+
+\subsection{図式による可視化}
+\[
+\begin{tikzcd}[row sep=large]
+\Omega \arrow[r,"A\_k"] \arrow[dr,swap,"τ(\omega)"] & \{\text{真偽値}\} \\
+ & \mathbb{N}
+\end{tikzcd}
+\]
+
+$\omega$ ごとに「どの $k$ で $A\_k$ に入るか」を追跡し、そこで停止する。\texttt{firstHittingTime\_spec} は実際に $\omega$ がその時刻で $A\_k$ に属することを確認する補題である。
+
+\section{自然フィルトレーション}
+
+確率過程 $X:\mathbb{N}\to\Omega\to\alpha$ があるとき、時刻 $n$ までの情報を
+\[
+ \mathcal{F}\_n := \sigma\bigl(X\_k^{-1}(A)\mid A\subseteq \alpha \text{ 可測 }, k\le n\bigr)
+\]
+と定義する。Lean の \texttt{naturalFiltration} はこの生成 $\sigma$-代数を \texttt{MeasurableSpace.generateFrom} で構成し、各 $\omega$ がいつ初めて単点集合として可測になるかを仮定 \texttt{hSep} で保証する。
+
+\section{まとめと展望}
+
+\begin{itemize}[nosep]
+  \item 構造塔の \texttt{minLayer} が停止時刻を与えるという発想で、停止時刻理論が塔構造の中に自然に組み込まれる。
+  \item ヒッティングタイムや自然フィルトレーションなど、確率論でよく用いられる概念も同じ枠組みで統一的に処理できる。
+  \item 今後はマルチンゲールや Doob 分解、停止定理などを Lean 上で拡張していくことが期待される。
+\end{itemize}
+
+\section*{謝辞}
+
+本資料および関連する Lean コードは CODEX (OpenAI) によって自動生成された。luatex を用いた組版を想定しているので、\texttt{lualatex} でのコンパイルを推奨する。
+
+\end{document}
