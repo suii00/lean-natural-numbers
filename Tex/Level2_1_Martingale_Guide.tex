@@ -1,0 +1,199 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{physics}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=purple,
+  citecolor=teal,
+  pdftitle={構造塔によるマルチンゲール入門},
+  pdfauthor={Structure Tower Project / CODEX (OpenAI)}
+}
+
+\title{構造塔によるマルチンゲール入門\\{\large --- 学部生のためのガイド ---}}
+\author{Structure Tower Project / CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\bigskip
+
+\begin{center}
+  \textbf{注意.} 本文書および対応する Lean ファイル
+  \texttt{Level2\_1\_Martingale\_Guide.lean} は CODEX (OpenAI) が生成しました。
+\end{center}
+
+\section{はじめに}
+
+マルチンゲールは確率論における中心的概念であり、情報の流れに対して
+「未来の期待値が現在と一致する」過程を特徴付けます。
+本ガイドでは、ニコラ・ブルバキの『数学原論』に見られる構造主義的精神を踏まえ、
+構造塔 (\emph{Structure Tower}) を使ってマルチンゲールを組み立てます。
+ここで扱う定式化は、Lean ファイル
+\texttt{Level2\_1\_Martingale\_Guide.lean} 内の定義
+\texttt{IsMartingale}/\texttt{IsSubmartingale}/\texttt{IsSupermartingale} を
+数学的に解説したものです。測度論的細部は抽象化し、集合と写像に焦点を当てます。
+
+\section{構造塔とフィルトレーション}
+
+確率空間におけるフィルトレーション $(\mathcal{F}_n)_{n\in\mathbb{N}}$ は
+時間とともに増える情報を表す $\sigma$-代数の列です。
+構造塔 $T$ は以下のデータからなります。
+\begin{itemize}[leftmargin=1.5em]
+  \item 基礎集合 $T.\mathrm{carrier}$（ここでは事象集合）
+  \item 添字集合 $T.\mathrm{Index}=\mathbb{N}$
+  \item 層 $T.\mathrm{layer}(n)=\mathcal{F}_n$ に対応する部分集合族
+  \item 被覆性：任意の事象はどこかの層に属する
+  \item 単調性：$n\le m$ なら $\mathcal{F}_n\subseteq \mathcal{F}_m$
+  \item 最小層 $\mathrm{minLayer}$：事象が初めて現れる時刻を与える写像
+\end{itemize}
+
+図式で表すと図\ref{fig:tower}のようになります。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[x=2.8cm,y=0.8cm]
+    \tikzstyle{layer}=[draw,rounded corners,minimum height=0.6cm,minimum width=2.4cm,fill=blue!10]
+    \node[layer] (L0) at (0,0) {$\mathcal{F}_0$};
+    \node[layer] (L1) at (0,1) {$\mathcal{F}_1$};
+    \node[layer] (L2) at (0,2) {$\mathcal{F}_2$};
+    \node[layer] (L3) at (0,3) {$\mathcal{F}_3$};
+    \draw[->,thick] (L0) -- (L1) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L1) -- (L2) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L2) -- (L3) node[midway,right] {$\subseteq$};
+    \node at (0,3.8) {$\vdots$};
+    \node at (0,-0.8) {構造塔による情報の層構造};
+  \end{tikzpicture}
+  \caption{フィルトレーションを構造塔として表現した図}
+  \label{fig:tower}
+\end{figure}
+
+Lean 側では \texttt{Probability.lean} で
+\texttt{DiscreteFiltration} として上述の情報が定義されており、
+構造塔への変換 \texttt{toStructureTowerWithMin} が用意されています。
+
+\section{条件付き期待値の抽象構造}
+
+古典的確率論では、確率測度 $\mu$ の下での条件付き期待値
+$\mathbb{E}[X|\mathcal{F}_n]$ が定義されます。
+本ガイドでは測度論に立ち入らず、抽象的な作用素
+\[
+  \mathrm{cond}_n : (\Omega\to\mathbb{R}) \longrightarrow (\Omega\to\mathbb{R})
+\]
+を考え、塔性質
+\[
+  m\le n \implies \mathrm{cond}_m(\mathrm{cond}_n X) = \mathrm{cond}_m X
+\]
+のみを公理として課します。Lean では
+\texttt{ConditionalExpectationStructure} がこのデータを保持します。
+
+\section{マルチンゲールの定義}
+
+フィルトレーション $F$ と条件付き期待値構造 $C$ を固定します。
+関数列 $X:\mathbb{N}\to(\Omega\to\mathbb{R})$ がマルチンゲールであるとは、
+次の二条件が成り立つことです。
+
+\begin{definition}[Lean: \texttt{IsMartingale}]
+\label{def:martingale}
+  $X$ がマルチンゲールであるとは、
+  \begin{enumerate}[label=(\roman*),leftmargin=1.5em]
+    \item (\textbf{適合性}) 任意の $r\in\mathbb{R}$ と $n\in\mathbb{N}$ について
+    $\{\omega\mid X_n(\omega)\le r\}\in \mathcal{F}_n$。
+    \item (\textbf{塔不変性}) 任意の $m\le n$ について
+    $\mathrm{cond}_m(X_n)=X_m$。
+  \end{enumerate}
+\end{definition}
+
+同様に、劣マルチンゲールと優マルチンゲールは不等式条件で定義されます。
+
+\begin{definition}[Lean: \texttt{IsSubmartingale}]
+  $X$ が劣マルチンゲールとは、適合性と
+  $m\le n$ かつ任意の $\omega$ に対して
+  $X_m(\omega)\le \mathrm{cond}_m(X_n)(\omega)$ が成り立つこと。
+\end{definition}
+
+\begin{definition}[Lean: \texttt{IsSupermartingale}]
+  $X$ が優マルチンゲールとは、適合性と
+  $m\le n$ かつ任意の $\omega$ に対して
+  $\mathrm{cond}_m(X_n)(\omega)\le X_m(\omega)$ が成り立つこと。
+\end{definition}
+
+これらの定義は Lean ではそれぞれ構造体として表現され、
+フィールド名 \texttt{adapted} および
+\texttt{martingale\_condition}/\texttt{submartingale\_condition}/\texttt{supermartingale\_condition} が条件を保持します。
+
+\section{基本性質}
+
+Lean では \texttt{IsMartingale} から直接取り出せる補題として
+\texttt{adapted\_event} や \texttt{martingale\_property} が用意されています。
+これらは定義\ref{def:martingale} の項目をそのまま言い換えたものです。
+
+\begin{lemma}[Lean: \texttt{IsMartingale.martingale\_property}]
+  $h:\texttt{IsMartingale}\,F\,C\,X$ とし、$m\le n$ とする。
+  このとき $\mathrm{cond}_m(X_n)=X_m$。
+\end{lemma}
+
+また、塔性質から直ちに以下が従います。
+
+\begin{theorem}[Lean: \texttt{tower\_property\_for\_martingale}]
+  $h$ を前述のマルチンゲールとする。任意の $k\le m\le n$ について
+  \[
+    \mathrm{cond}_k(X_n)=\mathrm{cond}_k(X_m)
+  \]
+  が成立する。
+\end{theorem}
+
+\section{デビュ時刻と最小層}
+
+構造塔は事象 $E$ を含む最小の層 $\mathrm{minLayer}(E)$ を提供します。
+Lean の定義 \texttt{martingaleDebutLayer} は、固定した $\omega$ に対し
+\[
+  E_\omega = \{\omega'\mid \exists n,\; X_n(\omega') = X_0(\omega)\}
+\]
+とおき、$\mathrm{minLayer}(E_\omega)$ をそのデビュ時刻とみなします。
+これにより「$\omega$ が初めて現在と同じ値を観測する時刻」を抽象的に記述できます。
+
+\section{例：基本的な計算}
+
+Lean ファイルの末尾には簡単な例が含まれています。
+
+\begin{example}
+  任意のマルチンゲール $X$ に対して、
+  初期時刻 $0$ での条件付き期待値は自明に
+  $\mathrm{cond}_0(X_0)=X_0$ である。
+\end{example}
+
+これをより具体的な確率過程（例えば単純なランダムウォーク）に適用するには、
+今後 $\mathrm{cond}$ が線形性などの追加公理を満たすことを仮定し、
+具体的な期待値計算と組み合わせることになります。
+
+\section{おわりに}
+
+本稿は構造塔の言葉でマルチンゲールの基礎を捉え直す第一歩です。
+今後の課題としては、\texttt{Probability\_Extended.lean} で扱われる
+停止時刻や直積構造との相互作用、optional stopping theorem 等への発展があります。
+これらを経由することで、抽象構造と解析的計算の橋渡しが明確になり、
+学部生でも段階的にマルチンゲール理論に触れられる道筋が整備されます。
+
+\bigskip
+\noindent\textbf{謝辞.}
+本資料および Lean 実装は CODEX (OpenAI) により自動生成されました。
+活用いただき、さらなる定理の形式化に挑戦してみてください。
+
+\end{document}

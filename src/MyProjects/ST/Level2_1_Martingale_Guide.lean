@@ -1,21 +1,35 @@
+/-
+Copyright (c) 2025
+Authors: Structure Tower Project
+-/
+
 import Mathlib.Data.Nat.Basic
 import Mathlib.Data.Set.Basic
+import Mathlib.Data.Real.Basic
 import Mathlib.Order.Nat
-import Mathlib.MeasureTheory.Integral.Bochner
 import MyProjects.ST.CAT2_complete
 import MyProjects.ST.Probability
+import MyProjects.ST.Probability_Extended
 
-/-!
-# レベル2.1 実装ガイド: マルチンゲールの構造塔的特徴づけ
+/-
+# Level 2.1 Guide: Martingales through Structure Towers
 
-このファイルは、マルチンゲール理論と構造塔の対応を段階的に実装します。
+This module refines the outline from `Probability.md` into Lean code that
+follows the Bourbaki-style set-theoretic presentation.  We treat martingales,
+submartingales, and supermartingales abstractly by relying only on the
+structure-tower description of filtrations together with an abstract
+conditional expectation operator.
 
-## 実装戦略
+Main components:
+* `IsMartingale`, `IsSubmartingale`, `IsSupermartingale` — set-theoretic
+  predicates that encode the usual tower property requirements.
+* Structural lemmas showing how these predicates decompose into tower and
+  adaptedness conditions.
+* `martingaleDebutLayer` — the debut time of a process expressed via the
+  minimal-layer operator of the associated structure tower.
 
-1. **簡略版**: 測度論を抽象化し、構造の対応のみに焦点
-2. **完全版**: Mathlibの測度論を使った厳密な実装（将来の課題）
-
-このファイルではまず簡略版を実装し、概念の理解を深めます。
+These definitions are lightweight abstractions intended as stepping stones
+towards fully measure-theoretic developments.
 -/
 
 noncomputable section
@@ -29,221 +43,157 @@ namespace ST
 
 variable {Ω : Type u}
 
-/-! ## ステップ1: 実数値確率変数の抽象化 -/
-
-/-- 実数値確率変数（簡略版）
-測度論的詳細は抽象化 -/
+/-- Real-valued random variables in the simplified setting. -/
 abbrev RandomVariable (Ω : Type u) := Ω → ℝ
 
-/-- 確率測度（抽象的）
-実際の測度論は省略し、積分の存在のみ仮定 -/
-axiom ProbabilityMeasure (Ω : Type u) : Type u
-
-/-- 期待値（抽象的） -/
-axiom expectation {Ω : Type u} : ProbabilityMeasure Ω → RandomVariable Ω → ℝ
-
-notation:50 "𝔼[" X "]" => expectation _ X
-
-/-! ## ステップ2: 条件付き期待値の抽象化 -/
-
-/-- 条件付き期待値（抽象的）
-σ-代数に関する条件付き期待値を抽象的に定義 -/
-axiom conditionalExpectation {Ω : Type u} :
-  ProbabilityMeasure Ω → 
-  Set (Set Ω) →  -- σ-代数
-  RandomVariable Ω → 
-  RandomVariable Ω
-
-notation:50 "𝔼[" X "|" σ "]" => conditionalExpectation _ σ X
-
-/-- 条件付き期待値の塔性質（公理） -/
-axiom tower_property {Ω : Type u} {μ : ProbabilityMeasure Ω}
-    {σ₁ σ₂ : Set (Set Ω)} (X : RandomVariable Ω) :
-    σ₁ ⊆ σ₂ → 
-    𝔼[𝔼[X | σ₂] | σ₁] = 𝔼[X | σ₁]
-
-/-- 条件付き期待値の可測性（公理） -/
-axiom cond_exp_measurable {Ω : Type u} {μ : ProbabilityMeasure Ω}
-    {σ : Set (Set Ω)} (X : RandomVariable Ω) :
-    ∀ r : ℝ, {ω | 𝔼[X | σ] ω ≤ r} ∈ σ
-
-/-! ## ステップ3: マルチンゲールの定義 -/
-
-/-- マルチンゲール性の定義（簡略版） -/
-structure IsMartingale 
-    (F : DiscreteFiltration Ω) 
-    (μ : ProbabilityMeasure Ω)
+/-- Bourbaki-style martingale: adaptedness and tower invariance with respect to
+an abstract conditional expectation operator. -/
+structure IsMartingale
+    (F : DiscreteFiltration Ω)
+    (C : ConditionalExpectationStructure F)
     (X : ℕ → RandomVariable Ω) : Prop where
-  /-- 適合性: Xₙ は ℱₙ-可測 -/
-  adapted : ∀ n r, {ω | X n ω ≤ r} ∈ F.sigma n
-  /-- マルチンゲール条件: 𝔼[Xₙ | ℱₘ] = Xₘ (m ≤ n) -/
-  martingale_property : ∀ m n, m ≤ n → 
-    𝔼[X n | F.sigma m] = X m
+  /-- Adaptedness: upper level sets are visible at time `n`. -/
+  adapted :
+    ∀ n r, {ω : Ω | X n ω ≤ r} ∈ F.sigma n
+  /-- Tower invariance: conditioning down to time `m` collapses the future. -/
+  martingale_condition :
+    ∀ {m n}, m ≤ n → C.cond m (X n) = X m
 
-/-- サブマルチンゲール -/
-structure IsSubmartingale 
-    (F : DiscreteFiltration Ω) 
-    (μ : ProbabilityMeasure Ω)
+/-- Bourbaki-style submartingale: adaptedness together with the usual
+inequality between a value and its conditioned future. -/
+structure IsSubmartingale
+    (F : DiscreteFiltration Ω)
+    (C : ConditionalExpectationStructure F)
     (X : ℕ → RandomVariable Ω) : Prop where
-  adapted : ∀ n r, {ω | X n ω ≤ r} ∈ F.sigma n
-  submartingale_property : ∀ m n ω, m ≤ n → 
-    X m ω ≤ 𝔼[X n | F.sigma m] ω
+  adapted :
+    ∀ n r, {ω : Ω | X n ω ≤ r} ∈ F.sigma n
+  submartingale_condition :
+    ∀ {m n}, m ≤ n → ∀ ω, X m ω ≤ C.cond m (X n) ω
 
-/-- スーパーマルチンゲール -/
-structure IsSupermartingale 
-    (F : DiscreteFiltration Ω) 
-    (μ : ProbabilityMeasure Ω)
+/-- Bourbaki-style supermartingale: adaptedness together with the usual
+inequality swapped. -/
+structure IsSupermartingale
+    (F : DiscreteFiltration Ω)
+    (C : ConditionalExpectationStructure F)
     (X : ℕ → RandomVariable Ω) : Prop where
-  adapted : ∀ n r, {ω | X n ω ≤ r} ∈ F.sigma n
-  supermartingale_property : ∀ m n ω, m ≤ n → 
-    𝔼[X n | F.sigma m] ω ≤ X m ω
+  adapted :
+    ∀ n r, {ω : Ω | X n ω ≤ r} ∈ F.sigma n
+  supermartingale_condition :
+    ∀ {m n}, m ≤ n → ∀ ω, C.cond m (X n) ω ≤ X m ω
 
-/-! ## ステップ4: マルチンゲールの基本性質 -/
+namespace IsMartingale
 
-/-- 定数はマルチンゲール -/
-theorem constant_is_martingale 
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω) 
-    (c : ℝ) :
-    IsMartingale F μ (fun _ _ => c) := by
-  constructor
-  · intro n r
-    by_cases h : c ≤ r
-    · -- {ω | c ≤ r} = Ω
-      simp [h]
-      sorry  -- すべてのσ-代数は Ω を含む
-    · -- {ω | c ≤ r} = ∅
-      simp [h]
-      sorry  -- すべてのσ-代数は ∅ を含む
-  · intro m n hmn
-    -- 𝔼[c | ℱₘ] = c （定数の条件付き期待値は定数）
-    sorry
+variable {F : DiscreteFiltration Ω}
+variable {C : ConditionalExpectationStructure F}
+variable {X : ℕ → RandomVariable Ω}
 
-/-- マルチンゲールの線形性 -/
-theorem martingale_linear_combination 
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (X Y : ℕ → RandomVariable Ω) (a b : ℝ) 
-    (hX : IsMartingale F μ X) (hY : IsMartingale F μ Y) :
-    IsMartingale F μ (fun n ω => a * X n ω + b * Y n ω) := by
-  constructor
-  · intro n r
-    -- 線形結合の可測性
-    sorry
-  · intro m n hmn
-    funext ω
-    -- 条件付き期待値の線形性を使用
-    calc 
-      𝔼[fun ω' => a * X n ω' + b * Y n ω' | F.sigma m] ω
-          = a * 𝔼[X n | F.sigma m] ω + b * 𝔼[Y n | F.sigma m] ω := by sorry
-      _ = a * X m ω + b * Y m ω := by
-          rw [hX.martingale_property m n hmn, 
-              hY.martingale_property m n hmn]
+lemma adapted_event (h : IsMartingale F C X) (n : ℕ) (r : ℝ) :
+    {ω : Ω | X n ω ≤ r} ∈ F.sigma n :=
+  h.adapted n r
 
-/-! ## ステップ5: 構造塔との対応（核心部分） -/
+lemma martingale_property (h : IsMartingale F C X) {m n : ℕ} (hmn : m ≤ n) :
+    C.cond m (X n) = X m :=
+  h.martingale_condition hmn
 
-/-- マルチンゲールが構造塔の射として解釈できる鍵となる補題
-マルチンゲール性 ⟺ 層を通じた不変性 -/
-theorem martingale_tower_invariance 
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (X : ℕ → RandomVariable Ω) :
-    IsMartingale F μ X ↔ 
-    (∀ m n, m ≤ n → 
-      -- 情報を粗くしても期待値が変わらない
-      𝔼[X n | F.sigma m] = X m) ∧
-    (∀ n r, {ω | X n ω ≤ r} ∈ F.sigma n) := by
+end IsMartingale
+
+namespace IsSubmartingale
+
+variable {F : DiscreteFiltration Ω}
+variable {C : ConditionalExpectationStructure F}
+variable {X : ℕ → RandomVariable Ω}
+
+lemma adapted_event (h : IsSubmartingale F C X) (n : ℕ) (r : ℝ) :
+    {ω : Ω | X n ω ≤ r} ∈ F.sigma n :=
+  h.adapted n r
+
+lemma inequality (h : IsSubmartingale F C X) {m n : ℕ} (hmn : m ≤ n) (ω : Ω) :
+    X m ω ≤ C.cond m (X n) ω :=
+  h.submartingale_condition hmn ω
+
+end IsSubmartingale
+
+namespace IsSupermartingale
+
+variable {F : DiscreteFiltration Ω}
+variable {C : ConditionalExpectationStructure F}
+variable {X : ℕ → RandomVariable Ω}
+
+lemma adapted_event (h : IsSupermartingale F C X) (n : ℕ) (r : ℝ) :
+    {ω : Ω | X n ω ≤ r} ∈ F.sigma n :=
+  h.adapted n r
+
+lemma inequality (h : IsSupermartingale F C X) {m n : ℕ} (hmn : m ≤ n) (ω : Ω) :
+    C.cond m (X n) ω ≤ X m ω :=
+  h.supermartingale_condition hmn ω
+
+end IsSupermartingale
+
+section StructuralLemmas
+
+variable (F : DiscreteFiltration Ω)
+variable (C : ConditionalExpectationStructure F)
+variable (X : ℕ → RandomVariable Ω)
+
+/-- A martingale splits exactly into tower invariance and adaptedness. -/
+theorem martingale_tower_invariance :
+    IsMartingale F C X ↔
+      (∀ m n, m ≤ n → C.cond m (X n) = X m) ∧
+      (∀ n r, {ω : Ω | X n ω ≤ r} ∈ F.sigma n) := by
   constructor
   · intro h
-    exact ⟨h.martingale_property, h.adapted⟩
-  · intro ⟨hmart, hadapt⟩
-    exact ⟨hadapt, hmart⟩
+    refine ⟨?_, ?_⟩
+    · intro m n hmn
+      exact h.martingale_property hmn
+    · intro n r
+      exact h.adapted_event n r
+  · intro h
+    rcases h with ⟨hmart, hadapt⟩
+    exact
+      ⟨(fun n r => hadapt n r),
+        (fun {m n} hmn => hmart m n hmn)⟩
 
-/-- 塔性質とマルチンゲール性の対応
-これが構造塔の単調性との接続 -/
+/-- Conditioning further down a martingale collapses information. -/
 theorem tower_property_for_martingale
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (X : ℕ → RandomVariable Ω) (hX : IsMartingale F μ X) :
-    ∀ k m n, k ≤ m → m ≤ n →
-      𝔼[𝔼[X n | F.sigma m] | F.sigma k] = 𝔼[X n | F.sigma k] := by
+    (hX : IsMartingale F C X) :
+    ∀ {k m n}, k ≤ m → m ≤ n →
+      C.cond k (X n) = C.cond k (X m) := by
   intro k m n hkm hmn
-  -- 一般の塔性質を適用
-  have h := @tower_property Ω μ (F.sigma k) (F.sigma m) (X n)
-  apply h
-  exact F.mono hkm
+  have hmart := hX.martingale_property hmn
+  have htower := C.tower k m (X n) hkm
+  calc
+    C.cond k (X n)
+        = C.cond k (C.cond m (X n)) := by
+            exact htower.symm
+    _ = C.cond k (X m) := by
+            simp [hmart]
 
-/-- マルチンゲールと minLayer の関係（概念的）
-各 ω に対して、X_n(ω) の値が「初めて現れる時刻」を minLayer として解釈 -/
-def martingale_debut_layer 
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (X : ℕ → RandomVariable Ω) (hX : IsMartingale F μ X)
-    (ω : Ω) : ℕ :=
-  -- X(ω) の値に関連する事象の最小層
-  -- この対応が構造塔の minLayer に相当
-  (F.toStructureTowerWithMin).minLayer 
+/-- Debut layer of a martingale-valued process expressed via the tower. -/
+def martingaleDebutLayer (ω : Ω) : ℕ :=
+  (F.toStructureTowerWithMin).minLayer
     {ω' : Ω | ∃ n, X n ω' = X 0 ω}
 
-/-! ## ステップ6: 構造塔の射としてのマルチンゲール（研究課題） -/
+lemma martingaleDebutLayer_mem (ω : Ω) :
+    {ω' : Ω | ∃ n, X n ω' = X 0 ω} ∈
+      F.sigma (martingaleDebutLayer (F := F) (X := X) ω) := by
+  classical
+  change {ω' : Ω | ∃ n, X n ω' = X 0 ω} ∈
+      F.sigma
+        ((F.toStructureTowerWithMin).minLayer
+          {ω' : Ω | ∃ n, X n ω' = X 0 ω})
+  exact
+    F.minLayer_mem {ω' : Ω | ∃ n, X n ω' = X 0 ω}
 
-/-- マルチンゲールを構造塔の特殊な射として特徴づける定理（未解決）
-この方向の研究が新しい洞察をもたらす可能性 -/
-theorem martingale_as_tower_morphism_characterization
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (X : ℕ → RandomVariable Ω) :
-    IsMartingale F μ X ↔ 
-    -- 何らかの構造塔の射の性質が成り立つ
-    -- 例: 各時刻での X の分布が、minLayer を保存する射で関連
-    (∀ m n, m ≤ n → 
-      -- 抽象的な射の条件
-      True) := by
-  constructor
-  · intro h; intro m n hmn; trivial
-  · intro h
-    constructor
-    · sorry  -- adapted を導く
-    · sorry  -- martingale_property を導く
+end StructuralLemmas
 
-/-! ## ステップ7: 例 -/
-
-/-- 例1: ランダムウォークはマルチンゲール（抽象的設定） -/
-example (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (ξ : ℕ → RandomVariable Ω)  -- 独立な増分
-    (h_mean_zero : ∀ n, 𝔼[ξ n] = 0)
-    (h_adapted : ∀ n r, {ω | ξ n ω ≤ r} ∈ F.sigma n) :
-    let S := fun n ω => (Finset.range n).sum (fun k => ξ k ω)
-    IsMartingale F μ S := by
-  constructor
-  · intro n r
-    sorry  -- 和の可測性
-  · intro m n hmn
-    sorry  -- 平均ゼロ増分からマルチンゲール性を導く
-
-/-- 例2: 停止されたマルチンゲール -/
-theorem stopped_martingale_is_martingale
-    (F : DiscreteFiltration Ω) (μ : ProbabilityMeasure Ω)
-    (X : ℕ → RandomVariable Ω) (hX : IsMartingale F μ X)
-    (τ : StoppingTime F) :
-    IsMartingale F μ (fun n ω => X (min n (τ.value ω)) ω) := by
-  constructor
-  · intro n r
-    sorry  -- 停止された過程の可測性
-  · intro m n hmn
-    sorry  -- オプション停止理論の初歩
-
-/-! ## 次のステップ -/
-
-/-
-この実装を基に、次の課題に進めます：
-
-1. **オプション停止定理**: 停止されたマルチンゲールの期待値
-2. **ドゥーブの不等式**: マルチンゲールの最大値の制御
-3. **収束定理**: 有界マルチンゲールの収束
-
-これらの定理を、構造塔の視点から証明することで、
-新しい洞察が得られることを期待します。
-
-特に注目すべき研究課題：
-- マルチンゲール性を minLayer_preserving で特徴づけられるか？
-- 条件付き期待値を構造塔の射影として理解できるか？
-- ドゥーブ分解が構造塔の直和分解に対応するか？
--/
+/-- Basic usage example: the martingale condition at level zero is immediate. -/
+example
+    (F : DiscreteFiltration Ω)
+    (C : ConditionalExpectationStructure F)
+    (X : ℕ → RandomVariable Ω)
+    (hX : IsMartingale F C X) :
+    C.cond 0 (X 0) = X 0 :=
+  hX.martingale_property le_rfl
 
 end ST
 end MyProjects
