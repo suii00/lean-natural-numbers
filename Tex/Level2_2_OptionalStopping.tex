@@ -1,0 +1,151 @@
+\documentclass[12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=purple,
+  citecolor=teal,
+  pdftitle={構造塔で学ぶオプション停止定理},
+  pdfauthor={Structure Tower Project / CODEX (OpenAI)}
+}
+
+\title{構造塔で学ぶオプション停止定理\\{\large --- 学部生のためのガイド ---}}
+\author{Structure Tower Project / CODEX (OpenAI)}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\bigskip
+\begin{center}
+  \textbf{注意.} 本文書および対応する Lean ファイル
+  \texttt{Level2\_2\_OptionalStopping.lean} は CODEX (OpenAI) が生成しました。
+\end{center}
+
+\section{導入}
+
+オプション停止定理（Optional Stopping Theorem）は、マルチンゲールと停止時刻の組 $(X,\tau)$
+に対して「停止後の期待値が変化しない」という、確率論で最も重要な性質のひとつです。
+ここではニコラ・ブルバキの『数学原論』に通じる構造主義的視点から、構造塔
+(\emph{Structure Tower}) を使って有界停止時刻のバージョンを説明します。
+Lean ファイル \texttt{Level2\_2\_OptionalStopping.lean} で形式化された内容を、
+学部レベルの数学的文章に落とし込んだものが本稿です。
+
+\section{構造塔と停止時刻}
+
+Level 2.1 で扱ったフィルトレーションから構造塔 $T$ を得る方法を想起しましょう。
+各事象 $E$ を含む最小層 $\mathrm{minLayer}(E)$ が定義され、情報の「初登場時刻」を与えます。
+停止時刻 $\tau$ は $\mathrm{minLayer}$ の選択と一致し、次の性質を持ちます。
+
+\begin{definition}[Lean: \texttt{StoppingTime.IsBounded}]
+停止時刻 $\tau$ が $N$ で有界であるとは、全ての $\omega$ について $\tau(\omega)\le N$ が成り立つこと。
+\end{definition}
+
+図\ref{fig:bounded} に、停止時刻の値が層の中でどのように収まるかを描きます。
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[x=2.6cm,y=0.8cm]
+    \tikzstyle{layer}=[draw,rounded corners,minimum height=0.6cm,minimum width=2.4cm,fill=blue!10]
+    \node[layer] (L0) at (0,0) {$\mathcal{F}_0$};
+    \node[layer] (L1) at (0,1) {$\mathcal{F}_1$};
+    \node[layer] (L2) at (0,2) {$\mathcal{F}_2$};
+    \node[layer] (L3) at (0,3) {$\mathcal{F}_3$};
+    \node[layer] (LN) at (0,4) {$\mathcal{F}_N$};
+    \draw[->,thick] (L0) -- (L1) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L1) -- (L2) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L2) -- (L3) node[midway,right] {$\subseteq$};
+    \draw[->,thick] (L3) -- (LN) node[midway,right] {$\subseteq$};
+    \node[layer,fill=orange!20] (tau) at (1.9,2) {$\tau(\omega)$};
+    \draw[->,thick,orange!60!black] (tau.west) -- ++(-0.8,0);
+    \node at (0,4.8) {$\vdots$};
+    \node at (0,-0.8) {停止時刻が $N$ で有界: $\tau(\omega)\le N$};
+  \end{tikzpicture}
+  \caption{構造塔における停止時刻の位置づけ}
+  \label{fig:bounded}
+\end{figure}
+
+Lean では補題 \texttt{StoppingTime.minimal\_property} により、
+集合 $\{\omega \mid \tau(\omega) \le n\}$ がちょうど $\mathrm{minLayer}(\omega)\le n$ に対応することが確認できます。
+
+\section{停止過程と凍結性}
+
+停止過程 $X^\tau$ は「停止時刻以降値を固定する」操作です。
+Lean 言語で
+\[
+  (X^\tau)_n(\omega) = X_{\min(n,\tau(\omega))}(\omega)
+\]
+が定義されており、停止時刻を越えたら値が変わらない (\texttt{stoppedProcess\_frozen}) ことが確認できます。
+
+\begin{lemma}[Lean: \texttt{stoppedProcess\_eval\_at\_bound}]
+$\tau$ が $N$ で有界ならば $(X^\tau)_N(\omega)=X_{\tau(\omega)}(\omega)$。
+\end{lemma}
+
+これにより停止後の値を $N$ における通常の時刻の値として扱えます。
+
+\section{抽象期待値とオプション停止}
+
+本ガイドでは抽象的な期待値演算子 $\mathbb{E}$ を導入します。
+Lean では \texttt{ExpectationStructure} がそれに対応し、条件付き期待値との整合性
+\[
+  \mathbb{E}[\,\mathcal{E}_0(f)\,] = \mathbb{E}[f]
+\]
+を満たすと仮定します。ここで $\mathcal{E}_0$ は時刻 0 で条件付ける作用素です。
+
+\begin{theorem}[Lean: \texttt{optionalStopping\_bounded}]
+マルチンゲール $X$, 有界停止時刻 $\tau$, および停止過程 $X^\tau$ がマルチンゲールであると仮定すると、
+\[
+  \mathbb{E}[\,X_{\tau(\omega)}\,] = \mathbb{E}[\,X_0\,]
+\]
+が成り立つ。
+\end{theorem}
+
+証明は塔性質と期待値の整合性を代数的に組み合わせるだけです。
+停止過程評価の補題を使って、期待値を $(X^\tau)_N$ に置き換え、
+条件付き期待値の不変性から $(X^\tau)_0$ に戻すことで示します。
+
+\section{minLayerとの対応}
+
+停止時刻と最小層関数 $\mathrm{minLayer}$ の対応は以下の補題で明文化されます。
+
+\begin{lemma}[Lean: \texttt{stopping\_time\_minimal\_is\_minLayer\_minimal}]
+任意の $\omega,n$ について
+\[
+  \omega \in \{\tau \le n\} \quad \Longleftrightarrow \quad
+  \mathrm{minLayer}(\omega) \le n.
+\]
+\end{lemma}
+
+この同値により、構造塔の「層構造」が停止時刻の「情報のしきい値」を完全に記録していることが分かります。
+
+\section{まとめと今後}
+
+Lean ファイル \texttt{Level2\_2\_OptionalStopping.lean} では、これらの概念を抽象的に実装しました。
+今後は以下の拡張が考えられます。
+\begin{itemize}
+  \item 停止過程がマルチンゲール性を保つことを自動的に示す補題
+  \item 有界性以外の仮定（例：一様積分可能性）に基づくオプション停止定理
+  \item 劣マルチンゲール／優マルチンゲール版の不等式との比較
+\end{itemize}
+
+\bigskip
+\noindent\textbf{謝辞.}
+本資料および Lean 実装は CODEX (OpenAI) により生成されました。
+構造塔の視点が確率論を学ぶ読者に新たな洞察をもたらすことを期待しています。
+
+\end{document}
