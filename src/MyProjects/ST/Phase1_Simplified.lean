@@ -33,6 +33,8 @@ namespace ST
 namespace Claude
 namespace Phase1
 
+section MeasurableBase
+
 variable {Ω : Type u} [MeasurableSpace Ω]
 
 /-! ## Simplified Adapted Processes (Real-valued only) -/
@@ -116,63 +118,69 @@ end BoundedStoppingTime
 /-! ### Bridging to mathlib filtrations -/
 
 /-- The `Mathlib` filtration associated to our discrete filtration. -/
-def filtrationOf (F : DiscreteFiltration Ω) :
-    MeasureTheory.Filtration ℕ (‹MeasurableSpace Ω›) where
+def filtrationOf {Ω : Type u} [MeasurableSpace Ω] (F : DiscreteFiltration Ω) :
+    MeasureTheory.Filtration ℕ (inferInstance : MeasurableSpace Ω) where
   seq := F.sigma
   mono' := fun m n h => F.adapted h
   le' := fun n => F.bounded n
 
 @[simp]
-lemma filtrationOf_apply (F : DiscreteFiltration Ω) (n : ℕ) :
-    filtrationOf (Ω := Ω) F n = F.sigma n := rfl
+lemma filtrationOf_apply {Ω : Type u} [MeasurableSpace Ω]
+    (F : DiscreteFiltration Ω) (n : ℕ) :
+    filtrationOf F n = F.sigma n := rfl
 
-lemma AdaptedProcessℝ.toAdapted (X : AdaptedProcessℝ F) :
-    MeasureTheory.Adapted (filtrationOf (Ω := Ω) F) X.X := by
+lemma AdaptedProcessℝ.toAdapted {Ω : Type u} [MeasurableSpace Ω]
+    {F : DiscreteFiltration Ω} (X : AdaptedProcessℝ F) :
+    MeasureTheory.Adapted (filtrationOf F) X.X := by
   intro n
   have h := (X.adapted n).stronglyMeasurable
   simpa [filtrationOf_apply] using h
 
-lemma BoundedStoppingTime.isStoppingTime (τ : BoundedStoppingTime F) :
-    MeasureTheory.IsStoppingTime (filtrationOf (Ω := Ω) F) τ.τ := by
+lemma BoundedStoppingTime.isStoppingTime {Ω : Type u} [MeasurableSpace Ω]
+    {F : DiscreteFiltration Ω} (τ : BoundedStoppingTime F) :
+    MeasureTheory.IsStoppingTime (filtrationOf F) τ.τ := by
   intro n
   simpa [filtrationOf_apply] using τ.adapted n
 
 /-! ## Stopped Process (Simplified) -/
 
 /-- Stopped process for bounded stopping time and real-valued process -/
-def stoppedProcessℝBounded (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F) :
+def stoppedProcessℝBounded {Ω : Type u} [MeasurableSpace Ω]
+    {F : DiscreteFiltration Ω} (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F) :
     AdaptedProcessℝ F where
   X := fun n ω => X.X (min n (τ.τ ω)) ω
   adapted := by
     intro n
     classical
     have h :=
-      (AdaptedProcessℝ.toAdapted (Ω := Ω) (F := F) X).stoppedProcess_of_discrete
-        (BoundedStoppingTime.isStoppingTime (Ω := Ω) (F := F) τ)
+      (AdaptedProcessℝ.toAdapted (F := F) X).stoppedProcess_of_discrete
+        (BoundedStoppingTime.isStoppingTime (F := F) τ)
     have hstrong :
-        StronglyMeasurable[(filtrationOf (Ω := Ω) F) n]
+        StronglyMeasurable[(filtrationOf F) n]
           ((MeasureTheory.stoppedProcess X.X τ.τ) n) := h n
-    simpa [filtrationOf_apply, stoppedProcessℝBounded, MeasureTheory.stoppedProcess,
+    simpa [filtrationOf_apply, MeasureTheory.stoppedProcess,
       AdaptedProcessℝ.X] using hstrong.measurable
 
 @[simp]
-lemma stoppedProcessℝBounded_eq_mathlib (X : AdaptedProcessℝ F)
-    (τ : BoundedStoppingTime F) :
+lemma stoppedProcessℝBounded_eq_mathlib {Ω : Type u} [MeasurableSpace Ω]
+    {F : DiscreteFiltration Ω} (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F) :
     (stoppedProcessℝBounded X τ).X = MeasureTheory.stoppedProcess X.X τ.τ := rfl
+
+end MeasurableBase
 
 /-! ## Simplified Martingale -/
 
 section Martingale
 
-variable [MeasureSpace Ω]
+variable {Ω : Type u} [MeasureSpace Ω]
 
 /-- Martingale for discrete probability space -/
 structure Martingaleℝ (F : DiscreteFiltration Ω) where
   X : ℕ → Ω → ℝ
   adapted : ∀ n, Measurable[(F.sigma n), inferInstance] (X n)
   integrable : ∀ n, Integrable (X n)
-  martingale_property : ∀ m n, m ≤ n →
-    condexp (F.sigma m) (X n) =ᵐ[volume] (X m)
+  martingale_property : ∀ ⦃m n : ℕ⦄, m ≤ n →
+    MeasureTheory.condExp (F.sigma m) (volume : Measure Ω) (X n) =ᵐ[volume] (X m)
 
 namespace Martingaleℝ
 
@@ -185,19 +193,23 @@ def toAdaptedProcess (M : Martingaleℝ F) : AdaptedProcessℝ F where
 
 /-- View a `Martingaleℝ` as a `Mathlib` martingale under the bundled filtration. -/
 lemma toMathlib (M : Martingaleℝ F) :
-    MeasureTheory.Martingale M.X (filtrationOf (Ω := Ω) F) (volume : Measure Ω) := by
-  refine ⟨(AdaptedProcessℝ.toAdapted (Ω := Ω) (F := F) M.toAdaptedProcess), ?_⟩
+    MeasureTheory.Martingale M.X (filtrationOf F) (volume : Measure Ω) := by
+  refine ⟨(AdaptedProcessℝ.toAdapted (F := F) M.toAdaptedProcess), ?_⟩
   intro m n hmn
-  simpa [filtrationOf_apply] using M.martingale_property m n hmn
+  simpa [filtrationOf_apply] using M.martingale_property hmn
 
 /-- Constant martingale -/
-def const (c : ℝ) : Martingaleℝ F where
+def const (c : ℝ) [IsFiniteMeasure (volume : Measure Ω)] : Martingaleℝ F where
   X := fun _ _ => c
   adapted := fun _ => measurable_const
   integrable := fun _ => integrable_const c
   martingale_property := by
     intro m n hmn
-    simp [condexp_const]
+    have hle : F.sigma m ≤ (inferInstance : MeasurableSpace Ω) := F.bounded m
+    have hconst :=
+      MeasureTheory.condExp_const (μ := (volume : Measure Ω))
+        (m := F.sigma m) (m₀ := inferInstance) hle c
+    simpa using Filter.EventuallyEq.of_eq hconst
 
 /-- Negating commutes with the stopped process. -/
 lemma stoppedProcess_neg (f : ℕ → Ω → ℝ) (τ : Ω → ℕ) :
@@ -206,10 +218,10 @@ lemma stoppedProcess_neg (f : ℕ → Ω → ℝ) (τ : Ω → ℕ) :
   funext n ω
   simp [MeasureTheory.stoppedProcess]
 
-/-- Stopped martingale (simplified version with bounded stopping time).  We assume the ambient
+/-! Stopped martingale (simplified version with bounded stopping time).  We assume the ambient
 measure is finite (e.g. counting measure on a finite probability space), which lets us reuse the
 optional stopping machinery from `Mathlib`. -/
-theorem stopped_is_martingale_bounded
+def stopped_is_martingale_bounded
     (M : Martingaleℝ F) (τ : BoundedStoppingTime F)
     [IsFiniteMeasure (volume : Measure Ω)] :
     Martingaleℝ F where
@@ -219,10 +231,10 @@ theorem stopped_is_martingale_bounded
     intro n
     -- For bounded τ, X^τ_n takes only finitely many values
     -- Each is from the original martingale M which is integrable
-    have hτ : MeasureTheory.IsStoppingTime (filtrationOf (Ω := Ω) F) τ.τ :=
+    have hτ : MeasureTheory.IsStoppingTime (filtrationOf F) τ.τ :=
       BoundedStoppingTime.isStoppingTime (F := F) τ
     have hInt :=
-      MeasureTheory.integrable_stoppedProcess (ℱ := filtrationOf (Ω := Ω) F)
+      MeasureTheory.integrable_stoppedProcess (ℱ := filtrationOf F)
         (μ := (volume : Measure Ω)) hτ (fun k => M.integrable k) n
     simpa [filtrationOf_apply, stoppedProcessℝBounded_eq_mathlib] using hInt
   martingale_property := by
@@ -230,33 +242,33 @@ theorem stopped_is_martingale_bounded
     -- Doob's optional stopping for bounded stopping times
     -- Key: can use dominated convergence with the bound
     classical
-    have hτ : MeasureTheory.IsStoppingTime (filtrationOf (Ω := Ω) F) τ.τ :=
+    have hτ : MeasureTheory.IsStoppingTime (filtrationOf F) τ.τ :=
       BoundedStoppingTime.isStoppingTime (F := F) τ
-    have hMart : MeasureTheory.Martingale M.X (filtrationOf (Ω := Ω) F)
+    have hMart : MeasureTheory.Martingale M.X (filtrationOf F)
         (volume : Measure Ω) := M.toMathlib
     have hSub :
         MeasureTheory.Submartingale (MeasureTheory.stoppedProcess M.X τ.τ)
-          (filtrationOf (Ω := Ω) F) (volume : Measure Ω) :=
+          (filtrationOf F) (volume : Measure Ω) :=
       MeasureTheory.Submartingale.stoppedProcess (μ := (volume : Measure Ω))
         (hMart.submartingale) hτ
     have hSuper :
         MeasureTheory.Supermartingale (MeasureTheory.stoppedProcess M.X τ.τ)
-          (filtrationOf (Ω := Ω) F) (volume : Measure Ω) := by
+          (filtrationOf F) (volume : Measure Ω) := by
       have hNegSub :
           MeasureTheory.Submartingale
               (MeasureTheory.stoppedProcess (fun n ω => -M.X n ω) τ.τ)
-              (filtrationOf (Ω := Ω) F) (volume : Measure Ω) :=
+              (filtrationOf F) (volume : Measure Ω) :=
         MeasureTheory.Submartingale.stoppedProcess (μ := (volume : Measure Ω))
           (hMart.neg.submartingale) hτ
       have hNegSuper :
           MeasureTheory.Supermartingale
-              (fun n ω => -MeasureTheory.stoppedProcess M.X τ.τ n ω)
-              (filtrationOf (Ω := Ω) F) (volume : Measure Ω) :=
+              (fun n ω => -MeasureTheory.stoppedProcess (fun n ω => -M.X n ω) τ.τ n ω)
+              (filtrationOf F) (volume : Measure Ω) :=
         MeasureTheory.Submartingale.neg hNegSub
       simpa [stoppedProcess_neg] using hNegSuper
     have hStopped :
         MeasureTheory.Martingale (MeasureTheory.stoppedProcess M.X τ.τ)
-          (filtrationOf (Ω := Ω) F) (volume : Measure Ω) :=
+          (filtrationOf F) (volume : Measure Ω) :=
       (MeasureTheory.martingale_iff (E := ℝ)).2 ⟨hSuper, hSub⟩
     have hCond := hStopped.2 m n hmn
     simpa [filtrationOf_apply, stoppedProcessℝBounded_eq_mathlib] using hCond
@@ -269,7 +281,7 @@ end Martingale
 
 section Examples
 
-variable [MeasureSpace Ω] [CountableMeasurableSpace Ω]
+variable {Ω : Type u} [MeasureSpace Ω] [CountableMeasurableSpace Ω]
 variable [IsFiniteMeasure (volume : Measure Ω)]
 
 /-- Zero martingale -/
@@ -281,7 +293,7 @@ example (F : DiscreteFiltration Ω) (c : ℝ) (τ : BoundedStoppingTime F) :
     (Martingaleℝ.stopped_is_martingale_bounded (Martingaleℝ.const c) τ).X =
     fun _ _ => c := by
   ext n ω
-  simp [Martingaleℝ.stopped_is_martingale_bounded, stoppedProcessℝBounded,
+  simp [Martingaleℝ.stopped_is_martingale_bounded, stoppedProcessℝBounded_eq_mathlib,
     Martingaleℝ.const, AdaptedProcessℝ.X]
 
 end Examples
