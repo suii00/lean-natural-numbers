@@ -69,7 +69,7 @@ lemma set_eq_inter_compl_succ (k : ℕ) :
   · rintro ⟨hle, hnot⟩
     have hlt : k < τ.τ ω := Nat.lt_of_not_ge hnot
     have : τ.τ ω = k.succ := Nat.le_antisymm hle (Nat.succ_le_of_lt hlt)
-    simpa [Set.mem_setOf_eq, this]
+    simp [Set.mem_setOf_eq, this]
 
 /-- `{τ = 0}` equals `{τ ≤ 0}`. -/
 lemma set_eq_zero_eq_le :

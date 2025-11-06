@@ -1,0 +1,592 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{tcolorbox}
+
+\usetikzlibrary{positioning,arrows.meta,calc,decorations.pathreplacing}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\newtheorem{remark}[theorem]{注意}
+
+% Leanコード用の設定
+\lstdefinestyle{lean}{
+  language=ML,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray}
+}
+
+\title{停止過程の分解定理\\
+{\large ブルバキの精神に基づく厳密な証明}}
+\author{
+  Lean 4実装: Claude Code (Anthropic)\\
+  \LaTeX 文書生成: Claude Code (Anthropic)\\
+  {\small 確率論とマルチンゲール理論の形式化プロジェクト}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、確率論における停止過程（stopped process）の基本的な分解定理を、ニコラ・ブルバキの『数学原論』の精神に従って厳密に証明する。主結果は、有界停止時刻で停止させた確率過程が、指示関数を用いた有限和として表現できることである。この分解は、停止過程の可測性を証明する上で決定的な役割を果たす。本稿の証明は、Lean 4を用いて完全に形式化されており、Claude Codeによって実装されている。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+\subsection{動機と背景}
+
+確率論において、\textbf{停止時刻}（stopping time）と\textbf{停止過程}（stopped process）は極めて重要な概念である。直感的には、停止時刻とは「ある事象が起こる時刻」を表す確率変数であり、停止過程とは「その時刻で観測を止めた過程」を意味する。
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=例: カジノでの停止戦略]
+カジノでギャンブルをしているとき、「初めて資産が2倍になったら止める」という戦略は停止時刻を定義する。この戦略に従って得られる資産の推移が停止過程である。
+\end{tcolorbox}
+
+マルチンゲール理論における\textbf{任意停止定理}（Optional Stopping Theorem）を証明するには、停止過程の可測性が必須である。本稿で証明する分解定理は、この可測性を示すための鍵となる。
+
+\subsection{本稿の貢献}
+
+\begin{itemize}
+\item 停止過程を指示関数の有限和として厳密に分解
+\item ブルバキの公理的手法に基づく完全な証明
+\item Lean 4による機械検証可能な形式化
+\item 学部生にも理解可能な詳細な解説
+\end{itemize}
+
+\section{準備: 基本概念}
+
+\subsection{確率空間とフィルトレーション}
+
+\begin{definition}[離散フィルトレーション]
+可測空間 $(\Omega, \mathcal{F})$ 上の\textbf{離散フィルトレーション} $\mathbb{F} = (\mathcal{F}_n)_{n \in \mathbb{N}}$ とは、$\sigma$-代数の増大列
+\[
+\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}
+\]
+のことである。
+\end{definition}
+
+\begin{remark}
+フィルトレーション $\mathcal{F}_n$ は、時刻 $n$ までに得られる「情報」を表す。時間が進むにつれて情報は増えるため、$\sigma$-代数は増大する。
+\end{remark}
+
+\begin{definition}[適合過程]
+実数値確率過程 $X = (X_n)_{n \in \mathbb{N}}$ が\textbf{適合的}（adapted）であるとは、各 $n$ に対して $X_n$ が $\mathcal{F}_n$-可測であることをいう。つまり、
+\[
+\forall n \in \mathbb{N}, \quad X_n : (\Omega, \mathcal{F}_n) \to (\mathbb{R}, \mathcal{B}(\mathbb{R}))
+\]
+が可測写像である。
+\end{definition}
+
+\subsection{停止時刻}
+
+\begin{definition}[有界停止時刻]
+フィルトレーション $\mathbb{F}$ に対して、$\tau : \Omega \to \mathbb{N}$ が\textbf{有界停止時刻}（bounded stopping time）であるとは、以下を満たすことである:
+\begin{enumerate}
+\item （有界性）ある $N \in \mathbb{N}$ が存在して、すべての $\omega \in \Omega$ に対して $\tau(\omega) \leq N$
+\item （適合性）各 $n \in \mathbb{N}$ に対して、事象 $\{\tau \leq n\} := \{\omega \in \Omega : \tau(\omega) \leq n\}$ が $\mathcal{F}_n$-可測
+\end{enumerate}
+\end{definition}
+
+\begin{remark}[停止時刻の直感]
+停止時刻の条件「$\{\tau \leq n\} \in \mathcal{F}_n$」は、「時刻 $n$ までに停止するかどうかは、時刻 $n$ までの情報で判定できる」ことを意味する。これは「未来の情報を使わない」という重要な制約である。
+\end{remark}
+
+\begin{example}
+\begin{itemize}
+\item $\tau(\omega) = 5$（定数）は停止時刻である
+\item $\tau(\omega) = \min\{n : X_n(\omega) > 0\}$（初めて正になる時刻）は停止時刻である
+\item $\tau(\omega) = \max\{n \leq 10 : X_n(\omega) > 0\}$（10時刻以内で最後に正になる時刻）は停止時刻で\textbf{ない}（未来の情報を使うため）
+\end{itemize}
+\end{example}
+
+\subsection{指示関数}
+
+\begin{definition}[停止時刻の指示関数]
+有界停止時刻 $\tau$ と $k \in \mathbb{N}$ に対して、\textbf{指示関数}（indicator function）を
+\[
+\mathbb{1}_{\{\tau = k\}}(\omega) :=
+\begin{cases}
+1 & \text{if } \tau(\omega) = k \\
+0 & \text{otherwise}
+\end{cases}
+\]
+と定義する。
+\end{definition}
+
+\begin{lemma}[指示関数の可測性]
+\label{lem:indicator_measurable}
+$k \leq n$ ならば、$\mathbb{1}_{\{\tau = k\}}$ は $\mathcal{F}_n$-可測である。
+\end{lemma}
+
+\begin{proof}
+事象 $\{\tau = k\}$ を以下のように書き直す:
+\begin{itemize}
+\item $k = 0$ のとき: $\{\tau = 0\} = \{\tau \leq 0\} \in \mathcal{F}_0 \subseteq \mathcal{F}_n$
+\item $k \geq 1$ のとき:
+\[
+\{\tau = k\} = \{\tau \leq k\} \cap \{\tau \leq k-1\}^c
+\]
+両方の事象が $\mathcal{F}_k \subseteq \mathcal{F}_n$ に属するので、その共通部分も $\mathcal{F}_n$-可測。
+\end{itemize}
+したがって、定数関数との組み合わせである $\mathbb{1}_{\{\tau = k\}}$ も $\mathcal{F}_n$-可測。
+\end{proof}
+
+\section{停止過程の定義}
+
+\begin{definition}[停止過程]
+適合過程 $X = (X_n)_{n \in \mathbb{N}}$ と有界停止時刻 $\tau$ に対して、\textbf{停止過程} $X^\tau = (X^\tau_n)_{n \in \mathbb{N}}$ を
+\[
+X^\tau_n(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+と定義する。
+\end{definition}
+
+\begin{remark}[停止過程の意味]
+$X^\tau_n(\omega)$ は以下の値を取る:
+\begin{itemize}
+\item $\tau(\omega) \leq n$ のとき: $X^\tau_n(\omega) = X_{\tau(\omega)}(\omega)$ （停止時刻で固定）
+\item $\tau(\omega) > n$ のとき: $X^\tau_n(\omega) = X_n(\omega)$ （まだ停止していない）
+\end{itemize}
+\end{remark}
+
+\subsection{視覚的理解}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+% 時間軸
+\draw[->] (0,0) -- (10,0) node[right] {時刻 $n$};
+\draw[->] (0,0) -- (0,5) node[above] {$X_n(\omega)$};
+
+% 目盛り
+\foreach \x in {0,1,...,9}
+  \draw (\x,0.1) -- (\x,-0.1) node[below] {\tiny $\x$};
+
+% 元の過程 X_n
+\draw[blue, thick] plot[smooth] coordinates {(0,1) (1,1.5) (2,2.8) (3,3.5) (4,3.2) (5,2.5) (6,3) (7,3.8) (8,4.2) (9,4)};
+\node[blue] at (9.5,4.5) {$X_n(\omega)$};
+
+% 停止時刻 τ = 4
+\draw[red, dashed, thick] (4,0) -- (4,3.2);
+\node[red] at (4,-0.5) {$\tau(\omega) = 4$};
+
+% 停止過程 X^τ_n
+\draw[green!60!black, very thick] plot[smooth] coordinates {(0,1) (1,1.5) (2,2.8) (3,3.5) (4,3.2)};
+\draw[green!60!black, very thick] (4,3.2) -- (9,3.2);
+\node[green!60!black] at (9.5,3.2) {$X^\tau_n(\omega)$};
+
+% 注釈
+\draw[decorate,decoration={brace,amplitude=5pt}] (4.2,0) -- (4.2,3.2) node[midway,right=5pt] {\tiny 停止時刻で固定};
+\draw[decorate,decoration={brace,amplitude=5pt,mirror}] (0,-1) -- (4,-1) node[midway,below=5pt] {\tiny まだ停止していない};
+\draw[decorate,decoration={brace,amplitude=5pt,mirror}] (4,-1) -- (9,-1) node[midway,below=5pt] {\tiny 停止後};
+
+\end{tikzpicture}
+\end{center}
+
+\section{主結果: 分解定理}
+
+\subsection{Kronecker デルタの補題}
+
+分解定理の証明の鍵となるのが、以下の補題である。
+
+\begin{lemma}[Kronecker デルタの和]
+\label{lem:kronecker_sum}
+任意の関数 $f : \mathbb{N} \to \mathbb{R}$ と $a, m \in \mathbb{N}$ に対して、
+\[
+\sum_{k=0}^{m} f(k) \cdot \mathbb{1}_{\{k = a\}} =
+\begin{cases}
+f(a) & \text{if } a \leq m \\
+0 & \text{if } a > m
+\end{cases}
+\]
+が成り立つ。ただし、$\mathbb{1}_{\{k = a\}} := \begin{cases} 1 & \text{if } k = a \\ 0 & \text{otherwise} \end{cases}$。
+\end{lemma}
+
+\begin{proof}
+場合分けで証明する。
+
+\textbf{Case 1:} $a \leq m$ のとき
+
+このとき $a \in \{0, 1, \ldots, m\}$ なので、和の中で $k = a$ の項だけが非零である:
+\begin{align*}
+\sum_{k=0}^{m} f(k) \cdot \mathbb{1}_{\{k = a\}}
+&= \sum_{\substack{k=0\\k \neq a}}^{m} f(k) \cdot 0 + f(a) \cdot 1 \\
+&= 0 + f(a) \\
+&= f(a)
+\end{align*}
+
+\textbf{Case 2:} $a > m$ のとき
+
+このとき $a \notin \{0, 1, \ldots, m\}$ なので、すべての項が零である:
+\begin{align*}
+\sum_{k=0}^{m} f(k) \cdot \mathbb{1}_{\{k = a\}}
+&= \sum_{k=0}^{m} f(k) \cdot 0 \\
+&= 0
+\end{align*}
+\end{proof}
+
+\begin{remark}
+この補題は「Kronecker のデルタ関数」の離散版である。連続版では積分 $\int f(x) \delta(x - a) dx = f(a)$ に対応する。
+\end{remark}
+
+\subsection{主定理}
+
+\begin{theorem}[停止過程の分解]
+\label{thm:main_decomposition}
+適合過程 $X = (X_n)_{n \in \mathbb{N}}$ と有界停止時刻 $\tau$ （上界 $N$）に対して、任意の $n \in \mathbb{N}$ と $\omega \in \Omega$ について、
+\begin{equation}
+\label{eq:main_decomposition}
+X^\tau_n(\omega) = \sum_{k=0}^{\min(n, N)} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega) + X_n(\omega) \cdot \mathbb{1}_{\{n < \tau\}}(\omega)
+\end{equation}
+が成り立つ。
+\end{theorem}
+
+\begin{remark}[定理の意味]
+この分解は、停止過程を次の2つの部分に分けている:
+\begin{enumerate}
+\item $\sum_{k=0}^{\min(n, N)} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega)$: 停止時刻 $\tau(\omega) \leq n$ のときに $X_{\tau(\omega)}(\omega)$ を与える部分
+\item $X_n(\omega) \cdot \mathbb{1}_{\{n < \tau\}}(\omega)$: まだ停止していない（$\tau(\omega) > n$）ときに $X_n(\omega)$ を与える部分
+\end{enumerate}
+\end{remark}
+
+\begin{proof}
+$m := \min(n, N)$ とおく。まず、Kronecker デルタの和（補題\ref{lem:kronecker_sum}）を用いて、
+\begin{equation}
+\label{eq:sum_indicator}
+\sum_{k=0}^{m} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega) =
+\begin{cases}
+X_{\tau(\omega)}(\omega) & \text{if } \tau(\omega) \leq m \\
+0 & \text{if } \tau(\omega) > m
+\end{cases}
+\end{equation}
+が成り立つことに注意する。
+
+\textbf{Case 1:} $\tau(\omega) \leq n$ のとき
+
+このとき、以下が成り立つ:
+\begin{itemize}
+\item $\tau(\omega) \leq m = \min(n, N)$ （$\tau(\omega) \leq n$ かつ $\tau(\omega) \leq N$）
+\item $n < \tau(\omega)$ は偽なので、$\mathbb{1}_{\{n < \tau\}}(\omega) = 0$
+\item $\min(n, \tau(\omega)) = \tau(\omega)$
+\end{itemize}
+
+したがって、
+\begin{align*}
+X^\tau_n(\omega)
+&= X_{\min(n, \tau(\omega))}(\omega) \\
+&= X_{\tau(\omega)}(\omega) \\
+&= \sum_{k=0}^{m} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega) + X_n(\omega) \cdot 0 \quad \text{（式 (\ref{eq:sum_indicator}) より）}\\
+&= \sum_{k=0}^{m} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega) + X_n(\omega) \cdot \mathbb{1}_{\{n < \tau\}}(\omega)
+\end{align*}
+
+\textbf{Case 2:} $\tau(\omega) > n$ のとき
+
+このとき、以下が成り立つ:
+\begin{itemize}
+\item $\tau(\omega) > m = \min(n, N)$ （なぜなら $\tau(\omega) > n$）
+\item $n < \tau(\omega)$ は真なので、$\mathbb{1}_{\{n < \tau\}}(\omega) = 1$
+\item $\min(n, \tau(\omega)) = n$
+\end{itemize}
+
+したがって、
+\begin{align*}
+X^\tau_n(\omega)
+&= X_{\min(n, \tau(\omega))}(\omega) \\
+&= X_n(\omega) \\
+&= 0 + X_n(\omega) \cdot 1 \\
+&= \sum_{k=0}^{m} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega) + X_n(\omega) \cdot \mathbb{1}_{\{n < \tau\}}(\omega) \quad \text{（式 (\ref{eq:sum_indicator}) より）}
+\end{align*}
+
+いずれの場合も式 (\ref{eq:main_decomposition}) が成り立つ。
+\end{proof}
+
+\subsection{代替表現}
+
+\begin{theorem}[別の分解形式]
+\label{thm:alternative_decomposition}
+定理\ref{thm:main_decomposition}と同じ設定で、
+\begin{equation}
+X^\tau_n(\omega) = \sum_{k=0}^{N} X_{\min(n, k)}(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega)
+\end{equation}
+が成り立つ。
+\end{theorem}
+
+\begin{proof}
+Kronecker デルタの和より、
+\begin{align*}
+\sum_{k=0}^{N} X_{\min(n, k)}(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega)
+&= X_{\min(n, \tau(\omega))}(\omega) \cdot \mathbb{1}_{\{\tau(\omega) \leq N\}}(\omega) \\
+&= X_{\min(n, \tau(\omega))}(\omega) \quad \text{（$\tau(\omega) \leq N$ は常に真）}\\
+&= X^\tau_n(\omega)
+\end{align*}
+\end{proof}
+
+\section{系と応用}
+
+\subsection{特殊な場合}
+
+\begin{corollary}[停止後の挙動]
+$\tau(\omega) \leq n$ ならば、$X^\tau_n(\omega) = X_{\tau(\omega)}(\omega)$。
+\end{corollary}
+
+\begin{corollary}[停止前の挙動]
+$n < \tau(\omega)$ ならば、$X^\tau_n(\omega) = X_n(\omega)$。
+\end{corollary}
+
+\subsection{可測性への応用}
+
+\begin{theorem}[停止過程の可測性]
+適合過程 $X$ と有界停止時刻 $\tau$ に対して、停止過程 $X^\tau$ も適合的である。すなわち、各 $n$ に対して $X^\tau_n$ は $\mathcal{F}_n$-可測。
+\end{theorem}
+
+\begin{proof}[証明の概要]
+定理\ref{thm:main_decomposition}の分解式より、
+\[
+X^\tau_n = \sum_{k=0}^{\min(n, N)} X_k \cdot \mathbb{1}_{\{\tau = k\}} + X_n \cdot \mathbb{1}_{\{n < \tau\}}
+\]
+各項について:
+\begin{itemize}
+\item $X_k$ は $\mathcal{F}_k$-可測で、$k \leq n$ より $\mathcal{F}_k \subseteq \mathcal{F}_n$-可測
+\item $\mathbb{1}_{\{\tau = k\}}$ は $\mathcal{F}_n$-可測（補題\ref{lem:indicator_measurable}）
+\item 積と有限和は可測性を保つ
+\end{itemize}
+したがって、$X^\tau_n$ は $\mathcal{F}_n$-可測。
+\end{proof}
+
+\section{図式による理解}
+
+\subsection{分解の視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+% タイトル
+\node at (6,6) {\Large 停止過程の分解};
+
+% ω に対する時間軸
+\draw[->] (0,0) -- (12,0) node[right] {時刻};
+\foreach \x in {0,1,...,10}
+  \draw (\x,0.1) -- (\x,-0.1) node[below] {\tiny $\x$};
+
+% τ(ω) = 4 の場合
+\draw[red, very thick] (4,0) -- (4,4.5);
+\node[red] at (4,5) {$\tau(\omega) = 4$};
+
+% 分解の各項
+\foreach \k in {0,1,2,3,4} {
+  \fill[blue!30, opacity=0.5] (\k, 0.5) rectangle (\k+0.8, 1.5);
+  \node at (\k+0.4, 1) {\tiny $X_{\k} \cdot \mathbb{1}_{\{\tau=\k\}}$};
+}
+
+% k = 4 の項だけ強調
+\fill[blue!70, opacity=0.8] (4, 0.5) rectangle (4.8, 1.5);
+\draw[->, thick, red] (4.4, 1.5) -- (4.4, 2.5) node[above] {非零!};
+
+% n < τ の部分
+\foreach \k in {5,6,7,8,9,10} {
+  \fill[green!30, opacity=0.5] (\k, 2.5) rectangle (\k+0.8, 3.5);
+  \node at (\k+0.4, 3) {\tiny $X_n \cdot \mathbb{1}_{\{n<\tau\}}$};
+}
+
+% 注釈
+\draw[decorate,decoration={brace,amplitude=8pt}] (-0.5, 0.5) -- (-0.5, 1.5) node[midway,left=10pt] {\scriptsize 停止時刻での値};
+\draw[decorate,decoration={brace,amplitude=8pt}] (-0.5, 2.5) -- (-0.5, 3.5) node[midway,left=10pt] {\scriptsize 現在の値};
+
+\draw[decorate,decoration={brace,amplitude=8pt,mirror}] (0, -1) -- (4, -1) node[midway,below=10pt] {\scriptsize $k \leq \tau(\omega)$};
+\draw[decorate,decoration={brace,amplitude=8pt,mirror}] (5, -1) -- (10, -1) node[midway,below=10pt] {\scriptsize $k > \tau(\omega)$};
+
+\end{tikzpicture}
+\end{center}
+
+\subsection{可測性の伝播図式}
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=large]
+X_k \text{: } \mathcal{F}_k\text{-可測} \arrow[r, "\text{単調性}"] \arrow[d, "\text{積}"]
+& X_k \text{: } \mathcal{F}_n\text{-可測} \arrow[d, "\text{積}"] \\
+X_k \cdot \mathbb{1}_{\{\tau=k\}} \arrow[r, "\text{和}"]
+& \sum_{k=0}^{m} X_k \cdot \mathbb{1}_{\{\tau=k\}} \text{: } \mathcal{F}_n\text{-可測} \arrow[d, equal] \\
+\mathbb{1}_{\{\tau=k\}} \text{: } \mathcal{F}_n\text{-可測} \arrow[u, "\text{積}"]
+& X^\tau_n \text{: } \mathcal{F}_n\text{-可測}
+\end{tikzcd}
+\end{center}
+
+\section{Lean 4による形式化}
+
+\subsection{実装の概要}
+
+本稿の定理は、Lean 4を用いて完全に形式化されている。以下に主要な部分を示す。
+
+\begin{lstlisting}[style=lean, caption=停止過程の定義]
+/-- Stopped process: X^τ_n = X_{min(n, τ)} -/
+def stopped (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F) :
+    ℕ → Ω → ℝ :=
+  fun n ω => X.X (min n (τ.τ ω)) ω
+\end{lstlisting}
+
+\begin{lstlisting}[style=lean, caption=Kronecker デルタの補題]
+/-- Auxiliary lemma: summing a Kronecker delta -/
+private lemma sum_range_mul_delta (f : ℕ → ℝ) (a m : ℕ) :
+    (Finset.range (m + 1)).sum (fun k =>
+      f k * (if k = a then (1 : ℝ) else 0)) =
+      if a ≤ m then f a else 0 := by
+  classical
+  by_cases ha : a ≤ m
+  · -- Case: a ≤ m
+    have ha' : a ∈ Finset.range (m + 1) := by
+      simp [Finset.mem_range, Nat.lt_succ_iff, ha]
+    -- Kronecker deltaの性質を使用
+    ...
+  · -- Case: a > m
+    ...
+\end{lstlisting}
+
+\begin{lstlisting}[style=lean, caption=主定理]
+/-- Main decomposition theorem -/
+theorem stopped_eq_sum (X : AdaptedProcessℝ F)
+    (τ : BoundedStoppingTime F) (n : ℕ) (ω : Ω) :
+    X.stopped τ n ω =
+    (Finset.range (min n τ.bound + 1)).sum (fun k =>
+      X.X k ω * τ.indicator k ω) +
+    X.X n ω * (if n < τ.τ ω then 1 else 0) := by
+  classical
+  set m := min n τ.bound with hm_def
+  -- Kronecker deltaを用いた和の性質
+  have hsum : ...
+  -- Case analysis: τ(ω) ≤ n か τ(ω) > n か
+  by_cases hstop : τ.τ ω ≤ n
+  · -- Case 1: τ(ω) ≤ n
+    ...
+  · -- Case 2: τ(ω) > n
+    ...
+\end{lstlisting}
+
+\subsection{形式化の利点}
+
+\begin{itemize}
+\item \textbf{完全性}: すべての証明ステップが機械的に検証可能
+\item \textbf{厳密性}: 暗黙の仮定や飛躍がない
+\item \textbf{再利用性}: 証明の各部分を他の定理で再利用可能
+\item \textbf{教育的価値}: 証明の構造が明確になる
+\end{itemize}
+
+\section{発展的話題}
+
+\subsection{一般化}
+
+本稿で扱った有界停止時刻は、以下のように一般化できる:
+
+\begin{enumerate}
+\item \textbf{無限停止時刻}: 上界 $N$ を取り除く（ただし、分解は無限和になる）
+\item \textbf{連続時間}: 離散時間 $\mathbb{N}$ を連続時間 $\mathbb{R}_+$ に拡張
+\item \textbf{ベクトル値過程}: 実数値 $\mathbb{R}$ をバナッハ空間に一般化
+\end{enumerate}
+
+\subsection{任意停止定理への道}
+
+停止過程の可測性が証明できれば、次のステップは:
+
+\begin{enumerate}
+\item \textbf{可積分性}: $\mathbb{E}[|X^\tau_n|] < \infty$ の証明
+\item \textbf{マルチンゲール性の保存}: $X$ がマルチンゲールなら $X^\tau$ もマルチンゲール
+\item \textbf{任意停止定理}: $\mathbb{E}[X^\tau_\tau] = \mathbb{E}[X_0]$ の証明
+\end{enumerate}
+
+\subsection{応用例}
+
+\begin{example}[ランダムウォークの賭け戦略]
+対称ランダムウォーク $S_n = X_1 + \cdots + X_n$ （$X_i \in \{-1, +1\}$ が独立同分布）において、「初めて +10 に達するか、-10 に達したら止める」という戦略を考える。停止時刻 $\tau := \inf\{n : S_n \in \{-10, +10\}\}$ に対して、任意停止定理より
+\[
+\mathbb{E}[S_\tau] = \mathbb{E}[S_0] = 0
+\]
+が成り立つ。これは「公平なゲームでは、どんな戦略を使っても期待値は変わらない」ことを意味する。
+\end{example}
+
+\section{結論}
+
+本稿では、停止過程の分解定理を、ブルバキの精神に基づいて厳密に証明した。主結果は、停止過程が指示関数を用いた有限和として表現できることであり、これは可測性の証明に不可欠である。
+
+Lean 4による形式化により、証明の各ステップが機械的に検証可能になり、数学的厳密性が保証されている。この分解定理は、マルチンゲール理論における任意停止定理への重要なステップである。
+
+\subsection{今後の課題}
+
+\begin{itemize}
+\item 停止過程の可積分性の完全な証明
+\item 一般の（有界でない）停止時刻への拡張
+\item 任意停止定理の完全な形式化
+\item 応用例（オプション価格理論など）の形式化
+\end{itemize}
+
+\section*{謝辞}
+
+本稿の Lean 4実装および\LaTeX 文書は、Claude Code (Anthropic) によって生成されました。確率論の形式化プロジェクトに貢献いただいたすべての方に感謝します。
+
+\begin{thebibliography}{99}
+
+\bibitem{bourbaki}
+N. Bourbaki, \textit{Elements of Mathematics: General Topology}, Springer, 1989.
+
+\bibitem{williams}
+D. Williams, \textit{Probability with Martingales}, Cambridge University Press, 1991.
+
+\bibitem{durrett}
+R. Durrett, \textit{Probability: Theory and Examples}, 5th edition, Cambridge University Press, 2019.
+
+\bibitem{karatzas}
+I. Karatzas and S. Shreve, \textit{Brownian Motion and Stochastic Calculus}, 2nd edition, Springer, 1991.
+
+\bibitem{lean4}
+Leonardo de Moura et al., \textit{The Lean 4 Theorem Prover and Programming Language}, \url{https://lean-lang.org/}, 2021.
+
+\bibitem{mathlib}
+The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://leanprover-community.github.io/}, 2023.
+
+\end{thebibliography}
+
+\appendix
+
+\section{記法一覧}
+
+\begin{tabular}{ll}
+\hline
+記号 & 意味 \\
+\hline
+$\Omega$ & 標本空間 \\
+$\mathcal{F}$ & $\sigma$-代数 \\
+$\mathcal{F}_n$ & 時刻 $n$ での $\sigma$-代数（フィルトレーション）\\
+$X_n$ & 時刻 $n$ での確率過程の値 \\
+$\tau$ & 停止時刻 \\
+$X^\tau_n$ & 停止過程（$X_{\min(n, \tau)}$）\\
+$\mathbb{1}_A$ & 事象 $A$ の指示関数 \\
+$\min(a, b)$ & $a$ と $b$ の最小値 \\
+$\mathbb{E}[X]$ & 確率変数 $X$ の期待値 \\
+\hline
+\end{tabular}
+
+\section{Lean 4コード全文}
+
+完全な Lean 4実装は、以下のリポジトリで入手可能です:
+\begin{center}
+\url{https://github.com/your-repo/lean-natural-numbers/src/MyProjects/ST/Step2_Decomposition.lean}
+\end{center}
+
+\end{document}

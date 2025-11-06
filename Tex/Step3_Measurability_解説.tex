@@ -1,0 +1,533 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+
+% LuaLaTeX用パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+
+% TikZライブラリ
+\usetikzlibrary{arrows.meta, positioning, decorations.pathreplacing, calc, shapes.geometric}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\newtheorem{remark}[theorem]{注意}
+
+% カスタムボックス
+\newtcolorbox{maintheorem}[1][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{keyidea}[1][]{
+  colback=green!5!white,
+  colframe=green!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{bourbaki}[1][]{
+  colback=purple!5!white,
+  colframe=purple!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+% コマンド定義
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\one}{\mathbf{1}}
+\DeclareMathOperator{\range}{range}
+
+\title{停止過程の可測性\\
+  {\large Step 3: Stopped Process Measurability}\\
+  {\large 学部生向け数学解説}}
+\author{Claude Code により生成\\
+  {\small Lean 4 コード: Claude Code}\\
+  {\small \TeX 解説: Claude Code}\\
+  {\small プロジェクト: \texttt{lean-natural-numbers}}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、確率過程論における停止過程（stopped process）の可測性を、ニコラ・ブルバキの数学原論の精神に従って厳密に証明する。特に、離散時間フィルトレーションに適合した確率過程 $X$ と有界停止時刻 $\tau$ に対して、停止過程 $X^\tau$ がフィルトレーションに適合することを示す。本解説は学部3-4年生を対象とし、測度論と確率論の基礎知識を前提とする。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+\subsection{動機と背景}
+
+確率過程論において、停止時刻（stopping time）は非常に重要な概念である。直感的には、停止時刻とは「ある事象が起こったかどうかを、現在までの情報だけで判断できる時刻」である。
+
+\begin{example}[賭博における停止]
+カジノで賭けをしているとき、「累積利益が初めて100万円を超えたら止める」という戦略を考える。このとき、「止めるべきかどうか」の判断は、現在までの結果だけで決められる。これが停止時刻の典型例である。
+\end{example}
+
+本稿の主目標は、次の基本定理を証明することである：
+
+\begin{maintheorem}[主定理]
+離散時間フィルトレーション $\F = (\F_n)_{n \in \N}$ に適合した実数値確率過程 $X = (X_n)_{n \in \N}$ と有界停止時刻 $\tau$ に対して、停止過程
+\[
+X^\tau_n(\omega) = X_{\min(n, \tau(\omega))}(\omega)
+\]
+は $\F$ に適合する。すなわち、各 $n \in \N$ に対して $X^\tau_n$ は $\F_n$-可測である。
+\end{maintheorem}
+
+\subsection{本稿の構成}
+
+本稿は以下のように構成される：
+
+\begin{enumerate}
+\item \textbf{第2節}：基本概念（フィルトレーション、適合過程、停止時刻）の厳密な定義
+\item \textbf{第3節}：停止過程の定義と基本性質
+\item \textbf{第4節}：分解定理（Step 2からの復習）
+\item \textbf{第5節}：主定理の証明
+\item \textbf{第6節}：具体例と応用
+\end{enumerate}
+
+\section{基本概念}
+
+\subsection{可測空間とフィルトレーション}
+
+\begin{bourbaki}[ブルバキの公理的アプローチ]
+ブルバキの数学原論の精神に従い、すべての概念を集合論的に厳密に定義する。特に、可測性の概念を $\sigma$-代数の包含関係として形式化する。
+\end{bourbaki}
+
+\begin{definition}[離散フィルトレーション]
+可測空間 $(\Omega, \F_\infty)$ 上の\textbf{離散フィルトレーション}とは、$\sigma$-代数の列 $\F = (\F_n)_{n \in \N}$ であって、以下を満たすものをいう：
+\begin{enumerate}
+\item \textbf{単調性}：任意の $m \leq n$ に対して $\F_m \subseteq \F_n$
+\item \textbf{有界性}：任意の $n \in \N$ に対して $\F_n \subseteq \F_\infty$
+\end{enumerate}
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % フィルトレーションの図
+  \foreach \n in {0,1,2,3} {
+    \draw[fill=blue!20, opacity=0.3] (0,\n*0.8) ellipse (1.5+\n*0.3 and 0.4);
+    \node at (-2,\n*0.8) {$\F_{\n}$};
+  }
+  \draw[fill=blue!20, opacity=0.2] (0,3.5) ellipse (2.5 and 0.5);
+  \node at (-2,3.5) {$\F_\infty$};
+
+  % 矢印
+  \draw[-Stealth, thick] (-1.8,0.3) -- (-1.8,0.5);
+  \draw[-Stealth, thick] (-1.8,1.1) -- (-1.8,1.3);
+  \draw[-Stealth, thick] (-1.8,1.9) -- (-1.8,2.1);
+  \draw[-Stealth, thick] (-1.8,2.7) -- (-1.8,3.0);
+
+  \node[right] at (2.5,1.5) {時間とともに情報が増加};
+  \node[right] at (2.5,1.0) {$\F_0 \subseteq \F_1 \subseteq \F_2 \subseteq \cdots$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{適合過程}
+
+\begin{definition}[適合過程]
+実数値確率過程 $X = (X_n)_{n \in \N}$ が フィルトレーション $\F = (\F_n)_{n \in \N}$ に\textbf{適合する}（adapted）とは、各 $n \in \N$ に対して
+\[
+X_n : (\Omega, \F_n) \to (\R, \mathcal{B}(\R))
+\]
+が可測写像であることをいう。ここで $\mathcal{B}(\R)$ はボレル $\sigma$-代数である。
+\end{definition}
+
+\begin{remark}
+適合性の直感的意味は、「時刻 $n$ での値 $X_n(\omega)$ は、時刻 $n$ までの情報 $\F_n$ のみに依存する」ということである。
+\end{remark}
+
+\subsection{停止時刻}
+
+\begin{definition}[有界停止時刻]
+写像 $\tau : \Omega \to \N$ が\textbf{有界停止時刻}（bounded stopping time）であるとは、ある $N \in \N$ が存在して以下を満たすことをいう：
+\begin{enumerate}
+\item \textbf{有界性}：任意の $\omega \in \Omega$ に対して $\tau(\omega) \leq N$
+\item \textbf{適合性}：任意の $n \in \N$ に対して
+\[
+\{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \F_n
+\]
+\end{enumerate}
+\end{definition}
+
+\begin{keyidea}[停止時刻の本質]
+停止時刻の適合性条件は、「時刻 $n$ で、$\tau$ が既に起こったかどうかを判断できる」ことを数学的に表現している。これは因果律（causality）の数学的形式化である。
+\end{keyidea}
+
+\section{停止過程}
+
+\subsection{定義}
+
+\begin{definition}[停止過程]
+適合過程 $X = (X_n)_{n \in \N}$ と有界停止時刻 $\tau$ に対して、\textbf{停止過程} $X^\tau = (X^\tau_n)_{n \in \N}$ を
+\[
+X^\tau_n(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+により定義する。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  % 時間軸
+  \draw[-Stealth, thick] (0,0) -- (8,0) node[right] {$n$};
+  \foreach \n in {0,1,2,3,4,5,6} {
+    \draw (\n,-0.1) -- (\n,0.1) node[below=2mm] {\n};
+  }
+
+  % 停止時刻
+  \draw[dashed, red, thick] (3,0) -- (3,3);
+  \node[red, above] at (3,3) {$\tau(\omega) = 3$};
+
+  % 過程の値
+  \foreach \n in {0,1,2,3,4,5,6} {
+    \pgfmathsetmacro{\y}{0.5 + 0.3*\n + 0.2*sin(\n*60)}
+    \fill[blue] (\n,\y) circle (2pt);
+    \node[blue, above right] at (\n,\y) {$X_{\n}$};
+  }
+
+  % 停止過程
+  \draw[green!60!black, ultra thick] (0,0.5)
+    \foreach \n in {1,2,3} {
+      -- (\n, {0.5 + 0.3*\n + 0.2*sin(\n*60)})
+    }
+    -- (4, {0.5 + 0.3*3 + 0.2*sin(3*60)})
+    -- (5, {0.5 + 0.3*3 + 0.2*sin(3*60)})
+    -- (6, {0.5 + 0.3*3 + 0.2*sin(3*60)});
+
+  \node[green!60!black] at (8,2) {$X^\tau$ は $\tau$ 以降で};
+  \node[green!60!black] at (8,1.5) {値が凍結される};
+\end{tikzpicture}
+\end{center}
+
+\subsection{基本性質}
+
+\begin{proposition}[停止過程の場合分け]
+停止過程は次のように場合分けできる：
+\[
+X^\tau_n(\omega) =
+\begin{cases}
+X_{\tau(\omega)}(\omega) & \text{if } \tau(\omega) \leq n \\
+X_n(\omega) & \text{if } \tau(\omega) > n
+\end{cases}
+\]
+\end{proposition}
+
+\begin{proof}
+$\min(n, \tau(\omega))$ の定義より明らか。
+\end{proof}
+
+\section{分解定理（Step 2の復習）}
+
+主定理の証明の鍵となるのは、停止過程を有限和として表現する分解定理である。
+
+\subsection{指示関数}
+
+\begin{definition}[停止時刻の指示関数]
+停止時刻 $\tau$ と $k \in \N$ に対して、指示関数
+\[
+\one_{\{\tau = k\}}(\omega) :=
+\begin{cases}
+1 & \text{if } \tau(\omega) = k \\
+0 & \text{otherwise}
+\end{cases}
+\]
+を定義する。
+\end{definition}
+
+\begin{lemma}[指示関数の可測性（Step 1）]\label{lem:indicator}
+$k \leq n$ ならば、$\one_{\{\tau = k\}} : \Omega \to \R$ は $\F_n$-可測である。
+\end{lemma}
+
+\begin{proof}[証明の概略]
+$k = 0$ の場合、$\{\tau = 0\} = \{\tau \leq 0\} \in \F_0$ より明らか。
+
+$k \geq 1$ の場合、
+\[
+\{\tau = k\} = \{\tau \leq k\} \cap \{\tau \leq k-1\}^c
+\]
+と表せる。$\{\tau \leq k\}, \{\tau \leq k-1\} \in \F_k \subseteq \F_n$ より、$\{\tau = k\} \in \F_n$。
+\end{proof}
+
+\subsection{分解定理}
+
+\begin{theorem}[停止過程の分解（Step 2）]\label{thm:decomposition}
+適合過程 $X$ と有界停止時刻 $\tau$（上界 $N$）に対して、
+\[
+X^\tau_n(\omega) = \sum_{k=0}^{\min(n,N)} X_k(\omega) \cdot \one_{\{\tau = k\}}(\omega) + X_n(\omega) \cdot \one_{\{n < \tau\}}(\omega)
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{keyidea}[分解の意味]
+この分解は、停止過程を次のように表現する：
+\begin{itemize}
+\item 第1項：停止が既に起こった場合の寄与
+\item 第2項：停止がまだ起こっていない場合の寄与
+\end{itemize}
+各項が有限和であることが、可測性の証明の鍵となる。
+\end{keyidea}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % 第1項の図
+  \node at (0,3) {\textbf{第1項}};
+  \foreach \k in {0,1,2} {
+    \node at (\k*2,2) {$k = \k$};
+    \draw[-Stealth, thick] (\k*2,1.7) -- (\k*2,0.3);
+    \node at (\k*2,0) {$X_{\k} \cdot \one_{\{\tau = \k\}}$};
+  }
+
+  % 第2項の図
+  \node at (8,3) {\textbf{第2項}};
+  \node at (8,2) {$n < \tau$};
+  \draw[-Stealth, thick] (8,1.7) -- (8,0.3);
+  \node at (8,0) {$X_n \cdot \one_{\{n < \tau\}}$};
+\end{tikzpicture}
+\end{center}
+
+\begin{proof}[定理\ref{thm:decomposition}の証明の概略]
+各 $\omega \in \Omega$ を固定し、$\tau(\omega)$ の値で場合分けする。
+
+\textbf{Case 1}：$\tau(\omega) \leq n$ の場合
+
+このとき、$\one_{\{n < \tau\}}(\omega) = 0$ なので第2項は消える。また、$k = \tau(\omega)$ のときのみ $\one_{\{\tau = k\}}(\omega) = 1$ なので、
+\[
+\sum_{k=0}^{\min(n,N)} X_k(\omega) \cdot \one_{\{\tau = k\}}(\omega) = X_{\tau(\omega)}(\omega) = X^\tau_n(\omega)
+\]
+
+\textbf{Case 2}：$\tau(\omega) > n$ の場合
+
+このとき、すべての $k \leq n$ に対して $\one_{\{\tau = k\}}(\omega) = 0$ なので第1項は消える。また、$\one_{\{n < \tau\}}(\omega) = 1$ なので、
+\[
+X_n(\omega) \cdot \one_{\{n < \tau\}}(\omega) = X_n(\omega) = X^\tau_n(\omega)
+\]
+\end{proof}
+
+\section{主定理の証明}
+
+\subsection{可測性の戦略}
+
+\begin{bourbaki}[ブルバキの構成的アプローチ]
+可測性を示すために、次の基本原理を用いる：
+\begin{enumerate}
+\item 可測関数の有限和は可測
+\item 可測関数の積は可測
+\item 適切な $\sigma$-代数の間の単調性
+\end{enumerate}
+これらはすべて mathlib4 で提供される基本定理である。
+\end{bourbaki}
+
+\subsection{証明}
+
+\begin{theorem}[主定理]\label{thm:main}
+適合過程 $X$ と有界停止時刻 $\tau$ に対して、各 $n \in \N$ について $X^\tau_n : (\Omega, \F_n) \to (\R, \mathcal{B}(\R))$ は可測である。
+\end{theorem}
+
+\begin{proof}
+定理\ref{thm:decomposition}の分解を用いる：
+\[
+X^\tau_n = \underbrace{\sum_{k=0}^{\min(n,N)} X_k \cdot \one_{\{\tau = k\}}}_{\text{第1項}} + \underbrace{X_n \cdot \one_{\{n < \tau\}}}_{\text{第2項}}
+\]
+
+\textbf{Step 1}：第1項の可測性
+
+有限和の可測性を示すには、各項 $X_k \cdot \one_{\{\tau = k\}}$ が $\F_n$-可測であることを示せばよい。
+
+$k \in \{0, 1, \ldots, \min(n,N)\}$ を任意に取る。このとき $k \leq n$ である。
+
+\begin{itemize}
+\item $X_k$ は $\F_k$-可測（適合性）
+\item $k \leq n$ より $\F_k \subseteq \F_n$（単調性）
+\item したがって $X_k$ は $\F_n$-可測
+\end{itemize}
+
+また、補題\ref{lem:indicator}より $\one_{\{\tau = k\}}$ は $\F_n$-可測である。
+
+可測関数の積の可測性（mathlib4: \texttt{Measurable.mul}）より、$X_k \cdot \one_{\{\tau = k\}}$ は $\F_n$-可測である。
+
+有限和の可測性（mathlib4: \texttt{Finset.measurable\_sum}）より、第1項は $\F_n$-可測である。
+
+\textbf{Step 2}：第2項の可測性
+
+$X_n$ は $\F_n$-可測（適合性より）。
+
+$\one_{\{n < \tau\}}$ については、
+\[
+\{n < \tau\} = \{\tau \leq n\}^c
+\]
+であり、$\{\tau \leq n\} \in \F_n$ より $\{n < \tau\} \in \F_n$。
+
+したがって、$\one_{\{n < \tau\}}$ は $\F_n$-可測な指示関数（mathlib4: \texttt{Measurable.ite}）である。
+
+積の可測性より、$X_n \cdot \one_{\{n < \tau\}}$ は $\F_n$-可測である。
+
+\textbf{Step 3}：全体の可測性
+
+和の可測性（mathlib4: \texttt{Measurable.add}）より、$X^\tau_n$ は $\F_n$-可測である。
+\end{proof}
+
+\subsection{証明の図解}
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, draw, minimum width=3cm, minimum height=1cm, align=center},
+  arrow/.style={-Stealth, thick}
+]
+  % レベル0
+  \node[box, fill=blue!20] (xk) at (0,6) {$X_k$ \\ $\F_k$-可測};
+  \node[box, fill=green!20] (ind) at (4,6) {$\one_{\{\tau=k\}}$ \\ $\F_n$-可測};
+
+  % レベル1
+  \node[box, fill=yellow!20] (xk2) at (0,4) {$X_k$ \\ $\F_n$-可測};
+  \draw[arrow] (xk) -- (xk2) node[midway, left] {単調性};
+
+  \node[box, fill=orange!20] (prod) at (2,2) {$X_k \cdot \one_{\{\tau=k\}}$ \\ $\F_n$-可測};
+  \draw[arrow] (xk2) -- (prod);
+  \draw[arrow] (ind) -- (prod);
+  \node at (6,2) {積の可測性};
+
+  % レベル2
+  \node[box, fill=red!20] (sum) at (2,0) {$\sum_k X_k \cdot \one_{\{\tau=k\}}$ \\ $\F_n$-可測};
+  \draw[arrow] (prod) -- (sum);
+  \node at (6,0) {和の可測性};
+\end{tikzpicture}
+\end{center}
+
+\section{具体例}
+
+\subsection{定数過程}
+
+\begin{example}[定数過程の停止]
+$X_n(\omega) = c$（定数）とする。このとき、任意の停止時刻 $\tau$ に対して
+\[
+X^\tau_n(\omega) = c
+\]
+である。
+\end{example}
+
+\begin{proof}
+\[
+X^\tau_n(\omega) = X_{\min(n, \tau(\omega))}(\omega) = c
+\]
+\end{proof}
+
+\subsection{時刻0での停止}
+
+\begin{example}[即座の停止]
+$\tau(\omega) \equiv 0$（すべての $\omega$ で時刻0で停止）とする。このとき
+\[
+X^\tau_n(\omega) = X_0(\omega) \quad \text{for all } n \in \N
+\]
+である。
+\end{example}
+
+\begin{proof}
+$\min(n, 0) = 0$ より明らか。
+\end{proof}
+
+\section{まとめと展望}
+
+\subsection{本稿の成果}
+
+本稿では、停止過程の可測性を厳密に証明した。この結果は次のステップの基礎となる：
+
+\begin{enumerate}
+\item \textbf{可積分性}（Step 4）：$X^\tau_n$ の可積分性
+\item \textbf{任意停止定理}（Step 5）：マルチンゲールに対する期待値の保存
+\end{enumerate}
+
+\subsection{ブルバキの精神}
+
+本稿では、ブルバキの数学原論の精神に従い：
+
+\begin{itemize}
+\item すべての概念を集合論的に厳密に定義した
+\item 公理（axiom）を一切使わず、mathlibの既存定理のみから構成した
+\item 証明を有限個の基本ステップに分解した
+\end{itemize}
+
+\subsection{Lean 4による形式化}
+
+本稿の内容は、Lean 4で完全に形式化されている（\texttt{Step3\_Measurability.lean}）。すべての定理は機械的に検証可能であり、人間の直感に頼らない厳密な証明となっている。
+
+\begin{tcolorbox}[colback=gray!10, colframe=black, title=Lean 4コードへのリンク]
+\texttt{src/MyProjects/ST/Step3\_Measurability.lean}
+
+主定理：\texttt{stopped\_measurable}（83-135行目）
+\end{tcolorbox}
+
+\section*{参考文献}
+
+\begin{enumerate}
+\item Nicolas Bourbaki, \textit{Éléments de mathématique}
+\item Patrick Billingsley, \textit{Probability and Measure}, Wiley (1995)
+\item David Williams, \textit{Probability with Martingales}, Cambridge (1991)
+\item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://github.com/leanprover-community/mathlib4}
+\end{enumerate}
+
+\appendix
+
+\section{使用したmathlib4の定理}
+
+本証明で使用した主なmathlib4の定理を列挙する：
+
+\begin{enumerate}
+\item \texttt{Measurable.mul}：可測関数の積の可測性
+\item \texttt{Measurable.add}：可測関数の和の可測性
+\item \texttt{Finset.measurable\_sum}：有限和の可測性
+\item \texttt{Measurable.ite}：条件付き関数の可測性
+\item \texttt{Measurable.mono}：$\sigma$-代数の単調性
+\item \texttt{MeasurableSet.compl}：可測集合の補集合の可測性
+\end{enumerate}
+
+これらはすべて \texttt{Mathlib.MeasureTheory.Constructions.BorelSpace.Basic} およびその依存ファイルで提供されている。
+
+\section{フィルトレーションの図解}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.5]
+  % 時間軸
+  \foreach \n in {0,1,2,3} {
+    \node at (-1, \n) {$n = \n$};
+
+    % σ-代数の大きさ
+    \draw[fill=blue!20, opacity=0.5] (0,\n) ellipse ({0.5+\n*0.3} and 0.3);
+
+    % 矢印
+    \ifnum\n<3
+      \draw[-Stealth, thick, red] (-0.5, \n+0.3) -- (-0.5, \n+0.7);
+      \node[red, right] at (2, \n+0.5) {情報増加};
+    \fi
+
+    % 可測集合の例
+    \draw[thick] ({-0.3-\n*0.1}, \n) -- ({0.3+\n*0.1}, \n);
+  }
+
+  \node at (3, 1.5) {$\F_0 \subseteq \F_1 \subseteq \F_2 \subseteq \F_3$};
+\end{tikzpicture}
+\end{center}
+
+\end{document}

@@ -1,0 +1,617 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+
+% LuaLaTeX用パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+
+% TikZライブラリ
+\usetikzlibrary{arrows.meta, positioning, decorations.pathreplacing, calc, shapes.geometric, patterns, shadows, backgrounds}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\newtheorem{remark}[theorem]{注意}
+\newtheorem{corollary}[theorem]{系}
+
+% カスタムボックス
+\newtcolorbox{maintheorem}[1][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{keyidea}[1][]{
+  colback=green!5!white,
+  colframe=green!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{bourbaki}[1][]{
+  colback=purple!5!white,
+  colframe=purple!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{historical}[1][]{
+  colback=orange!5!white,
+  colframe=orange!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{evolution}[1][]{
+  colback=cyan!5!white,
+  colframe=cyan!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+% コマンド定義
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\DeclareMathOperator{\IsLUB}{IsLUB}
+\DeclareMathOperator{\Monotone}{Monotone}
+
+\title{構造塔の原点\\
+  {\large Bourbaki\_Lean\_Guide.lean: ブルバキの階層的構造理論}\\
+  {\large 学部生向け数学解説}}
+\author{Claude Code により生成\\
+  {\small Lean 4 コード: Codex (OpenAI)}\\
+  {\small \TeX 解説: Claude Code}\\
+  {\small プロジェクト: \texttt{lean-natural-numbers}}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、ブルバキの『数学原論』（Éléments de mathématique）の精神に基づく構造塔（Structure Tower）の最も基本的な形式化について解説する。\texttt{Bourbaki\_Lean\_Guide.lean}は、後の圏論的形式化（\texttt{CAT2\_complete.lean}）へと発展する構造塔の「原点」である。本稿では、単調な集合族としての構造塔の定義、半順序集合における上限の一意性、自然数の初期区間による具体例を通じて、ブルバキの階層的思考法を学ぶ。学部2-3年生を対象とし、集合論と順序構造の基礎知識を前提とする。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論：ブルバキの構造主義}
+
+\subsection{『数学原論』の精神}
+
+\begin{historical}[ブルバキの数学哲学]
+ニコラ・ブルバキは、数学を以下の原理に基づいて再構築した：
+
+\begin{enumerate}
+\item \textbf{一般性}：具体例よりも一般的な構造を重視
+\item \textbf{階層性}：数学的対象を階層的に組織化
+\item \textbf{母構造}（structures mères）：代数、順序、位相という3つの基本構造
+\item \textbf{構成性}：小さく再利用可能な部品から大きな定理を組み立てる
+\end{enumerate}
+
+構造塔は、この「階層性」を数学的に形式化する試みである。
+\end{historical}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % ブルバキの3つの母構造
+  \node[circle, draw, fill=blue!20, minimum size=2.5cm] (alg) at (0,0) {代数構造};
+  \node[circle, draw, fill=green!20, minimum size=2.5cm] (ord) at (3,0) {順序構造};
+  \node[circle, draw, fill=red!20, minimum size=2.5cm] (top) at (1.5,2.5) {位相構造};
+
+  % 交わり
+  \node at (1.5,0.5) {\small 順序環};
+  \node at (0.75,1.5) {\small 位相群};
+  \node at (2.25,1.5) {\small 順序位相};
+  \node at (1.5,1.2) {\tiny 位相環};
+
+  \node[above] at (1.5,4) {\textbf{ブルバキの母構造}};
+\end{tikzpicture}
+\end{center}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+\item \textbf{第2節}：半順序集合と上限の一意性
+\item \textbf{第3節}：構造塔の定義（単調な集合族）
+\item \textbf{第4節}：自然数の初期区間による具体例
+\item \textbf{第5節}：構造塔の発展（CAT2\_complete.leanへの橋渡し）
+\end{enumerate}
+
+\section{半順序集合と上限}
+
+\subsection{半順序集合}
+
+\begin{definition}[半順序集合]\label{def:poset}
+集合 $\alpha$ 上の二項関係 $\leq$ が\textbf{半順序}（partial order）であるとは、以下を満たすことをいう：
+\begin{enumerate}
+\item \textbf{反射律}：任意の $a \in \alpha$ に対して $a \leq a$
+\item \textbf{反対称律}：$a \leq b$ かつ $b \leq a$ ならば $a = b$
+\item \textbf{推移律}：$a \leq b$ かつ $b \leq c$ ならば $a \leq c$
+\end{enumerate}
+組 $(\alpha, \leq)$ を\textbf{半順序集合}（poset）と呼ぶ。
+\end{definition}
+
+\begin{example}[具体例]
+\begin{enumerate}
+\item $(\N, \leq)$：自然数と通常の順序
+\item $(\mathcal{P}(X), \subseteq)$：集合 $X$ の冪集合と包含関係
+\item $(C([0,1], \R), \leq)$：連続関数と点ごとの順序
+\end{enumerate}
+\end{example}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  % Hasse図の例（冪集合 P({1,2})）
+  \node[circle, draw, fill=blue!20] (empty) at (0,0) {$\emptyset$};
+  \node[circle, draw, fill=green!20] (one) at (-1,1.5) {$\{1\}$};
+  \node[circle, draw, fill=green!20] (two) at (1,1.5) {$\{2\}$};
+  \node[circle, draw, fill=red!20] (both) at (0,3) {$\{1,2\}$};
+
+  \draw[-Stealth] (empty) -- (one);
+  \draw[-Stealth] (empty) -- (two);
+  \draw[-Stealth] (one) -- (both);
+  \draw[-Stealth] (two) -- (both);
+
+  \node[above] at (0,3.5) {$\mathcal{P}(\{1,2\})$ のHasse図};
+\end{tikzpicture}
+\end{center}
+
+\subsection{上限と一意性}
+
+\begin{definition}[上限]\label{def:lub}
+半順序集合 $(\alpha, \leq)$ の部分集合 $A \subseteq \alpha$ に対して、$s \in \alpha$ が $A$ の\textbf{上限}（least upper bound, supremum）であるとは：
+\begin{enumerate}
+\item \textbf{上界性}：任意の $a \in A$ に対して $a \leq s$
+\item \textbf{最小性}：任意の上界 $x$ に対して $s \leq x$
+\end{enumerate}
+記号：$s = \sup A$ または $s = \bigvee A$
+\end{definition}
+
+\begin{maintheorem}[上限の一意性]\label{thm:lub_unique}
+半順序集合において、上限は存在すれば一意である。
+
+すなわち、$s$ と $s'$ がともに $A$ の上限ならば、$s = s'$ が成り立つ。
+\end{maintheorem}
+
+\begin{proof}
+$s$ と $s'$ がともに $A$ の上限であるとする。
+
+\textbf{Step 1}：$s$ は上限なので、$s'$ は上界である。したがって、最小性より $s \leq s'$。
+
+\textbf{Step 2}：同様に、$s'$ は上限なので、$s$ は上界である。したがって、最小性より $s' \leq s$。
+
+\textbf{Step 3}：反対称律より、$s = s'$。
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+  % 上限の図解
+  \draw[fill=blue!10] (0,0) ellipse (2 and 0.5);
+  \node at (0,-0.8) {集合 $A$};
+
+  \foreach \x in {-1, -0.3, 0.4, 1.2} {
+    \node[circle, fill=blue!60, inner sep=1.5pt] at (\x,0) {};
+  }
+
+  \node[circle, fill=red!70, inner sep=3pt] (s) at (0,2) {};
+  \node[right] at (s) {$s = s' = \sup A$};
+
+  \draw[-Stealth, thick, dashed] (-1,0.3) -- (s);
+  \draw[-Stealth, thick, dashed] (0.4,0.3) -- (s);
+  \draw[-Stealth, thick, dashed] (1.2,0.3) -- (s);
+
+  \node at (0,3) {一意性：どの定義でも同じ点に到達};
+\end{tikzpicture}
+\end{center}
+
+\begin{bourbaki}[Leanコードでの実装]
+定理\ref{thm:lub_unique}のLean 4での実装（45-47行目）：
+\begin{verbatim}
+lemma supremum_unique' {A : Set α} {s s' : α}
+    (hs : IsLUB A s) (hs' : IsLUB A s') : s = s' :=
+  hs.unique hs'
+\end{verbatim}
+
+ブルバキの精神に従い、具体例ではなく\textbf{一般的な半順序集合}で定理を述べている。
+\end{bourbaki}
+
+\section{構造塔の定義}
+
+\subsection{基本概念}
+
+\begin{definition}[構造塔（原点版）]\label{def:structure_tower_origin}
+半順序集合 $\iota$ で添字付けられた集合 $\alpha$ 上の\textbf{構造塔}（Structure Tower）とは、以下のデータである：
+
+\begin{itemize}
+\item $\mathrm{level} : \iota \to \mathcal{P}(\alpha)$：各添字 $i \in \iota$ に対応する「層」
+\item \textbf{単調性}（monotonicity）：$i \leq j \Rightarrow \mathrm{level}(i) \subseteq \mathrm{level}(j)$
+\end{itemize}
+
+これは、添字の順序に沿って層が増加していく構造を表す。
+\end{definition}
+
+\begin{keyidea}[構造塔の直感]
+構造塔は「階段状に増加する集合族」である：
+\begin{itemize}
+\item 各「層」$\mathrm{level}(i)$ は、添字 $i$ に対応する部分集合
+\item 添字が大きくなると、層も大きくなる（包含関係で）
+\item 全体の和集合 $\bigcup_{i \in \iota} \mathrm{level}(i)$ が「塔全体」
+\end{itemize}
+\end{keyidea}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.3]
+  % 構造塔の視覚化
+  \foreach \i in {0,1,2,3,4} {
+    \pgfmathsetmacro{\w}{1+\i*0.5}
+    \draw[fill=blue!\eval{20+\i*15}, draw=blue!70, very thick, rounded corners]
+      (-\w/2,\i*0.7) rectangle (\w/2,\i*0.7+0.5);
+    \node[left, blue!70!black] at (-\w/2-0.3,\i*0.7+0.25) {$\mathrm{level}(i_{\i})$};
+  }
+
+  % 包含関係の矢印
+  \draw[-Stealth, red, very thick] (2.5,0.5) -- (2.5,1.0);
+  \draw[-Stealth, red, very thick] (2.5,1.2) -- (2.5,1.7);
+  \draw[-Stealth, red, very thick] (2.5,1.9) -- (2.5,2.4);
+  \draw[-Stealth, red, very thick] (2.5,2.6) -- (2.5,3.1);
+
+  \node[red] at (3.5,1.5) {\small 単調性};
+  \node[red] at (3.5,1.0) {\small $i \leq j \Rightarrow$};
+  \node[red] at (3.5,0.5) {\small $\mathrm{level}(i) \subseteq \mathrm{level}(j)$};
+
+  \node[above] at (0,4) {\textbf{構造塔の視覚化}};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Leanでの実装}
+
+\begin{bourbaki}[StructureTowerの定義]
+Lean 4での定義（79-81行目）：
+\begin{verbatim}
+structure StructureTower (ι α : Type*) [Preorder ι] : Type _ where
+  level : ι → Set α
+  monotone_level : ∀ ⦃i j⦄, i ≤ j → level i ⊆ level j
+\end{verbatim}
+
+これは、構造塔の\textbf{最もシンプルな}定義である。後の\texttt{CAT2\_complete.lean}では、さらに：
+\begin{itemize}
+\item 被覆性（covering）
+\item 最小層関数（minLayer）
+\end{itemize}
+が追加される。
+\end{bourbaki}
+
+\subsection{構造塔の性質}
+
+\begin{proposition}[和集合]\label{prop:union}
+構造塔 $T$ の全体の和集合を
+\[
+T.\mathrm{union} := \bigcup_{i \in \iota} T.\mathrm{level}(i)
+\]
+と定義する。このとき、各層は和集合の部分集合である：
+\[
+T.\mathrm{level}(i) \subseteq T.\mathrm{union}
+\]
+\end{proposition}
+
+\begin{theorem}[被覆性による全体性]\label{thm:covering}
+すべての要素 $x \in \alpha$ がある層 $T.\mathrm{level}(i)$ に属するならば、
+\[
+T.\mathrm{union} = \alpha
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+\textbf{$(\subseteq)$}：$T.\mathrm{union} \subseteq \alpha$ は定義より明らか。
+
+\textbf{$(\supseteq)$}：任意の $x \in \alpha$ を取る。仮定より、ある $i \in \iota$ が存在して $x \in T.\mathrm{level}(i)$。したがって、$x \in T.\mathrm{union}$。
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % 被覆性の図解
+  \draw[fill=yellow!20, draw=orange, very thick, dashed] (0,0) ellipse (3 and 2);
+  \node[orange] at (0,2.3) {全体集合 $\alpha$};
+
+  \foreach \i in {1,2,3} {
+    \draw[fill=blue!\eval{10+\i*15}, draw=blue!70, thick]
+      (-2+\i*0.7,-1+\i*0.4) ellipse (0.8+\i*0.2 and 0.6+\i*0.15);
+  }
+
+  \node at (0,-2.5) {被覆性：すべての点がどこかの層に属する};
+\end{tikzpicture}
+\end{center}
+
+\section{自然数の初期区間}
+
+\subsection{定義}
+
+\begin{definition}[自然数の初期区間]\label{def:nat_initial}
+自然数 $n \in \N$ に対して、\textbf{初期区間}を
+\[
+I_n := \{k \in \N \mid k \leq n\}
+\]
+と定義する。例えば：
+\begin{itemize}
+\item $I_0 = \{0\}$
+\item $I_1 = \{0, 1\}$
+\item $I_2 = \{0, 1, 2\}$
+\end{itemize}
+\end{definition}
+
+\begin{proposition}[初期区間の単調性]
+$m \leq n$ ならば、$I_m \subseteq I_n$ が成り立つ。
+\end{proposition}
+
+\begin{proof}
+$k \in I_m$ とすると、$k \leq m$ である。$m \leq n$ より、推移律から $k \leq n$。したがって、$k \in I_n$。
+\end{proof}
+
+\subsection{初期区間による構造塔}
+
+\begin{example}[natInitialSegments]\label{ex:nat_tower}
+初期区間 $(I_n)_{n \in \N}$ は、構造塔をなす：
+\[
+\mathrm{natInitialSegments}.\mathrm{level}(n) := I_n = \{k \in \N \mid k \leq n\}
+\]
+
+Lean 4での実装（144-148行目）：
+\begin{verbatim}
+def natInitialSegments : StructureTower ℕ ℕ where
+  level n := {k : ℕ | k ≤ n}
+  monotone_level := by
+    intro i j hij k hk
+    exact Nat.le_trans hk hij
+\end{verbatim}
+\end{example}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  % 自然数の初期区間の図
+  \foreach \n in {0,1,2,3,4} {
+    \node at (-2,4-\n*0.8) {$I_{\n}$:};
+    \foreach \k in {0,...,\n} {
+      \node[circle, fill=blue!60, inner sep=2pt] at (-1+\k*0.5,4-\n*0.8) {};
+      \node[below, scale=0.6] at (-1+\k*0.5,4-\n*0.8-0.15) {\k};
+    }
+  }
+
+  \draw[decorate, decoration={brace, amplitude=5pt, mirror}]
+    (2.5,4.2) -- (2.5,0.8) node[midway, right=5pt] {\small 単調増加};
+\end{tikzpicture}
+\end{center}
+
+\begin{theorem}[natInitialSegmentsの完全性]\label{thm:nat_complete}
+\[
+\mathrm{natInitialSegments}.\mathrm{union} = \N
+\]
+が成り立つ。すなわち、すべての自然数はどこかの初期区間に属する。
+\end{theorem}
+
+\begin{proof}
+任意の $k \in \N$ に対して、$k \in I_k$（なぜなら $k \leq k$）。
+
+したがって、定理\ref{thm:covering}より、$\mathrm{natInitialSegments}.\mathrm{union} = \N$。
+\end{proof}
+
+\section{構造塔の発展}
+
+\subsection{原点版の限界}
+
+\begin{remark}[なぜminLayerが必要か]
+\texttt{Bourbaki\_Lean\_Guide.lean}の構造塔は、以下の問題を持つ：
+
+\begin{itemize}
+\item 各要素 $x \in \alpha$ は複数の層に属しうる（単調性より）
+\item 「$x$ はどの層に本質的に属するか」が不明確
+\item 射（morphism）を定義しようとすると、一意性が保証されない
+\end{itemize}
+\end{remark}
+
+\begin{evolution}[CAT2\_complete.leanへの進化]
+これらの問題を解決するために、\texttt{CAT2\_complete.lean}では：
+
+\begin{enumerate}
+\item \textbf{minLayer関数}の導入：各 $x$ に対して、$x$ を含む\textbf{最小の層}を選ぶ関数
+\item \textbf{minLayer\_preserving条件}：射が minLayer を保存する
+\item これにより、\textbf{圏構造}と\textbf{普遍性}が証明可能になる
+\end{enumerate}
+
+詳細は別稿『構造塔の圏論的形式化』（\texttt{CAT2\_StructureTower\_解説.pdf}）を参照。
+\end{evolution}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % 発展の図式
+  \node[draw, rounded corners, fill=blue!20, minimum width=3cm, minimum height=1.2cm] (origin) at (0,0) {
+    \begin{tabular}{c}
+    \textbf{原点} \\
+    \texttt{Bourbaki\_Lean\_Guide}
+    \end{tabular}
+  };
+
+  \node[draw, rounded corners, fill=green!20, minimum width=3cm, minimum height=1.2cm] (cat2) at (6,0) {
+    \begin{tabular}{c}
+    \textbf{圏論的形式化} \\
+    \texttt{CAT2\_complete}
+    \end{tabular}
+  };
+
+  \draw[-Stealth, very thick, red] (origin) -- (cat2) node[midway, above] {+ minLayer};
+  \node[below] at (3,-0.8) {\small 一意性と普遍性の獲得};
+
+  % 特徴の列挙
+  \node[below, text width=2.5cm, align=center] at (0,-2) {
+    {\small • 単調な集合族} \\
+    {\small • シンプル} \\
+    {\small • 基礎的}
+  };
+
+  \node[below, text width=2.5cm, align=center] at (6,-2) {
+    {\small • 圏構造} \\
+    {\small • 普遍性} \\
+    {\small • 直積・射影}
+  };
+\end{tikzpicture}
+\end{center}
+
+\subsection{ブルバキの精神の継承}
+
+両方の形式化に共通するブルバキの精神：
+
+\begin{enumerate}
+\item \textbf{一般性}：具体的な集合ではなく、一般的な半順序集合で定義
+\item \textbf{構成性}：小さな部品（単調性、被覆性）から大きな構造を構築
+\item \textbf{再利用性}：\texttt{StructureTower.ofMonotone}などの汎用的な構成子
+\item \textbf{抽象化}：本質的な性質のみを抽出（余計な仮定を排除）
+\end{enumerate}
+
+\section{まとめ}
+
+\subsection{本稿の成果}
+
+本稿では、構造塔の「原点」である\texttt{Bourbaki\_Lean\_Guide.lean}を解説した：
+
+\begin{enumerate}
+\item 半順序集合と上限の一意性
+\item 単調な集合族としての構造塔
+\item 自然数の初期区間による具体例
+\item CAT2\_complete.leanへの発展の道筋
+\end{enumerate}
+
+\subsection{構造塔の階層}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+  % 構造塔の発展の階層図
+  \draw[fill=blue!10, rounded corners] (0,0) rectangle (8,1.2);
+  \node at (1,0.6) {\textbf{Level 0}};
+  \node at (4,0.6) {半順序集合、上限、単調写像};
+
+  \draw[fill=green!10, rounded corners] (0,1.5) rectangle (8,2.7);
+  \node at (1,2.1) {\textbf{Level 1}};
+  \node at (4,2.1) {StructureTower（単調な集合族）};
+
+  \draw[fill=orange!10, rounded corners] (0,3.0) rectangle (8,4.2);
+  \node at (1,3.6) {\textbf{Level 2}};
+  \node at (4,3.6) {StructureTowerWithMin（minLayer付き）};
+
+  \draw[fill=red!10, rounded corners] (0,4.5) rectangle (8,5.7);
+  \node at (1,5.1) {\textbf{Level 3}};
+  \node at (4,5.1) {圏構造、普遍性、直積};
+
+  % 矢印
+  \draw[-Stealth, very thick] (4,1.2) -- (4,1.5);
+  \draw[-Stealth, very thick] (4,2.7) -- (4,3.0);
+  \draw[-Stealth, very thick] (4,4.2) -- (4,4.5);
+
+  \node[right] at (8.5,3) {\small 抽象化};
+  \node[right] at (8.5,2.5) {\small の};
+  \node[right] at (8.5,2.0) {\small 階段};
+\end{tikzpicture}
+\end{center}
+
+\subsection{学習の指針}
+
+構造塔を理解するための推奨順序：
+
+\begin{enumerate}
+\item \textbf{本稿}：基本概念と直感（\texttt{Bourbaki\_Lean\_Guide.lean}）
+\item \textbf{次稿}：圏論的形式化（\texttt{CAT2\_StructureTower\_解説.pdf}）
+\item \textbf{応用}：確率論における構造塔（フィルトレーション）
+\end{enumerate}
+
+\begin{tcolorbox}[colback=gray!10, colframe=black, title=Lean 4コードへのリンク]
+\textbf{本稿の対象ファイル}：
+
+\texttt{src/MyProjects/Set/Bourbaki\_Lean\_Guide.lean}
+
+主要定義：
+\begin{itemize}
+\item 上限の一意性：45-47行目
+\item StructureTower：79-81行目
+\item natInitialSegments：144-148行目
+\end{itemize}
+
+\textbf{発展形}：
+
+\texttt{src/MyProjects/ST/CAT2\_complete.lean}（別稿で解説）
+\end{tcolorbox}
+
+\section*{参考文献}
+
+\begin{enumerate}
+\item Nicolas Bourbaki, \textit{Éléments de mathématique: Théorie des ensembles}
+\item Davey, B. A., \& Priestley, H. A. (2002). \textit{Introduction to Lattices and Order}. Cambridge University Press.
+\item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://github.com/leanprover-community/mathlib4}
+\item Corry, Leo, \textit{Modern Algebra and the Rise of Mathematical Structures}, Birkhäuser (2004)
+\end{enumerate}
+
+\appendix
+
+\section{Leanコードの詳細解説}
+
+\subsection{StructureTowerの定義}
+
+完全な定義（79-81行目）：
+\begin{verbatim}
+structure StructureTower (ι α : Type*) [Preorder ι] : Type _ where
+  level : ι → Set α
+  monotone_level : ∀ ⦃i j⦄, i ≤ j → level i ⊆ level j
+\end{verbatim}
+
+各フィールドの意味：
+\begin{itemize}
+\item \texttt{ι}：添字の型（インデックス集合）
+\item \texttt{α}：基礎集合の型
+\item \texttt{[Preorder ι]}：$\iota$ が前順序を持つことを要求
+\item \texttt{level}：各添字から集合への写像
+\item \texttt{monotone\_level}：単調性の証明
+\end{itemize}
+
+\subsection{和集合の構成}
+
+和集合の定義（88-89行目）：
+\begin{verbatim}
+def union (T : StructureTower ι α) : Set α :=
+  ⋃ i, T.level i
+\end{verbatim}
+
+これは、Leanの無限和集合記法 \texttt{⋃} を使用している。数学的には：
+\[
+T.\mathrm{union} = \bigcup_{i \in \iota} T.\mathrm{level}(i)
+\]
+
+\subsection{単調性の利用}
+
+単調性を用いた補題（97-100行目）：
+\begin{verbatim}
+lemma level_monotone (T : StructureTower ι α) :
+    Monotone T.level := by
+  intro i j hij
+  exact T.monotone_level hij
+\end{verbatim}
+
+これは、構造体のフィールド \texttt{monotone\_level} を、mathlib の標準的な \texttt{Monotone} 述語に変換している。
+
+\end{document}

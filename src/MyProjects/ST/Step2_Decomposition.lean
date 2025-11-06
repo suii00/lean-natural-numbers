@@ -1,4 +1,4 @@
-import MyProjects.ST.Claude.Step1_Indicators
+import MyProjects.ST.Step1_Indicators
 
 /-!
 # Step 2: Stopped Process Decomposition
@@ -23,7 +23,7 @@ This is CRITICAL for proving measurability because:
 
 ## Status
 - ✅ Main decomposition theorem complete
-- ✅ All supporting lemmas complete  
+- ✅ All supporting lemmas complete
 - Ready to use!
 
 ## Time estimate
@@ -81,30 +81,44 @@ lemma min_eq_cases (n : ℕ) (τ_ω : ℕ) :
 
 /-! ## The decomposition theorem -/
 
-/-- Auxiliary lemma: summing a Kronecker delta along a finite range. -/
+/-- Auxiliary lemma: summing a Kronecker delta along a finite range.
+    ブルバキの精神に従い、Kronecker deltaの性質を厳密に証明する。 -/
 private lemma sum_range_mul_delta (f : ℕ → ℝ) (a m : ℕ) :
     (Finset.range (m + 1)).sum (fun k => f k * (if k = a then (1 : ℝ) else 0)) =
       if a ≤ m then f a else 0 := by
   classical
   by_cases ha : a ≤ m
-  · have ha' : a ∈ Finset.range (m + 1) := by
-      simpa [Finset.mem_range, Nat.lt_succ_iff] using ha
-    refine Finset.sum_eq_single a ?others ?outside
-    · intro b hb hba
-      simp [hba]
-    · intro hnot
-      exact (hnot ha').elim
-    · simp [ha]
-  · have hnot : a ∉ Finset.range (m + 1) := by
-      simp [Finset.mem_range, Nat.lt_succ_iff, ha] 
-    refine Finset.sum_eq_zero ?_
+  · -- Case: a ≤ m なので a ∈ range (m+1)
+    have ha' : a ∈ Finset.range (m + 1) := by
+      simp [Finset.mem_range, Nat.lt_succ_iff, ha]
+    -- Kronecker deltaの性質: k ≠ a のとき項は0、k = a のとき f a
+    rw [if_pos ha]
+    have h_sum : (Finset.range (m + 1)).sum (fun k => f k * if k = a then 1 else 0)
+                = f a * if a = a then 1 else 0 := by
+      apply Finset.sum_eq_single a
+      · intro b _ hba
+        -- b ≠ a のとき、if k = a then 1 else 0 は 0
+        rw [if_neg hba]
+        ring
+      · intro h
+        exact absurd ha' h
+    simp only [if_true] at h_sum
+    rw [mul_one] at h_sum
+    exact h_sum
+  · -- Case: a > m なので a ∉ range (m+1)
+    rw [if_neg ha]
+    have hnot : a ∉ Finset.range (m + 1) := by
+      simp [Finset.mem_range, Nat.lt_succ_iff, ha]
+    -- すべての k ∈ range (m+1) に対して k ≠ a
+    apply Finset.sum_eq_zero
     intro b hb
     have : b ≠ a := by
       intro hba
       exact hnot (hba ▸ hb)
     simp [this]
 
-/-- Main decomposition: split according to whether the stopping time has occurred by `n`. -/
+/-- Main decomposition: split according to whether the stopping time has occurred by `n`.
+    ブルバキの精神に従い、場合分けを明示的に行う。 -/
 theorem stopped_eq_sum (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F)
     (n : ℕ) (ω : Ω) :
     X.stopped τ n ω =
@@ -112,24 +126,39 @@ theorem stopped_eq_sum (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F)
       X.X k ω * τ.indicator k ω) +
     X.X n ω * (if n < τ.τ ω then 1 else 0) := by
   classical
-  set m := min n τ.bound
+  set m := min n τ.bound with hm_def
+  -- Kronecker deltaを用いた和の性質
   have hsum :
       (Finset.range (m + 1)).sum (fun k => X.X k ω * τ.indicator k ω) =
         if τ.τ ω ≤ m then X.X (τ.τ ω) ω else 0 := by
-    simpa [m, BoundedStoppingTime.indicator, eq_comm] using
-      sum_range_mul_delta (fun k => X.X k ω) (τ.τ ω) m
+    have h := sum_range_mul_delta (fun k => X.X k ω) (τ.τ ω) m
+    -- indicatorの定義より τ.indicator k ω = if τ.τ ω = k then 1 else 0
+    have heq : ∀ k, τ.indicator k ω = if k = τ.τ ω then (1:ℝ) else 0 := by
+      intro k
+      unfold BoundedStoppingTime.indicator
+      by_cases hk : τ.τ ω = k
+      · rw [if_pos hk, if_pos (Eq.symm hk)]
+      · rw [if_neg hk, if_neg (mt Eq.symm hk)]
+    conv_lhs => arg 2; ext k; rw [heq k]
+    exact h
+  -- Case analysis: τ(ω) ≤ n か τ(ω) > n か
   by_cases hstop : τ.τ ω ≤ n
-  · have hmin : τ.τ ω ≤ m := by
-      exact le_min hstop (τ.is_bounded ω)
+  · -- Case 1: τ(ω) ≤ n のとき、X^τ_n(ω) = X_{τ(ω)}(ω)
+    have hmin : τ.τ ω ≤ m := le_min hstop (τ.is_bounded ω)
     have hnlt : ¬ n < τ.τ ω := not_lt_of_ge hstop
-    simp [stopped, m, hsum, hmin, hstop, hnlt, Nat.min_eq_right hstop]
-  · have hnlt : n < τ.τ ω := lt_of_not_ge hstop
+    rw [stopped, if_neg hnlt]
+    simp only [mul_zero, add_zero]
+    rw [hsum, if_pos hmin, Nat.min_eq_right hstop]
+  · -- Case 2: τ(ω) > n のとき、X^τ_n(ω) = X_n(ω)
+    have hnlt : n < τ.τ ω := lt_of_not_ge hstop
     have hmin : ¬ τ.τ ω ≤ m := by
       intro hle
-      exact (not_le_of_gt hnlt) (le_trans hle (Nat.min_le_left _ _))
-    have hmin_eq : min n (τ.τ ω) = n :=
-      Nat.min_eq_left (Nat.le_of_lt hnlt)
-    simp [stopped, m, hsum, hmin, hnlt, hmin_eq]
+      have : m ≤ n := Nat.min_le_left n τ.bound
+      have : τ.τ ω ≤ n := le_trans hle this
+      exact not_le_of_gt hnlt this
+    rw [stopped, if_pos hnlt]
+    simp only [mul_one]
+    rw [hsum, if_neg hmin, zero_add, Nat.min_eq_left (Nat.le_of_lt hnlt)]
 
 /-! ## Simpler version: alternative formulation -/
 
@@ -144,10 +173,17 @@ theorem stopped_eq_sum_full (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime 
       (Finset.range (τ.bound + 1)).sum (fun k =>
           X.X (min n k) ω * τ.indicator k ω) =
         if τ.τ ω ≤ τ.bound then X.X (min n (τ.τ ω)) ω else 0 := by
-    simpa [BoundedStoppingTime.indicator, eq_comm] using
-      sum_range_mul_delta (fun k => X.X (min n k) ω) (τ.τ ω) τ.bound
+    have h := sum_range_mul_delta (fun k => X.X (min n k) ω) (τ.τ ω) τ.bound
+    have heq : ∀ k, τ.indicator k ω = if k = τ.τ ω then (1:ℝ) else 0 := by
+      intro k
+      unfold BoundedStoppingTime.indicator
+      by_cases hk : τ.τ ω = k
+      · rw [if_pos hk, if_pos (Eq.symm hk)]
+      · rw [if_neg hk, if_neg (mt Eq.symm hk)]
+    conv_lhs => arg 2; ext k; rw [heq k]
+    exact h
   have hbound : τ.τ ω ≤ τ.bound := τ.is_bounded ω
-  simp [stopped, hsum, hbound]
+  rw [stopped, hsum, if_pos hbound]
 
 /-! ## Corollaries -/
 
@@ -175,13 +211,13 @@ end AdaptedProcessℝ
 ✅ Special cases: `stopped_eq_at_tau`, `stopped_eq_at_n`
 ✅ Ready to prove measurability!
 
-**Key insight**: 
+**Key insight**:
 ```
 X^τ_n = Σ_{k=0}^{min(n,N)} X_k · 𝟙_{τ=k}
 ```
 
 This expresses the stopped process as a FINITE sum of measurable functions:
-- X_k is measurable (adapted)  
+- X_k is measurable (adapted)
 - 𝟙_{τ=k} is measurable (Step 1)
 - Product is measurable
 - Finite sum is measurable

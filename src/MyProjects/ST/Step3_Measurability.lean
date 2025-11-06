@@ -1,4 +1,4 @@
-import MyProjects.ST.Claude.Step2_Decomposition
+import MyProjects.ST.Step2_Decomposition
 
 /-!
 # Step 3: Stopped Process Measurability
@@ -55,56 +55,84 @@ variable {Ω : Type u} [MeasurableSpace Ω]
 open Step1 (DiscreteFiltration BoundedStoppingTime)
 open Step2 (AdaptedProcessℝ)
 
-/-! ## Measurability of products and sums -/
+/-! ## Measurability of products and sums
 
--- These should exist in Mathlib, we assume them here
-axiom measurable_mul {α : Type*} [MeasurableSpace α] :
-  ∀ (f g : α → ℝ) (m : MeasurableSpace α),
-  Measurable[m] f → Measurable[m] g → Measurable[m] (fun ω => f ω * g ω)
+ブルバキの精神に従い、可測性の基本定理をmathlibから導入する。
+公理的基礎として、実数の可測空間構造とボレル集合を用いる。
+-/
 
-axiom measurable_finset_sum {α : Type*} [MeasurableSpace α] :
-  ∀ (s : Finset ℕ) (f : ℕ → α → ℝ) (m : MeasurableSpace α),
-  (∀ k ∈ s, Measurable[m] (f k)) →
-  Measurable[m] (fun ω => s.sum (fun k => f k ω))
+-- Mathlibから可測関数の積と和の定理を使用
+-- これらは Mathlib.MeasureTheory.Constructions.BorelSpace.Basic で提供される
 
-/-! ## Main measurability theorem -/
+/-! ## Main measurability theorem
 
-/-- The stopped process is adapted to the filtration -/
+ブルバキの精神に従い、停止過程の可測性を構成的に証明する。
+基本原理：
+1. 停止過程は有限和として表現できる（Step2の分解定理）
+2. 各項は可測関数の積である
+3. 積の可測性と和の可測性から全体の可測性が従う
+-/
+
+/-- The stopped process is adapted to the filtration
+
+ブルバキの精神に従った証明：
+1. 停止過程を有限和＋剰余項として分解（Step2の定理）
+2. 各項の可測性を示す
+3. 和と積の可測性から全体の可測性を導く
+-/
 theorem stopped_measurable {F : DiscreteFiltration Ω}
     (X : AdaptedProcessℝ F) (τ : BoundedStoppingTime F) (n : ℕ) :
     Measurable[(F.sigma n), inferInstance] (X.stopped τ n) := by
-  
-  -- Rewrite using the decomposition from Step 2
+
+  -- Step2の分解定理を使用：X^τ_n = Σ_{k≤min(n,N)} X_k·𝟙_{τ=k} + X_n·𝟙_{n<τ}
   have h_decomp : X.stopped τ n = fun ω =>
       (Finset.range (min n τ.bound + 1)).sum (fun k =>
-        X.X k ω * τ.indicator k ω) := by
+        X.X k ω * τ.indicator k ω) +
+      X.X n ω * (if n < τ.τ ω then 1 else 0) := by
     ext ω
     exact Step2.AdaptedProcessℝ.stopped_eq_sum X τ n ω
-  
+
   rw [h_decomp]
-  
-  -- Now it's a finite sum, so measurable by measurable_finset_sum
-  apply measurable_finset_sum
-  intro k hk
-  
-  simp [Finset.mem_range] at hk
-  -- Need to show: X_k · 𝟙_{τ=k} is F.sigma n-measurable
-  
-  -- This is a product of two measurable functions
-  apply measurable_mul
-  
-  · -- X_k is F.sigma k-measurable, hence F.sigma n-measurable
-    have h_adapted := X.adapted k
-    -- Need: F.sigma k ≤ F.sigma n
-    have h_mono : F.sigma k ≤ F.sigma n := by
-      apply F.adapted
-      omega  -- k ≤ min n τ.bound ≤ n
-    
-    -- X_k is measurable wrt smaller σ-algebra, hence larger
-    exact Measurable.mono h_adapted h_mono le_rfl
-  
-  · -- 𝟙_{τ=k} is F.sigma n-measurable by Step 1
-    exact BoundedStoppingTime.indicator_measurable τ k n (by omega)
+
+  -- 和＋剰余項の可測性
+  refine Measurable.add ?_ ?_
+
+  · -- 第1項：有限和の可測性（mathlibのFinset.measurable_sumを使用）
+    refine Finset.measurable_sum _ fun k hk => ?_
+
+    -- k ∈ range (min n τ.bound + 1) より k ≤ min n τ.bound < min n τ.bound + 1
+    simp only [Finset.mem_range] at hk
+    have hk_le_n : k ≤ n := le_trans (Nat.lt_succ_iff.mp hk) (Nat.min_le_left n τ.bound)
+
+    -- 各項 X_k · indicator k の可測性
+    refine Measurable.mul ?_ ?_
+
+    · -- X_k は F.sigma k-可測、よって F.sigma n-可測（k ≤ n）
+      have h_adapted := X.adapted k
+      have h_mono : F.sigma k ≤ F.sigma n := F.adapted hk_le_n
+      exact Measurable.mono h_adapted h_mono le_rfl
+
+    · -- indicator k は F.sigma n-可測（k ≤ n より Step1の定理）
+      exact BoundedStoppingTime.indicator_measurable τ k n hk_le_n
+
+  · -- 第2項：X_n · 𝟙_{n<τ} の可測性
+    refine Measurable.mul ?_ ?_
+
+    · -- X_n は F.sigma n-可測（適合性より）
+      exact X.adapted n
+
+    · -- 𝟙_{n<τ} = 𝟙_{τ>n} = 𝟙_{(τ≤n)^c} は F.sigma n-可測
+      -- {τ ≤ n} が F.sigma n で可測なので、その補集合も可測
+      have h_set : MeasurableSet[(F.sigma n)] {ω | n < τ.τ ω} := by
+        -- {n < τ} = {τ ≤ n}^c
+        have : {ω | n < τ.τ ω} = {ω | τ.τ ω ≤ n}ᶜ := by
+          ext ω
+          simp only [Set.mem_setOf_eq, Set.mem_compl_iff]
+          omega
+        rw [this]
+        exact (τ.adapted n).compl
+      -- 指示関数の可測性
+      exact Measurable.ite h_set measurable_const measurable_const
 
 /-! ## Corollary: stopped process is an adapted process -/
 
@@ -115,34 +143,58 @@ def stoppedProcess {F : DiscreteFiltration Ω}
   X := X.stopped τ
   adapted := fun n => stopped_measurable X τ n
 
-/-! ## Special cases and examples -/
+/-! ## Special cases and examples
 
-/-- Constant process stopped is still constant -/
+ブルバキの精神に従い、特殊な場合を例示することで一般定理の意味を明確にする。
+-/
+
+/-- 定数過程を停止しても定数のまま
+
+この例は、停止過程の構成が自然なものであることを示す：
+定数過程 X_n(ω) = c に対して、X^τ_n(ω) = c が任意の停止時刻 τ に対して成り立つ。
+-/
 example {F : DiscreteFiltration Ω} (c : ℝ) (τ : BoundedStoppingTime F) :
     let X : AdaptedProcessℝ F := {
       X := fun _ _ => c
       adapted := fun _ => measurable_const
     }
     ∀ n ω, (stoppedProcess X τ).X n ω = c := by
-  intro n ω
-  simp [stoppedProcess, AdaptedProcessℝ.stopped]
+  intro X n ω
+  simp only [stoppedProcess, AdaptedProcessℝ.stopped]
+  -- X.X (min n (τ.τ ω)) ω = c
+  -- 定数過程なので任意の時刻で値は c
+  rfl
 
-/-- Stopping at time 0 -/
+/-- 時刻0での停止
+
+τ ≡ 0 という停止時刻（常に時刻0で停止）に対して、
+X^τ_n = X_0 が任意の n に対して成り立つ。
+
+これは min(n, 0) = 0 という自明な事実から従う。
+-/
 example {F : DiscreteFiltration Ω} (X : AdaptedProcessℝ F) :
     let τ : BoundedStoppingTime F := {
       τ := fun _ => 0
       bound := 0
       is_bounded := fun _ => le_refl 0
-      adapted := fun n => by
-        by_cases h : 0 ≤ n
-        · have : {ω : Ω | 0 ≤ n} = univ := by ext; simp [h]
-          rw [this]; exact MeasurableSet.univ
-        · have : {ω : Ω | 0 ≤ n} = ∅ := by ext; simp [h]
-          rw [this]; exact MeasurableSet.empty
+      adapted := fun m => by
+        -- {τ ≤ m} = {0 ≤ m} を示す必要がある
+        -- 0 ≤ m は任意の自然数 m に対して成り立つので {τ ≤ m} = univ
+        -- ブルバキの精神：条件 0 ≤ m は常に真なので、集合は全体集合
+        have : {ω : Ω | (0 : ℕ) ≤ m} = Set.univ := by
+          ext _
+          simp only [Set.mem_setOf_eq, Set.mem_univ, iff_true]
+          exact Nat.zero_le m
+        rw [this]
+        exact MeasurableSet.univ
     }
     ∀ n ω, (stoppedProcess X τ).X n ω = X.X 0 ω := by
-  intro n ω
-  simp [stoppedProcess, AdaptedProcessℝ.stopped, Nat.min_eq_right]
+  intro τ n ω
+  simp only [stoppedProcess, AdaptedProcessℝ.stopped]
+  -- min(n, τ.τ ω) = min(n, 0) = 0 を示す
+  -- τ.τ ω = 0 なので min(n, 0) = 0
+  congr 1
+  exact Nat.min_eq_right (Nat.zero_le n)
 
 /-! ## Summary: Mission Accomplished! 🎉 -/
 
