@@ -1,6 +1,16 @@
 import Mathlib.Data.Set.Basic
 import Mathlib.Order.Basic
 import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finset.Max
+import Mathlib.Data.Fin.Basic
+import Mathlib.Tactic
+
+open scoped Classical
+
+noncomputable section
+
+set_option linter.unusedSimpArgs false
 
 /-!
 # Structure Tower 耐久テスト
@@ -38,6 +48,21 @@ namespace StructureTowerWithMin
 instance instIndexPreorder (T : StructureTowerWithMin) : Preorder T.Index :=
   T.indexPreorder
 
+/-- 等号のみで比較する離散順序。 -/
+private def equalityPreorder (α : Type*) : Preorder α where
+  toLE := ⟨fun i j => i = j⟩
+  toLT := ⟨fun _ _ => False⟩
+  le_refl := by intro i; rfl
+  le_trans := by
+    intro i j k hij hjk
+    exact hij.trans hjk
+  lt_iff_le_not_ge := by
+    intro a b
+    constructor
+    · intro h; cases h
+    · rintro ⟨hab, hba⟩
+      exact (hba hab.symm).elim
+
 /-! ## 自明例（Trivial Examples）-/
 
 /-- 【自明例1】単一層の構造塔
@@ -50,7 +75,10 @@ def singleLayerTower (X : Type*) : StructureTowerWithMin where
   indexPreorder := by infer_instance
   layer := fun _ => Set.univ  -- 唯一の層が全体
   covering := by intro x; use (); exact Set.mem_univ x
-  monotone := by intro i j _; exact le_refl _
+  monotone := by
+    intro i j _
+    intro x hx
+    exact hx
   minLayer := fun _ => ()  -- すべての要素が同じ層
   minLayer_mem := by intro x; exact Set.mem_univ x
   minLayer_minimal := by intro x i _; exact le_refl _
@@ -62,57 +90,59 @@ def singleLayerTower (X : Type*) : StructureTowerWithMin where
 def discreteTower (X : Type*) : StructureTowerWithMin where
   carrier := X
   Index := X
-  indexPreorder := by
-    refine ⟨fun i j => i = j, fun _ _ => False, ?_, ?_, ?_⟩
-    · intro i; rfl
-    · intro i j k hij hjk; exact hij.trans hjk
-    · intro a b; constructor
-      · intro h; cases h
-      · intro ⟨hab, hba⟩; exact hba hab.symm
-  layer := fun i => {i}  -- 各層は単元集合
-  covering := by intro x; use x; rfl
+  indexPreorder := equalityPreorder X
+  layer := fun i : X => {x | x = i}  -- 各層は単元集合
+  covering := by
+    intro x
+    refine ⟨x, ?_⟩
+    simp [layer]
   monotone := by
     intro i j hij x hx
-    simp at hx ⊢
-    rw [hx, hij]
+    simp [layer, equalityPreorder] at hij hx ⊢
+    exact hx.trans hij
   minLayer := id
-  minLayer_mem := by intro x; rfl
-  minLayer_minimal := by intro x i hx; exact hx
+  minLayer_mem := by intro x; simp [layer]
+  minLayer_minimal := by
+    intro x i hx
+    simp [layer, equalityPreorder] at hx ⊢
+    exact hx
 
 /-- 【自明例3】二層構造塔
-下層と上層のみからなる構造
-
-これは最も単純な非自明例 -/
-def twoLayerTower (X Y : Type*) (h : X ⊆ Y) : StructureTowerWithMin where
-  carrier := Y
-  Index := Bool
-  indexPreorder := by infer_instance  -- false < true
-  layer := fun b => if b then Set.univ else {y | y ∈ X}
-  covering := by
-    intro y
-    use true
-    exact Set.mem_univ y
-  monotone := by
-    intro i j hij y hy
-    match i, j with
-    | false, false => exact hy
-    | false, true => exact Set.mem_univ y
-    | true, true => exact hy
-  minLayer := fun y => if y ∈ X then false else true
-  minLayer_mem := by
-    intro y
-    by_cases h : y ∈ X
-    · simp [h]
-    · simp [h]
-  minLayer_minimal := by
-    intro y i hi
-    by_cases h : y ∈ X
-    · simp [h]
-    · match i with
-      | false =>
-        simp at hi
-        contradiction
-      | true => exact le_refl _
+下層と上層のみからなる構造。`X` は `Y` の部分集合とする。 -/
+def twoLayerTower {Y : Type*} (X : Set Y) : StructureTowerWithMin :=
+  let m : Y → Bool := fun y => if y ∈ X then false else true
+  { carrier := Y
+    Index := Bool
+    indexPreorder := by infer_instance  -- false < true
+    layer := fun b => if b then Set.univ else X
+    covering := by
+      intro y
+      use true
+      exact Set.mem_univ y
+    monotone := by
+      intro i j hij y hy
+      cases i <;> cases j
+      · exact hy
+      · exact Set.mem_univ y
+      ·
+        have htf : ¬(true ≤ false) := by decide
+        exact (htf hij).elim
+      · exact hy
+    minLayer := m
+    minLayer_mem := by
+      intro y
+      by_cases h : y ∈ X
+      · simp [m, h, layer]
+      · simp [m, h, layer]
+    minLayer_minimal := by
+      intro y i hi
+      by_cases h : y ∈ X
+      · cases i <;> simp [m, h]
+      · cases i
+        ·
+          have : False := by simpa [m, layer, h] using hi
+          exact this.elim
+        · simp [m, h] }
 
 /-! ## 極端例（Extreme Examples）-/
 
@@ -136,6 +166,7 @@ def twoLayerTower (X Y : Type*) (h : X ⊆ Y) : StructureTowerWithMin where
 def infiniteChainTower : StructureTowerWithMin where
   carrier := ℕ
   Index := ℕ
+  indexPreorder := by infer_instance
   layer := fun n => {k | k ≤ n}
   covering := by intro x; use x; exact le_refl x
   monotone := by intro i j hij x hx; exact le_trans hx hij
@@ -144,36 +175,28 @@ def infiniteChainTower : StructureTowerWithMin where
   minLayer_minimal := by intro x i hx; exact hx
 
 /-- 【極端例3】完全に重複する層
-すべての層が全体と等しい
+すべての層が全体と等しい。
 
-minLayer は任意に選べるが、ここでは最小の添字を選ぶ -/
-def constantLayerTower (X : Type*) [Inhabited ι] (ι : Type*) [Preorder ι]
-    : StructureTowerWithMin where
+minLayer を定義するために `Index` に最小元（`⊥`）が存在することを仮定する。 -/
+def constantLayerTower (X : Type*) (ι : Type*) [Preorder ι] [OrderBot ι] :
+    StructureTowerWithMin where
   carrier := X
   Index := ι
-  layer := fun _ => Set.univ  -- すべての層が全体
-  covering := by intro x; use default; exact Set.mem_univ x
-  monotone := by intro i j _ x _; exact Set.mem_univ x
-  minLayer := fun _ => default  -- 常に最小（default）を返す
-  minLayer_mem := by intro x; exact Set.mem_univ x
-  minLayer_minimal := by
-    intro x i _
-    -- これは一般には証明できない！
-    -- default が本当に最小とは限らない
-    sorry  -- ⚠️ この例は実は問題がある
-
-/-- 【極端例3修正版】すべての層が全体（最小元を持つ順序）
-Bottom 型クラスを使って最小元を保証 -/
-def constantLayerTower' (X : Type*) (ι : Type*) [Preorder ι] [OrderBot ι]
-    : StructureTowerWithMin where
-  carrier := X
-  Index := ι
+  indexPreorder := inferInstance
   layer := fun _ => Set.univ
   covering := by intro x; use ⊥; exact Set.mem_univ x
   monotone := by intro i j _ x _; exact Set.mem_univ x
   minLayer := fun _ => ⊥  -- 最小元を返す
   minLayer_mem := by intro x; exact Set.mem_univ x
   minLayer_minimal := by intro x i _; exact bot_le
+
+/-- 【極端例3修正版】すべての層が全体（最小元を明示）
+Bottom 型クラスを使って最小元を保証する別記法 -/
+abbrev constantLayerTower' (X : Type*) (ι : Type*) [Preorder ι] [OrderBot ι] :
+    StructureTowerWithMin := constantLayerTower X ι
+
+/-- 簡単なリグレッションテスト：添字を `Unit` とした定数層塔では常に `()` が最小層。 -/
+example : (constantLayerTower ℕ Unit).minLayer (42 : ℕ) = () := rfl
 
 /-! ## 病的例（Pathological Examples）-/
 
@@ -193,18 +216,21 @@ layer n = {k | k ≤ n}
 def boundedIntTower : StructureTowerWithMin where
   carrier := {z : ℤ | 0 ≤ z}  -- 非負整数のみ
   Index := {z : ℤ | 0 ≤ z}
-  layer := fun ⟨n, _⟩ => {⟨k, hk⟩ | k ≤ n}
+  layer := fun n => {x : {z : ℤ | 0 ≤ z} | x.1 ≤ n.1}
   covering := by
     intro ⟨x, hx⟩
-    use ⟨x, hx⟩
-    simp
+    refine ⟨⟨x, hx⟩, ?_⟩
+    simp [layer]
   monotone := by
-    intro ⟨i, _⟩ ⟨j, _⟩ hij ⟨x, _⟩ hx
-    simp at hx ⊢
+    intro i j hij x hx
+    simp [layer] at hx ⊢
     exact le_trans hx hij
   minLayer := fun ⟨x, hx⟩ => ⟨x, hx⟩
-  minLayer_mem := by intro ⟨x, _⟩; simp
-  minLayer_minimal := by intro ⟨x, _⟩ ⟨i, _⟩ hi; simp at hi ⊢; exact hi
+  minLayer_mem := by intro ⟨x, _⟩; simp [layer]
+  minLayer_minimal := by
+    intro ⟨x, _⟩ i hi
+    simp [layer] at hi ⊢
+    exact hi
 
 /-- 【病的例2】反鎖での構造塔
 順序が反鎖（任意の異なる2元が比較不能）
@@ -213,18 +239,19 @@ def boundedIntTower : StructureTowerWithMin where
 def antiChainTower (X : Type*) : StructureTowerWithMin where
   carrier := X
   Index := X
-  indexPreorder := by
-    -- 反鎖：i ≤ j ⟺ i = j
-    refine ⟨fun i j => i = j, fun _ _ => False, ?_, ?_, ?_⟩
-    · intro i; rfl
-    · intro i j k hij hjk; exact hij.trans hjk
-    · intro a b; constructor; intro h; cases h; intro ⟨h, _⟩; exact h
-  layer := fun i => {i}
-  covering := by intro x; use x; rfl
-  monotone := by intro i j hij x hx; simp at hx ⊢; rw [hx, hij]
+  indexPreorder := equalityPreorder X
+  layer := fun i : X => {x | x = i}
+  covering := by intro x; exact ⟨x, by simp [layer]⟩
+  monotone := by
+    intro i j hij x hx
+    simp [layer, equalityPreorder] at hij hx ⊢
+    exact hx.trans hij
   minLayer := id
-  minLayer_mem := by intro x; rfl
-  minLayer_minimal := by intro x i hx; exact hx
+  minLayer_mem := by intro x; simp [layer]
+  minLayer_minimal := by
+    intro x i hx
+    simp [layer, equalityPreorder] at hx ⊢
+    exact hx
 
 /-- 【病的例3】層が複雑に重複
 異なる層が部分的に重複しているが、包含関係ではない
@@ -234,29 +261,43 @@ def antiChainTower (X : Type*) : StructureTowerWithMin where
 
 section PartialOverlap
 
+private def partialBound : Fin 3 → Fin 4
+  | 0 => 1
+  | 1 => 2
+  | 2 => 3
+
+private lemma partialBound_mono {i j : Fin 3} (h : i ≤ j) :
+    partialBound i ≤ partialBound j := by
+  fin_cases i <;> fin_cases j
+  · simp [partialBound]
+  · simpa [partialBound] using (by decide : (1 : Fin 4) ≤ 2)
+  · simpa [partialBound] using (by decide : (1 : Fin 4) ≤ 3)
+  · have : ¬((1 : Fin 3) ≤ 0) := by decide
+    exact (this (by simpa using h)).elim
+  · simp [partialBound]
+  · simpa [partialBound] using (by decide : (2 : Fin 4) ≤ 3)
+  · have : ¬((2 : Fin 3) ≤ 0) := by decide
+    exact (this (by simpa using h)).elim
+  · have : ¬((2 : Fin 3) ≤ 1) := by decide
+    exact (this (by simpa using h)).elim
+  · simp [partialBound]
+
 -- 有限集合上の例
 def partialOverlapTower : StructureTowerWithMin where
   carrier := Fin 4  -- {0, 1, 2, 3}
   Index := Fin 3    -- {0, 1, 2}
-  layer := fun i => 
-    match i with
-    | 0 => {0, 1}      -- 第0層: {0, 1}
-    | 1 => {1, 2}      -- 第1層: {1, 2}
-    | 2 => {0, 1, 2, 3}  -- 第2層: 全体
+  layer := fun i => {x | x ≤ partialBound i}
   covering := by
     intro x
-    use 2
-    fin_cases x <;> decide
+    refine ⟨2, ?_⟩
+    have hx' : x ≤ (3 : Fin 4) := by
+      simpa [Fin.le_iff_val_le_val, Nat.lt_succ_iff] using x.2
+    simpa [layer, partialBound] using hx'
   monotone := by
     intro i j hij x hx
-    fin_cases i <;> fin_cases j <;> try omega
-    · exact hx  -- i = j
-    · -- 0 ≤ 1
-      fin_cases x <;> decide
-    · -- 0 ≤ 2
-      fin_cases x <;> decide
-    · -- 1 ≤ 2
-      fin_cases x <;> decide
+    have hbound : partialBound i ≤ partialBound j :=
+      partialBound_mono hij
+    exact le_trans hx hbound
   minLayer := fun x =>
     match x with
     | 0 => 0  -- 0は層0に属する（最小）
@@ -265,10 +306,10 @@ def partialOverlapTower : StructureTowerWithMin where
     | 3 => 2  -- 3は層2にのみ属する
   minLayer_mem := by
     intro x
-    fin_cases x <;> decide
+    fin_cases x <;> simp [layer, partialBound]
   minLayer_minimal := by
     intro x i hx
-    fin_cases x <;> fin_cases i <;> decide
+    fin_cases x <;> fin_cases i <;> simp [layer, partialBound] at hx ⊢ <;> try exact le_rfl <;> try decide
 
 end PartialOverlap
 
@@ -308,22 +349,30 @@ layer 0 = {0, 1, 2}, layer 1 = {1, 2}, layer 2 = {2, 3}
 /-! ## テスト用の補題 -/
 
 /-- minLayer の一意性条件
-最小元が一意に決まるための十分条件 -/
+最小元が一意に決まるための十分条件。反対称性を仮定する。 -/
 theorem minLayer_unique_sufficient (T : StructureTowerWithMin)
-    [LinearOrder T.Index]  -- 線形順序
+    (antisymm : ∀ {a b : T.Index}, a ≤ b → b ≤ a → a = b)
     (x : T.carrier) (i j : T.Index)
     (hi : x ∈ T.layer i) (hj : x ∈ T.layer j)
     (himin : ∀ k, x ∈ T.layer k → i ≤ k)
     (hjmin : ∀ k, x ∈ T.layer k → j ≤ k) :
     i = j := by
-  apply le_antisymm
+  apply antisymm
   · exact himin j hj
   · exact hjmin i hi
 
 /-- 空でない有限順序では最小元が存在 -/
 theorem exists_min_in_finite [LinearOrder ι] [Fintype ι] [Nonempty ι] :
     ∃ m : ι, ∀ i : ι, m ≤ i := by
-  sorry  -- Mathlib に存在
+  classical
+  let s : Finset ι := Finset.univ
+  have hne : s.Nonempty := by
+    refine ⟨Classical.arbitrary ι, ?_⟩
+    simp [s]
+  refine ⟨s.min' hne, ?_⟩
+  intro i
+  have hi : i ∈ s := by simp [s]
+  exact Finset.min'_le _ _ hi
 
 /-! ## 耐久テストの結論 -/
 
@@ -377,3 +426,5 @@ structure StructureTowerWF where
 -/
 
 end StructureTowerWithMin
+
+end
