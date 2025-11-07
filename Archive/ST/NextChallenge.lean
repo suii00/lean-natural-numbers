@@ -1,6 +1,10 @@
-import Mathlib.LinearAlgebra.Span
-import Mathlib.LinearAlgebra.Basic
-import Mathlib.RingTheory.Noetherian
+import Mathlib.Algebra.Module.Submodule.Basic
+import Mathlib.Algebra.Module.Submodule.Map
+import Mathlib.LinearAlgebra.Span.Basic
+import Mathlib.LinearAlgebra.Quotient.Basic
+import Mathlib.LinearAlgebra.Dimension.Basic
+import Mathlib.LinearAlgebra.FiniteDimensional.Basic
+import Mathlib.RingTheory.Noetherian.Basic
 import Mathlib.CategoryTheory.Limits.HasLimits
 import MyProjects.ST.CAT2_complete
 import MyProjects.ST.NextExercises
@@ -21,20 +25,44 @@ noncomputable def submoduleTower : StructureTowerWithMin where
   carrier := M
   Index := Submodule R M
   layer := fun N => (N : Set M)
-  covering := by sorry  -- use ⊤
-  monotone := by sorry
+  covering := by
+    intro m
+    refine ⟨⊤, ?_⟩
+    simp
+  monotone := by
+    intro N₁ N₂ h₁₂ m hm
+    exact h₁₂ hm
   minLayer := fun m => span R {m}
-  minLayer_mem := by sorry  -- subset_span
-  minLayer_minimal := by sorry  -- span_le
+  minLayer_mem := by
+    intro m
+    exact Submodule.subset_span (by simp)
+  minLayer_minimal := by
+    intro m N hmN
+    refine Submodule.span_le.mpr ?_
+    intro x hx
+    have hx' : x = m := by simpa using hx
+    simpa [hx'] using hmN
 
 noncomputable def linearMapHom {N : Type*} [AddCommGroup N] [Module R N]
     (f : M →ₗ[R] N) :
     submoduleTower R M ⟶ submoduleTower R N where
   map := f
   indexMap := Submodule.map f
-  indexMap_mono := by sorry
-  layer_preserving := by sorry
-  minLayer_preserving := by sorry  -- map_span
+  indexMap_mono := fun {I J} hIJ =>
+    Submodule.map_mono hIJ
+  layer_preserving := by
+    intro I m hm
+    exact ⟨m, hm, rfl⟩
+  minLayer_preserving := by
+    intro m
+    classical
+    change Submodule.map f (span R ({m} : Set M)) = span R ({f m} : Set N)
+    simpa using Submodule.map_span f ({m} : Set M)
+
+@[simp]
+lemma submoduleTower_minLayer (m : M) :
+    (submoduleTower R M).minLayer m = span R {m} :=
+  rfl
 
 end SubmoduleTower
 
@@ -49,7 +77,14 @@ noncomputable def quotientTowerHom (N : Submodule R M) :
 
 theorem kernel_eq_minLayer_bot (N : Submodule R M) :
     ∀ m : M, m ∈ N ↔ (quotientTowerHom R N).map m = 0 := by
-  sorry
+  intro m
+  change m ∈ N ↔ (N.mkQ) m = 0
+  simpa using (Submodule.Quotient.eq_zero_iff_mem N m)
+
+@[simp]
+lemma quotientTowerHom_map (N : Submodule R M) (m : M) :
+    (quotientTowerHom R N).map m = N.mkQ m :=
+  rfl
 
 end QuotientTowers
 
