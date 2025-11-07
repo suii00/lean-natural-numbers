@@ -1,0 +1,491 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\usetikzlibrary{arrows,positioning,shapes,calc}
+
+% Lean code styling
+\lstdefinestyle{leanstyle}{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{green!50!black},
+  stringstyle=\color{red},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  captionpos=b
+}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+\title{マルチンゲール理論と停止時刻\\
+  ―Lean 4による形式化入門―\\
+  \large Phase 1: 簡略版の数学的解説}
+
+\author{
+  Lean 4コード生成: CODEX (OpenAI)\\
+  \LaTeX 解説文書生成: Claude Code (Anthropic)\\
+  \small プロジェクト: lean-natural-numbers
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文書は、マルチンゲール理論と停止時刻の形式化（Lean 4）について、学部生向けに数学的背景を解説するものである。Phase 1では、実数値過程と有界停止時刻に限定した簡略版を扱い、基礎概念の理解を促進する。特に、確率過程のフィルトレーション、適応性、停止過程、およびマルチンゲールの性質を中心に解説する。
+
+\textbf{注意:} 本文書で扱うLean 4コードは開発途中（未完成）であり、一部の証明には\texttt{sorry}（証明の省略）が含まれている。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{序論}
+
+\subsection{本文書の目的}
+
+確率論における\textbf{マルチンゲール理論}は、金融工学、統計学、確率解析など幅広い分野で応用される重要な理論である。本文書では、マルチンゲール理論の基礎概念をLean 4という定理証明支援系を用いて形式化する過程を、数学的背景とともに解説する。
+
+\subsection{前提知識}
+
+本文書を読むにあたり、以下の知識を前提とする：
+\begin{itemize}
+  \item 測度論の基礎（可測空間、可測写像、積分）
+  \item 確率論の基礎（確率空間、期待値、条件付き期待値）
+  \item 集合論と位相空間の基本概念
+\end{itemize}
+
+\subsection{Phase 1の制約}
+
+Phase 1では、理論の簡略版として以下の制約を設ける：
+\begin{enumerate}
+  \item \textbf{実数値過程のみ}: 値域を$\mathbb{R}$に限定
+  \item \textbf{有界停止時刻}: 停止時刻$\tau$に対して$\tau \leq N$となる定数$N \in \mathbb{N}$が存在
+  \item \textbf{離散確率空間}: 可測空間$\Omega$は離散的（加算可能）
+\end{enumerate}
+
+これらの制約により、技術的困難を回避しつつ、構造的な理解を深めることができる。
+
+\section{フィルトレーション}
+
+\subsection{定義と直観}
+
+\begin{definition}[離散フィルトレーション]
+可測空間$(\Omega, \mathcal{F})$上の\textbf{離散フィルトレーション}とは、$\sigma$-代数の増大列
+\[
+\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}
+\]
+である。ここで、各$\mathcal{F}_n$は$\mathcal{F}$の部分$\sigma$-代数である。
+\end{definition}
+
+\textbf{直観的説明:} フィルトレーション$(\mathcal{F}_n)_{n \in \mathbb{N}}$は、時刻$n$までに得られる「情報」を表す。時間が進むにつれて情報は増加するが、減少することはない（単調性）。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.2]
+  % Time axis
+  \draw[->] (0,0) -- (8,0) node[right] {時刻 $n$};
+  \foreach \x/\lab in {1/0, 2.5/1, 4/2, 5.5/3, 7/$\cdots$}
+    \node at (\x,-0.3) {\lab};
+
+  % Filtration boxes
+  \foreach \x/\w/\lab in {1/1/{$\mathcal{F}_0$}, 2.5/1.3/{$\mathcal{F}_1$}, 4/1.6/{$\mathcal{F}_2$}, 5.5/1.9/{$\mathcal{F}_3$}}
+  {
+    \draw[thick,blue,fill=blue!10] (\x,0.5) rectangle +(\w,1) node[pos=0.5] {\lab};
+  }
+
+  % Arrows showing inclusion
+  \draw[->,thick,red] (2,1) -- (2.5,1);
+  \draw[->,thick,red] (3.8,1) -- (4,1);
+  \draw[->,thick,red] (5.6,1) -- (5.5,1);
+
+  % Label
+  \node at (4,2.5) {情報の単調増加: $\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots$};
+\end{tikzpicture}
+\caption{フィルトレーションの概念図}
+\label{fig:filtration}
+\end{figure}
+
+\subsection{Lean 4での形式化}
+
+Lean 4では、フィルトレーションは次のように形式化される（\texttt{MeasurableTower}モジュールなどで定義）：
+
+\begin{lstlisting}[style=leanstyle,language=ML,caption={DiscreteFiltrationの構造（概念図）}]
+structure DiscreteFiltration (Ω : Type u) [MeasurableSpace Ω] where
+  sigma : ℕ → MeasurableSpace Ω
+  adapted : ∀ m n, m ≤ n → sigma m ≤ sigma n
+  bounded : ∀ n, sigma n ≤ (inferInstance : MeasurableSpace Ω)
+\end{lstlisting}
+
+ここで：
+\begin{itemize}
+  \item \texttt{sigma n}: 時刻$n$の$\sigma$-代数$\mathcal{F}_n$
+  \item \texttt{adapted}: 単調性$m \leq n \Rightarrow \mathcal{F}_m \subseteq \mathcal{F}_n$
+  \item \texttt{bounded}: 各$\mathcal{F}_n$は全体$\mathcal{F}$の部分$\sigma$-代数
+\end{itemize}
+
+\section{適応過程}
+
+\subsection{定義}
+
+\begin{definition}[適応過程]
+確率過程$(X_n)_{n \in \mathbb{N}}$がフィルトレーション$(\mathcal{F}_n)$に\textbf{適応している}（adapted）とは、各時刻$n$に対して$X_n$が$\mathcal{F}_n$-可測であることをいう。すなわち、
+\[
+X_n : (\Omega, \mathcal{F}_n) \to (\mathbb{R}, \mathcal{B}(\mathbb{R}))
+\]
+が可測写像である。
+\end{definition}
+
+\textbf{直観:} 時刻$n$における確率変数$X_n$の値は、時刻$n$までの情報$\mathcal{F}_n$で決定できる。未来の情報に依存してはならない。
+
+\subsection{Phase 1の実装}
+
+Phase 1では、実数値の適応過程を構造体として定義する：
+
+\begin{lstlisting}[style=leanstyle,language=ML,caption={AdaptedProcessℝの定義}]
+structure AdaptedProcessℝ (F : DiscreteFiltration Ω) where
+  X : ℕ → Ω → ℝ
+  adapted : ∀ n, Measurable[(F.sigma n), inferInstance] (X n)
+\end{lstlisting}
+
+基本的な操作（定数過程、和、スカラー倍）も定義されており、適応性が保たれることが証明されている。
+
+\begin{example}[定数過程]
+任意の実数$c \in \mathbb{R}$に対して、$X_n(\omega) = c$（すべての$n, \omega$）と定義すれば、$(X_n)$は任意のフィルトレーションに適応している。
+\end{example}
+
+\section{停止時刻}
+
+\subsection{定義と性質}
+
+\begin{definition}[停止時刻]
+写像$\tau : \Omega \to \mathbb{N} \cup \{\infty\}$が\textbf{停止時刻}（stopping time）であるとは、任意の$n \in \mathbb{N}$に対して
+\[
+\{\omega \in \Omega : \tau(\omega) \leq n\} \in \mathcal{F}_n
+\]
+が成り立つことをいう。
+\end{definition}
+
+\textbf{意味:} 「停止するかどうか」の判定が、その時点までの情報で可能である。未来の情報を覗き見せずに決定できる。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.0]
+  % Sample paths
+  \draw[thick,->] (0,0) -- (8,0) node[right] {時刻};
+  \draw[thick,->] (0,0) -- (0,4) node[above] {過程 $X_n$};
+
+  % Path 1
+  \draw[blue,thick] (0,1) -- (1,1.5) -- (2,2) -- (3,2.5) -- (4,2.3) -- (5,2.3) node[circle,fill=red,inner sep=2pt] {} -- (6,2.3) -- (7,2.3);
+  \node[blue] at (7.5,2.3) {$\omega_1$};
+
+  % Path 2
+  \draw[green!60!black,thick] (0,1.5) -- (1,1.3) -- (2,1) node[circle,fill=red,inner sep=2pt] {} -- (3,1) -- (4,1) -- (5,1) -- (6,1) -- (7,1);
+  \node[green!60!black] at (7.5,1) {$\omega_2$};
+
+  % Path 3
+  \draw[orange,thick] (0,2) -- (1,2.3) -- (2,2.8) -- (3,3.2) -- (4,3) -- (5,2.7) -- (6,2.5) -- (7,2.4);
+  \node[orange] at (7.5,2.4) {$\omega_3$};
+
+  % Stopping times
+  \node[red,below] at (5,-0.3) {$\tau(\omega_1)=5$};
+  \node[red,below] at (2,-0.6) {$\tau(\omega_2)=2$};
+  \node[red,below] at (7,-0.9) {$\tau(\omega_3)>7$};
+
+  % Threshold line
+  \draw[dashed,red] (0,2.5) -- (7,2.5) node[right] {閾値};
+\end{tikzpicture}
+\caption{停止時刻の例：過程が閾値に達した時刻}
+\label{fig:stopping_time}
+\end{figure}
+
+\subsection{有界停止時刻}
+
+Phase 1では、有界性の仮定を明示的に管理する：
+
+\begin{definition}[有界停止時刻]
+停止時刻$\tau$が\textbf{有界}（bounded）であるとは、ある定数$N \in \mathbb{N}$が存在して
+\[
+\tau(\omega) \leq N \quad \text{すべての } \omega \in \Omega
+\]
+が成り立つことをいう。
+\end{definition}
+
+\begin{lstlisting}[style=leanstyle,language=ML,caption={BoundedStoppingTimeの定義}]
+structure BoundedStoppingTime (F : DiscreteFiltration Ω)
+    extends StoppingTime F where
+  bound : ℕ
+  is_bounded : ∀ ω, τ ω ≤ bound
+\end{lstlisting}
+
+\begin{proposition}
+有界停止時刻の最小値も有界停止時刻である。すなわち、$\sigma, \tau$が有界停止時刻ならば、
+\[
+(\sigma \wedge \tau)(\omega) := \min(\sigma(\omega), \tau(\omega))
+\]
+も有界停止時刻である。
+\end{proposition}
+
+\section{停止過程}
+
+\subsection{定義}
+
+\begin{definition}[停止過程]
+適応過程$(X_n)$と停止時刻$\tau$に対して、\textbf{停止過程}（stopped process）$(X^{\tau}_n)$を
+\[
+X^{\tau}_n(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+で定義する。
+\end{definition}
+
+\textbf{意味:} 停止時刻$\tau$以降は、過程を「凍結」する。$\tau$の時点の値を保持し続ける。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.1]
+  \draw[thick,->] (0,0) -- (8,0) node[right] {時刻 $n$};
+  \draw[thick,->] (0,0) -- (0,4) node[above] {$X_n$};
+
+  % Original process
+  \draw[blue,thick] (0,1) -- (1,1.5) -- (2,2.5) -- (3,3) -- (4,2.5) -- (5,2) -- (6,2.3) -- (7,2.8);
+  \node[blue] at (7.5,2.8) {$X_n$};
+
+  % Stopped process (stops at n=3)
+  \draw[red,very thick,dashed] (0,1) -- (1,1.5) -- (2,2.5) -- (3,3) -- (4,3) -- (5,3) -- (6,3) -- (7,3);
+  \node[red] at (7.5,3.3) {$X^{\tau}_n$};
+
+  % Stopping time marker
+  \draw[green!60!black,thick,dotted] (3,0) -- (3,3.5);
+  \node[green!60!black,below] at (3,-0.3) {$\tau = 3$};
+  \draw[red,fill=red] (3,3) circle (2pt);
+\end{tikzpicture}
+\caption{停止過程: $\tau=3$で過程を凍結}
+\label{fig:stopped_process}
+\end{figure}
+
+\subsection{停止過程の適応性}
+
+重要な性質：停止過程は再び適応過程となる。
+
+\begin{proposition}
+$(X_n)$が$(\mathcal{F}_n)$に適応しており、$\tau$が停止時刻ならば、$(X^{\tau}_n)$も$(\mathcal{F}_n)$に適応している。
+\end{proposition}
+
+\begin{proof}[証明のスケッチ]
+時刻$n$における$X^{\tau}_n = X_{\min(n, \tau)}$は、有限個の可測関数の合成として表現できる：
+\[
+X^{\tau}_n(\omega) = \sum_{k=0}^{n} X_k(\omega) \cdot \mathbb{1}_{\{\tau = k\}}(\omega) + X_n(\omega) \cdot \mathbb{1}_{\{\tau > n\}}(\omega)
+\]
+各項が$\mathcal{F}_n$-可測であるから、$X^{\tau}_n$も$\mathcal{F}_n$-可測である。
+\end{proof}
+
+Leanでは、\texttt{stoppedProcessℝBounded}として形式化されている。
+
+\section{マルチンゲール}
+
+\subsection{定義}
+
+\begin{definition}[マルチンゲール]
+確率空間$(\Omega, \mathcal{F}, \mathbb{P})$上のフィルトレーション$(\mathcal{F}_n)$に適応した実数値過程$(X_n)$が\textbf{マルチンゲール}であるとは、次の3条件を満たすことをいう：
+\begin{enumerate}
+  \item \textbf{適応性}: 各$X_n$は$\mathcal{F}_n$-可測
+  \item \textbf{可積分性}: $\mathbb{E}[|X_n|] < \infty$ （すべての$n$）
+  \item \textbf{マルチンゲール性}: $m \leq n$ならば
+  \[
+  \mathbb{E}[X_n \mid \mathcal{F}_m] = X_m \quad \text{a.s.}
+  \]
+\end{enumerate}
+\end{definition}
+
+\textbf{直観:} 過去の情報$\mathcal{F}_m$に基づいて未来の値$X_n$の期待値を計算すると、現在の値$X_m$に一致する。これは「公平なゲーム」の数学的定式化である。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.9]
+  % Multiple sample paths
+  \draw[thick,->] (0,0) -- (9,0) node[right] {時刻 $n$};
+  \draw[thick,->] (0,-2) -- (0,3) node[above] {$X_n$};
+
+  % Multiple trajectories (representing expectation)
+  \foreach \seed/\col in {1/blue!50, 2/red!50, 3/green!50, 4/orange!50, 5/purple!50}
+  {
+    \pgfmathsetseed{\seed}
+    \draw[\col,opacity=0.6] (0,0) \foreach \x in {1,...,8}
+    { -- ++(1,{0.5*(rand)}) };
+  }
+
+  % Mean (martingale property)
+  \draw[black,ultra thick] (0,0) -- (8,0);
+  \node[below] at (8,-0.3) {期待値 $\mathbb{E}[X_n] = X_0$};
+
+  % Annotations
+  \node[draw,fill=yellow!20,align=left,text width=4cm] at (5,2.5) {
+    各軌道は変動するが、\\
+    条件付き期待値は\\
+    常に現在値に一致
+  };
+\end{tikzpicture}
+\caption{マルチンゲールの概念図}
+\label{fig:martingale}
+\end{figure}
+
+\subsection{Lean 4での実装}
+
+\begin{lstlisting}[style=leanstyle,language=ML,caption={Martingaleℝの定義}]
+structure Martingaleℝ (F : DiscreteFiltration Ω) where
+  X : ℕ → Ω → ℝ
+  adapted : ∀ n, Measurable[(F.sigma n), inferInstance] (X n)
+  integrable : ∀ n, Integrable (X n)
+  martingale_property : ∀ ⦃m n : ℕ⦄, m ≤ n →
+    MeasureTheory.condExp (F.sigma m) (volume : Measure Ω) (X n)
+      =ᵐ[volume] (X m)
+\end{lstlisting}
+
+\begin{example}[定数マルチンゲール]
+任意の定数$c \in \mathbb{R}$に対して、$X_n(\omega) = c$はマルチンゲールである。実際、
+\[
+\mathbb{E}[X_n \mid \mathcal{F}_m] = \mathbb{E}[c \mid \mathcal{F}_m] = c = X_m
+\]
+が成り立つ。
+\end{example}
+
+\section{停止マルチンゲール}
+
+\subsection{任意抽出定理（Optional Stopping Theorem）}
+
+マルチンゲール理論の中心的定理の一つが、停止マルチンゲールもマルチンゲールであるという性質である。
+
+\begin{theorem}[停止マルチンゲール定理（有界版）]
+$(X_n)$をマルチンゲールとし、$\tau$を有界停止時刻とする。このとき、停止過程$(X^{\tau}_n)$もマルチンゲールである。
+\end{theorem}
+
+\begin{proof}[証明のアイデア]
+鍵となるのは、停止時刻が「未来を覗かない」という性質である。有界性の仮定により、$\tau \leq N$なる$N$が存在する。このとき、
+\[
+\mathbb{E}[X^{\tau}_n \mid \mathcal{F}_m] = \sum_{k=0}^{N} \mathbb{E}[X_k \mathbb{1}_{\{\tau=k\}} \mid \mathcal{F}_m] + \cdots
+\]
+と分解でき、マルチンゲール性と停止時刻の可測性から結論が従う。詳細はPhase 2以降で完全に形式化される予定である。
+\end{proof}
+
+\subsection{Phase 1の現状}
+
+Lean 4コードでは、停止マルチンゲールの構造は定義されているが、マルチンゲール性の証明（\texttt{martingale\_property}）は未完成（\texttt{sorry}）である：
+
+\begin{lstlisting}[style=leanstyle,language=ML,caption={stopped\_is\_martingale\_bounded（未完成）}]
+def stopped_is_martingale_bounded
+    (M : Martingaleℝ F) (τ : BoundedStoppingTime F)
+    [IsFiniteMeasure (volume : Measure Ω)] :
+    Martingaleℝ F where
+  X := (stoppedProcessℝBounded M.toAdaptedProcess τ).X
+  adapted := (stoppedProcessℝBounded M.toAdaptedProcess τ).adapted
+  integrable := by
+    intro n
+    have hτ : MeasureTheory.IsStoppingTime (filtrationOf F) τ.τ :=
+      BoundedStoppingTime.isStoppingTime (F := F) τ
+    have hInt :=
+      MeasureTheory.integrable_stoppedProcess
+        (ℱ := filtrationOf F) (μ := (volume : Measure Ω))
+        hτ (fun k => M.integrable k) n
+    simpa [filtrationOf_apply, stoppedProcessℝBounded_eq_mathlib]
+      using hInt
+  martingale_property := by
+    -- TODO: Prove optional stopping using Mathlib's
+    -- `MeasureTheory.martingale_stoppedProcess`.
+    -- This requires assembling super/submartingale bounds;
+    -- defer to Phase 2.
+    sorry
+\end{lstlisting}
+
+\texttt{integrable}（可積分性）は既にMathlibの補題を用いて証明されているが、\texttt{martingale\_property}はPhase 2で完成させる予定である。
+
+\section{Phase 1の構造と今後の展開}
+
+\subsection{構造タワーの概念}
+
+Phase 1で実装された構造は、以下のような階層をなす：
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[row sep=large, column sep=large]
+  \text{MeasurableSpace} \arrow[d] \\
+  \text{DiscreteFiltration} \arrow[d] \\
+  \text{AdaptedProcess} \arrow[d] \arrow[dr] \\
+  \text{Martingale} & \text{StoppingTime} \arrow[l] \\
+  & \text{StoppedMartingale} \arrow[u]
+\end{tikzcd}
+\caption{Phase 1の構造タワー}
+\label{fig:structure_tower}
+\end{figure}
+
+各層は前の層の構造を利用し、新たな性質を付加する。この段階的構成により、複雑な定理も体系的に形式化できる。
+
+\subsection{Phase 1で達成されたこと}
+
+\begin{itemize}
+  \item \textbf{動作するコード}: 実数値・有界停止時刻という制約下で、基本構造が形式化された
+  \item \textbf{Mathlibとの接続}: 自前の定義（\texttt{AdaptedProcessℝ}など）とMathlib標準の定義（\texttt{MeasureTheory.Adapted}など）の橋渡しが実装された
+  \item \textbf{教育的価値}: 簡略版により、本質的構造が明確になった
+\end{itemize}
+
+\subsection{Phase 1の制約と今後の課題}
+
+\textbf{制約:}
+\begin{itemize}
+  \item 実数値過程のみ（一般のBanach空間値過程への拡張が必要）
+  \item 有界停止時刻のみ（無限大に発散する停止時刻の扱いが課題）
+  \item 離散確率空間（連続時間過程への拡張）
+\end{itemize}
+
+\textbf{Phase 2以降の目標:}
+\begin{itemize}
+  \item 停止マルチンゲール定理の完全証明（\texttt{martingale\_stoppedProcess}を利用）
+  \item 一般の測度論的設定への拡張
+  \item Doob分解定理などの高度な定理への展開
+\end{itemize}
+
+\section{まとめ}
+
+本文書では、Lean 4を用いたマルチンゲール理論の形式化（Phase 1）について、数学的背景を詳述した。フィルトレーション、適応過程、停止時刻、マルチンゲールといった基本概念を、具体的な図式とLeanコードの対応を示しながら解説した。
+
+Phase 1は簡略版であり、一部の証明は未完成であるが、理論の骨格は明確に示されている。今後の展開により、より一般的で強力な定理の形式化が期待される。
+
+\begin{remark}
+形式証明支援系による数学の形式化は、単なる証明の正しさの検証にとどまらず、数学的概念の構造を明示化し、教育的価値を持つものである。本プロジェクトを通じて、確率論と形式手法の両面での理解が深まることを期待する。
+\end{remark}
+
+\vspace{1cm}
+\hrule
+\vspace{0.5cm}
+
+\noindent
+\textbf{注記:} 本文書は開発途中のLean 4コード（\texttt{Phase1\_Simplified.lean}）に基づいている。コード中の\texttt{sorry}（証明の省略）は、今後のPhaseで完成させる予定である。
+
+\noindent
+\textbf{リポジトリ:} \texttt{lean-natural-numbers/src/MyProjects/ST/}
+
+\noindent
+\textbf{生成情報:}
+\begin{itemize}
+  \item Lean 4コード: CODEX (OpenAI) により生成
+  \item 本\LaTeX 解説文書: Claude Code (Anthropic) により生成
+  \item 生成日: \today
+\end{itemize}
+
+\end{document}

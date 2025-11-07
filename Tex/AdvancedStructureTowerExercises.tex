@@ -1,0 +1,114 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage[strings]{underscore}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,mathtools,amsthm}
+\usepackage{tikz-cd}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+
+\title{minLayerを備えた構造塔入門\thanks{本文で述べる概念のLean実装は\texttt{MyProjects.ST.AdvancedStructureTowerExercises} に含まれ、TeX原稿およびLeanファイルはいずれも Codex (OpenAI) により生成されています。}}
+\author{Codex (OpenAI)}
+\date{2025年11月7日}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\theoremstyle{plain}
+\newtheorem{proposition}{命題}
+\theoremstyle{remark}
+\newtheorem*{remark}{備考}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+学部生向けに、Bourbaki 由来の「構造塔」概念と、その最小層 (minLayer) の典型例・極端例を紹介する。離散位相空間、フィルター、可換環の主イデアル、群の部分群といった身近な題材を通じて、Lean 形式化との対応を示す。
+\end{abstract}
+
+\section{構造塔の骨格}
+`StructureTowerWithMin` は四つ組 $(X, I, \mathcal{L}, m)$ からなり、以下を満たす：
+\begin{itemize}
+  \item $X$ は基礎集合 (carrier)。
+  \item $I$ は半順序集合 (index)。
+  \item 各 $i \in I$ に層 $\mathcal{L}(i) \subseteq X$ が割り当てられ、$i \le j \Rightarrow \mathcal{L}(i) \subseteq \mathcal{L}(j)$。
+  \item 各 $x \in X$ はある層に含まれ (covering)。
+  \item minLayer $m : X \to I$ は「$x$ が最初に現れる層」を選び、$x \in \mathcal{L}(m(x))$ かつ、$x \in \mathcal{L}(i)$ なら $m(x) \le i$。
+\end{itemize}
+Lean ではこれらの公理が構造体のフィールドとして実装されており、`minLayer` の保存性を要求する射が `StructureTowerWithMin.Hom` で表される。
+
+\section{自明例：離散位相塔}
+離散位相空間 $X$ の場合、各点の単集合が開集合である。したがって
+\[
+\mathcal{L}(U)=U,\qquad m(x)=\{x\}
+\]
+とすれば構造塔になる。任意の写像 $f : X \to Y$ は自動的に連続なので、`discreteMapHom f` が塔の射となる。Lean では `Set.ext` を用いて像の等式を証明している。
+
+\section{密な例：フィルター塔}
+位相空間 $X$ のフィルター全体（順序は反転包含）を指数集合とすると、
+\[
+\mathcal{L}(F)=\{x \in X \mid F \le \mathcal{N}(x)\},\qquad m(x)=\mathcal{N}(x)
+\]
+で無限階層構造が得られる。`filterConvergenceTower` では `OrderDual` を介して順序の向きを合わせ、`minLayer_minimal` は $F \le \mathcal{N}(x)$ の単純な書き換えで示される。
+
+\section{代数的例：主イデアル塔}
+可換環 $R$ に対し指数集合を $\operatorname{Ideal}(R)$ とし、層を包含とみなす。minLayer は生成する主イデアル $\langle r \rangle$ である。`ringHomToPrincipalTower` はリング準同型 $\varphi: R \to S$ が主イデアル塔の射を与えることを形式化する：
+\[
+\operatorname{map}\,\varphi (\langle r \rangle)=\langle \varphi(r) \rangle.
+\]
+連鎖的な準同型 $(\psi \circ \varphi)$ に対して `Ideal.map_map` を使って合成の整合性を確かめている。
+
+\section{群論的極端例}
+\subsection{恒等的 minLayer (自由的塔)}
+群 $G$ に対して、
+\[
+\mathcal{L}(H)=H,\qquad m(g)=\operatorname{cl}\langle g \rangle
+\]
+とすると `subgroupTowerFree` が得られる。ここで $\operatorname{cl}$ は部分群の閉包であり、Lean では `Subgroup.closure_le` を使って最小性を示す。
+
+\subsection{一点層構造 (病的塔)}
+すべての元を自明な部分群 $\{e\}$ に押し込める試み `subgroupTowerPoint` は、群が退化している（subsingleton）場合にのみ成功する。Lean では `Subsingleton.elim` により任意の元を $1$ と同一視し、minLayer の被覆条件を満たしていることを確認する。
+
+\begin{proposition}[bot 層と退化群の同値]
+任意の群 $G$ について、以下は同値である：
+\begin{enumerate}
+  \item $\forall g \in G,\ g \in \{1\}$。
+  \item $G$ は subsingleton である。
+\end{enumerate}
+\end{proposition}
+\begin{proof}[証明の概略]
+(1)$\Rightarrow$(2): 任意の $x,y$ はともに $1$ に等しい。\quad (2)$\Rightarrow$(1): subsingleton 仮定から任意の $g$ が $1$ に等しい。Lean では補題 `forall_mem_bot_iff_subsingleton` がこの内容を形式化している。
+\end{proof}
+
+\section{射と図式}
+minLayer を保存する射の合成は次図のように表される：
+\[
+\begin{tikzcd}
+T \arrow[r, "f"] \arrow[dr, "g \circ f"'] & T' \arrow[d, "g"] \\
+& T''
+\end{tikzcd}
+\]
+`collapseToConstant`（任意の塔を一定 minLayer 塔に潰す射）や `discreteMapHom` のような例では、この図式の可換性が Lean の `StructureTowerWithMin.Hom.ext` から導かれる。図式が可換であることは、各点の minLayer が順方向に保存されることと同値である。
+
+\section{Lean 実装との対応表}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+数学的対象 & Lean 定義 & 主要補題 \\
+\midrule
+離散位相塔 & \verb|discreteTopologyTower| & \verb|discreteMapHom_comp| \\
+フィルター塔 & \verb|filterConvergenceTower| & \verb|filterConvergenceTower_minLayer| \\
+主イデアル塔 & \verb|principalIdealTower| & \verb|ringHomToPrincipalTower_comp| \\
+部分群自由塔 & \verb|subgroupTowerFree| & \verb|subgroupTowerFree_minLayer_mem| \\
+一点層構造 & \verb|subgroupTowerPoint| & \verb|forall_mem_bot_iff_subsingleton| \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{学習のヒント}
+\begin{itemize}
+  \item まず離散例で minLayer の意味を直感的に掴む。
+  \item フィルター例で無限階層の挙動を可視化する。
+  \item Lean ファイルを `lake build MyProjects.ST.AdvancedStructureTowerExercises` でコンパイルし、具体的な定理名を REPL で検索する。
+\end{itemize}
+
+\end{document}
