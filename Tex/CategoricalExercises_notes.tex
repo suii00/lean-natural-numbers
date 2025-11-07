@@ -1,0 +1,110 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{amsmath}
+\DeclareMathOperator{\minLayer}{minLayer}  % または \newcommand{\minLayer}{\mathrm{minLayer}}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{Categorical minLayer Exercises の解説}
+\author{CODEX (OpenAI)---TeX生成 \\ CODEX (OpenAI)---Lean生成}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{導入}
+このノートでは Lean ファイル \texttt{CategoricalExercises.lean} の内容を学部生向けに説明する。
+ターゲットは構造塔 (\texttt{StructureTowerWithMin}) に付随する「忘却関手」「minLayer の自然性」
+そして「定数塔への崩壊射」という 3 つの Bourbaki 的トピックである。
+
+\section{忘却関手の組合せ}
+\subsection{キャリア忘却と添字忘却}
+構造塔 $T$ は
+キャリア集合 $T.\mathrm{carrier}$ と層添字集合 $T.\mathrm{Index}$ を持つ。
+Lean では
+\[
+  \texttt{forgetCarrierFunctor}(T) = T.\mathrm{carrier}, \qquad
+  \texttt{forgetIndexFunctor}(T) = T.\mathrm{Index}
+\]
+という 2 つの忘却関手を定義している。
+
+\subsection{直積への忘却}
+両者を同時に忘れる関手
+\[
+  \texttt{forgetPairFunctor} : \mathsf{Tower} \to \mathsf{Type}
+\]
+は $T \mapsto T.\mathrm{carrier} \times T.\mathrm{Index}$ を返し、
+射 $f : T \to T'$ を $(f.map,\; f.indexMap)$ に写す。
+Lean では関手 axioms (恒等射・合成) を `simp` で確認している。
+
+\subsection{図式で見る忘却}
+\[
+\begin{tikzcd}[column sep=huge]
+  \mathsf{StructureTowerWithMin}
+    \arrow[r, "\texttt{forgetCarrierFunctor}"]
+    \arrow[dr, "\texttt{forgetPairFunctor}"', bend right=10]
+    \arrow[rr, shift left=0.6em, "\texttt{forgetIndexFunctor}"]
+  & \mathsf{Type}
+    \arrow[r, "\text{incl}_1"]
+  & \mathsf{Type}
+  \\
+  & \mathsf{Type} \times \mathsf{Type}
+    \arrow[u, "\pi_1"']
+    \arrow[ur, "\pi_2"']
+\end{tikzcd}
+\]
+この図式はキャリアと添字を「集合論的に忘れる」操作が
+それぞれの成分射によって復元できることを示す。
+
+\section{minLayer の自然性}
+
+構造塔の射 $f : T \to T'$ には
+\[
+  T'.\minLayer(f.map\,x) = f.indexMap(T.\minLayer\,x)
+\]
+という自然性条件が既に備わっている (\texttt{minLayer\_naturality})。
+これは射が最小層の情報を保存するという意味で、
+Lean 側でも単なるラッパーとして表現されている。
+
+また、直積塔では
+\[
+  \minLayer_{T_1 \times T_2}(x,y) =
+    (\minLayer_{T_1}(x), \minLayer_{T_2}(y))
+\]
+が `rfl` で分かることを \texttt{prod\_minLayer\_componentwise} として示している。
+
+\section{定数塔への崩壊 (極端例)}
+\subsection{定数最小層塔}
+`constantMinLayerTower X I i_0` は全ての元の最小層を固定添字 $i_0$ にする極端例で、
+層は $i_0 \le i$ であれば $X$ 全体、そうでなければ空集合になる。
+
+\subsection{崩壊射}
+任意の写像 $f : T.\mathrm{carrier} \to X$ から
+崩壊射
+\[
+  \texttt{collapseToConstantHom}(f) : T \to constantMinLayerTower(X, I, i_0)
+\]
+を構成できる。Lean では \texttt{collapseToConstant} を薄いラッパーで包み、
+射の写像部分が $f$ と一致し、indexMap が常に $i_0$ を返すことを `[simp]` 補題で確認している。
+
+\subsection{図式}
+\[
+\begin{tikzcd}
+  T \arrow[rr, "\texttt{collapseToConstantHom}(f)"] \arrow[dr, dashed, "f"'] && C \\
+  & X \arrow[ur, dashed] &
+\end{tikzcd}
+\]
+ここで $C = constantMinLayerTower(X,I,i_0)$。
+任意の関数 $f$ から塔スケールの射が「自然に」生じることを表している。
+
+\section*{まとめ}
+\begin{itemize}
+  \item 忘却関手を組み合わせることで、Bourbaki 的に「集合と添字」を同時に扱う視点が得られる。
+  \item minLayer の自然性は、塔の射が最小層情報を保つことを圏論的に表現する。
+  \item 定数塔への崩壊射は、最小層が極端に退化したケースを統一的に取り扱うための道具である。
+\end{itemize}
+これらはすべて Lean ファイル \texttt{CategoricalExercises.lean} で `simp` しやすい形に整理されており、
+今後の普遍性や随伴性の検討に備えた基礎練習として機能している。
+
+\end{document}

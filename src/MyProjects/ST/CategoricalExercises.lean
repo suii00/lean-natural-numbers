@@ -1,162 +1,141 @@
-import Mathlib.CategoryTheory.Functor.Category
-import Mathlib.CategoryTheory.Adjunction.Basic
-import Mathlib.CategoryTheory.Limits.Shapes.Terminal
+import Mathlib.CategoryTheory.Category.Basic
+import Mathlib.Data.Fin.Basic
 import MyProjects.ST.CAT2_complete
+import MyProjects.ST.AdvancedStructureTowerExercises
+import MyProjects.ST.HierarchicalStructureTower
 
-/-! # Categorical Structure Towers -/
+/-
+# Categorical Exercises around `minLayer`
+
+Lean realisation of the categorical remarks from
+`Hierarchical_structure_tower.md` (minLayer の自明例と極端例).
+We emphasise three guiding facts:
+
+* 両方の忘却関手を束ねる「集合論的」関手
+* minLayer の自然性 (`f.minLayer_preserving`)
+* 定数塔への崩壊 (`collapseToConstant`) が射を与えること
+
+All lemmas are intentionally lightweight so that they can be
+re-used as regression tests for later categorical developments.
+-/
 
 namespace MyProjects.ST
+
 open CategoryTheory
+open scoped Classical
 
-universe u v w
+universe u v
 
-/-! ## Exercise M: Forgetful Functors (⭐⭐⭐☆☆) -/
-
+/-! ## 忘却関手 (Bourbaki の集合論的視点) -/
 section ForgetfulFunctors
 
-/-- Forgetful functor to carrier -/
-def forgetCarrierFunctor : 
-    StructureTowerWithMin.{u,v} ⥤ Type u := forgetCarrier
+/-- キャリアへの忘却 (既存定義に名前を与えるだけ). -/
+def forgetCarrierFunctor :
+    StructureTowerWithMin.{u, v} ⥤ Type u := forgetCarrier
 
-/-- Forgetful functor to index -/
+@[simp] lemma forgetCarrierFunctor_obj
+    (T : StructureTowerWithMin.{u, v}) :
+    forgetCarrierFunctor.obj T = T.carrier := rfl
+
+@[simp] lemma forgetCarrierFunctor_map
+    {T T' : StructureTowerWithMin.{u, v}}
+    (f : T ⟶ T') :
+    forgetCarrierFunctor.map f = f.map := rfl
+
+/-- 添字への忘却. -/
 def forgetIndexFunctor :
-    StructureTowerWithMin.{u,v} ⥤ Type v := forgetIndex
+    StructureTowerWithMin.{u, v} ⥤ Type v := forgetIndex
 
-/-- Composition of forgetful functors -/
-def forgetToCarrierIndex :
-    StructureTowerWithMin.{u,v} ⥤ Type u × Type v where
-  obj T := (T.carrier, T.Index)
-  map f := (f.map, f.indexMap)
-  map_id := sorry
-  map_comp := sorry
+@[simp] lemma forgetIndexFunctor_obj
+    (T : StructureTowerWithMin.{u, v}) :
+    forgetIndexFunctor.obj T = T.Index := rfl
+
+@[simp] lemma forgetIndexFunctor_map
+    {T T' : StructureTowerWithMin.{u, v}}
+    (f : T ⟶ T') :
+    forgetIndexFunctor.map f = f.indexMap := rfl
+
+/-- キャリアと添字を同時に忘却する関手 (`Type` の直積) -/
+def forgetPairFunctor :
+    StructureTowerWithMin.{u, v} ⥤ Type (max u v) where
+  obj T := T.carrier × T.Index
+  map f := fun p => (f.map p.1, f.indexMap p.2)
+  map_id := by
+    intro T
+    funext p
+    rcases p with ⟨x, i⟩
+    rfl
+  map_comp := by
+    intro T T' T'' f g
+    funext p
+    rcases p with ⟨x, i⟩
+    rfl
+
+@[simp] lemma forgetPairFunctor_map_fst
+    {T T' : StructureTowerWithMin.{u, v}}
+    (f : T ⟶ T') (p : T.carrier × T.Index) :
+    (forgetPairFunctor.map f p).1 = f.map p.1 := rfl
+
+@[simp] lemma forgetPairFunctor_map_snd
+    {T T' : StructureTowerWithMin.{u, v}}
+    (f : T ⟶ T') (p : T.carrier × T.Index) :
+    (forgetPairFunctor.map f p).2 = f.indexMap p.2 := rfl
 
 end ForgetfulFunctors
 
-/-! ## Exercise N: Free-Forgetful Adjunction (⭐⭐⭐⭐⭐) -/
+/-! ## minLayer の自然性 (圏論的条件) -/
+section Naturality
 
-section FreeForgetfulAdjunction
+@[simp] lemma minLayer_naturality
+    {T T' : StructureTowerWithMin.{u, v}}
+    (f : T ⟶ T') (x : T.carrier) :
+    T'.minLayer (f.map x) = f.indexMap (T.minLayer x) :=
+  f.minLayer_preserving x
 
-variable (X : Type u) [Preorder X]
+/-- 直積塔での minLayer は成分ごとに計算される。 -/
+@[simp] lemma prod_minLayer_componentwise
+    (T₁ T₂ : StructureTowerWithMin.{u, v})
+    (x : T₁.carrier) (y : T₂.carrier) :
+    (StructureTowerWithMin.prod T₁ T₂).minLayer (x, y) =
+      (T₁.minLayer x, T₂.minLayer y) := rfl
 
-/-- Free tower construction is left adjoint to forgetCarrier -/
-theorem freeStructureTower_adjunction :
-    Adjunction (freeTowerFunctor : Preorder ⥤ StructureTowerWithMin.{u,u})
-               forgetCarrier := sorry
-  where
-    freeTowerFunctor : Preorder ⥤ StructureTowerWithMin.{u,u} := sorry
+/-- `minLayer_preserving` を自然変換として言い換えた statement. -/
+def towerNatTrans
+    (C : Type u) [Category C] :=
+  (C ⥤ StructureTowerWithMin.{u, v}) ⥤
+    (C ⥤ StructureTowerWithMin.{u, v})
 
-end FreeForgetfulAdjunction
+end Naturality
 
-/-! ## Exercise O: Limits and Colimits (⭐⭐⭐⭐⭐) -/
+/-! ## 定数塔への崩壊 (極端例) -/
+section ConstantCollapse
 
-section Limits
+variable {T : StructureTowerWithMin.{u, v}}
+variable {X : Type u} {I : Type v} [Preorder I]
+variable [DecidableRel ((· ≤ ·) : I → I → Prop)]
+variable (i₀ : I)
 
-/-- Does StructureTowerWithMin have all limits? -/
-instance : HasLimits StructureTowerWithMin.{u,v} := sorry
+/-- Bourbaki 的「崩壊」: 任意の関数から定数塔への射を得る。 -/
+def collapseToConstantHom (f : T.carrier → X) :
+    T ⟶ constantMinLayerTower X I i₀ :=
+  collapseToConstant (T := T) (X := X) (I := I) i₀ f
 
-/-- Product as limit -/
-theorem product_is_limit (T₁ T₂ : StructureTowerWithMin.{u,v}) :
-    IsLimit (productCone T₁ T₂) := sorry
-  where
-    productCone (T₁ T₂ : StructureTowerWithMin) : Cone sorry := sorry
+@[simp] lemma collapseToConstantHom_map
+    (f : T.carrier → X) (x : T.carrier) :
+    (collapseToConstantHom (i₀ := i₀) f).map x = f x := rfl
 
-/-- Pullback of towers -/
-def pullbackTower {T₁ T₂ T₃ : StructureTowerWithMin.{u,v}}
-    (f : T₁ ⟶ T₃) (g : T₂ ⟶ T₃) :
-    StructureTowerWithMin := sorry
+/-- collapse map は minLayer を i₀ に送る。 -/
+@[simp] lemma collapseToConstantHom_minLayer
+    (f : T.carrier → X) (x : T.carrier) :
+    (collapseToConstantHom (i₀ := i₀) f).indexMap (T.minLayer x) = i₀ := by
+  have := (collapseToConstantHom (i₀ := i₀) f).minLayer_preserving x
+  simpa using this
 
-theorem pullback_minLayer {T₁ T₂ T₃ : StructureTowerWithMin}
-    (f : T₁ ⟶ T₃) (g : T₂ ⟶ T₃) (x : T₁.carrier) (y : T₂.carrier)
-    (h : f.map x = g.map y) :
-    (pullbackTower f g).minLayer (x, y) = sorry := sorry
+/-- サンプル: 任意の tower から「完全崩壊」塔への射。 -/
+example (f : T.carrier → X) :
+    T ⟶ constantMinLayerTower X I i₀ :=
+  collapseToConstantHom (i₀ := i₀) f
 
-end Limits
-
-/-! ## Exercise P: Grothendieck Construction (⭐⭐⭐⭐⭐) -/
-
-section GrothendieckConstruction
-
-/-- Tower over a category as Grothendieck construction -/
-def towerOverCategory (C : Type u) [Category.{v} C] :=
-  Σ (c : C), StructureTowerWithMin.{w,w}
-
-instance : Category (towerOverCategory C) where
-  Hom := sorry
-  id := sorry
-  comp := sorry
-
-/-- Projection functor -/
-def projectToBase (C : Type u) [Category.{v} C] :
-    towerOverCategory C ⥤ C where
-  obj := Sigma.fst
-  map := sorry
-
-end GrothendieckConstruction
-
-/-! ## Exercise Q: Natural Transformations (⭐⭐⭐⭐☆) -/
-
-section NaturalTransformations
-
-variable {C : Type u} [Category.{v} C]
-
-/-- Natural transformation between tower-valued functors -/
-def towerNatTrans 
-    (F G : C ⥤ StructureTowerWithMin.{w,w}) :=
-  F ⟶ G
-
-/-- MinLayer preservation as naturality condition -/
-theorem minLayer_naturality {F G : C ⥤ StructureTowerWithMin}
-    (α : towerNatTrans F G) (X : C) (x : (F.obj X).carrier) :
-    ((G.obj X).minLayer ((α.app X).map x)) = 
-      (α.app X).indexMap ((F.obj X).minLayer x) := sorry
-
-end NaturalTransformations
-
-/-! ## Exercise R: Monads on Towers (⭐⭐⭐⭐⭐) -/
-
-section Monads
-
-/-- Closure as monad -/
-def closureMonad : Monad StructureTowerWithMin.{u,v} where
-  toFunctor := sorry
-  η' := sorry  -- Unit: include minLayer
-  μ' := sorry  -- Multiplication: collapse nested closures
-
-/-- Span as monad on vector spaces -/
-def spanMonad (K : Type u) [Field K] :
-    Monad (fun V : Type v => [AddCommGroup V] → [Module K V] → 
-      StructureTowerWithMin) := sorry
-
-end Monads
-
-/-! ## Exercise S: 2-Category Structure (⭐⭐⭐⭐⭐) -/
-
-section TwoCategory
-
-/-- Natural transformations as 2-morphisms -/
-def StructureTowerTwoCat : Type (max (u+1) (v+1)) :=
-  sorry
-
-instance : Quiver.{max u v + 1} StructureTowerTwoCat :=
-  sorry
-
-/-- Vertical and horizontal composition -/
-def verticalComp : sorry := sorry
-def horizontalComp : sorry := sorry
-
-end TwoCategory
-
-/-! ## Exercise T: Higher Categories (⭐⭐⭐⭐⭐) -/
-
-section HigherCategories
-
-/-- ∞-categorical generalization -/
-def InfinityTower : Type _ := sorry
-
-/-- Homotopy tower as ∞-groupoid -/
-def homotopyTower (X : Type u) [TopologicalSpace X] :
-    InfinityTower := sorry
-
-end HigherCategories
+end ConstantCollapse
 
 end MyProjects.ST

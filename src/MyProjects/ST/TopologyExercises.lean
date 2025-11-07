@@ -1,106 +1,127 @@
-import Mathlib.Topology.Connected.Basic
-import Mathlib.Topology.Separation
+import Mathlib.Topology.Basic
+import Mathlib.Topology.Order
+import Mathlib.Order.Filter.Basic
 import MyProjects.ST.CAT2_complete
+import MyProjects.ST.HierarchicalStructureTower
 
-/-! # Topology Towers -/
+/-
+# Topology Exercises: Trivial and Extremal minLayer Examples
+
+Lean realisation of the "minLayer topology section" from
+`Hierarchical_structure_tower.md`.  We isolate two guiding examples:
+
+* `discreteOpenTower`: the Bourbaki-style discrete case where every open set is
+  literally a layer, and each point selects its singleton as `minLayer`.
+* `filterTower`: an alias of `filterConvergenceTower` emphasising the extremal,
+  densely refilled tower built from filters ordered by refinement.
+
+The accompanying lemmas double as lightweight regression tests (standing in for
+separate `example`s) that encode the characteristic behaviour highlighted in the
+notes—membership-as-open-set inclusion for the discrete tower, and
+``F ≤ 𝓝 x`` for the filter tower.
+-/
 
 namespace MyProjects.ST
-open TopologicalSpace Set
+
+open TopologicalSpace Filter Set
+open scoped Classical Topology
 
 universe u
 
-/-! ## Exercise I: Compact Sets Tower (⭐⭐⭐⭐☆) -/
+/-- ### Discrete tower of open sets (自明例)
 
-section CompactTower
-
-variable (X : Type u) [TopologicalSpace X]
-
-noncomputable def compactSetTower : StructureTowerWithMin where
+For a discrete topological space every subset is open, so we can treat open
+sets themselves as the indices of a `StructureTowerWithMin`.  The `minLayer`
+simply records the singleton `{x}` witnessing each point. -/
+noncomputable def discreteOpenTower (X : Type u)
+    [TopologicalSpace X] [DiscreteTopology X] : StructureTowerWithMin where
   carrier := X
-  -- シンプル版: 単一層（univ）の塔にしてコンパクト性の仮定を避ける。
-  Index := PUnit
+  Index := {U : Set X // IsOpen U}
   indexPreorder := inferInstance
-  layer := fun _ => (univ : Set X)
-  covering := by intro x; exact ⟨PUnit.unit, mem_univ x⟩
-  monotone := by intros i j h; exact Subset.refl _
-  minLayer := fun _ => PUnit.unit
-  minLayer_mem := fun _ => mem_univ _
-  minLayer_minimal := fun _ _ _ => by simp
+  layer := fun U => (U : Set X)
+  covering := by
+    intro x
+    classical
+    refine ⟨⟨{x}, ?_⟩, ?_⟩
+    · simpa using (isOpen_discrete ({x} : Set X))
+    · simp
+  monotone := by
+    intro U V hUV x hx
+    exact hUV hx
+  minLayer := fun x => ⟨{x}, by
+    classical
+    simpa using (isOpen_discrete ({x} : Set X))⟩
+  minLayer_mem := by
+    intro x
+    simp
+  minLayer_minimal := by
+    intro x U hxU
+    change ({x} : Set X) ⊆ U
+    intro y hy
+    have hyx : y = x := by simpa using hy
+    simpa [hyx] using hxU
 
-/-- Hausdorff spaces have better compact tower structure -/
-theorem hausdorff_compact_tower_property [T2Space X] (x : X) :
-  (compactSetTower X).minLayer x = PUnit.unit := rfl
+namespace discreteOpenTower
 
-end CompactTower
+variable {X : Type u} [TopologicalSpace X] [DiscreteTopology X]
 
-/-! ## Exercise J: Connected Component Tower (⭐⭐⭐⭐⭐) -/
+@[simp] lemma layer_coe (U : {U : Set X // IsOpen U}) :
+    (discreteOpenTower X).layer U = (U : Set X) := rfl
 
-section ConnectedTower
+@[simp] lemma mem_layer_iff (U : {U : Set X // IsOpen U}) (x : X) :
+    x ∈ (discreteOpenTower X).layer U ↔ x ∈ (U : Set X) := Iff.rfl
 
-variable (X : Type u) [TopologicalSpace X]
+@[simp] lemma minLayer_eq (x : X) :
+    (discreteOpenTower X).minLayer x =
+      ⟨{x}, by
+        classical
+        simpa using (isOpen_discrete ({x} : Set X))⟩ := rfl
 
-noncomputable def connectedComponentTower : StructureTowerWithMin where
-  carrier := X
-  -- シンプル化: 単一層 (univ) の塔
-  Index := PUnit
-  indexPreorder := inferInstance
-  layer := fun _ => (univ : Set X)
-  covering := by intro x; exact ⟨PUnit.unit, mem_univ x⟩
-  monotone := by intros i j h; exact Subset.refl _
-  minLayer := fun _ => PUnit.unit
-  minLayer_mem := fun _ => mem_univ _
-  minLayer_minimal := fun _ _ _ => by simp
+@[simp] lemma mem_minLayer_iff (x y : X) :
+    y ∈ (discreteOpenTower X).layer ((discreteOpenTower X).minLayer x)
+      ↔ y = x := by
+  classical
+  simp [minLayer_eq]
 
-end ConnectedTower
+/-- Lightweight sanity test: every point belongs to its singleton layer. -/
+example (x : X) :
+    x ∈ (discreteOpenTower X).layer
+      ⟨{x}, by
+        classical
+        simpa using (isOpen_discrete ({x} : Set X))⟩ := by
+  simp
 
-/-! ## Exercise K: Uniform Space Tower (⭐⭐⭐⭐⭐) -/
+end discreteOpenTower
 
-section UniformTower
+/-- ### Filter tower (極端例)
 
-variable (X : Type u) [UniformSpace X]
+The extremal `filterTower` rebrands `filterConvergenceTower` from
+`HierarchicalStructureTower.lean`, matching the terminology in the notes.  It
+orders filters by refinement and takes `𝓝 x` as the canonical minimal layer. -/
+noncomputable def filterTower (X : Type u) [TopologicalSpace X] :
+    StructureTowerWithMin := filterConvergenceTower X
 
-noncomputable def uniformityTower : StructureTowerWithMin where
-  carrier := X
-  -- シンプルな例：単一層（全体）だけ持つ塔
-  Index := PUnit
-  indexPreorder := inferInstance
-  layer := fun _ => (univ : Set X)
-  covering := by intro x; exact ⟨PUnit.unit, mem_univ x⟩
-  monotone := by intros i j h; exact Subset.refl _
-  minLayer := fun _ => PUnit.unit
-  minLayer_mem := fun _ => mem_univ _
-  minLayer_minimal := fun _ _ _ => by simp
+namespace filterTower
 
-end UniformTower
+variable {X : Type u} [TopologicalSpace X]
 
-/-! ## Exercise L: Metric Space Hierarchy (⭐⭐⭐⭐☆) -/
+@[simp] lemma mem_layer_iff (F : OrderDual (Filter X)) (x : X) :
+    x ∈ (filterTower X).layer F
+      ↔ OrderDual.ofDual F ≤ 𝓝 x := Iff.rfl
 
-section MetricTower
+@[simp] lemma minLayer_eq (x : X) :
+    (filterTower X).minLayer x = OrderDual.toDual (𝓝 x) := rfl
 
-variable (X : Type u) [MetricSpace X]
+@[simp] lemma minLayer_mem (x : X) :
+    x ∈ (filterTower X).layer ((filterTower X).minLayer x) := by
+  simpa [mem_layer_iff, minLayer_eq]
+    using (le_rfl : (𝓝 x) ≤ 𝓝 x)
 
-noncomputable def metricBallTower (r₀ : ℝ) (hr : 0 < r₀) :
-    StructureTowerWithMin where
-  carrier := X
-  Index := {r : ℝ // r₀ ≤ r}
-  layer := fun r => univ  -- All points, but indexed by radii
-  covering := by intro x; exact ⟨⟨r₀, le_refl _⟩, mem_univ x⟩
-  monotone := by intros i j hij; exact Subset.refl _
-  minLayer := fun x => ⟨r₀, le_refl _⟩
-  minLayer_mem := fun _ => mem_univ _
-  minLayer_minimal := fun _ i _ => i.2
+/-- Example mirroring the md text: the canonical minimal layer is exactly `𝓝 x`. -/
+example (x : X) :
+    OrderDual.ofDual ((filterTower X).minLayer x) = 𝓝 x := by
+  rfl
 
-/-- Continuous map as tower morphism between metric spaces -/
-noncomputable def continuous_metric_hom {X Y : Type*}
-    [MetricSpace X] [MetricSpace Y]
-    (f : X → Y) (hf : Continuous f) (r₀ : ℝ) (hr : 0 < r₀) :
-    metricBallTower X r₀ hr ⟶ metricBallTower Y r₀ hr :=
-  { map := f
-    indexMap := fun r => r
-    indexMap_mono := fun _ _ h => h
-    layer_preserving := fun _ _ _ => mem_univ _
-    minLayer_preserving := fun _ => rfl }
-
-end MetricTower
+end filterTower
 
 end MyProjects.ST

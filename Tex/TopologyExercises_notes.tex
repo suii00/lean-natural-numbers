@@ -1,0 +1,113 @@
+\documentclass[a4paper]{ltjsarticle}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\providecommand{\texorpdfstring}[2]{#1} % hyperref未読でも安全
+\newcommand{\minLayer}{\mathrm{minLayer}} % 記号定義（好みで \mathsf でも）
+\usepackage{luatexja-fontspec}
+\setmainjfont{Yu Mincho}
+\setsansjfont{Yu Gothic}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+
+\title{離散塔とフィルター塔の最小層}
+\author{CODEX (OpenAI)（TeXファイル生成）\\CODEX (OpenAI)（Leanファイル生成）}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{概要}
+Hierarchical Structure Tower の位相的な実装で登場する
+\textbf{離散開集合塔}と\textbf{フィルター塔}を、学部生向けに噛み砕いて解説する。
+徐々に一般化される ``minLayer''（最小層）の考え方を追いかけつつ、
+Leanファイル \texttt{TopologyExercises.lean} で実装された内容を
+数学的に整理する。
+
+\section{離散開集合塔 $\,\mathsf{discreteOpenTower}(X)$}
+\subsection{設定}
+$X$ を離散位相空間とすると、任意の部分集合が開集合になる。
+そこで「層」(layer) の添字集合を
+\[
+  \mathrm{Index} = \{\, U \subseteq X \mid U \text{ は開集合} \,\}
+\]
+とし、各層を $U$ 自身とする:
+\[
+  \mathrm{layer}(U) = U.
+\]
+このとき covering 条件（各点 $x$ はどこかの層に属する）は単に
+$x \in \{x\}$ を選べばよい。
+
+\subsection{最小層 $\,\minLayer$}
+各点 $x\in X$ について $\minLayer(x) = \{x\}$ とすると、
+\begin{itemize}
+  \item $x \in \mathrm{layer}(\minLayer(x))$ は自明。
+  \item 他の開集合 $U$ で $x \in U$ なら $\{x\} \subseteq U$ が成立。
+\end{itemize}
+これが「最小層」の定義を満たし、Lean 実装では
+\[
+  (discreteOpenTower\,X).\minLayer\, x
+  = \langle \{x\}, \text{isOpen}_\mathrm{disc} \rangle
+\]
+と書かれている。
+
+\subsection{集合包含としての層の判定}
+この塔では層メンバーシップが
+\[
+  x \in \mathrm{layer}(U) \iff x \in U
+\]
+そのものである。Lean でも
+\texttt{mem\_layer\_iff} として実装されており、最小層の
+メンバーシップが $y=x$ に一致することを証明している。
+
+\section{フィルター塔 $\,\mathsf{filterTower}(X)$}
+\subsection{設定}
+一般の位相空間 $X$ では、点 $x$ に付随する近傍フィルター $\mathcal{N}(x)$ が
+標準的な ``最小層'' を与える。Lean 実装 \texttt{filterConvergenceTower} では
+添字集合をフィルターの順序双対 $\,\mathrm{Index} = \mathrm{OrderDual}(\mathrm{Filter}(X))$ とし、
+\[
+  \mathrm{layer}(F) = \{\, x \in X \mid F \le \mathcal{N}(x) \,\}
+\]
+で定義している。これは
+``$F$ に含まれる情報が $x$ 付近の情報をすべて含む'' という条件を
+層所属として読み替えたものに他ならない。
+
+\subsection{最小層とその性質}
+Lean ファイルでは
+\[
+  (filterTower\,X).\minLayer\, x = \mathrm{toDual}(\mathcal{N}(x))
+\]
+と定めている。すると
+\[
+  x \in \mathrm{layer}(\minLayer(x))
+  \iff \mathcal{N}(x) \le \mathcal{N}(x)
+\]
+が成り立ち、トリビアルに真となる。
+また $\mathrm{ofDual}(\minLayer(x)) = \mathcal{N}(x)$ も即座に得られる。
+Lean ではこれらを
+\texttt{minLayer\_mem} と \texttt{example} で確認しており、
+フィルター塔が「極端な」例（すべての層が密に詰まっている）であることを示している。
+
+\section{構造図}
+以下は構造塔の射（collapse）を図示したもので、
+任意の構造塔 $T$ から定数塔 $C$ への射が任意の関数 $f$ によって
+生成されることを示唆する（Lean では \texttt{collapseToConstant}）。
+
+\[
+\begin{tikzcd}[row sep=large, column sep=large]
+T \arrow[rr, "\mathrm{collapseToConstant}(f)"] \arrow[dr, dashed, "h"'] & & C \\
+& \text{filterTower}(X) \arrow[ur, dashed] &
+\end{tikzcd}
+\]
+
+\section{まとめと展望}
+\begin{itemize}
+  \item 離散塔: 各点が単集合で最小層を持つ、完全に ``自由'' な塔。
+  \item フィルター塔: 近傍フィルターが最小層になる ``極端・密'' な塔。
+  \item Lean 実装では、これらを型安全に再利用できるよう
+        \texttt{StructureTowerWithMin} を土台に構築した。
+\end{itemize}
+今後は連続写像や指数構造を絡めた ``射の圏'' を記述することで、
+minLayer の自然性（$f.\minLayer\_preserving$）を可視化することができるだろう。
+
+\end{document}
