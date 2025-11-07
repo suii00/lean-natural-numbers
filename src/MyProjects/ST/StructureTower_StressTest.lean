@@ -146,10 +146,10 @@ def twoLayerTower {Y : Type*} (X : Set Y) : StructureTowerWithMin :=
 
 /-! ## 極端例（Extreme Examples）-/
 
-/-- 【極端例1】空添字集合（不可能）
-空添字集合では被覆性を満たせない
+/- 【極端例1】空添字集合（不可能）
+空添字集合では被覆性を満たせない -/
 
-これは構成**不可能**な例 -/
+/- これは構成**不可能**な例
 -- def emptyIndexTower : StructureTowerWithMin where
 --   carrier := ℕ
 --   Index := Empty  -- 空型
@@ -158,11 +158,11 @@ def twoLayerTower {Y : Type*} (X : Set Y) : StructureTowerWithMin :=
 --     intro x
 --     -- ∃ i : Empty は証明不可能！
 --     sorry
+-/
+/-- 【極端例2】無限昇鎖 -/
+--自然数の通常の順序による無限の層
 
-/-- 【極端例2】無限昇鎖
-自然数の通常の順序による無限の層
-
-これは典型的な無限構造塔 -/
+/-これは典型的な無限構造塔 -/
 def infiniteChainTower : StructureTowerWithMin where
   carrier := ℕ
   Index := ℕ
@@ -253,11 +253,12 @@ def antiChainTower (X : Type*) : StructureTowerWithMin where
     simp [layer, equalityPreorder] at hx ⊢
     exact hx
 
-/-- 【病的例3】層が複雑に重複
+/- 【病的例3】層が複雑に重複
 異なる層が部分的に重複しているが、包含関係ではない
 
 これは minLayer が存在すれば構成可能だが、
 存在を保証するには順序に強い条件が必要 -/
+
 
 section PartialOverlap
 
@@ -325,30 +326,30 @@ end PartialOverlap
 教訓：minLayer の存在には順序に関する条件が必要
 - 下界を持つ（well-founded）
 - または各要素に対して層が下に有界
--/
 
-/-- 【不可能例2】被覆性を満たさない
+
+ 【不可能例2】被覆性を満たさない
 
 反例：carrier = ℕ, Index = ℕ, layer n = {k | k > n}
 
 すべての層の和集合は ℕ 全体にならない（0がどの層にも属さない）
 
 教訓：被覆性は本質的な条件
--/
 
-/-- 【不可能例3】単調性を満たさない
+
+ 【不可能例3】単調性を満たさない
 
 反例：carrier = ℕ, Index = ℕ,
 layer 0 = {0, 1, 2}, layer 1 = {1, 2}, layer 2 = {2, 3}
 
 0 ≤ 1 だが layer 0 ⊈ layer 1（0 ∈ layer 0 だが 0 ∉ layer 1）
 
-教訓：単調性は層の整合性のための必須条件
--/
+教訓：単調性は層の整合性のための必須条件 -/
 
-/-! ## テスト用の補題 -/
 
-/-- minLayer の一意性条件
+/- ## テスト用の補題 -/
+
+/- minLayer の一意性条件
 最小元が一意に決まるための十分条件。反対称性を仮定する。 -/
 theorem minLayer_unique_sufficient (T : StructureTowerWithMin)
     (antisymm : ∀ {a b : T.Index}, a ≤ b → b ≤ a → a = b)
