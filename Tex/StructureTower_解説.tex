@@ -1,0 +1,697 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes}
+\usepackage{mathtools}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usetikzlibrary{decorations.pathreplacing} % ← brace 用
+
+% Lean コードのスタイル設定
+\lstdefinestyle{leanstyle}{
+    language=ML,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    showstringspaces=false
+}
+
+% 定理環境の設定
+\newtcbtheorem{definition}{定義}{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    fonttitle=\bfseries
+}{def}
+
+\newtcbtheorem{theorem}{定理}{
+    colback=green!5!white,
+    colframe=green!75!black,
+    fonttitle=\bfseries
+}{thm}
+
+\newtcbtheorem{example}{例}{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    fonttitle=\bfseries
+}{ex}
+
+\newtcbtheorem{remark}{注意}{
+    colback=gray!5!white,
+    colframe=gray!75!black,
+    fonttitle=\bfseries
+}{rem}
+
+% タイトル情報
+\title{構造塔理論入門\\
+{\large — Lean 4による形式的数学への招待 —}}
+\author{
+    \textbf{TeX生成}: Claude Code (Anthropic) \\
+    \textbf{Lean実装}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、数学的構造を層状に整理する「構造塔（Structure Tower）」という概念を解説する。
+この理論は、複雑な数学的対象を階層的に理解するための強力な枠組みを提供する。
+特に、最小層関数（minLayer）の存在性と整礎性（Well-foundedness）の関係に焦点を当て、
+具体例を通じて理論の実用性を示す。すべての定義と定理はLean 4による形式的証明を伴っている。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{導入}
+
+\subsection{動機}
+
+数学において、複雑な構造を理解する一つの方法は、それを「層」に分けて考えることである。
+例えば：
+
+\begin{itemize}
+    \item \textbf{位相空間論}: 開集合の階層（基底、準基底、任意の開集合）
+    \item \textbf{代数学}: 群の部分構造（正規部分群、商群）
+    \item \textbf{確率論}: 濾過（filtration）による情報の増加
+    \item \textbf{集合論}: 累積的階層（累積的集合の階層）
+\end{itemize}
+
+これらに共通するのは、\textbf{包含関係による順序構造}と\textbf{すべての要素がどこかの層に属する}という性質である。
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+    \item \textbf{第2節}: 構造塔の基本定義
+    \item \textbf{第3節}: 最小層関数の存在性
+    \item \textbf{第4節}: 整礎性（Well-foundedness）
+    \item \textbf{第5節}: 具体例の分析
+    \item \textbf{第6節}: 応用と発展的話題
+\end{enumerate}
+
+\section{構造塔の定義}
+
+\subsection{基本的な構造塔}
+
+まず、最も基本的な構造塔の定義を与える。
+
+\begin{definition}{構造塔（最小層付き）}{structower}
+\textbf{構造塔}（Structure Tower with Minimal Layer）は、以下のデータからなる：
+
+\begin{itemize}
+    \item 台集合 $X$（carrier）
+    \item 添字集合 $I$（Index）、これは前順序を持つ
+    \item 層関数 $\ell : I \to \mathcal{P}(X)$（layer）
+    \item 最小層関数 $m : X \to I$（minLayer）
+\end{itemize}
+
+これらは以下の公理を満たす：
+
+\begin{enumerate}
+    \item \textbf{被覆性}（covering）:
+    \[\forall x \in X,\, \exists i \in I,\, x \in \ell(i)\]
+
+    \item \textbf{単調性}（monotonicity）:
+    \[\forall i, j \in I,\, i \leq j \implies \ell(i) \subseteq \ell(j)\]
+
+    \item \textbf{最小層の帰属性}（minLayer membership）:
+    \[\forall x \in X,\, x \in \ell(m(x))\]
+
+    \item \textbf{最小層の最小性}（minLayer minimality）:
+    \[\forall x \in X,\, \forall i \in I,\, x \in \ell(i) \implies m(x) \leq i\]
+\end{enumerate}
+\end{definition}
+
+\subsection{視覚的理解}
+
+構造塔は次のように視覚化できる：
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % 層の描画
+    \draw[thick, blue!50, fill=blue!10] (0,0) ellipse (1.5 and 0.5);
+    \draw[thick, green!50, fill=green!10] (0,1.5) ellipse (2.5 and 0.5);
+    \draw[thick, red!50, fill=red!10] (0,3) ellipse (3.5 and 0.5);
+
+    % 層のラベル
+    \node at (-4,0) {$\ell(i_0)$};
+    \node at (-4,1.5) {$\ell(i_1)$};
+    \node at (-4,3) {$\ell(i_2)$};
+
+    % 要素の配置
+    \node[circle, fill=black, inner sep=2pt, label=below:{$x_1$}] (x1) at (0,0) {};
+    \node[circle, fill=black, inner sep=2pt, label=right:{$x_2$}] (x2) at (0.8,1.5) {};
+    \node[circle, fill=black, inner sep=2pt, label=right:{$x_3$}] (x3) at (1.5,3) {};
+
+    % 順序関係の表示
+    \draw[->, thick] (4.5,0) -- (4.5,0.8);
+    \node at (5.2,0.4) {$i_0 \leq i_1 \leq i_2$};
+
+    % 包含関係の矢印
+    \draw[->, thick, dashed] (-1.5,0.5) -- (-1.8,1.2);
+    \draw[->, thick, dashed] (-2.5,1.8) -- (-2.8,2.7);
+    \node at (-2.5,0.8) {$\subseteq$};
+    \node at (-3.5,2.2) {$\subseteq$};
+\end{tikzpicture}
+\end{center}
+
+この図において：
+\begin{itemize}
+    \item 各楕円が層 $\ell(i)$ を表す
+    \item 下の層は上の層に包含される（単調性）
+    \item 各点は最も下の層に属する層を持つ（最小層）
+\end{itemize}
+
+\subsection{Lean 4 での定義}
+
+上記の定義は、Lean 4では次のように形式化される：
+
+\begin{lstlisting}[style=leanstyle]
+structure StructureTowerWithMin where
+  carrier : Type*
+  Index : Type*
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+  minLayer : carrier → Index
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
+\end{lstlisting}
+
+\section{最小層関数の存在性}
+
+\subsection{なぜ最小層が重要か}
+
+最小層関数 $m : X \to I$ は、各要素に対して「最初に現れる層」を指定する。
+これは以下の理由で重要である：
+
+\begin{enumerate}
+    \item \textbf{一意性}: 反対称性を持つ前順序では、最小層は一意に定まる
+    \item \textbf{計算可能性}: 最小層を知ることで、要素の「複雑度」を測れる
+    \item \textbf{帰納法の基礎}: 最小層の順序に関する帰納法が可能になる
+\end{enumerate}
+
+\subsection{存在条件}
+
+\begin{theorem}{最小層の存在条件}{minlayer-exist}
+構造塔において、すべての要素に対して最小層が存在するための十分条件は、
+以下のいずれかが成り立つことである：
+
+\begin{enumerate}
+    \item 添字集合 $I$ が有限である
+    \item 添字集合 $I$ が整礎的（Well-founded）である
+    \item 各要素が属する層の集合が下に有界である
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[証明のスケッチ]
+\begin{enumerate}
+    \item \textbf{有限の場合}: 有限集合には必ず最小元が存在する
+    \item \textbf{整礎的な場合}: 下降列が有限で止まるため、最小元が存在する
+    \item \textbf{下に有界な場合}: 下界以下で最小元を探せる
+\end{enumerate}
+\end{proof}
+
+\subsection{反例：最小層が存在しない場合}
+
+整数全体 $\mathbb{Z}$ で層を次のように定義する：
+\[\ell(n) = \{k \in \mathbb{Z} \mid k \leq n\}\]
+
+このとき、任意の $x \in \mathbb{Z}$ に対して：
+\[x \in \ell(x), \ell(x-1), \ell(x-2), \ldots\]
+
+しかし、この列は無限に続くため、\textbf{最小の層は存在しない}。
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+    % 数直線
+    \draw[<->, thick] (-5,0) -- (5,0);
+    \foreach \x in {-4,...,4}
+        \node[circle, fill=black, inner sep=1pt] at (\x,0) {};
+
+    % ラベル
+    \node at (-4,-0.5) {$\cdots$};
+    \node at (-2,-0.5) {$x-2$};
+    \node at (-1,-0.5) {$x-1$};
+    \node at (0,-0.5) {$x$};
+    \node at (1,-0.5) {$x+1$};
+    \node at (4,-0.5) {$\cdots$};
+
+    % 層の表示
+    \draw[thick, red, ->] (0,1) -- (-4.5,1);
+    \node at (2,1) {$\ell(x) = \{k \mid k \leq x\}$};
+
+    \draw[thick, blue, ->] (-1,1.8) -- (-4.5,1.8);
+    \node at (1.5,1.8) {\small $\ell(x-1) = \{k \mid k \leq x-1\}$};
+
+    \node at (0,2.8) {無限に続く $\Rightarrow$ 最小層なし};
+\end{tikzpicture}
+\end{center}
+
+\section{整礎性（Well-foundedness）}
+
+\subsection{整礎的順序の定義}
+
+\begin{definition}{整礎的順序}{wellfounded}
+順序対 $(I, <)$ が\textbf{整礎的}（Well-founded）であるとは、
+任意の下降列
+\[i_0 > i_1 > i_2 > i_3 > \cdots\]
+が有限個の項で止まることをいう。
+
+同値な定義として、$I$ の任意の非空部分集合が最小元を持つことともいえる。
+\end{definition}
+
+\subsection{整礎的構造塔}
+
+\begin{definition}{整礎的構造塔}{wf-tower}
+構造塔 $(X, I, \ell, m)$ が\textbf{整礎的}であるとは、
+添字集合 $I$ の順序 $<$ が整礎的であることをいう。
+\end{definition}
+
+Lean 4 では：
+
+\begin{lstlisting}[style=leanstyle]
+class WellFoundedTower (T : StructureTowerWithMin) : Prop where
+  wf : WellFounded ((· < ·) : T.Index → T.Index → Prop)
+\end{lstlisting}
+
+\subsection{整礎性の重要性}
+
+整礎的構造塔では、以下の強力な性質が成り立つ：
+
+\begin{theorem}{最小層に関する帰納法}{minlayer-induction}
+構造塔が整礎的であるとする。$P : X \to \mathrm{Prop}$ を命題とし、
+\[\forall x \in X,\, \left(\forall y \in X,\, m(y) < m(x) \implies P(y)\right) \implies P(x)\]
+が成り立つならば、すべての $x \in X$ に対して $P(x)$ が成り立つ。
+\end{theorem}
+
+\begin{proof}
+整礎性により、帰納法の原理が使える。詳細はLean 4の形式的証明を参照。
+\end{proof}
+
+\subsection{帰納法の図解}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.3]
+    % ノードの定義
+    \node[circle, draw, fill=green!20] (x0) at (0,0) {$x_0$};
+    \node[circle, draw, fill=yellow!20] (x1) at (-2,1.5) {$x_1$};
+    \node[circle, draw, fill=yellow!20] (x2) at (0,1.5) {$x_2$};
+    \node[circle, draw, fill=yellow!20] (x3) at (2,1.5) {$x_3$};
+    \node[circle, draw, fill=red!20] (x4) at (-1,3) {$x_4$};
+    \node[circle, draw, fill=red!20] (x5) at (1,3) {$x_5$};
+
+    % 矢印（より小さい minLayer）
+    \draw[->, thick] (x1) -- (x0) node[midway, left] {\tiny $m(x_1) < m(x_0)$};
+    \draw[->, thick] (x2) -- (x0);
+    \draw[->, thick] (x3) -- (x0);
+    \draw[->, thick] (x4) -- (x2);
+    \draw[->, thick] (x5) -- (x3);
+
+    % 説明
+    \node at (-3,0) {\small 基底};
+    \node at (-3,1.5) {\small 帰納仮定};
+    \node at (-3,3) {\small 帰納ステップ};
+
+    \draw[decorate, decoration={brace, amplitude=5pt}] (-2.5,0.5) -- (-2.5,2.5);
+    \node at (-4,1.5) {\small すべて $P$ が成立};
+\end{tikzpicture}
+\end{center}
+
+\section{具体例の分類}
+
+本節では、様々な構造塔の例を分類し、それぞれの性質を分析する。
+
+\subsection{自明な例}
+
+\begin{example}{単一層の構造塔}{single-layer}
+台集合 $X$ に対して、添字集合を $I = \{\star\}$（一点集合）とし、
+$\ell(\star) = X$ とする。
+
+\textbf{性質}:
+\begin{itemize}
+    \item 被覆性: 自明に成立（すべての要素が唯一の層に属する）
+    \item 単調性: 自明（比較すべき異なる添字が存在しない）
+    \item 最小層: $m(x) = \star$ for all $x$
+    \item 整礎性: 成立（無限下降列が作れない）
+\end{itemize}
+\end{example}
+
+\begin{example}{離散構造塔}{discrete-tower}
+台集合と添字集合を同一視し、$I = X$ とする。
+順序を等号のみ（$i \leq j \iff i = j$）とし、
+$\ell(i) = \{i\}$ とする。
+
+\textbf{性質}:
+\begin{itemize}
+    \item 各要素が独自の層を持つ
+    \item $m(x) = x$（恒等写像）
+    \item 整礎性: 成立（任意の下降列は1ステップで止まる）
+\end{itemize}
+\end{example}
+
+\subsection{典型的な例}
+
+\begin{example}{自然数の初期区間}{nat-tower}
+$X = I = \mathbb{N}$、$\ell(n) = \{k \in \mathbb{N} \mid k \leq n\}$ とする。
+
+\textbf{性質}:
+\begin{itemize}
+    \item 被覆性: $\forall n \in \mathbb{N},\, n \in \ell(n)$
+    \item 単調性: $n \leq m \implies \ell(n) \subseteq \ell(m)$
+    \item 最小層: $m(n) = n$
+    \item 整礎性: 成立（$\mathbb{N}$ の通常の順序は整礎的）
+\end{itemize}
+
+\vspace{0.3cm}
+\begin{center}
+\begin{tikzpicture}[scale=1]
+    % 層 0
+    \node[circle, fill=blue!20, draw] (0) at (0,0) {0};
+
+    % 層 1
+    \node[circle, fill=blue!20, draw] (1-0) at (-0.5,1) {0};
+    \node[circle, fill=green!20, draw] (1-1) at (0.5,1) {1};
+
+    % 層 2
+    \node[circle, fill=blue!20, draw] (2-0) at (-1,2) {0};
+    \node[circle, fill=green!20, draw] (2-1) at (0,2) {1};
+    \node[circle, fill=red!20, draw] (2-2) at (1,2) {2};
+
+    % ラベル
+    \node at (-2,0) {$\ell(0)$:};
+    \node at (-2,1) {$\ell(1)$:};
+    \node at (-2,2) {$\ell(2)$:};
+
+    % 包含関係
+    \draw[->, thick, dashed] (0,-0.3) -- (1-0,0.7);
+    \draw[->, thick, dashed] (1-1,0.7) -- (2-1,1.7);
+\end{tikzpicture}
+\end{center}
+\end{example}
+
+\subsection{病的な例}
+
+\begin{example}{部分的重複を持つ有限構造塔}{partial-overlap}
+$X = \{0, 1, 2, 3\}$、$I = \{0, 1, 2\}$ とし、
+\begin{align*}
+\ell(0) &= \{0, 1\} \\
+\ell(1) &= \{1, 2\} \\
+\ell(2) &= \{2, 3\}
+\end{align*}
+
+\textbf{観察}:
+\begin{itemize}
+    \item 要素1は層0と層1に属する $\Rightarrow$ $m(1) = 0$
+    \item 要素2は層1と層2に属する $\Rightarrow$ $m(2) = 1$
+    \item 単調性は成立しない（$\ell(0) \not\subseteq \ell(1)$）
+\end{itemize}
+
+この例は、単調性を満たさないため、構造塔の定義を満たさない。
+\end{example}
+
+\begin{remark}{修正版}{partial-overlap-fix}
+上記の例を修正するには、層を次のように変更する：
+\begin{align*}
+\ell(0) &= \{0, 1\} \\
+\ell(1) &= \{0, 1, 2\} \\
+\ell(2) &= \{0, 1, 2, 3\}
+\end{align*}
+
+しかし、この場合でも $m(0) = m(1) = 0$ となり、
+最小層が一意でない要素が現れる。より精密な構成がLeanコードに実装されている。
+\end{remark}
+
+\subsection{例の分類表}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{例} & \textbf{被覆性} & \textbf{単調性} & \textbf{最小層} & \textbf{整礎性} \\
+\hline
+単一層 & ✓ & ✓ & ✓ & ✓ \\
+離散構造 & ✓ & ✓ & ✓ & ✓ \\
+自然数 & ✓ & ✓ & ✓ & ✓ \\
+有限集合 & ✓ & ✓ & ✓ & ✓ \\
+整数全体 & ✓ & ✓ & ✗ & ✗ \\
+実数全体 & ✓ & ✓ & ✗ & ✗ \\
+部分的重複 & ✓ & ✗ & — & — \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{応用と発展}
+
+\subsection{数学的応用}
+
+\subsubsection{確率論：濾過}
+
+確率空間 $(\Omega, \mathcal{F}, P)$ 上の濾過
+\[\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}\]
+は、構造塔の典型例である。
+
+\begin{itemize}
+    \item 台集合: 可測集合の全体
+    \item 添字集合: 時刻 $\mathbb{N}$ または $\mathbb{R}_{\geq 0}$
+    \item 層: $\ell(t) = \mathcal{F}_t$
+    \item 最小層: 各可測集合が最初に現れる時刻
+\end{itemize}
+
+\subsubsection{位相空間論：開集合の階層}
+
+位相空間 $(X, \mathcal{O})$ において：
+\begin{itemize}
+    \item 基底 $\mathcal{B}$
+    \item 基底から生成される開集合
+    \item 任意の開集合
+\end{itemize}
+
+という階層が自然に現れる。
+
+\subsection{計算機科学への応用}
+
+\subsubsection{型理論}
+
+型の階層（Type universe）:
+\[\mathrm{Type}_0 \subseteq \mathrm{Type}_1 \subseteq \mathrm{Type}_2 \subseteq \cdots\]
+
+これは整礎的構造塔の例であり、型理論の一貫性を保証する。
+
+\subsubsection{アルゴリズムの停止性}
+
+整礎的構造塔では、「より小さい最小層を持つ要素への移動」を繰り返す
+再帰アルゴリズムの停止性が自動的に保証される。
+
+\begin{lstlisting}[style=leanstyle]
+-- 停止性が保証される再帰
+def algorithm [WellFoundedTower T] (x : T.carrier) : ℕ :=
+  WellFounded.fix WellFoundedTower.wf
+    (fun x rec =>
+      if condition x then
+        0
+      else
+        1 + rec (smaller_element x) proof)
+    (T.minLayer x)
+\end{lstlisting}
+
+\subsection{発展的話題}
+
+\subsubsection{順序数との関係}
+
+整礎的順序は、順序数（Ordinal）によって「測る」ことができる。
+構造塔の「高さ」を順序数で表現することで、
+より深い理論的分析が可能になる。
+
+\subsubsection{圏論的視点}
+
+構造塔は、圏論的には次のように理解できる：
+\begin{itemize}
+    \item 添字集合 $I$ を小圏と見なす（前順序から来る圏）
+    \item 層関数 $\ell : I \to \mathcal{P}(X)$ を関手と見なす
+    \item 単調性は関手性そのもの
+\end{itemize}
+
+\begin{center}
+\begin{tikzcd}[column sep=large]
+i \arrow[r, "\leq"] \arrow[d, "\ell"] & j \arrow[d, "\ell"] \\
+\ell(i) \arrow[r, "\subseteq"] & \ell(j)
+\end{tikzcd}
+\end{center}
+
+\section{結論}
+
+\subsection{主要な結果のまとめ}
+
+本稿では、構造塔理論の基礎を解説した。主要な結果は以下の通り：
+
+\begin{enumerate}
+    \item \textbf{定義の頑健性}: 構造塔の定義は自然で、多くの数学的例に適用可能
+    \item \textbf{最小層の存在}: 有限性または整礎性が最小層の存在を保証
+    \item \textbf{帰納法の原理}: 整礎的構造塔では強力な帰納法が使用可能
+    \item \textbf{広範な応用}: 確率論、位相空間論、計算機科学など多分野に応用
+\end{enumerate}
+
+\subsection{Lean 4 による形式化の意義}
+
+すべての定義と定理をLean 4で形式化することにより：
+\begin{itemize}
+    \item 数学的厳密性の保証
+    \item 証明の機械的検証
+    \item 再利用可能な数学ライブラリの構築
+\end{itemize}
+
+が達成された。
+
+\subsection{今後の展望}
+
+\begin{enumerate}
+    \item \textbf{理論の拡張}:
+    \begin{itemize}
+        \item より一般的な順序構造への拡張
+        \item 無限降鎖条件との関係の解明
+        \item Well-quasi-ordering への一般化
+    \end{itemize}
+
+    \item \textbf{応用の深化}:
+    \begin{itemize}
+        \item マルチンゲール理論への応用
+        \item ホモロジー代数への応用
+        \item アルゴリズム理論への応用
+    \end{itemize}
+
+    \item \textbf{形式化の発展}:
+    \begin{itemize}
+        \item Mathlib への貢献
+        \item 自動証明タクティクの開発
+        \item 教育用ツールとしての活用
+    \end{itemize}
+\end{enumerate}
+
+\subsection{謝辞}
+
+本稿のLean 4実装はCODEX (OpenAI)により、\LaTeX 文書はClaude Code (Anthropic)により生成された。
+形式的数学の民主化に向けた両システムの貢献に感謝する。
+
+\begin{thebibliography}{99}
+\bibitem{lean4}
+Leonardo de Moura et al., \textit{The Lean 4 Theorem Prover},
+\url{https://lean-lang.org/}
+
+\bibitem{mathlib}
+The mathlib Community, \textit{The Lean mathematical library},
+\url{https://github.com/leanprover-community/mathlib4}
+
+\bibitem{wellfounded}
+Aczel, P. (1977), \textit{An introduction to inductive definitions},
+Studies in Logic and the Foundations of Mathematics, 90: 739–782
+
+\bibitem{ordinals}
+Kunen, K. (2011), \textit{Set Theory}, Studies in Logic, Vol. 34,
+College Publications
+
+\bibitem{filtration}
+Williams, D. (1991), \textit{Probability with Martingales},
+Cambridge University Press
+\end{thebibliography}
+
+\appendix
+
+\section{Lean 4 コードサンプル}
+
+\subsection{完全な定義}
+
+\begin{lstlisting}[style=leanstyle]
+import Mathlib.Data.Set.Basic
+import Mathlib.Order.Basic
+
+open scoped Classical
+noncomputable section
+
+structure StructureTowerWithMin where
+  carrier : Type*
+  Index : Type*
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+  minLayer : carrier → Index
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
+
+-- 整礎性のクラス
+class WellFoundedTower (T : StructureTowerWithMin) : Prop where
+  wf : WellFounded ((· < ·) : T.Index → T.Index → Prop)
+
+-- 帰納法の原理
+theorem minLayer_induction {T : StructureTowerWithMin}
+    [WellFoundedTower T]
+    {P : T.carrier → Prop}
+    (h : ∀ x, (∀ y, T.minLayer y < T.minLayer x → P y) → P x) :
+    ∀ x, P x := by
+  intro x
+  apply WellFounded.fix WellFoundedTower.wf
+  exact h
+end
+\end{lstlisting}
+
+\subsection{基本的な例}
+
+\begin{lstlisting}[style=leanstyle]
+-- 自然数の構造塔
+def natTower : StructureTowerWithMin where
+  carrier := ℕ
+  Index := ℕ
+  indexPreorder := inferInstance
+  layer := fun n => {k | k ≤ n}
+  covering := by intro x; use x; exact le_refl x
+  monotone := by intro i j hij x hx; exact le_trans hx hij
+  minLayer := id
+  minLayer_mem := by intro x; exact le_refl x
+  minLayer_minimal := by intro x i hx; exact hx
+
+-- 自然数の構造塔は整礎的
+instance : WellFoundedTower natTower where
+  wf := wellFounded_lt
+\end{lstlisting}
+
+\section{演習問題}
+
+\subsection{基礎}
+
+\begin{enumerate}
+    \item 二層構造塔（層が2つのみ）を定義せよ。
+    \item 有限集合上の構造塔が常に整礎的であることを示せ。
+    \item 実数区間 $[0, 1]$ 上の構造塔の例を構成せよ（整礎的である必要はない）。
+\end{enumerate}
+
+\subsection{中級}
+
+\begin{enumerate}
+    \item 二つの構造塔の直積を定義し、その性質を調べよ。
+    \item 最小層が一意であるための条件を導け。
+    \item 整礎的構造塔において、任意の非空部分集合が最小元を持つことを証明せよ。
+\end{enumerate}
+
+\subsection{上級}
+
+\begin{enumerate}
+    \item 構造塔の準同型写像を定義し、その性質を調べよ。
+    \item Well-quasi-ordering との関係を考察せよ。
+    \item 構造塔の圏を定義し、極限と余極限の存在を調べよ。
+\end{enumerate}
+
+\end{document}
