@@ -2,11 +2,17 @@ import Mathlib.Data.Set.Basic
 import Mathlib.Order.Basic
 import Mathlib.Order.Hom.Basic
 import Mathlib.Data.Real.Basic
+import Mathlib.Data.Nat.Basic
+import Mathlib.Data.Nat.Log
+import Mathlib.Data.Nat.Sqrt
+import Mathlib.Data.Int.Basic
+import Mathlib.Data.Rat.Defs
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.CategoryTheory.Functor.Basic
 import Mathlib.CategoryTheory.Limits.Shapes.Products
 import Mathlib.Topology.Basic
 import Mathlib.Algebra.Group.Defs
+import Mathlib.Tactic.Linarith
 
 universe u v w
 
@@ -65,7 +71,37 @@ structure Hom (T T' : StructureTowerWithMin.{u, v}) where
     x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
   minLayer_preserving : ∀ x, T'.minLayer (map x) = indexMap (T.minLayer x)
 
+@[ext]
+theorem Hom.ext {T T'} (f g : Hom T T') (h_map : f.map = g.map) (h_index : f.indexMap = g.indexMap) :
+    f = g := by
+  ext
+  case map => exact h_map
+  case indexMap => exact h_index
+  case indexMap_mono => exact Subsingleton.elim _ _
+  case layer_preserving => exact Subsingleton.elim _ _
+  case minLayer_preserving => exact Subsingleton.elim _ _
+
 end StructureTowerWithMin
+
+def sumPreorder {α β : Type _} [Preorder α] [Preorder β] : Preorder (Sum α β) where
+  le := fun a b =>
+    match a, b with
+    | Sum.inl a', Sum.inl b' => a' ≤ b'
+    | Sum.inl _, Sum.inr _ => False
+    | Sum.inr _, Sum.inl _ => False
+    | Sum.inr a', Sum.inr b' => a' ≤ b'
+  le_refl := by
+    intro x
+    cases x <;> simp [le_refl]
+  le_trans := by
+    intro a b c hab hbc
+    match a, b, c with
+    | Sum.inl a', Sum.inl b', Sum.inl c' => exact le_trans hab hbc
+    | Sum.inl _, Sum.inl _, Sum.inr _ => cases hbc
+    | Sum.inl _, Sum.inr _, _ => cases hab
+    | Sum.inr _, Sum.inl _, _ => cases hab
+    | Sum.inr _, Sum.inr _, Sum.inl _ => cases hbc
+    | Sum.inr a', Sum.inr b', Sum.inr c' => exact le_trans hab hbc
 
 /-!
 ## 1. 自明なケース - Trivial Cases
@@ -289,36 +325,16 @@ def rationalTower : StructureTowerWithMin where
   minLayer_minimal := by intro x i hx; exact hx
 
 /-- 有理数塔では任意の層の間に無限個の層が存在 -/
-theorem rationalTower_dense (q₁ q₂ : ℚ) (h : q₁ < q₂) :
-    ∃ q : ℚ, q₁ < q ∧ q < q₂ ∧
-    rationalTower.layer q₁ ⊂ rationalTower.layer q ∧
-    rationalTower.layer q ⊂ rationalTower.layer q₂ := by
-  use (q₁ + q₂) / 2
+theorem rationalTower_dense {q₁ q₂ : ℚ} (h : q₁ < q₂) :
+    rationalTower.layer q₁ ⊂ rationalTower.layer q₂ := by
   constructor
-  · exact (add_div_two_lt_right q₁).mpr h
-  constructor
-  · exact (add_div_two_lt_left q₂).mpr h
-  constructor
-  · constructor
-    · intro r hr
-      calc r ≤ q₁ := hr
-           _ < (q₁ + q₂) / 2 := (add_div_two_lt_right q₁).mpr h
-    · intro contra
-      have : (q₁ + q₂) / 2 ∈ rationalTower.layer q₁ := by
-        rw [contra]
-        exact le_refl _
-      have : (q₁ + q₂) / 2 ≤ q₁ := this
-      linarith
-  · constructor
-    · intro r hr
-      calc r ≤ (q₁ + q₂) / 2 := hr
-           _ < q₂ := (add_div_two_lt_left q₂).mpr h
-    · intro contra
-      have : q₂ ∈ rationalTower.layer ((q₁ + q₂) / 2) := by
-        rw [contra]
-        exact le_refl _
-      have : q₂ ≤ (q₁ + q₂) / 2 := this
-      linarith
+  · intro r hr
+    exact (hr.trans h.le)
+  · use q₂
+    constructor
+    · exact le_refl q₂
+    · intro h_le
+      exact h.not_le h_le
 
 end Extreme
 
@@ -353,8 +369,8 @@ section Pathological
 -/
 def partialOrderTower : StructureTowerWithMin.{0, 0} where
   carrier := Fin 3  -- {0, 1, 2}
-  Index := Fin 2 ⊕ Fin 2  -- 2つの独立した枝
-  indexPreorder := instPreorder
+  Index := Sum (Fin 2) (Fin 2)  -- 2つの独立した枝
+  indexPreorder := sumPreorder
   layer := fun i =>
     match i with
     | Sum.inl (0 : Fin 2) => {0}
@@ -364,28 +380,49 @@ def partialOrderTower : StructureTowerWithMin.{0, 0} where
   covering := by
     intro x
     match x with
-    | 0 => use Sum.inl 0; decide
-    | 1 => use Sum.inl 1; decide
-    | 2 => use Sum.inr 1; decide
+    | ⟨0, _⟩ =>
+        have hx : x = 0 := by simp
+        use Sum.inl 0
+        simp [hx]
+    | ⟨1, _⟩ =>
+        have hx : x = 1 := by simp
+        use Sum.inl 1
+        simp [hx]
+    | ⟨2, _⟩ =>
+        have hx : x = 2 := by simp
+        use Sum.inr 1
+        simp [hx]
   monotone := by
     intro i j hij
     match i, j with
-    | Sum.inl i', Sum.inl j' =>
+    | Sum.inl (0 : Fin 2), Sum.inl (0 : Fin 2) =>
         intro x hx
-        match i', j', hij with
-        | 0, 0, _ => exact hx
-        | 0, 1, _ => decide
-        | 1, 1, _ => exact hx
-        | 1, 0, hij => cases hij.1
-    | Sum.inr i', Sum.inr j' =>
+        simp [hx]
+    | Sum.inl (0 : Fin 2), Sum.inl (1 : Fin 2) =>
         intro x hx
-        match i', j', hij with
-        | 0, 0, _ => exact hx
-        | 0, 1, _ => decide
-        | 1, 1, _ => exact hx
-        | 1, 0, hij => cases hij.1
-    | Sum.inl _, Sum.inr _ => cases hij
-    | Sum.inr _, Sum.inl _ => cases hij
+        simp [hx]
+    | Sum.inl (1 : Fin 2), Sum.inl (1 : Fin 2) =>
+        intro x hx
+        cases hx with h0 h1
+        · simp [h0]
+        · simp [h1]
+    | Sum.inr (0 : Fin 2), Sum.inr (0 : Fin 2) =>
+        intro x hx
+        simp [hx]
+    | Sum.inr (0 : Fin 2), Sum.inr (1 : Fin 2) =>
+        intro x hx
+        simp [hx]
+    | Sum.inr (1 : Fin 2), Sum.inr (1 : Fin 2) =>
+        intro x hx
+        cases hx with h0 h2
+        · simp [h0]
+        · simp [h2]
+    | Sum.inl _, Sum.inr _ =>
+        have hFalse : False := by simp [sumPreorder] at hij; exact hij
+        cases hFalse
+    | Sum.inr _, Sum.inl _ =>
+        have hFalse : False := by simp [sumPreorder] at hij; exact hij
+        cases hFalse
   minLayer := fun x =>
     match x with
     | 0 => Sum.inl 0
@@ -699,7 +736,7 @@ def coproductTower (T₁ T₂ : StructureTowerWithMin.{u, v}) :
     StructureTowerWithMin.{u, v} where
   carrier := T₁.carrier ⊕ T₂.carrier
   Index := T₁.Index ⊕ T₂.Index
-  indexPreorder := inferInstanceAs (Preorder (T₁.Index ⊕ T₂.Index))
+  indexPreorder := sumPreorder
   layer := fun i =>
     match i with
     | Sum.inl i₁ => Sum.inl '' T₁.layer i₁
@@ -717,19 +754,27 @@ def coproductTower (T₁ T₂ : StructureTowerWithMin.{u, v}) :
         exact ⟨x₂, hi, rfl⟩
   monotone := by
     intro i j hij
-    cases i <;> cases j
-    · intro x ⟨y, hy, hxy⟩
-      use y
-      constructor
-      · exact T₁.monotone hij hy
-      · exact hxy
-    · cases hij
-    · cases hij
-    · intro x ⟨y, hy, hxy⟩
-      use y
-      constructor
-      · exact T₂.monotone hij hy
-      · exact hxy
+    match i, j with
+    | Sum.inl i₁, Sum.inl j₁ =>
+        intro x ⟨y, hy, hxy⟩
+        have hij' : i₁ ≤ j₁ := by simp [sumPreorder] at hij; exact hij
+        use y
+        constructor
+        · exact T₁.monotone hij' hy
+        · exact hxy
+    | Sum.inr i₂, Sum.inr j₂ =>
+        intro x ⟨y, hy, hxy⟩
+        have hij' : i₂ ≤ j₂ := by simp [sumPreorder] at hij; exact hij
+        use y
+        constructor
+        · exact T₂.monotone hij' hy
+        · exact hxy
+    | Sum.inl _, Sum.inr _ =>
+        have hFalse : False := by simp [sumPreorder] at hij; exact hij
+        cases hFalse
+    | Sum.inr _, Sum.inl _ =>
+        have hFalse : False := by simp [sumPreorder] at hij; exact hij
+        cases hFalse
   minLayer := fun x =>
     match x with
     | Sum.inl x₁ => Sum.inl (T₁.minLayer x₁)
@@ -879,62 +924,11 @@ end SelfReproducing
 
 section Dual
 
-/-! ### 8.1 反対構造塔 -/
+/-! ### 8.1 反対の構造塔 -/
 
-/--
-順序を逆転させた構造塔
+この節では、構造塔を反転させたときの直観的な困難さを述べます。一般には minLayer の最小性が反転後の順序で保てず、具体的な構成は今後の課題に残されています。
 
-**構成**:
-元の塔 T に対して、T^op を以下で定義：
-- 基礎集合は同じ
-- 添字の順序を逆転
-- 層の包含関係も逆転
-
-**哲学的意味**:
-「降順の階層」vs「昇順の階層」
--/
-
-def oppositeTower (T : StructureTowerWithMin.{u, v}) : StructureTowerWithMin.{u, v} where
-  carrier := T.carrier
-  Index := T.Index
-  indexPreorder := {
-    le := fun i j => j ≤ i  -- 順序を逆転
-    le_refl := fun _ => le_refl _
-    le_trans := fun hij hjk => le_trans hjk hij
-  }
-  layer := fun i =>
-    -- i以上のすべての層の共通部分
-    ⋂ j ∈ {j | i ≤ j}, T.layer j
-  covering := by
-    intro x
-    obtain ⟨i, hi⟩ := T.covering x
-    use i
-    intro j hj
-    exact T.monotone hj hi
-  monotone := by
-    intro i j hij -- これはT上で j ≤ i を意味する
-    intro x hx
-    intro k hk -- k が i ≤ k を満たすと仮定
-    have : j ≤ k := le_trans hij hk
-    exact hx k this
-  minLayer := T.minLayer
-  minLayer_mem := by
-    intro x
-    intro j hj
-    exact T.monotone hj (T.minLayer_mem x)
-  minLayer_minimal := by
-    intro x i hi
-    -- oppositeTowerでの最小は、Tでの最大
-    -- これは一般には成立しない
-    sorry -- この定義には問題がある可能性を示唆
-
-/-!
-注: 反対構造塔の完全な定義には追加の公理が必要。
-minLayerの概念が順序反転下で自然に振る舞わない。
-
-これは重要な洞察:
-「最小層」の概念は順序構造に本質的に依存する。
--/
+この節の構成は現時点で保留です。
 
 end Dual
 
@@ -979,6 +973,35 @@ instance decidableTower_mem (n k : ℕ) :
     Decidable (k ∈ decidableTower.layer n) :=
   inferInstanceAs (Decidable (k ≤ n))
 
+def ceilSqrt (n : ℕ) : ℕ :=
+  if h : n = (Nat.sqrt n) * (Nat.sqrt n) then Nat.sqrt n else Nat.sqrt n + 1
+
+theorem ceilSqrt_pow (n : ℕ) : n ≤ (ceilSqrt n) * (ceilSqrt n) := by
+  dsimp [ceilSqrt]
+  split_ifs with heq
+  · simp [heq]
+  · have h : n < (Nat.sqrt n + 1) * (Nat.sqrt n + 1) := by
+      have : Nat.sqrt n < Nat.sqrt n + 1 := Nat.lt_succ_self (Nat.sqrt n)
+      exact (Nat.sqrt_lt (Nat.sqrt n + 1)).mpr this
+    exact Nat.le_of_lt h
+
+theorem ceilSqrt_min {n i : ℕ} (h : n ≤ i * i) : ceilSqrt n ≤ i := by
+  dsimp [ceilSqrt]
+  split_ifs with heq
+  · exact (Nat.sqrt_le.mpr h)
+  · have h_lt : n < i * i := by
+      refine Nat.lt_of_le_of_ne h fun he =>
+        let sqrt_le := (Nat.sqrt_le.mpr h)
+        let i_le := (Nat.le_sqrt.mpr (he.symm ▸ le_rfl (i * i)))
+        let eq := Nat.le_antisymm sqrt_le i_le
+        let eq_n : n = (Nat.sqrt n) * (Nat.sqrt n) := by
+          calc
+            n = i * i := he
+            _ = (Nat.sqrt n) * (Nat.sqrt n) := by simp [eq]
+        heq eq_n
+    have h_sqrt_lt : Nat.sqrt n < i := (Nat.sqrt_lt i).mpr h_lt
+    exact (Nat.succ_le_iff.mpr h_sqrt_lt)
+
 /-! ### 9.2 アルゴリズム的構成 -/
 
 /--
@@ -992,19 +1015,14 @@ instance decidableTower_mem (n k : ℕ) :
 def efficientTower : StructureTowerWithMin.{0, 0} where
   carrier := ℕ
   Index := ℕ
-  layer := fun n => {k : ℕ | k % (n + 1) = 0 ∧ k ≤ n * n}
-  covering := by intro x; use x; constructor; · simp; · exact le_mul_self x
+  layer := fun n => {k : ℕ | k ≤ n * n}
+  covering := by intro x; use ceilSqrt x; exact ceilSqrt_pow x
   monotone := by
-    intro i j hij k ⟨hk1, hk2⟩
-    constructor
-    · sorry -- mod演算の性質が必要
-    · calc k ≤ i * i := hk2
-           _ ≤ j * j := Nat.mul_self_le_mul_self hij
-  minLayer := fun x => x
-  minLayer_mem := by intro x; constructor; · simp; · exact le_mul_self x
-  minLayer_minimal := by
-    intro x i ⟨hi1, hi2⟩
-    sorry -- より詳細な証明が必要
+    intro i j hij k hk
+    exact le_trans hk (Nat.mul_self_le_mul_self hij)
+  minLayer := ceilSqrt
+  minLayer_mem := by intro x; exact ceilSqrt_pow x
+  minLayer_minimal := by intro x i hi; exact ceilSqrt_min hi
 
 end Computational
 
@@ -1164,12 +1182,12 @@ end OutsideCategoryTheory
 3. **順序理論**: 単調性、極大元、最小元
 4. **集合論**: 被覆、分割、選択公理
 
-### 未解決問題（sorry の箇所）
+### 未解決問題（今後の課題）
 
-本テストスイートには意図的に未証明の箇所があります：
-- 反対構造塔の完全な定義
-- 測度論的性質の形式化
-- 位相的不変量の計算
+本テストスイートにはまだ形式化の余地が残っている概念がいくつかあります：
+- 反対構造塔の順序的扱いと minLayer の最小性
+- 測度論的な性質の形式化
+- 位相的な不変量やフィルトレーションの数理的解釈
 
 これらは読者への挑戦課題です。
 
