@@ -1,0 +1,373 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ブルバキ構造塔の解説 TeX ファイル
+% エンジン: LuaLaTeX
+% 作成者: Gemini (TeX生成) & CODEX (OpenAI) (Lean生成)
+% 日付: 2025年11月12日
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[11pt]{ltjsarticle}
+
+% LuaLaTeX の和文はこれで十分
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+
+% 数学パッケージ
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+
+% レイアウト
+\usepackage[margin=2.5cm]{geometry}
+
+% 図式描画 (tikz-cd と tikz)
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+
+% その他
+\usepackage{hyperref}
+\usepackage[all]{hypcap} % 図表へのリンクを改善
+\usepackage{listings} % ソースコード表示
+\usepackage{xcolor}
+
+% 定理・定義環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\theoremstyle{plain}
+\newtheorem{lemma}{補題}[section]
+\newtheorem{theorem}{定理}[section]
+\theoremstyle{remark}
+\newtheorem{remark}{注意}[section]
+
+% コードリスティングのスタイル
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codeblue}{rgb}{0,0,0.8}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{rgb}{0.98,0.98,0.98}
+
+\lstset{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codeblue},
+    stringstyle=\color{purple},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    language=Lean
+}
+% === Listings + Lean 言語定義 + Unicode 対応 ===
+\usepackage{listings}
+\usepackage{newunicodechar}
+
+% Lean 言語定義（最低限）
+\lstdefinelanguage{lean}{
+  morekeywords={def,theorem,lemma,example,structure,inductive,where,open,namespace,end,
+    variable,variables,universe,universes,Type,Prop,if,then,else,match,with,do,fun,by,have,calc,
+    let,in,forall,exists,intro,intros,apply,exact,refine,sorry,simp,dsimp,rewrite,rw,rfl,refl},
+  sensitive=true,
+  morecomment=[l]--,
+  morecomment=[s]{/-}{-/},
+  morestring=[b]",
+}[keywords,comments,strings]
+
+% === auto-injected: listings Lean language ===
+\usepackage{listings}
+\makeatletter
+\@ifundefined{lst@definelanguage@lean}{%
+  \lstdefinelanguage{lean}{%
+    morekeywords={def,theorem,lemma,example,structure,inductive,where,open,namespace,end,
+      variable,variables,universe,universes,Type,Prop,if,then,else,match,with,do,fun,by,have,calc,
+      let,in,forall,exists,intro,intros,apply,exact,refine,sorry,simp,dsimp,rewrite,rw,rfl,refl},
+    sensitive=true,
+    morecomment=[l]--,
+    morecomment=[s]{/-}{-/},
+    morestring=[b]"}%
+  [keywords,comments,strings]%
+}{}
+\makeatother
+% 全体で Lean を既定にしたい場合（不要なら削除可）
+\lstset{language=lean}
+% === end ===
+
+
+% 本文側の Unicode 記号も安全に
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⋃}{\ensuremath{\bigcup}}
+
+% ファイル名などを安全に表示するヘルパ
+\newcommand{\code}[1]{\texttt{#1}}
+% ================================================
+
+% --- 文書情報 ---
+\title{ブルバキ「構造塔」の二つの側面：\\
+原点から圏論的定式化へ}
+\author{
+    Gemini (TeXファイル生成) \and
+    CODEX (OpenAI) (Leanファイル生成)
+}
+\date{2025年11月12日}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、ニコラ・ブルバキの『数学原論』に触発された「構造塔」(Structure Tower)の概念について、学部生向けに解説する。ブルバキの数学における「階層性」を形式化する試みとして、まず単純な「原点」の定義 (P1.lean) を紹介し、その限界を考察する。次に、その限界を克服し、圏論的な枠組みを可能にする「最小層 (minLayer)」を持つ構造塔 (CAT2\_complete.lean) の定義へと発展させる。本稿を通じて、単純な定義がどのように洗練され、より強力な数学的対象（圏）を構成するに至るかという、数学の抽象化のプロセスを追体験することを目的とする。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論：ブルバキの階層的思考}
+
+ニコラ・ブルバキ (Nicolas Bourbaki) とは、1930年代にフランスの数学者集団が用いたペンネームである。彼らの目的は、数学全体を公理的な基礎から再構築することであった。その核心的な思想の一つが、数学的対象を「構造」によって分類・整理する構造主義である。
+
+ブルバキは、数学の根底にある基本的な構造として「母構造 (structures mères)」を提唱した（図\ref{fig:mother_structures}）。
+
+\begin{itemize}
+    \item \textbf{代数構造} (群、環、体など)
+    \item \textbf{順序構造} (半順序、束など)
+    \item \textbf{位相構造} (近傍、開集合、連続性など)
+\end{itemize}
+
+\begin{figure}[hbt]
+    \centering
+    \begin{tikzpicture}
+        \node[draw, circle, fill=pink!30, minimum size=2.5cm] (top) at (0, 3) {位相構造};
+        \node[draw, circle, fill=blue!20, minimum size=2.5cm] (alg) at (-2.5, -1) {代数構造};
+        \node[draw, circle, fill=green!20, minimum size=2.5cm] (ord) at (2.5, -1) {順序構造};
+        
+        \draw (alg) -- (top) node[midway, left, xshift=-3mm, align=center] {位相群 \\ 位相環};
+        \draw (ord) -- (top) node[midway, right, xshift=3mm] {順序位相};
+        \draw (alg) -- (ord) node[midway, below, yshift=-3mm] {順序環};
+    \end{tikzpicture}
+    \caption{ブルバキの「母構造」の相互関係 (Source 24, 28-35)}
+    \label{fig:mother_structures}
+\end{figure}
+
+「構造塔 (Structure Tower)」は、このブルバキの「階層性」(Source 26) の思想を形式化する一つの試みである。それは、ある基礎となる集合の上に、順序付けられた「層」を積み重ねていくイメージである。
+
+\section{構造塔の「原点」：単調な集合族}
+
+最も素朴な構造塔の定義は、提供された `P1.lean` ファイル（本稿付録A.1参照）に見られる。これは、単に「順序に従って単調に増大する集合の族」を定義するものである (Source 82)。
+
+\begin{definition}[構造塔 (原点版)]
+型 $\iota$ が前順序 (Preorder) $\le$ を持ち、$\alpha$ を任意の型とするとき、\textbf{構造塔 (StructureTower)} とは、以下のデータからなる：
+\begin{enumerate}
+    \item $\texttt{level} : \iota \to \text{Set } \alpha$ （各添字 $i \in \iota$ に部分集合 $\text{level}(i) \subseteq \alpha$ を対応させる関数）
+    \item $\texttt{monotone\_level} : \forall \{i, j : \iota\}, i \le j \to \text{level}(i) \subseteq \text{level}(j)$ （単調性の証明）
+\end{enumerate}
+(Source 1, 82-85)
+\end{definition}
+
+この定義は非常にシンプルである。重要なのは、添字 $i$ が $j$ より「小さい」なら、それに対応する集合も包含関係で「小さい」ということだけである。
+
+\begin{example}[自然数の初期区間]
+この定義の最も分かりやすい例は、自然数の初期区間である (Source 133)。
+\begin{itemize}
+    \item 添字集合 $\iota := \mathbb{N}$ （通常の順序 $\le$）
+    \item 基礎集合 $\alpha := \mathbb{N}$
+    \item $\texttt{level}(n) := I_n = \{k \in \mathbb{N} \mid k \le n\}$
+\end{itemize}
+$m \le n$ ならば $\{k \mid k \le m\} \subseteq \{k \mid k \le n\}$ であるため、これは明らかに $\texttt{monotone\_level}$ の条件を満たす (Source 139)。
+\begin{itemize}
+    \item $\texttt{level}(0) = \{0\}$
+    \item $\texttt{level}(1) = \{0, 1\}$
+    \item $\texttt{level}(2) = \{0, 1, 2\}$
+    \item $\dots$
+\end{itemize}
+\end{example}
+
+\begin{remark}[原点版の限界]
+この「原点版」の定義は直感的だが、重大な曖昧さを持つ (Source 174)。例えば、上の例で $x = 1$ という要素を考えると、
+$$ 1 \in \text{level}(1), \quad 1 \in \text{level}(2), \quad 1 \in \text{level}(3), \dots $$
+となり、$x=1$ は無限個の層に属してしまう (Source 176)。
+このため、「$x=1$ が\textbf{本質的に}属する層はどれか？」という問いに一意に答えられない。この曖昧さは、構造塔から構造塔への「射（写像）」をうまく定義することを困難にする (Source 178)。
+\end{remark}
+
+\section{圏論的発展：最小層 (minLayer) の導入}
+
+「原点版」の曖昧さを解消し、構造塔の「圏」を定義するために導入されるのが、「最小層 (minLayer)」の概念である。これは `CAT2_StructureTower_解説.pdf` (Source 276) で解説されている。
+
+\begin{definition}[最小層を持つ構造塔]
+\textbf{最小層を持つ構造塔 (StructureTowerWithMin)} とは、以下のデータからなる (Source 310-320)：
+\begin{itemize}
+    \item \textbf{基礎集合 (carrier)} $X$
+    \item \textbf{添字集合 (Index)} $I$ （半順序 $\le$ を持つ）
+    \item \textbf{層 (layer)} $(X_i)_{i \in I}$ （$X_i \subseteq X$）
+\end{itemize}
+これらに加え、以下の公理を満たす：
+\begin{enumerate}
+    \item \textbf{被覆性 (covering):} $\bigcup_{i \in I} X_i = X$ （すべての $x \in X$ がいずれかの層に属する）(Source 315)
+    \item \textbf{単調性 (monotonicity):} $i \le j \implies X_i \subseteq X_j$ (Source 316)
+    \item \textbf{最小層関数 (minLayer):} $\text{minLayer} : X \to I$ (Source 317)
+    \item \textbf{最小層の所属 (minLayer\_mem):} $\forall x \in X, x \in X_{\text{minLayer}(x)}$ （$x$ は $\text{minLayer}(x)$ が指す層に属する）(Source 319)
+    \item \textbf{最小性 (minLayer\_minimal):} $\forall x \in X, \forall i \in I, (x \in X_i \implies \text{minLayer}(x) \le i)$ （もし $x$ が他の層 $X_i$ に属するなら、その添字 $i$ は $\text{minLayer}(x)$ より「大きい」）(Source 320)
+\end{enumerate}
+\end{definition}
+
+$\text{minLayer}$ は、各要素 $x$ が「本質的に」属する最小の層（の添字）を一意に指定する関数である。これにより、「原点版」の曖昧さは完全に解消される (Source 339)。
+
+\begin{example}[自然数の構造塔、再び]
+先ほどの $\iota = \alpha = \mathbb{N}$, $X_n = \{k \mid k \le n\}$ の例で考える (Source 470-477)。
+\begin{itemize}
+    \item $x=1$ を考える。$1 \in X_1, 1 \in X_2, \dots$
+    \item $1$ が属する層の添字は $\{1, 2, 3, \dots\}$ である。
+    \item この集合の最小元は $1$ である。
+    \item よって、$\text{minLayer}(1) = 1$ と定義できる。
+\end{itemize}
+一般に、$\text{minLayer}(k) = k$ と定義すれば、すべての公理を満たす（$\because k \le k$ かつ、$k \in X_i \implies k \le i$） (Source 477)。
+\end{example}
+
+\section{構造塔の圏 (The Category of Structure Towers)}
+
+$\text{minLayer}$ を導入した最大の動機は、「射」を適切に定義し、構造塔全体を圏論の言葉で扱えるようにすることである (Source 337)。
+
+\begin{definition}[構造塔の射]
+二つの構造塔 $T = (X, I, (X_i), \text{minLayer}_X)$ と $T' = (Y, J, (Y_j), \text{minLayer}_Y)$ があるとする。
+$T$ から $T'$ への\textbf{射 (morphism)} とは、以下の組 $(f, \varphi)$ である (Source 353-357)：
+\begin{enumerate}
+    \item $f : X \to Y$ （基礎集合間の写像）
+    \item $\varphi : I \to J$ （添字集合間の順序保存写像）
+    \item \textbf{層構造の保存:} $x \in X_i \implies f(x) \in Y_{\varphi(i)}$
+    \item \textbf{minLayerの保存:} $\forall x \in X, \text{minLayer}_Y(f(x)) = \varphi(\text{minLayer}_X(x))$
+\end{enumerate}
+\end{definition}
+
+最後の「$\text{minLayer}$の保存」が最も重要である。これは、図式（図\ref{fig:morphism_commute}）の可換性を意味する。
+
+\begin{figure}[hbt]
+    \centering
+    \begin{tikzcd}
+      X \arrow[r, "f"] \arrow[d, "minLayer_X"'] & Y \arrow[d, "minLayer_Y"] \\
+      I \arrow[r, "\varphi"'] & J
+    \end{tikzcd}
+    \caption{構造塔の射における minLayer 保存の可換図式 (Source 357)}
+    \label{fig:morphism_commute}
+\end{figure}
+
+この射の定義と、自明な恒等射・合成により、最小層を持つ構造塔の全体は\textbf{圏 (Category)} をなすことが証明できる (Source 371)。
+
+\section{普遍性：直積の構成}
+
+圏をなすことの恩恵の一つは、「普遍性 (Universality)」によって新しい対象を構成できることである。その一例が「直積」である (Source 437)。
+
+二つの構造塔 $T_1 = (X_1, I_1, \dots)$ と $T_2 = (X_2, I_2, \dots)$ の直積 $T_1 \times T_2$ を、圏論の要請から以下のように自然に定義できる (Source 439-443)：
+\begin{itemize}
+    \item \textbf{基礎集合:} $X_1 \times X_2$ （集合の直積）
+    \item \textbf{添字集合:} $I_1 \times I_2$ （順序の直積）
+    \item \textbf{層:} $(X_1 \times X_2)_{(i, j)} := (X_1)_i \times (X_2)_j$
+    \item \textbf{minLayer:} $\text{minLayer}((x, y)) := (\text{minLayer}_1(x), \text{minLayer}_2(y))$
+\end{itemize}
+
+この構成は、積の普遍性（図\ref{fig:product_up}）を満たす、すなわち、任意の対象 $T$ から $T_1$ と $T_2$ への射 $f_1, f_2$ があれば、それらを一意に「束ねる」射 $\Phi: T \to T_1 \times T_2$ がただ一つ存在することを示すことができる (Source 448-451)。
+
+\begin{figure}[hbt]
+    \centering
+    \begin{tikzcd}
+      & T \arrow[dl, "f_1"'] \arrow[dr, "f_2"] \arrow[d, dashed, "\exists! \Phi"] & \\
+      T_1 & T_1 \times T_2 \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & T_2
+    \end{tikzcd}
+    \caption{直積 $T_1 \times T_2$ の普遍性 (Source 451)}
+    \label{fig:product_up}
+\end{figure}
+
+
+\section{結論}
+
+本稿では、ブルバキの「構造塔」の概念について、二つの異なる形式化を概観した。
+\begin{enumerate}
+    \item \textbf{原点版 (P1.lean):} 「単調な集合族」という直感的でシンプルな定義。しかし、要素の所属が一意に定まらず、射の定義が困難という限界があった (Source 174-178)。
+    \item \textbf{圏論版 (CAT2\_complete.lean):} 「$\text{minLayer}$」という公理を追加することで、要素の所属に関する曖昧さを解消した (Source 339)。これにより、射 $(f, \varphi)$ が厳密に定義でき、構造塔の全体が圏をなすことが示された (Source 371)。
+\end{enumerate}
+
+この抽象化のプロセス---すなわち、素朴な定義（原点版）から出発し、その「欠陥」を修正する公理（$\text{minLayer}$）を追加することで、より豊かで強力な数学的構造（圏）を得る---は、ブルバキの精神 (Source 199-203) そのものであり、現代数学の多くの分野で見られる発展の典型例と言えるだろう。
+
+\newpage
+\appendix
+\section{付録：Lean 4 コード抜粋}
+
+\subsection{A.1 構造塔の「原点」 (P1.lean)}
+`P1.lean` で定義された、$\text{minLayer}$ を持たないシンプルな構造塔。
+(Source 1)
+\begin{lstlisting}[caption={P1.lean: StructureTower の定義}, label={lst:p1}]
+import Mathlib.Data.Set.Lattice
+import Mathlib.Order.Hom.Basic
+
+/-!
+# Bourbaki流構造塔
+
+このモジュールでは、ブルバキの集合論風に、任意の順序集合上に構造の階層（塔）を載せる `StructureTower`
+と、その合併の性質を扱う。
+-/
+
+open Set
+
+/-- ブルバキ的な「構造塔」。各レベルに集合を載せ、順序に従って単調に増える。 -/
+structure StructureTower (ι α : Type*) [Preorder ι] : Type _ where
+  level : ι → Set α
+  monotone_level : ∀ {i j}, i ≤ j → level i ⊆ level j
+
+namespace StructureTower
+
+variable {ι α : Type*} [Preorder ι]
+
+/-- 構造塔全体の合併（塔の上に載ったすべての構造を集めた集合）。 -/
+def union (T : StructureTower ι α) : Set α := ⋃ i, T.level i
+
+/-- 各レベルは合併に含まれている。 -/
+lemma level_subset_union (T : StructureTower ι α) (i : ι) :
+    T.level i ⊆ T.union := by
+  intro x hx
+  exact mem_iUnion.2 ⟨i, hx⟩
+
+/-- 全体集合を覆うようにレベルが存在すれば合併は `univ` になる。 -/
+lemma union_eq_univ_of_covering (T : StructureTower ι α)
+    (hcover : ∀ x : α, ∃ i : ι, x ∈ T.level i) :
+    T.union = Set.univ := by
+  ext x
+  constructor
+  · intro _
+    trivial
+  · intro _
+    obtain ⟨i, hi⟩ := hcover x
+    exact mem_iUnion.2 ⟨i, hi⟩
+
+end StructureTower
+\end{lstlisting}
+
+\subsection{A.2 圏論的構造塔 (CAT2\_complete.lean)}
+`CAT2_StructureTower_解説.pdf` で解説されている、$\text{minLayer}$ を持つ完全な構造塔。
+(Source 535-546)
+\begin{lstlisting}[caption={CAT2\_complete.lean: StructureTowerWithMin の定義 (抜粋)}, label={lst:cat2}]
+structure StructureTowerWithMin where
+  carrier: Type u
+  Index : Type v
+  [indexPreorder : Preorder Index]
+  
+  -- 層の定義
+  layer : Index → Set carrier
+  
+  -- 公理
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+  
+  -- 最小層の定義
+  minLayer : carrier → Index
+  
+  -- 最小層の公理
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ {x i}, x ∈ layer i → minLayer x ≤ i
+\end{lstlisting}
+
+\end{document}

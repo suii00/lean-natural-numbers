@@ -1,0 +1,369 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ブルバキ構造塔の「射」の解説 TeX ファイル
+% エンジン: LuaLaTeX
+% 作成者: Gemini (TeX生成) & CODEX (OpenAI) (Lean生成)
+% 日付: 2025年11月12日
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[11pt]{ltjsarticle}
+
+% LuaLaTeX の和文はこれで十分
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+
+% 数学パッケージ
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+
+% レイアウト
+\usepackage[margin=2.5cm]{geometry}
+
+% 図式描画 (tikz-cd と tikz)
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+
+% その他
+\usepackage{hyperref}
+\usepackage[all]{hypcap} % 図表へのリンクを改善
+\usepackage{listings} % ソースコード表示
+\usepackage{xcolor}
+\usepackage[unicode,hidelinks]{hyperref}
+\pdfstringdefDisableCommands{%
+  \def\minLayer{minLayer}% 演算子名をプレーン文字へ
+  \def\texttt#1{#1}% \texttt{..} もプレーンに
+}
+% 定理・定義環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\theoremstyle{plain}
+\newtheorem{lemma}{補題}[section]
+\newtheorem{theorem}{定理}[section]
+\theoremstyle{remark}
+\newtheorem{remark}{注意}[section]
+
+% コードリスティングのスタイル
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codeblue}{rgb}{0,0,0.8}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{rgb}{0.98,0.98,0.98}
+
+\lstset{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codeblue},
+    stringstyle=\color{purple},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    language=Lean
+}
+% === Listings + Lean 言語定義 + Unicode 対応 ===
+\usepackage{listings}
+\usepackage{newunicodechar}
+
+% Lean 言語定義（最低限）
+\lstdefinelanguage{lean}{
+  morekeywords={def,theorem,lemma,example,structure,inductive,where,open,namespace,end,
+    variable,variables,universe,universes,Type,Prop,if,then,else,match,with,do,fun,by,have,calc,
+    let,in,forall,exists,intro,intros,apply,exact,refine,sorry,simp,dsimp,rewrite,rw,rfl,refl},
+  sensitive=true,
+  morecomment=[l]--,
+  morecomment=[s]{/-}{-/},
+  morestring=[b]",
+}[keywords,comments,strings]
+
+% === auto-injected: listings Lean language ===
+\usepackage{listings}
+\makeatletter
+\@ifundefined{lst@definelanguage@lean}{%
+  \lstdefinelanguage{lean}{%
+    morekeywords={def,theorem,lemma,example,structure,inductive,where,open,namespace,end,
+      variable,variables,universe,universes,Type,Prop,if,then,else,match,with,do,fun,by,have,calc,
+      let,in,forall,exists,intro,intros,apply,exact,refine,sorry,simp,dsimp,rewrite,rw,rfl,refl},
+    sensitive=true,
+    morecomment=[l]--,
+    morecomment=[s]{/-}{-/},
+    morestring=[b]"}%
+  [keywords,comments,strings]%
+}
+\makeatother
+% 全体で Lean を既定にしたい場合（不要なら削除可）
+\lstset{language=lean}
+% === end ===
+
+
+% 本文側の Unicode 記号も安全に
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⋃}{\ensuremath{\bigcup}}
+
+% ファイル名などを安全に表示するヘルパ
+\newcommand{\code}[1]{\texttt{#1}}
+% ================================================
+
+% --- 文書情報 ---
+\title{構造塔の圏論的性質：\\
+射、合成、恒等射の形式化}
+\author{
+    Gemini (TeXファイル生成) \and
+    CODEX (OpenAI) (Leanファイル生成)
+}
+\date{2025年11月12日}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、学部生を対象に、ブルバキ流の「最小層を持つ構造塔」(`StructureTowerWithMin`) が、いかにして数学的に豊かな「圏」(Category) の構造をなすかを解説する。特に、Lean 4 ファイル `P2.lean` に基づき、圏論の根幹をなす「射 (Morphism)」、「射の合成 (Composition)」、「恒等射 (Identity)」の厳密な定義に焦点を当てる。本稿の目的は、`minLayer` という概念がいかにして構造を保存する写像を一意に定め、数学的対象の集まりに「圏」という強力な枠組みを与えるかを示すことにある。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論：なぜ「射」を定義するのか？}
+
+数学において、ある「対象」の集まり（例えば「群」の集まり）を考えるとき、それだけでは十分ではありません。その「対象」の間の「構造を保つ写像」（例えば「群準同型」）を定義して初めて、その対象の集まりが持つ豊かな性質を明らかにすることができます。
+
+「対象」と「射」の集まり、そして「射の合成」と「恒等射」が然るべき公理を満たすとき、それを**圏 (Category)** と呼びます。
+
+[cite_start]前回の議論では、「最小層を持つ構造塔」(`StructureTowerWithMin`) という「対象」を定義しました。今回の `P2.lean` の目的は、この対象間の「射」(`Hom`) を厳密に定義し、それらが圏をなすための部品（合成、恒等射）を定義することにあります [cite: 288]。
+
+\section{復習：最小層を持つ構造塔 (StructureTowerWithMin)}
+
+[cite_start]まず、`P2.lean` で定義されている「対象」を復習します [cite: 288]。
+
+\begin{definition}[StructureTowerWithMin]
+\textbf{最小層を持つ構造塔}とは、以下のデータの組である：
+\begin{itemize}
+    \item $\texttt{carrier}: \text{Type u}$ (基礎となる集合 $X$)
+    \item $\texttt{Index}: \text{Type v}$ (層の添字集合 $I$、前順序 $\le$ を持つ)
+    \item $\texttt{layer}: I \to \text{Set } X$ (各添字 $i$ に部分集合 $X_i \subseteq X$ を対応させる)
+    \item $\texttt{monotone}: \forall \{i, j\}, i \le j \to \texttt{layer}(i) \subseteq \texttt{layer}(j)$ (単調性)
+    \item $\texttt{minLayer}: X \to I$ (各 $x \in X$ に「最小の層」の添字を割り当てる)
+    \item $\texttt{minLayer\_mem}: \forall x, x \in \texttt{layer}(\texttt{minLayer}(x))$ ($x$ はその最小層に属する)
+    \item $\texttt{minLayer\_minimal}: \forall \{x, i\}, x \in \texttt{layer}(i) \to \texttt{minLayer}(x) \le i$ (最小性)
+\end{itemize}
+\end{definition}
+
+\section{構造塔の「射」 (Hom)}
+
+圏論的な「射」とは、二つの対象の間の「構造を保存する写像」です。`StructureTowerWithMin` の場合、保存すべき「構造」は二種類あります。
+\begin{enumerate}
+    \item \textbf{層の構造 ($X_i$):} 集合 $X$ がどのように階層化されているか。
+    \item \textbf{最小層の構造 ($\text{minLayer}$):} 各要素がどの階層に「本質的に」属しているか。
+\end{enumerate}
+[cite_start]これらを保存するものとして、「射」`Hom` は以下のように定義されます [cite: 289]。
+
+\begin{definition}[構造塔の射 (Hom)]
+二つの構造塔 $T = (X, I, \dots)$ と $T' = (Y, J, \dots)$ の間の\textbf{射} $\Phi: T \to T'$ とは、以下のデータの組 $(f, \varphi)$ である：
+\begin{enumerate}
+    \item $\texttt{map}: X \to Y$ (基礎集合 $X$ から $Y$ への写像 $f$)
+    \item $\texttt{indexMap}: I \to J$ (添字集合 $I$ から $J$ への写像 $\varphi$)
+\end{enumerate}
+これらは、以下の4つの公理を満たさなければならない：
+\begin{itemize}
+    \item $\texttt{indexMap\_mono}: \forall \{i, j\}, i \le j \to \varphi(i) \le \varphi(j)$
+    \\ ($\varphi$ は順序を保存する)
+    
+    \item $\texttt{layer\_preserving}: \forall i, \forall x, x \in X_i \to f(x) \in Y_{\varphi(i)}$
+    \\ (層構造の保存：$x$ が $i$ 層にあれば、$f(x)$ は対応する $\varphi(i)$ 層にある)
+    
+    \item $\texttt{minLayer\_preserving}: \forall x, \text{minLayer}_Y(f(x)) = \varphi(\text{minLayer}_X(x))$
+    \\ (最小層の保存：これが最も重要)
+\end{itemize}
+\end{definition}
+
+$\texttt{minLayer\_preserving}$ の公理は、図式（Diagram）で表現すると非常に明快です（図\ref{fig:minlayer}）。この図式が**可換 (commute)** であること、すなわち $T.carrier$ から出発して右 ($f$)・下 ($\text{minLayer}_Y$) と進む経路と、下 ($\text{minLayer}_X$)・右 ($\varphi$) と進む経路が、最終的に $T'.Index$ で一致することを要求しています。
+
+\begin{figure}[hbt]
+  \centering
+  \begin{tikzcd}
+    T.carrier \arrow[r, "{f\ \text{(map)}}"]
+               \arrow[d, "{\minLayer_{X}}"'] &
+    T'.carrier \arrow[d, "{\minLayer_{Y}}"] \\
+    T.Index \arrow[r, "{\varphi\ \text{(indexMap)}}"'] &
+    T'.Index
+  \end{tikzcd}
+  % しおり用にプレーン文字にした短い方も与える
+  \caption[\texorpdfstring{minLayer\_preserving の可換図式}{minLayer\_preserving diagram}]%
+          {\texttt{minLayer\_preserving} の可換図式 [cite: 289]}
+  \label{fig:minlayer}
+\end{figure}
+
+\section{圏の構成：恒等射と合成}
+
+「対象」と「射」を定義しただけでは圏にはなりません。以下の二つの操作が定義され、公理を満たす必要があります。
+
+\subsection{恒等射 (Identity)}
+
+全ての対象 $T$ には、それ自身への「何もしない」射 $\text{id}_T: T \to T$ が必要です。
+
+\begin{definition}[恒等射 (Hom.id)]
+[cite_start]対象 $T$ の\textbf{恒等射} $\text{id}_T$ は、以下のように定義される [cite: 291]：
+\begin{itemize}
+    \item $\texttt{map} := \_root\_.id$ (通常の恒等写像 $x \mapsto x$)
+    \item $\texttt{indexMap} := \_root\_.id$ (通常の恒等写像 $i \mapsto i$)
+\end{itemize}
+(この $(f, \varphi) = (\text{id}, \text{id})$ の組が、射の公理を自明に満たすことは容易に確認できる。)
+\end{definition}
+
+\subsection{射の合成 (Composition)}
+
+二つの射 $\Phi: T \to T'$ と $\Psi: T' \to T''$ があるとき、それらを「繋げた」射 $\Psi \circ \Phi: T \to T''$ が定義できなければなりません（図\ref{fig:comp}）。
+
+\begin{figure}[hbt]
+  \centering
+  \begin{tikzcd}
+    T \arrow[r, "{\Phi = (f, \varphi)}"]
+      \arrow[dr, "{\Psi \circ \Phi = (g \circ f, \psi \circ \varphi)}"'] &
+    T' \arrow[d, "{\Psi = (g, \psi)}"] \\
+    & T''
+  \end{tikzcd}
+  \caption[\texorpdfstring{射の合成}{Composition}]{射の合成 (Composition)}
+  \label{fig:comp}
+\end{figure}
+
+
+\begin{definition}[射の合成 (Hom.comp)]
+射 $\Phi = (f, \varphi): T \to T'$ と $\Psi = (g, \psi): T' \to T''$ があるとする。
+[cite_start]その\textbf{合成} $\Psi \circ \Phi$ は、以下のように定義される [cite: 290]：
+\begin{itemize}
+    \item $\texttt{map} := g \circ f$ (写像 $f$ と $g$ の通常の合成)
+    \item $\texttt{indexMap} := \psi \circ \varphi$ (写像 $\varphi$ と $\psi$ の通常の合成)
+\end{itemize}
+\end{definition}
+
+[cite_start]`P2.lean` の中では、この新しく定義された $(g \circ f, \psi \circ \varphi)$ という組が、再び $\texttt{indexMap\_mono}$、$\texttt{layer\_preserving}$、$\texttt{minLayer\_preserving}$ の公理を満たすことが、きちんと証明されています [cite: 290, 291]。
+
+\section{射の性質：外延性 (Extensionality)}
+
+[cite_start]`P2.lean` の最後には、$\texttt{Hom.ext}$ という補題が定義されています [cite: 292]。
+
+\begin{lemma}[射の外延性 (Hom.ext)]
+二つの射 $\Phi = (f, \varphi)$ と $\Psi = (g, \psi)$ が $T \to T'$ の射であるとする。
+もし $f = g$ かつ $\varphi = \psi$ が成り立つならば、$\Phi = \Psi$ である。
+\end{lemma}
+
+これは「射の等価性」を定義する重要な補題です。射 $\Phi$ は $\texttt{map}$ と $\texttt{indexMap}$ という二つの主要コンポーネントで構成されますが、この補題は「その二つのコンポーネントが両方等しければ、射全体も等しい」ということを保証します。言い換えれば、「射とは、その $\texttt{map}$ と $\texttt{indexMap}$ の組によって完全に決定される」ということです。
+
+\section{結論}
+
+`P2.lean` は、「最小層を持つ構造塔」という「対象」が、単なる集まりではなく、豊かな数学的構造である「圏」をなすことを形式的に示しています。
+\begin{enumerate}
+    [cite_start]\item \textbf{対象:} $\texttt{StructureTowerWithMin}$ [cite: 288]
+    [cite_start]\item \textbf{射:} $\texttt{Hom}$ （$\texttt{minLayer}$ を保存する $(f, \varphi)$ の組）[cite: 289]
+    [cite_start]\item \textbf{恒等射:} $\texttt{Hom.id}$ [cite: 291]
+    [cite_start]\item \textbf{合成:} $\texttt{Hom.comp}$ [cite: 290]
+\end{enumerate}
+これらが揃うことで、我々は構造塔の研究に「圏論」という強力な道具立て（例えば、極限、随伴、普遍性など）を持ち込むことが可能になります。
+
+\newpage
+\appendix
+\section{付録：P2.lean ソースコード}
+
+\begin{lstlisting}[caption={P2.lean}, label={lst:p2}]
+import Mathlib.Data.Set.Basic
+import Mathlib.Order.Basic
+
+universe u v
+
+/-!
+# Bourbaki的な最小層付き構造塔
+
+このモジュールでは、集合論的な構造塔のなかでも「各元に最小の層が与えられている」ケースを取り出し、
+それらの射とその性質を体系的に扱う。ブルバキ流に、順序的な包含と被覆条件に着目し、合成・恒等射・
+単調性・射の一意性を小さな補題で確認する。
+
+## 主な内容
+* `StructureTowerWithMin`
+* `StructureTowerWithMin.Hom`
+* `StructureTowerWithMin.Hom.comp` / `Hom.id`
+* `StructureTowerWithMin.layer_monotone_applied`
+* `StructureTowerWithMin.Hom.ext`
+-/
+
+/-- 最小層を持つ構造塔。各元に「最小の」レベルが割り当てられている。 -/
+structure StructureTowerWithMin where
+  carrier : Type u
+  Index : Type v
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+  minLayer : carrier → Index
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ {x i}, x ∈ layer i → 
+minLayer x ≤ i
+
+namespace StructureTowerWithMin
+
+instance instIndexPreorder (T : StructureTowerWithMin.{u, v}) : Preorder T.Index := T.indexPreorder
+
+variable {T T' T'' : StructureTowerWithMin.{u, v}}
+
+/-- 構造塔の射。層と最小層を保つ写像。 -/
+structure Hom (T T' : StructureTowerWithMin.{u, v}) where
+  map : T.carrier → T'.carrier
+  indexMap : T.Index → T'.Index
+  indexMap_mono : ∀ {i j : T.Index}, i ≤ j → indexMap i ≤ indexMap j
+  layer_preserving : ∀ (i : T.Index) (x : T.carrier), x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+  minLayer_preserving : ∀ x : T.carrier, T'.minLayer (map x) = indexMap (T.minLayer x)
+
+/-- 射の合成。 -/
+def Hom.comp (g : Hom 
+T' T'') (f : Hom T T') : Hom T T'' where
+  map := fun x => g.map (f.map x)
+  indexMap := fun i => g.indexMap (f.indexMap i)
+  indexMap_mono := fun hij => g.indexMap_mono (f.indexMap_mono hij)
+  layer_preserving := fun i x hx =>
+    g.layer_preserving (f.indexMap i) (f.map x) (f.layer_preserving i x hx)
+  minLayer_preserving := by
+    intro x
+    calc
+      T''.minLayer (g.map (f.map x)) = g.indexMap (T'.minLayer (f.map x)) := by
+        rw [g.minLayer_preserving (f.map x)]
+  
+    _ = g.indexMap (f.indexMap (T.minLayer x)) := by
+        rw [f.minLayer_preserving x]
+
+/-- 恒等射。 -/
+def Hom.id (T : StructureTowerWithMin.{u, v}) : Hom T T where
+  map := _root_.id
+  indexMap := _root_.id
+  indexMap_mono := fun hij => hij
+  layer_preserving := fun _ _ hx => hx
+  minLayer_preserving := fun _ => rfl
+
+/-- 単調性補題：上の層に含まれている。 -/
+lemma layer_monotone_applied (T : StructureTowerWithMin.{u, v})
+    {i j : T.Index} (hij : i ≤ j) (x : T.carrier) (hx : x ∈ T.layer i) :
+    x ∈ T.layer 
+j :=
+  T.monotone hij hx
+
+/-- 射の等式：map と indexMap が一致すれば射も一致。 -/
+@[ext]
+lemma Hom.ext {f g : Hom T T'}
+    (hmap : f.map = g.map) (hindex : f.indexMap = g.indexMap) : f = g := by
+  cases f
+  cases g
+  cases hmap
+  cases hindex
+  rfl
+
+end StructureTowerWithMin
+\end{lstlisting}
+
+\end{document}

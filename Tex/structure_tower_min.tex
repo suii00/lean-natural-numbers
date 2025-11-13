@@ -1,0 +1,529 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{fontspec}
+\setmainfont{Noto Serif CJK JP}[Scale=1.0]
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,arrows,decorations.pathmorphing}
+\usepackage{hyperref}
+\usepackage[margin=25mm]{geometry}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+\newtheorem{corollary}[definition]{系}
+
+\title{最小層付き構造塔と射の理論}
+\author{Claude (Anthropic) によるTeX生成\\CODEX (OpenAI) によるLean形式化}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Bourbaki流の構造塔の理論をさらに発展させ、各要素に「最小層」が割り当てられた構造塔の概念を導入する。この概念は、要素がどの階層で初めて現れるかという情報を明示的に扱うことを可能にする。さらに、構造塔間の射(morphism)を定義し、その合成・恒等射・一意性などの圏論的性質を詳細に解説する。これらの形式化は、Lean 4の型理論に基づいて厳密に記述されている。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+\subsection{構造塔理論の復習}
+
+前回の構造塔(Structure Tower)では、前順序集合$\iota$によって添字付けられた集合の族$\{T.\text{level}(i)\}_{i \in \iota}$を考え、順序関係$i \leq j$に従って$T.\text{level}(i) \subseteq T.\text{level}(j)$が成立する階層構造を扱った。
+
+\subsection{最小層の必要性}
+
+しかし、単純な構造塔では、ある要素$x$がどのレベルで「初めて」現れるかという情報が明示的ではない。例えば、$x \in T.\text{level}(3)$であっても、$x$が実際には$T.\text{level}(1)$にすでに含まれている可能性がある。
+
+この問題を解決するため、各要素$x$に対して「最小層」$\text{minLayer}(x)$を定義し、$x$が初めて現れる層を明示する構造を考える。これが\textbf{最小層付き構造塔}(Structure Tower with Minimal Layers)である。
+
+\section{基本的な定義}
+
+\begin{definition}[最小層付き構造塔]\label{def:tower_with_min}
+最小層付き構造塔$T$は以下のデータからなる:
+\begin{enumerate}
+\item 台集合(carrier): $T.\text{carrier}$ (型$u$の集合)
+\item 添字集合(Index): $T.\text{Index}$ (型$v$の前順序集合)
+\item 層関数(layer): $T.\text{layer} : T.\text{Index} \to \mathcal{P}(T.\text{carrier})$
+\item 被覆条件(covering): $\forall x \in T.\text{carrier}, \exists i \in T.\text{Index}, x \in T.\text{layer}(i)$
+\item 単調性(monotone): $\forall i, j \in T.\text{Index}, i \leq j \implies T.\text{layer}(i) \subseteq T.\text{layer}(j)$
+\item 最小層関数(minLayer): $T.\text{minLayer} : T.\text{carrier} \to T.\text{Index}$
+\item 最小層の所属性(minLayer\_mem): $\forall x \in T.\text{carrier}, x \in T.\text{layer}(T.\text{minLayer}(x))$
+\item 最小層の最小性(minLayer\_minimal): $\forall x \in T.\text{carrier}, \forall i \in T.\text{Index}, x \in T.\text{layer}(i) \implies T.\text{minLayer}(x) \leq i$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+最小層関数$\text{minLayer}$は、各要素が初めて現れる層を返す。最小性条件により、$x$が含まれるどの層$i$に対しても、$\text{minLayer}(x) \leq i$が成立する。
+\end{remark}
+
+\subsection{視覚化}
+
+最小層付き構造塔を視覚的に表現すると以下のようになる:
+
+\begin{center}
+\begin{tikzpicture}[scale=1.3]
+% 底面
+\draw[thick, fill=blue!10] (0,0) ellipse (2 and 0.4);
+\node at (0,-0.7) {$T.\text{layer}(i_0)$};
+\node[circle, fill=red, inner sep=2pt] at (-0.5, 0) {};
+\node[circle, fill=red, inner sep=2pt] at (0.5, 0) {};
+\node at (-0.5, -0.3) {\small $x_1$};
+\node at (0.5, -0.3) {\small $x_2$};
+
+% 第2層
+\draw[thick, fill=green!10] (0,1.5) ellipse (2.5 and 0.5);
+\node at (0,0.7) {$T.\text{layer}(i_1)$};
+\node[circle, fill=red, inner sep=2pt] at (-0.5, 1.5) {};
+\node[circle, fill=red, inner sep=2pt] at (0.5, 1.5) {};
+\node[circle, fill=orange, inner sep=2pt] at (1.2, 1.5) {};
+\node at (1.2, 1.8) {\small $x_3$};
+
+% 第3層
+\draw[thick, fill=yellow!10] (0,3) ellipse (3 and 0.6);
+\node at (0,2.3) {$T.\text{layer}(i_2)$};
+\node[circle, fill=red, inner sep=2pt] at (-0.5, 3) {};
+\node[circle, fill=red, inner sep=2pt] at (0.5, 3) {};
+\node[circle, fill=orange, inner sep=2pt] at (1.2, 3) {};
+\node[circle, fill=purple, inner sep=2pt] at (-1.5, 3) {};
+\node at (-1.5, 3.3) {\small $x_4$};
+
+% 側面
+\draw[thick] (-2,0) -- (-2.5,1.5) -- (-3,3);
+\draw[thick] (2,0) -- (2.5,1.5) -- (3,3);
+
+% 凡例
+\node at (4.5, 0) [right] {\small 赤: $\text{minLayer} = i_0$};
+\node at (4.5, 1.5) [right] {\small 橙: $\text{minLayer} = i_1$};
+\node at (4.5, 3) [right] {\small 紫: $\text{minLayer} = i_2$};
+\end{tikzpicture}
+\end{center}
+
+この図では、要素$x_1, x_2$は底面$i_0$で初めて現れ(赤色)、その後の層にも含まれる。要素$x_3$は第2層$i_1$で初めて現れ(橙色)、要素$x_4$は第3層$i_2$で初めて現れる(紫色)。
+
+\section{構造塔の射}
+
+\subsection{射の定義}
+
+構造塔間の構造を保つ写像を定義する。
+
+\begin{definition}[構造塔の射]\label{def:hom}
+2つの最小層付き構造塔$T, T'$に対して、\textbf{射}(morphism) $f : T \to T'$は以下のデータからなる:
+\begin{enumerate}
+\item 台写像(map): $f.\text{map} : T.\text{carrier} \to T'.\text{carrier}$
+\item 添字写像(indexMap): $f.\text{indexMap} : T.\text{Index} \to T'.\text{Index}$
+\item 添字写像の単調性(indexMap\_mono): \\
+$\forall i, j \in T.\text{Index}, i \leq j \implies f.\text{indexMap}(i) \leq f.\text{indexMap}(j)$
+\item 層の保存性(layer\_preserving): \\
+$\forall i \in T.\text{Index}, \forall x \in T.\text{carrier}, x \in T.\text{layer}(i) \implies f.\text{map}(x) \in T'.\text{layer}(f.\text{indexMap}(i))$
+\item 最小層の保存性(minLayer\_preserving): \\
+$\forall x \in T.\text{carrier}, T'.\text{minLayer}(f.\text{map}(x)) = f.\text{indexMap}(T.\text{minLayer}(x))$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+射$f : T \to T'$は、台集合の写像と添字集合の写像の対$(f.\text{map}, f.\text{indexMap})$であり、これらが構造(層構造と最小層)を保存する。特に、最小層保存性は、要素が初めて現れる層の情報を正確に保つことを意味する。
+\end{remark}
+
+\subsection{射の可換図式}
+
+射$f : T \to T'$は以下の可換図式で表される:
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=huge]
+T.\text{carrier} \arrow[r, "f.\text{map}"] \arrow[d, "\text{minLayer}_T"'] 
+& T'.\text{carrier} \arrow[d, "\text{minLayer}_{T'}"] \\
+T.\text{Index} \arrow[r, "f.\text{indexMap}"'] 
+& T'.\text{Index}
+\end{tikzcd}
+\end{center}
+
+この図式の可換性が、まさに条件(5)の$\text{minLayer}_{T'} \circ f.\text{map} = f.\text{indexMap} \circ \text{minLayer}_T$である。
+
+\section{射の合成と恒等射}
+
+\subsection{射の合成}
+
+\begin{definition}[射の合成]\label{def:comp}
+射$f : T \to T'$と$g : T' \to T''$が与えられたとき、合成射$g \circ f : T \to T''$を次のように定義する:
+\begin{align*}
+(g \circ f).\text{map} &:= g.\text{map} \circ f.\text{map} \\
+(g \circ f).\text{indexMap} &:= g.\text{indexMap} \circ f.\text{indexMap}
+\end{align*}
+\end{definition}
+
+\begin{proposition}[合成射は射である]
+上記のように定義された$g \circ f$は、定義\ref{def:hom}の5つの条件を満たす。
+\end{proposition}
+
+\begin{proof}[証明のスケッチ]
+\begin{enumerate}
+\item[(3)] 添字写像の単調性: $i \leq j$のとき、
+\[
+(g \circ f).\text{indexMap}(i) = g.\text{indexMap}(f.\text{indexMap}(i)) \leq g.\text{indexMap}(f.\text{indexMap}(j)) = (g \circ f).\text{indexMap}(j)
+\]
+ここで、$f.\text{indexMap}$と$g.\text{indexMap}$の単調性を用いた。
+
+\item[(4)] 層の保存性: $x \in T.\text{layer}(i)$のとき、
+\begin{align*}
+f.\text{map}(x) &\in T'.\text{layer}(f.\text{indexMap}(i)) \quad \text{($f$の層保存性)} \\
+g.\text{map}(f.\text{map}(x)) &\in T''.\text{layer}(g.\text{indexMap}(f.\text{indexMap}(i))) \quad \text{($g$の層保存性)}
+\end{align*}
+
+\item[(5)] 最小層の保存性:
+\begin{align*}
+T''.\text{minLayer}(g.\text{map}(f.\text{map}(x))) &= g.\text{indexMap}(T'.\text{minLayer}(f.\text{map}(x))) \\
+&= g.\text{indexMap}(f.\text{indexMap}(T.\text{minLayer}(x))) \\
+&= (g \circ f).\text{indexMap}(T.\text{minLayer}(x))
+\end{align*}
+\end{enumerate}
+\end{proof}
+
+\subsection{恒等射}
+
+\begin{definition}[恒等射]\label{def:id}
+任意の構造塔$T$に対して、\textbf{恒等射}(identity morphism) $\text{id}_T : T \to T$を次のように定義する:
+\begin{align*}
+\text{id}_T.\text{map} &:= \text{id}_{T.\text{carrier}} \\
+\text{id}_T.\text{indexMap} &:= \text{id}_{T.\text{Index}}
+\end{align*}
+ここで、$\text{id}_X$は集合$X$上の恒等関数である。
+\end{definition}
+
+\begin{proposition}[恒等射の性質]
+恒等射$\text{id}_T$は定義\ref{def:hom}の5つの条件を満たす。さらに、任意の射$f : T \to T'$に対して、
+\begin{align*}
+f \circ \text{id}_T &= f \\
+\text{id}_{T'} \circ f &= f
+\end{align*}
+が成立する(左単位律と右単位律)。
+\end{proposition}
+
+\subsection{射の合成の図式}
+
+射の合成は以下の図式で視覚化できる:
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=large]
+T \arrow[r, "f"] \arrow[rr, bend left=20, "g \circ f"'] 
+& T' \arrow[r, "g"] 
+& T''
+\end{tikzcd}
+\end{center}
+
+また、3つの射の合成の結合律は次のように表される:
+
+\begin{center}
+\begin{tikzcd}[row sep=huge, column sep=large]
+T \arrow[r, "f"] \arrow[d, "f"'] \arrow[dr, phantom, "\circlearrowleft"] 
+& T' \arrow[d, "g"] \arrow[r, "g"] \arrow[dr, phantom, "\circlearrowleft"] 
+& T'' \arrow[d, "h"] \\
+T' \arrow[r, "g"'] 
+& T'' \arrow[r, "h"'] 
+& T'''
+\end{tikzcd}
+\end{center}
+
+すなわち、$h \circ (g \circ f) = (h \circ g) \circ f$が成立する。
+
+\section{主要な性質と補題}
+
+\subsection{単調性の応用}
+
+\begin{lemma}[層の単調性の適用]\label{lem:monotone_applied}
+構造塔$T$において、$i \leq j$かつ$x \in T.\text{layer}(i)$ならば、$x \in T.\text{layer}(j)$が成立する。
+\end{lemma}
+
+\begin{proof}
+これは定義\ref{def:tower_with_min}の単調性条件(5)を$x$に適用したものである。すなわち、
+\[
+T.\text{layer}(i) \subseteq T.\text{layer}(j) \implies x \in T.\text{layer}(i) \implies x \in T.\text{layer}(j)
+\]
+\end{proof}
+
+\begin{remark}
+この補題は、一度ある層に現れた要素は、それより上の層すべてに含まれることを意味する。これは構造塔の階層的性質の本質である。
+\end{remark}
+
+\subsection{射の一意性}
+
+\begin{theorem}[射の外延性]\label{thm:hom_ext}
+2つの射$f, g : T \to T'$に対して、
+\[
+f.\text{map} = g.\text{map} \quad \text{かつ} \quad f.\text{indexMap} = g.\text{indexMap}
+\]
+が成立するならば、$f = g$である。
+\end{theorem}
+
+\begin{proof}
+射の構造は、台写像と添字写像によって完全に決定される。他の条件(単調性、層保存性、最小層保存性)は、これらの写像が満たすべき性質(命題)である。したがって、$f.\text{map} = g.\text{map}$かつ$f.\text{indexMap} = g.\text{indexMap}$ならば、$f$と$g$は同じ射である。
+
+Leanコードでは、これは\texttt{@[ext]}属性によって自動的に生成される拡張性補題(extensionality lemma)として実装されている。
+\end{proof}
+
+\begin{remark}
+定理\ref{thm:hom_ext}は、射を比較する際に、台写像と添字写像のみを調べればよいことを示している。これは射の同値性を判定する際に非常に有用である。
+\end{remark}
+
+\section{圏論的視点}
+
+\subsection{最小層付き構造塔の圏}
+
+定義\ref{def:hom}、\ref{def:comp}、\ref{def:id}により、最小層付き構造塔全体は\textbf{圏}(category)を形成する。
+
+\begin{definition}[構造塔の圏]
+$\mathbf{StructTowerMin}$を次のように定義する:
+\begin{itemize}
+\item 対象(objects): 最小層付き構造塔全体
+\item 射(morphisms): 構造塔の射
+\item 合成(composition): 定義\ref{def:comp}で定義された射の合成
+\item 恒等射(identity): 定義\ref{def:id}で定義された恒等射
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[圏の公理]
+$\mathbf{StructTowerMin}$は以下の圏の公理を満たす:
+\begin{enumerate}
+\item \textbf{結合律}: $(h \circ g) \circ f = h \circ (g \circ f)$
+\item \textbf{左単位律}: $\text{id}_{T'} \circ f = f$
+\item \textbf{右単位律}: $f \circ \text{id}_T = f$
+\end{enumerate}
+\end{theorem}
+
+\subsection{関手との関係}
+
+最小層付き構造塔から通常の構造塔への「忘却関手」(forgetful functor)を定義できる:
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=huge]
+\mathbf{StructTowerMin} \arrow[r, "U"] 
+& \mathbf{StructTower}
+\end{tikzcd}
+\end{center}
+
+ここで、$U$は最小層の情報を「忘れる」関手であり、各射$(f.\text{map}, f.\text{indexMap})$を対応する通常の構造塔の射に写す。
+
+\section{具体例}
+
+\begin{example}[整数のフィルトレーション]
+$T.\text{carrier} = \mathbb{Z}$(整数全体)、$T.\text{Index} = \mathbb{N}$(自然数、通常の順序)とする。各$n \in \mathbb{N}$に対して、
+\[
+T.\text{layer}(n) := \{z \in \mathbb{Z} \mid |z| \leq n\}
+\]
+と定義する。このとき、
+\[
+T.\text{minLayer}(z) := |z|
+\]
+と定義すると、$T$は最小層付き構造塔である。
+
+例えば、$T.\text{minLayer}(5) = 5$であり、$5$は$T.\text{layer}(5), T.\text{layer}(6), T.\text{layer}(7), \ldots$に含まれるが、$T.\text{layer}(4)$には含まれない。
+\end{example}
+
+\begin{example}[べき集合の階層]
+有限集合$S = \{1, 2, 3, 4\}$に対して、$T.\text{carrier} = \mathcal{P}(S)$(べき集合)とする。$T.\text{Index} = \{0, 1, 2, 3, 4\}$(通常の順序)として、
+\[
+T.\text{layer}(n) := \{A \subseteq S \mid |A| \leq n\}
+\]
+と定義する。このとき、
+\[
+T.\text{minLayer}(A) := |A|
+\]
+が最小層関数である。例えば、$T.\text{minLayer}(\{1, 3\}) = 2$である。
+\end{example}
+
+\begin{example}[射の具体例]
+例1の構造塔$T$から例2の構造塔$T'$への射$f$を考える。例えば、
+\begin{align*}
+f.\text{map}(z) &:= \{n \in S \mid n \leq |z|, n \leq 4\} \\
+f.\text{indexMap}(n) &:= \min(n, 4)
+\end{align*}
+と定義すると、$f$は構造塔の射の条件を満たす可能性がある(詳細な検証は読者への演習とする)。
+\end{example}
+
+\section{応用と発展}
+
+\subsection{数学における応用}
+
+最小層付き構造塔の理論は、以下のような数学の分野で応用される:
+
+\begin{enumerate}
+\item \textbf{ホモロジー代数}: 鎖複体のフィルトレーションとスペクトル系列
+\item \textbf{層理論}: 位相空間上の層の茎(stalk)の構成
+\item \textbf{ガロア理論}: 体の拡大の階層構造
+\item \textbf{代数幾何}: スキームの層の構造
+\item \textbf{順序理論}: 完備格子の構成
+\end{enumerate}
+
+\subsection{計算機科学への応用}
+
+\begin{enumerate}
+\item \textbf{型理論}: 型の階層と部分型関係
+\item \textbf{プログラム意味論}: プログラムの抽象解釈
+\item \textbf{データベース理論}: 関係データベースのスキーマ階層
+\item \textbf{知識表現}: オントロジーの階層構造
+\end{enumerate}
+
+\section{形式化の意義}
+
+\subsection{Lean 4による形式化の利点}
+
+今回のLean 4による形式化は、以下の点で重要である:
+
+\begin{enumerate}
+\item \textbf{型安全性}: 宇宙レベル(universe level)を用いて、集合の大きさに関する矛盾を回避
+\item \textbf{依存型}: 添字集合が前順序構造を持つことを型システムで保証
+\item \textbf{証明の機械的検証}: 射の合成や恒等射の性質が正しいことを自動的に検証
+\item \textbf{拡張性}: \texttt{@[ext]}属性により、射の等式の証明を簡潔に記述
+\end{enumerate}
+
+\subsection{数学的厳密性}
+
+Bourbakiの数学は、形式的厳密性を重視することで知られる。本形式化は、Bourbakiの精神を現代的な証明支援系で実現したものと言える。
+
+\section{発展的話題}
+
+\subsection{余極限としての構成}
+
+最小層付き構造塔は、各最小層$\text{minLayer}^{-1}(i)$の直和(disjoint union)として構成できる:
+\[
+T.\text{carrier} \cong \bigsqcup_{i \in T.\text{Index}} \text{minLayer}^{-1}(i)
+\]
+
+\subsection{双対概念}
+
+「最大層」を持つ構造塔も同様に定義でき、降鎖条件(descending chain condition)を持つ順序集合で有用である。
+
+\subsection{豊穣圏への拡張}
+
+射の集合$\text{Hom}(T, T')$に順序構造や位相構造を入れることで、豊穣圏(enriched category)の理論に拡張できる。
+
+\section{まとめ}
+
+本稿では、最小層付き構造塔の理論を学部生向けに解説した。主要な成果は以下の通りである:
+
+\begin{itemize}
+\item 最小層付き構造塔の定義(定義\ref{def:tower_with_min})
+\item 構造塔の射とその性質(定義\ref{def:hom})
+\item 射の合成と恒等射(定義\ref{def:comp}, \ref{def:id})
+\item 射の外延性定理(定理\ref{thm:hom_ext})
+\item 構造塔の圏の構成
+\end{itemize}
+
+これらの概念は、Lean 4によって厳密に形式化され、機械的に検証可能な形で記述されている。
+
+構造塔の理論は、数学の多くの分野で現れる階層構造を統一的に扱うための強力な道具である。今後の学習において、より高度な数学的構造(スペクトル系列、導来圏など)を理解する際に、本稿で学んだ概念が基礎となることを期待する。
+
+\section*{参考文献}
+
+\begin{enumerate}
+\item N. Bourbaki, \textit{Elements of Mathematics: Theory of Sets}, Springer, 2004.
+\item Saunders Mac Lane, \textit{Categories for the Working Mathematician}, Springer, 1971.
+\item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://github.com/leanprover-community/mathlib4}
+\item Tom Leinster, \textit{Basic Category Theory}, Cambridge University Press, 2014.
+\item 圏論の基礎, 山口佳三, 日本評論社, 2010.
+\end{enumerate}
+
+\appendix
+
+\section{Lean 4コードの全文}
+
+本稿で解説した最小層付き構造塔と射の形式化の全体は以下の通りである:
+
+\begin{verbatim}
+import Mathlib.Data.Set.Basic
+import Mathlib.Order.Basic
+
+universe u v
+
+structure StructureTowerWithMin where
+  carrier : Type u
+  Index : Type v
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+  minLayer : carrier → Index
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ {x i}, x ∈ layer i → minLayer x ≤ i
+
+namespace StructureTowerWithMin
+
+instance instIndexPreorder (T : StructureTowerWithMin.{u, v}) : 
+    Preorder T.Index := T.indexPreorder
+
+variable {T T' T'' : StructureTowerWithMin.{u, v}}
+
+structure Hom (T T' : StructureTowerWithMin.{u, v}) where
+  map : T.carrier → T'.carrier
+  indexMap : T.Index → T'.Index
+  indexMap_mono : ∀ {i j : T.Index}, i ≤ j → 
+    indexMap i ≤ indexMap j
+  layer_preserving : ∀ (i : T.Index) (x : T.carrier), 
+    x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+  minLayer_preserving : ∀ x : T.carrier, 
+    T'.minLayer (map x) = indexMap (T.minLayer x)
+
+def Hom.comp (g : Hom T' T'') (f : Hom T T') : Hom T T'' where
+  map := fun x => g.map (f.map x)
+  indexMap := fun i => g.indexMap (f.indexMap i)
+  indexMap_mono := fun hij => g.indexMap_mono (f.indexMap_mono hij)
+  layer_preserving := fun i x hx =>
+    g.layer_preserving (f.indexMap i) (f.map x) 
+      (f.layer_preserving i x hx)
+  minLayer_preserving := by
+    intro x
+    calc
+      T''.minLayer (g.map (f.map x)) 
+        = g.indexMap (T'.minLayer (f.map x)) := by
+          rw [g.minLayer_preserving (f.map x)]
+      _ = g.indexMap (f.indexMap (T.minLayer x)) := by
+          rw [f.minLayer_preserving x]
+
+def Hom.id (T : StructureTowerWithMin.{u, v}) : Hom T T where
+  map := _root_.id
+  indexMap := _root_.id
+  indexMap_mono := fun hij => hij
+  layer_preserving := fun _ _ hx => hx
+  minLayer_preserving := fun _ => rfl
+
+lemma layer_monotone_applied (T : StructureTowerWithMin.{u, v})
+    {i j : T.Index} (hij : i ≤ j) (x : T.carrier) 
+    (hx : x ∈ T.layer i) : x ∈ T.layer j :=
+  T.monotone hij hx
+
+@[ext]
+lemma Hom.ext {f g : Hom T T'}
+    (hmap : f.map = g.map) (hindex : f.indexMap = g.indexMap) : 
+    f = g := by
+  cases f
+  cases g
+  cases hmap
+  cases hindex
+  rfl
+
+end StructureTowerWithMin
+\end{verbatim}
+
+\section{演習問題}
+
+以下の演習問題を通じて、理解を深めることができる:
+
+\begin{enumerate}
+\item 定義\ref{def:tower_with_min}において、被覆条件と最小層の所属性から、任意の$x \in T.\text{carrier}$に対して$T.\text{minLayer}(x)$が一意に定まることを示せ。
+
+\item 射$f : T \to T'$と$g : T' \to T''$の合成$g \circ f$について、結合律$(h \circ g) \circ f = h \circ (g \circ f)$を詳細に証明せよ。
+
+\item 例1と例2を組み合わせて、射の具体例を構成し、5つの条件を満たすことを確認せよ。
+
+\item 最小層付き構造塔の圏$\mathbf{StructTowerMin}$において、同型射(isomorphism)を定義し、その性質を調べよ。
+
+\item 忘却関手$U : \mathbf{StructTowerMin} \to \mathbf{StructTower}$が関手の公理を満たすことを証明せよ。
+\end{enumerate}
+
+\end{document}
