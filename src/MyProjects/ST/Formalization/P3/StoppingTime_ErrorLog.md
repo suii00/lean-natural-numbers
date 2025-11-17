@@ -28,3 +28,12 @@
 - 修正が正しい理由：`StoppedSigmaAlgebra` の定義は「各 n で {τ ≤ n} との交差が ℱₙ で可測」であり、述語として扱うことで Lean の期待する型に一致する。また `Nat.le_min` の `↔` 形を正しく使うことで、停止集合同士の交差が `{τ ≤ min n k}` に等しいことを型安全に証明できる。
 - 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 5.8s）を再実行し、既知の警告のみで成功。
 - どういう意図でこの実装に至ったか：停止 σ-代数の API をエラーなしで使える最小単位に整え、次の段階（停止フィルトレーションや minLayer との統合）へ進む前にビルドを確実に通すため。
+
+## エラー修正ログ (2025-11-17 深夜)
+
+- エラー概要：`truncateStoppingTime` 追加時に `{ω | min (τ ω) n ≤ k}` の可測性証明で集合同値を書き換えずに `simpa` を使ったため、Lean が `MeasurableSet {τ ≤ k ∨ n ≤ k}` を要求して型が合わずビルドに失敗。
+- 原因：`simp` で集合を書き換える前に `τ.measurable k` をそのまま適用しようとしたことで、ゴールの集合が `min` の形のまま残り、Lean が補題を使うために必要な `Preorder` 推論も止まっていた。
+- 修正内容：`min` の場合分けそれぞれで集合同値 (`hEq`) を先に証明し、`congrArg` で可測性ステートメントを同値な集合に書き換えてから `τ.measurable k` と `MeasurableSet.univ` を適用。また、補助 API として `mem_stoppedSigma_iff`（定義展開用）や `stoppedSigma_le_of_pointwise_le` を追加し、`truncateStoppingTime_le` と `stoppedFiltrationCore` を構成して停止フィルトレーションの単調性を明示した。
+- 修正が正しい理由：`congrArg` を介して可測性命題そのものを書き換えることで、Lean が期待する集合と証明済み集合が一致し、`τ.measurable` など既存の補題をそのまま使えるようになったため。`truncateStoppingTime` の単調性と `stoppedSigma_le_of_pointwise_le` の組み合わせで停止フィルトレーション `𝓖_n := 𝓕_{τ∧n}` が確実に単調となり、Bourbaki 的構造塔設計とも整合する。
+- 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 6.4s）。既知の Skeleton 警告のみ。
+- どういう意図でこの実装に至ったかメモ：Stopped σ-代数から停止フィルトレーションまでをワンストップで扱えるようにし、今後 `towerOf` やマルチンゲール章へ進む際に `τ∧n` の API を使い回す土台を整えるため。

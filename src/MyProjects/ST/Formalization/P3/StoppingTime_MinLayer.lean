@@ -121,6 +121,13 @@ def StoppedSigmaAlgebra (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
         exact ⟨Set.mem_iUnion.mpr ⟨i, hi.1⟩, hi.2⟩
     simpa [hEq] using hUnion
 
+/-- Stopped σ-代数の定義を展開するための便利な同値。 -/
+lemma mem_stoppedSigma_iff (ℱ : Filtration Ω)
+    (τ : StoppingTime ℱ) (A : Set Ω) :
+    (StoppedSigmaAlgebra ℱ τ).MeasurableSet' A
+      ↔ ∀ n, @MeasurableSet Ω (ℱ.base.𝓕 n) (A ∩ {ω | τ.τ ω ≤ n}) :=
+  Iff.rfl
+
 /-- 停止集合自身も停止 σ-代数に属する。 -/
 lemma stoppingSet_mem_stoppedSigma (ℱ : Filtration Ω)
     (τ : StoppingTime ℱ) (n : ℕ) :
@@ -146,6 +153,106 @@ lemma stoppingSet_mem_stoppedSigma (ℱ : Filtration Ω)
       {ω : Ω | τ.τ ω ≤ Nat.min n k} :=
     hmono _ hmin
   simpa [hEq] using hmeas
+
+/-- 停止時間が大きいほど停⽌ σ-代数も大きくなる。 -/
+lemma stoppedSigma_le_of_pointwise_le (ℱ : Filtration Ω)
+    {τ₁ τ₂ : StoppingTime ℱ}
+    (hτ : ∀ ω, τ₁.τ ω ≤ τ₂.τ ω) :
+    StoppedSigmaAlgebra ℱ τ₁ ≤ StoppedSigmaAlgebra ℱ τ₂ := by
+  intro A hA n
+  have hτ₂ : @MeasurableSet Ω (ℱ.base.𝓕 n) {ω | τ₂.τ ω ≤ n} :=
+    τ₂.measurable n
+  have hsubset :
+      {ω : Ω | τ₂.τ ω ≤ n} ⊆ {ω : Ω | τ₁.τ ω ≤ n} := by
+    intro ω hω
+    exact le_trans (hτ ω) hω
+  have hEq :
+      A ∩ {ω : Ω | τ₂.τ ω ≤ n}
+        = (A ∩ {ω : Ω | τ₁.τ ω ≤ n})
+          ∩ {ω : Ω | τ₂.τ ω ≤ n} := by
+    ext ω; constructor
+    · intro hω
+      refine ⟨⟨hω.1, hsubset hω.2⟩, hω.2⟩
+    · intro hω
+      exact ⟨hω.1.1, hω.2⟩
+  have hinter :
+      @MeasurableSet Ω (ℱ.base.𝓕 n)
+        ((A ∩ {ω : Ω | τ₁.τ ω ≤ n})
+          ∩ {ω : Ω | τ₂.τ ω ≤ n}) :=
+    (hA n).inter hτ₂
+  simpa [hEq] using hinter
+
+/-- 切り詰め停止時間 `τ ∧ n`。 -/
+def truncateStoppingTime (ℱ : Filtration Ω) (τ : StoppingTime ℱ)
+    (n : ℕ) : StoppingTime ℱ :=
+{ τ := fun ω ↦ Nat.min (τ.τ ω) n
+  measurable := by
+    intro k
+    classical
+    by_cases hk : k < n
+    · have hk' : ¬ n ≤ k := Nat.not_le_of_gt hk
+      have hEq :
+          {ω : Ω | (τ.τ ω).min n ≤ k}
+            = {ω : Ω | τ.τ ω ≤ k} := by
+        ext ω; constructor
+        · intro hω
+          have hcases := le_total (τ.τ ω) n
+          cases hcases with
+          | inl hτn =>
+              have hmin : (τ.τ ω).min n ≤ k := hω
+              have : τ.τ ω ≤ k := by
+                simpa [min_eq_left hτn] using hmin
+              exact this
+          | inr hnτ =>
+              have hmin : (τ.τ ω).min n ≤ k := hω
+              have : n ≤ k := by
+                simpa [min_eq_right hnτ] using hmin
+              exact (hk' this).elim
+        · intro hω
+          exact le_trans (min_le_left (τ.τ ω) n) hω
+      have hrewrite :
+          @MeasurableSet Ω (ℱ.base.𝓕 k) {ω : Ω | τ.τ ω ≤ k}
+            = @MeasurableSet Ω (ℱ.base.𝓕 k)
+                {ω : Ω | (τ.τ ω).min n ≤ k} :=
+        congrArg
+          (fun s => @MeasurableSet Ω (ℱ.base.𝓕 k) s) hEq.symm
+      exact hrewrite ▸ τ.measurable k
+    · have hnk : n ≤ k := Nat.le_of_not_gt hk
+      have hEq :
+          {ω : Ω | (τ.τ ω).min n ≤ k} = Set.univ := by
+        ext ω; constructor
+        · intro _; trivial
+        · intro _; exact le_trans (min_le_right (τ.τ ω) n) hnk
+      have hrewrite :
+          @MeasurableSet Ω (ℱ.base.𝓕 k) (Set.univ : Set Ω)
+            = @MeasurableSet Ω (ℱ.base.𝓕 k)
+                {ω : Ω | (τ.τ ω).min n ≤ k} :=
+        congrArg
+          (fun s => @MeasurableSet Ω (ℱ.base.𝓕 k) s) hEq.symm
+      exact hrewrite ▸ (MeasurableSet.univ :
+        @MeasurableSet Ω (ℱ.base.𝓕 k) Set.univ) }
+
+/-- `τ ∧ n` は `τ ∧ m` 以下で単調。 -/
+lemma truncateStoppingTime_le (ℱ : Filtration Ω) (τ : StoppingTime ℱ)
+    {n m : ℕ} (hnm : n ≤ m) :
+    ∀ ω, (truncateStoppingTime ℱ τ n).τ ω
+        ≤ (truncateStoppingTime ℱ τ m).τ ω := by
+  intro ω
+  dsimp [truncateStoppingTime]
+  simpa using min_le_min le_rfl hnm
+
+/-- 停止フィルトレーション（covers なしの核）。 -/
+def stoppedFiltrationCore (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
+    SigmaAlgebraFiltration.Core (Ω := Ω) (ι := ℕ) where
+  𝓕 n := StoppedSigmaAlgebra ℱ (truncateStoppingTime ℱ τ n)
+  mono := by
+    intro n m hnm
+    refine
+      stoppedSigma_le_of_pointwise_le (ℱ := ℱ)
+        (τ₁ := truncateStoppingTime ℱ τ n)
+        (τ₂ := truncateStoppingTime ℱ τ m) ?_
+    intro ω
+    exact truncateStoppingTime_le (ℱ := ℱ) (τ := τ) hnm ω
 /-! ## TODO: 停止過程・オプショナル停止への接続 -/
 
 /-
@@ -166,3 +273,16 @@ example {Ω : Type*} [MeasurableSpace Ω]
   simpa using
     StructureTowerProbability.singleton_measurable_at_first_time
       (Ω := Ω) ℱ ω
+
+example {Ω : Type*} [MeasurableSpace Ω]
+    (ℱ : StructureTowerProbability.Filtration Ω)
+    (τ : StructureTowerProbability.StoppingTime ℱ)
+    (n : ℕ) :
+    @MeasurableSet Ω
+        ((StructureTowerProbability.stoppedFiltrationCore ℱ τ).𝓕 n)
+        {ω : Ω |
+          (StructureTowerProbability.truncateStoppingTime ℱ τ n).τ ω ≤ n} := by
+  simpa using
+    StructureTowerProbability.stoppingSet_mem_stoppedSigma
+      (ℱ := ℱ)
+      (τ := StructureTowerProbability.truncateStoppingTime ℱ τ n) n
