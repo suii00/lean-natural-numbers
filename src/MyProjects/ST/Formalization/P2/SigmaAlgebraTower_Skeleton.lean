@@ -197,6 +197,51 @@ abbrev Nat (Ω : Type*) [MeasurableSpace Ω] :=
 
 end SigmaAlgebraFiltration
 
+/-
+minLayer for discrete filtrations
+-/
+
+namespace SigmaAlgebraFiltration
+
+section NatMinLayer
+
+variable {Ω : Type*} [MeasurableSpace Ω]
+
+open Classical
+
+/-- ℕ 添字フィルトレーションの略記。 -/
+abbrev NatFiltration (Ω : Type*) [MeasurableSpace Ω] :=
+  Core (Ω := Ω) (ι := ℕ)
+
+/--
+ある事象 `A` がどこかの時刻で可測になるとき，
+最初に可測になる時刻を返す `minLayer`.
+証明は `Nat.find` に依存するため `noncomputable`.
+-/
+noncomputable
+def minLayer (F : NatFiltration Ω) (A : Set Ω)
+    (hA : ∃ n : ℕ, @MeasurableSet Ω (F.𝓕 n) A) : ℕ :=
+  Nat.find hA
+
+/-- `minLayer` で返された層では実際に可測である。 -/
+lemma minLayer_measurable (F : NatFiltration Ω) (A : Set Ω)
+    (hA : ∃ n : ℕ, @MeasurableSet Ω (F.𝓕 n) A) :
+    @MeasurableSet Ω (F.𝓕 (SigmaAlgebraFiltration.minLayer F A hA)) A := by
+  classical
+  simpa [SigmaAlgebraFiltration.minLayer] using Nat.find_spec hA
+
+/-- `minLayer` は他の可測な層よりも小さい。 -/
+lemma minLayer_le_of_measurable (F : NatFiltration Ω) (A : Set Ω)
+    (hA : ∃ n : ℕ, @MeasurableSet Ω (F.𝓕 n) A)
+    {n : ℕ} (hn : @MeasurableSet Ω (F.𝓕 n) A) :
+    SigmaAlgebraFiltration.minLayer F A hA ≤ n := by
+  classical
+  simpa [SigmaAlgebraFiltration.minLayer] using Nat.find_min' hA hn
+
+end NatMinLayer
+
+end SigmaAlgebraFiltration
+
 /-! ## フィルトレーションへの準備 -/
 
 section FiltrationPrep

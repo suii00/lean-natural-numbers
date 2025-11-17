@@ -33,3 +33,24 @@
 - 修正が正しい理由：Core を導入したことで任意の `[Preorder ι]` で単調な σ-代数列を表現でき、必要に応じて covers 等の仮定を追加層で持たせられる。これにより StructureTower との接合や停止時間への応用が整理され、Bourbaki 的抽象度を保ちつつ実装もコンパクトになった。
 - 動作確認：`lake build MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton`（警告のみで成功, 704 jobs / 約 5.8s）。
 - どういう意図でこの実装に至ったか：GPT2.md の Skeleton 指針（一般添字・定数フィルトレーション・Monotone API）を忠実に反映し、後続の StoppingTime/マルチンゲール実装前にフィルトレーションの基盤を整えるため。
+
+## エラー修正ログ (GPT3.md 対応)
+
+- エラー概要：離散時間フィルトレーションに対する `minLayer` API がなく、`StoppingTime_MinLayer` へ橋渡しする補題群が不足していた。
+- 原因：`SigmaAlgebraFiltration.Core` のみに留まり、ℕ 添字で最初に可測になる時刻を返す仕組みが未実装だったため。
+- 修正内容：
+  1. `abbrev NatFiltration (Ω)` を導入し、`Core (ι := ℕ)` を指す略記を追加。
+  2. `minLayer` を `Nat.find` で定義し、`minLayer_measurable` / `minLayer_le_of_measurable` の両補題で可測性と極小性を証明。
+  3. GPT3.md が意図した「StoppingTime_MinLayer への橋渡し」をコメントで明示。
+- 修正が正しい理由：`Nat.find` により `minLayer` が完全に定義され、構造塔側の `covers` 仮定を局所的に仮定したまま停止時間の最初の発生時刻を記述できる。これにより `SigmaAlgebraFiltrationWithCovers` を経由して minLayer を停止時間に同一視する準備が整った。
+- 動作確認：`lake build MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton` を再実行し、警告のみで成功（704 jobs, 約 6.7s）。
+- どういう意図でこの実装に至ったか：GPT3.md が推奨する「先に離散フィルトレーションの minLayer を定義してから StopppingTime を構造塔化する」方針に従い、停止時間ファイルで `sorry` を増やさずに済む基盤 API を先に揃えるため。
+
+## エラー修正ログ (GPT3.md 追記)
+
+- エラー概要：`SigmaAlgebraTower_Skeleton.lean` に GPT3.md が要求する離散時間 `minLayer` API が存在せず、停止時間ファイルでの利用を想定した補題群が欠落していた。
+- 原因：`SigmaAlgebraFiltration.Core` を汎用形で導入したものの、ℕ 添字用の `minLayer` を未実装のままにしていたため、停止時間の「最初に可測になる時刻」を表せなかった。
+- 修正内容：`abbrev NatFiltration (Ω)` と `noncomputable def minLayer` を追加し、`minLayer_measurable` / `minLayer_le_of_measurable` を証明。コメントで GPT3.md の目的（StoppingTime_MinLayer への橋渡し）を明記。
+- 修正が正しい理由：`Nat.find` を用いて完全な定義ができるため `def` に `sorry` が残らず、可測性・極小性は mathlib の標準補題 (`Nat.find_spec`, `Nat.find_min'`) から直接得られる。これにより停止時間の構造塔的扱いに必要な API が揃った。
+- 動作確認：`lake build MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton` を実行し、警告のみでビルド成功（704 jobs, 約 6.7s）。
+- どういう意図でこの実装に至ったか：GPT3.md の指示に従い、停止時間ファイルに `sorry` を持ち込まないための基盤として離散フィルトレーションの `minLayer` を先に整備した。
