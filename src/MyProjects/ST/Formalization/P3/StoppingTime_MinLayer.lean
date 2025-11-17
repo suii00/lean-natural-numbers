@@ -74,13 +74,52 @@ def StoppedSigmaAlgebra (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
   measurableSet_empty := by
     intro n; simp
   measurableSet_compl := by
+    classical
     intro A hA n
-    -- TODO: 証明（{τ ≤ n} との補集合の振る舞い）
-    sorry
+    have hτ : @MeasurableSet Ω (ℱ.base.𝓕 n) {ω | τ.τ ω ≤ n} :=
+      τ.measurable n
+    have hA' : @MeasurableSet Ω (ℱ.base.𝓕 n) (A ∩ {ω | τ.τ ω ≤ n}) :=
+      hA n
+    have hDiff :
+        @MeasurableSet Ω (ℱ.base.𝓕 n)
+          ({ω | τ.τ ω ≤ n} \ (A ∩ {ω | τ.τ ω ≤ n})) :=
+      hτ.diff hA'
+    have hEq :
+        Aᶜ ∩ {ω | τ.τ ω ≤ n}
+          = ({ω | τ.τ ω ≤ n} \ (A ∩ {ω | τ.τ ω ≤ n})) := by
+      ext ω; constructor
+      · intro hω
+        refine ⟨hω.2, ?_⟩
+        intro hmem
+        have hnot : ω ∉ A := hω.1
+        exact hnot hmem.1
+      · intro hω
+        refine ⟨?_, hω.1⟩
+        intro hAω
+        apply hω.2
+        exact ⟨hAω, hω.1⟩
+    simpa [hEq] using hDiff
   measurableSet_iUnion := by
+    classical
     intro f hf n
-    -- TODO: 証明（可算和）
-    sorry
+    have hUnion :
+        @MeasurableSet Ω (ℱ.base.𝓕 n)
+          (⋃ i, f i ∩ {ω | τ.τ ω ≤ n}) :=
+      by
+        apply MeasurableSet.iUnion
+        intro i
+        exact hf i n
+    have hEq :
+        (⋃ i, f i) ∩ {ω | τ.τ ω ≤ n}
+          = ⋃ i, f i ∩ {ω | τ.τ ω ≤ n} := by
+      ext ω; constructor
+      · rintro ⟨hUnionMem, hτ⟩
+        obtain ⟨i, hi⟩ := Set.mem_iUnion.mp hUnionMem
+        exact Set.mem_iUnion.mpr ⟨i, ⟨hi, hτ⟩⟩
+      · intro hω
+        obtain ⟨i, hi⟩ := Set.mem_iUnion.mp hω
+        exact ⟨Set.mem_iUnion.mpr ⟨i, hi.1⟩, hi.2⟩
+    simpa [hEq] using hUnion
 
 /-! ## TODO: 停止過程・オプショナル停止への接続 -/
 

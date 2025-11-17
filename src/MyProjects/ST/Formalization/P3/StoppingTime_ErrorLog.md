@@ -10,3 +10,12 @@
 - 修正が正しい理由：停止時間の定義と構造塔の層を直接つなぐことで、Bourbaki 的 minLayer 観点から停止時間を扱う基盤が整う。`towerOf` の `minLayer` をそのまま利用しているため、後続の停止時間/マルチンゲール実装に沿った API になる。
 - 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（警告のみで成功，705 jobs / 約 5.5s）。
 - どういう意図でこの実装に至ったか：GPT4.md の指示に従い、抽象理論を「停止時間」という具体的応用に接続する最初のステップとして、構造塔の `layer` と停止集合 `{τ ≤ n}` を紐付け、minLayer による first measurable time を導入した。
+
+## エラー修正ログ (2025-11-17)
+
+- エラー概要：`StoppedSigmaAlgebra` の `measurableSet_compl` と `measurableSet_iUnion` が `sorry` のままで、停止時間由来の σ-代数が成り立つと証明できていなかった。
+- 原因：定義だけを置いて TODO にしていたため、補集合・可算和で {τ ≤ n} と交差した集合の扱いを示せていなかった。
+- 修正内容：`StoppedSigmaAlgebra` の `measurableSet_compl` では `τ.measurable n` と差集合の可測性を使って `Aᶜ ∩ {τ ≤ n}` を `{τ ≤ n} \ (A ∩ {τ ≤ n})` に書き換えてカバー。`measurableSet_iUnion` は `(⋃ᵢ f i) ∩ {τ ≤ n} = ⋃ᵢ (f i ∩ {τ ≤ n})` を示し、各交差が可測であることから σ-代数の閉性を適用した。
+- 修正が正しい理由：停止時間の可測性 (`τ.measurable n`) と σ-代数の閉性（補集合・差集合・可算和）がそのまま働くため、StoppedSigmaAlgebra が定義通り σ-代数になる。
+- 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer` を再実行し、警告のみで成功（705 jobs / 約 6.3s）。
+- どういう意図でこの実装に至ったか：停止 σ-代数の基本補題を先にクリアしておくことで、後続の停止過程やマルチンゲール議論を構造塔の上で安心して進められるようにするため。
