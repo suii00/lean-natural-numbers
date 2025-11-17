@@ -141,23 +141,83 @@ example (A : Set Ω) :
 
 end Properties
 
+/-! ## σ-代数フィルトレーションの一般骨格 -/
+
+namespace SigmaAlgebraFiltration
+
+variable {Ω ι : Type*}
+variable [MeasurableSpace Ω] [Preorder ι]
+
+/-- 添字集合 `ι` でパラメータ化された σ-代数フィルトレーションの核。 -/
+structure Core where
+  𝓕 : ι → MeasurableSpace Ω
+  mono : Monotone 𝓕
+
+attribute [simp] Core.mono
+
+/-- 関数として扱うための `CoeFun`。 -/
+instance instCoeFun :
+    CoeFun (Core (Ω := Ω) (ι := ι)) (fun _ ↦ ι → MeasurableSpace Ω) where
+  coe F := F.𝓕
+
+@[simp] lemma coe_mk (f : ι → MeasurableSpace Ω) (h : Monotone f) :
+    ((Core.mk f h : Core (Ω := Ω) (ι := ι)) : ι → MeasurableSpace Ω) = f :=
+  rfl
+
+@[simp] lemma mono_𝓕 (F : Core (Ω := Ω) (ι := ι)) :
+    Monotone F.𝓕 := F.mono
+
+/-- 単調性から可測性が伝播する補題。 -/
+lemma measurable_of_le (F : Core (Ω := Ω) (ι := ι))
+    {i j : ι} (hij : i ≤ j) {A : Set Ω}
+    (hA : @MeasurableSet Ω (F.𝓕 i) A) :
+    @MeasurableSet Ω (F.𝓕 j) A :=
+  ((F.mono hij) (s := A)) hA
+
+/-- 定数フィルトレーション。 -/
+def constant (m : MeasurableSpace Ω) : Core (Ω := Ω) (ι := ι) where
+  𝓕 _ := m
+  mono _ _ _ := le_rfl
+
+@[simp] lemma constant_apply (m : MeasurableSpace Ω) (i : ι) :
+    (constant (Ω := Ω) (ι := ι) m).𝓕 i = m :=
+  rfl
+
+/-- 台集合の与えられた σ-代数を見る「自明な」フィルトレーション。 -/
+def global : Core (Ω := Ω) (ι := ι) :=
+  constant (Ω := Ω) (ι := ι) ‹MeasurableSpace Ω›
+
+@[simp] lemma global_apply (i : ι) :
+    (global (Ω := Ω) (ι := ι)).𝓕 i = ‹MeasurableSpace Ω› :=
+  rfl
+
+/-- 添字集合が `ℕ` のときのエイリアス。 -/
+abbrev Nat (Ω : Type*) [MeasurableSpace Ω] :=
+  Core (Ω := Ω) (ι := ℕ)
+
+end SigmaAlgebraFiltration
+
 /-! ## フィルトレーションへの準備 -/
 
 section FiltrationPrep
 
-variable {Ω : Type*}
+variable {Ω : Type*} [MeasurableSpace Ω]
 
-/-- 増加するσ-代数の列 = フィルトレーション
-これは時間で添字付けられた構造塔の特殊ケース -/
-structure SigmaAlgebraFiltration where
-  𝓕 : ℕ → MeasurableSpace Ω
-  mono : ∀ m n, m ≤ n → 𝓕 m ≤ 𝓕 n
-  covers : ∀ A : Set Ω, ∃ n : ℕ, @MeasurableSet Ω (𝓕 n) A
+/-- 離散フィルトレーションに「どこかで必ず可測になる」性質を付加した拡張。 -/
+structure SigmaAlgebraFiltrationWithCovers where
+  base : SigmaAlgebraFiltration.Core (Ω := Ω) (ι := ℕ)
+  covers : ∀ A : Set Ω, ∃ n : ℕ, @MeasurableSet Ω (base.𝓕 n) A
+
+namespace SigmaAlgebraFiltrationWithCovers
+
+instance : CoeFun (SigmaAlgebraFiltrationWithCovers (Ω := Ω))
+    (fun _ ↦ ℕ → MeasurableSpace Ω) where
+  coe F := F.base
 
 /-- フィルトレーションから構造塔を構成 -/
-noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
+noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltrationWithCovers (Ω := Ω)) :
     StructureTowerMin (Set Ω) ℕ where
-  layer n := {A : Set Ω | @MeasurableSet Ω (ℱ.𝓕 n) A}
+  layer n := {A : Set Ω | @MeasurableSet Ω (ℱ.base.𝓕 n) A}
 
   covering := by
     intro A
@@ -166,14 +226,14 @@ noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
 
   monotone := by
     intro m n hmn A hA
-    exact ℱ.mono m n hmn A hA
+    exact ((ℱ.base.mono hmn) (s := A)) hA
 
   minLayer := fun A =>
     Nat.find (ℱ.covers A)
 
   minLayer_mem := by
     intro A
-    change @MeasurableSet Ω (ℱ.𝓕 (Nat.find (ℱ.covers A))) A
+    change @MeasurableSet Ω (ℱ.base.𝓕 (Nat.find (ℱ.covers A))) A
     exact Nat.find_spec (ℱ.covers A)
 
   minLayer_minimal := by
@@ -182,20 +242,22 @@ noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
 
 /-- 停止時間の型
 これは minLayer の確率論版 -/
-structure StoppingTime (ℱ : SigmaAlgebraFiltration (Ω := Ω)) where
+structure StoppingTime (ℱ : SigmaAlgebraFiltrationWithCovers (Ω := Ω)) where
   τ : Ω → ℕ
-  measurable : ∀ n, @MeasurableSet Ω (ℱ.𝓕 n) {ω | τ ω ≤ n}
+  measurable : ∀ n, @MeasurableSet Ω (ℱ.base.𝓕 n) {ω | τ ω ≤ n}
 
 /-- 停止時間と minLayer の関係(sketch)
 停止時間 τ(ω) は、ω に関する情報が「初めて分かる」時刻
 ⇔ ω が属する事象が初めて可測になる時刻
 ⇔ minLayer の概念
 -/
-theorem stopping_time_as_minLayer (ℱ : SigmaAlgebraFiltration (Ω := Ω))
+theorem stopping_time_as_minLayer (ℱ : SigmaAlgebraFiltrationWithCovers (Ω := Ω))
     (_τ : StoppingTime ℱ) (_ω : Ω) :
     -- τ(ω) は ω に関する何らかの事象の minLayer
     True := by
   trivial  -- TODO: 厳密な定式化と証明
+
+end SigmaAlgebraFiltrationWithCovers
 
 end FiltrationPrep
 
