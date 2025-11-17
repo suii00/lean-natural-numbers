@@ -34,6 +34,8 @@ import Mathlib.MeasureTheory.MeasurableSpace.Defs
 
 -/
 
+open scoped Classical
+
 open Set MeasureTheory
 
 namespace StructureTowerProbability
@@ -91,7 +93,8 @@ def SigmaAlgebraTower : StructureTowerMin (Set Ω) (MeasurableSpace Ω) where
   minLayer_mem := by
     -- A は generateFrom {A} で可測
     intro A
-    exact MeasurableSet.generateFrom (by simp : A ∈ ({A} : Set (Set Ω)))
+    exact MeasurableSpace.measurableSet_generateFrom
+      (by simp : A ∈ ({A} : Set (Set Ω)))
 
   minLayer_minimal := by
     -- generateFrom {A} は A を可測にする最小のσ-代数
@@ -101,8 +104,7 @@ def SigmaAlgebraTower : StructureTowerMin (Set Ω) (MeasurableSpace Ω) where
     apply MeasurableSpace.generateFrom_le
     intro B hB
     -- B ∈ {A} なので B = A
-    simp at hB
-    rw [hB]
+    rcases hB with rfl
     exact hA
 
 end SigmaAlgebraTower
@@ -126,7 +128,7 @@ theorem sigma_algebra_covering (A : Set Ω) :
 
 /-- generateFrom の最小性 -/
 theorem generateFrom_minimal (S : Set (Set Ω)) (A : Set Ω)
-    (hA : A ∈ S) (𝓕 : MeasurableSpace Ω)
+    (_hA : A ∈ S) (𝓕 : MeasurableSpace Ω)
     (h𝓕 : ∀ B ∈ S, @MeasurableSet Ω 𝓕 B) :
     MeasurableSpace.generateFrom S ≤ 𝓕 := by
   apply MeasurableSpace.generateFrom_le
@@ -150,36 +152,33 @@ variable {Ω : Type*}
 structure SigmaAlgebraFiltration where
   𝓕 : ℕ → MeasurableSpace Ω
   mono : ∀ m n, m ≤ n → 𝓕 m ≤ 𝓕 n
+  covers : ∀ A : Set Ω, ∃ n : ℕ, @MeasurableSet Ω (𝓕 n) A
 
 /-- フィルトレーションから構造塔を構成 -/
-def FiltrationToTower (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
+noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
     StructureTowerMin (Set Ω) ℕ where
   layer n := {A : Set Ω | @MeasurableSet Ω (ℱ.𝓕 n) A}
 
   covering := by
     intro A
-    -- すべての集合は十分大きな時刻で可測
-    -- (実際には、全体のσ-代数で考える必要があるが、簡略化のため0とする)
-    use 0
-    -- ここは実際には、⊔ n, ℱ.𝓕 n を使うべき
-    sorry
+    obtain ⟨n, hA⟩ := ℱ.covers A
+    exact ⟨n, hA⟩
 
   monotone := by
     intro m n hmn A hA
     exact ℱ.mono m n hmn A hA
 
   minLayer := fun A =>
-    -- A が初めて可測になる時刻
-    -- 実際には Nat.find を使うべきだが、簡略化のため0
-    0  -- TODO: 実装する
+    Nat.find (ℱ.covers A)
 
   minLayer_mem := by
     intro A
-    sorry  -- TODO: 実装する
+    change @MeasurableSet Ω (ℱ.𝓕 (Nat.find (ℱ.covers A))) A
+    exact Nat.find_spec (ℱ.covers A)
 
   minLayer_minimal := by
     intro A n hA
-    sorry  -- TODO: 実装する
+    exact Nat.find_min' (ℱ.covers A) hA
 
 /-- 停止時間の型
 これは minLayer の確率論版 -/
@@ -193,7 +192,7 @@ structure StoppingTime (ℱ : SigmaAlgebraFiltration (Ω := Ω)) where
 ⇔ minLayer の概念
 -/
 theorem stopping_time_as_minLayer (ℱ : SigmaAlgebraFiltration (Ω := Ω))
-    (τ : StoppingTime ℱ) (ω : Ω) :
+    (_τ : StoppingTime ℱ) (_ω : Ω) :
     -- τ(ω) は ω に関する何らかの事象の minLayer
     True := by
   trivial  -- TODO: 厳密な定式化と証明
@@ -263,6 +262,5 @@ example {Ω : Type*} (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
 
 へと発展していきます。
 
-**重要**: この実装は現在 `sorry` を含んでいます。
-これらを埋めることが次の課題です。
+今後は MeasureSpace やマルチンゲールまで射程を広げていく。
 -/

@@ -1,0 +1,643 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{positioning,arrows.meta,decorations.pathmorphing,shapes.geometric}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% カラーボックス
+\newtcolorbox{keypoint}[1][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  title=重要ポイント,
+  #1
+}
+
+\newtcolorbox{motivation}[1][]{
+  colback=green!5!white,
+  colframe=green!75!black,
+  fonttitle=\bfseries,
+  title=数学的動機,
+  #1
+}
+
+% タイトル情報
+\title{σ-代数の構造塔理論とフィルトレーション\\
+{\large 確率論への応用を見据えた学部生向け解説}}
+\author{
+  Lean 4 形式化コード生成：CODEX (OpenAI)\\
+  数学的解説とTeX生成：Claude Code (Anthropic)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、確率論の基礎となるσ-代数とフィルトレーションの概念を、「構造塔」という統一的な視点から解説する。
+構造塔理論は、様々な数学的対象における階層構造を抽象化した枠組みであり、
+σ-代数の包含関係や時間発展するフィルトレーションを自然に記述できる。
+本稿では、Lean 4による形式化を通じて、これらの概念の厳密な定義と性質を明確にし、
+停止時間などの確率論的概念との関連を示す。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入：なぜ構造塔なのか}
+
+\subsection{数学における階層構造}
+
+\begin{motivation}
+数学の多くの分野で、「より小さな構造」から「より大きな構造」へという階層的な包含関係が現れる：
+\begin{itemize}
+  \item \textbf{位相空間論}：粗い位相 $\subseteq$ 細かい位相
+  \item \textbf{測度論}：小さなσ-代数 $\subseteq$ 大きなσ-代数
+  \item \textbf{代数学}：部分群の鎖 $H_1 \subseteq H_2 \subseteq \cdots \subseteq G$
+  \item \textbf{確率論}：時間とともに増える情報（フィルトレーション）
+\end{itemize}
+これらを統一的に扱う枠組みが「構造塔」(Structure Tower) である。
+\end{motivation}
+
+\subsection{構造塔の直感的イメージ}
+
+構造塔とは、次のような「階層構造」を持つ数学的対象である：
+
+\begin{center}
+\begin{tikzpicture}[
+  layer/.style={draw, rectangle, minimum width=8cm, minimum height=0.8cm, fill=blue!20},
+  element/.style={circle, fill=red!70, inner sep=2pt}
+]
+  % 層を描画
+  \node[layer] (L4) at (0,4) {第4層（最も大きい）};
+  \node[layer] (L3) at (0,3) {第3層};
+  \node[layer] (L2) at (0,2) {第2層};
+  \node[layer] (L1) at (0,1) {第1層};
+  \node[layer] (L0) at (0,0) {第0層（最も小さい）};
+
+  % 要素の例
+  \node[element, label=right:$x_1$] at (-3,0.5) {};
+  \node[element, label=right:$x_2$] at (1,1.5) {};
+  \node[element, label=right:$x_3$] at (-1,2.5) {};
+
+  % 矢印
+  \draw[-Latex, thick, blue] (6,0.5) -- (6,3.5) node[midway, right] {包含関係};
+
+  % 注釈
+  \node[align=left, text width=7cm] at (0,-1.5) {
+    各要素 $x$ は、ある「最小の層」に初めて現れ、\\
+    それより上の層にはすべて含まれる
+  };
+\end{tikzpicture}
+\end{center}
+
+\begin{keypoint}
+構造塔の3つの本質的性質：
+\begin{enumerate}
+  \item \textbf{被覆性}：すべての要素は、どこかの層に含まれる
+  \item \textbf{単調性}：下の層 $\subseteq$ 上の層（階層構造）
+  \item \textbf{最小層の存在}：各要素が「初めて現れる」最小の層が存在する
+\end{enumerate}
+\end{keypoint}
+
+\section{構造塔の形式的定義}
+
+\begin{definition}[構造塔（最小層付き）]\label{def:structure-tower}
+前順序集合 $(I, \leq)$ で添字付けられた集合 $X$ 上の\textbf{構造塔} (Structure Tower with Minimal Layer) とは、
+以下のデータと公理からなる：
+
+\textbf{データ：}
+\begin{itemize}
+  \item 層関数 $\mathrm{layer}: I \to \mathcal{P}(X)$（各添字 $i$ に対し部分集合 $\mathrm{layer}(i) \subseteq X$）
+  \item 最小層関数 $\mathrm{minLayer}: X \to I$（各要素の最小層）
+\end{itemize}
+
+\textbf{公理：}
+\begin{enumerate}
+  \item \textbf{被覆性} (covering)：
+  \[
+    \forall x \in X,\ \exists i \in I,\ x \in \mathrm{layer}(i)
+  \]
+
+  \item \textbf{単調性} (monotone)：
+  \[
+    \forall i, j \in I,\ i \leq j \implies \mathrm{layer}(i) \subseteq \mathrm{layer}(j)
+  \]
+
+  \item \textbf{最小層への帰属} (minLayer\_mem)：
+  \[
+    \forall x \in X,\ x \in \mathrm{layer}(\mathrm{minLayer}(x))
+  \]
+
+  \item \textbf{最小性} (minLayer\_minimal)：
+  \[
+    \forall x \in X,\ \forall i \in I,\ x \in \mathrm{layer}(i) \implies \mathrm{minLayer}(x) \leq i
+  \]
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+Lean 4での形式化では、この定義は次のように記述される：
+\begin{verbatim}
+structure StructureTowerMin (X : Type*) (I : Type*) [Preorder I] where
+  layer : I → Set X
+  covering : ∀ x : X, ∃ i : I, x ∈ layer i
+  monotone : ∀ {i j : I}, i ≤ j → layer i ⊆ layer j
+  minLayer : X → I
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
+\end{verbatim}
+\end{remark}
+
+\section{σ-代数の構造塔}
+
+\subsection{σ-代数の復習}
+
+\begin{definition}[σ-代数]\label{def:sigma-algebra}
+集合 $\Omega$ 上の\textbf{σ-代数} (sigma-algebra) $\mathcal{F}$ とは、
+$\Omega$ の部分集合族で以下を満たすもの：
+\begin{enumerate}
+  \item $\Omega \in \mathcal{F}$
+  \item $A \in \mathcal{F} \implies A^c \in \mathcal{F}$（補集合で閉じている）
+  \item $(A_n)_{n \in \mathbb{N}} \subseteq \mathcal{F} \implies \bigcup_{n=1}^\infty A_n \in \mathcal{F}$（可算和で閉じている）
+\end{enumerate}
+\end{definition}
+
+\begin{example}[基本的なσ-代数]
+\begin{itemize}
+  \item \textbf{自明なσ-代数}：$\{\emptyset, \Omega\}$（最も粗い）
+  \item \textbf{ベキ集合}：$\mathcal{P}(\Omega) = 2^\Omega$（最も細かい）
+  \item \textbf{Borelσ-代数}：$\mathcal{B}(\mathbb{R})$（開集合から生成）
+\end{itemize}
+\end{example}
+
+\subsection{σ-代数の順序構造}
+
+σ-代数には、包含関係による\textbf{半順序}が自然に入る：
+
+\begin{definition}[σ-代数の順序]
+同じ $\Omega$ 上の2つのσ-代数 $\mathcal{F}_1, \mathcal{F}_2$ に対し、
+\[
+  \mathcal{F}_1 \leq \mathcal{F}_2 \stackrel{\text{def}}{\iff}
+  \forall A,\ A \text{ が } \mathcal{F}_1\text{-可測} \implies A \text{ が } \mathcal{F}_2\text{-可測}
+\]
+と定義する。これは $\mathcal{F}_2$ の方が「細かい」（より多くの集合を測れる）ことを意味する。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm]
+  \node[draw, ellipse, minimum width=1.5cm, minimum height=1cm] (F1) {$\mathcal{F}_1$};
+  \node[draw, ellipse, minimum width=3cm, minimum height=2cm, right=of F1] (F2) {$\mathcal{F}_2$};
+  \node[draw, ellipse, minimum width=5cm, minimum height=3.5cm, right=of F2] (F3) {$\mathcal{F}_3$};
+
+  \draw[-Latex, thick] (F1) -- (F2) node[midway, above] {$\leq$};
+  \draw[-Latex, thick] (F2) -- (F3) node[midway, above] {$\leq$};
+
+  \node[below=0.5cm of F1] {粗い};
+  \node[below=0.5cm of F3] {細かい};
+\end{tikzpicture}
+\end{center}
+
+\subsection{σ-代数の構造塔の構成}
+
+\begin{theorem}[σ-代数構造塔の存在]\label{thm:sigma-algebra-tower}
+任意の集合 $\Omega$ に対し、次のような構造塔が存在する：
+\begin{itemize}
+  \item 要素空間 $X = \mathcal{P}(\Omega)$（$\Omega$ の部分集合全体）
+  \item 添字集合 $I = \mathrm{MeasurableSpace}(\Omega)$（$\Omega$ 上のσ-代数全体）
+  \item 層関数：$\mathrm{layer}(\mathcal{F}) = \{ A \subseteq \Omega \mid A \text{ は } \mathcal{F}\text{-可測}\}$
+  \item 最小層：$\mathrm{minLayer}(A) = $ 「$A$ を可測にする最小のσ-代数」$= \sigma(\{A\})$
+\end{itemize}
+\end{theorem}
+
+\begin{proof}[証明のスケッチ]
+各公理を検証する：
+
+\textbf{(被覆性)}：任意の集合 $A \subseteq \Omega$ に対し、ベキ集合σ-代数 $\mathcal{F} = \mathcal{P}(\Omega)$ では
+すべての集合が可測なので、$A \in \mathrm{layer}(\mathcal{P}(\Omega))$。
+
+\textbf{(単調性)}：$\mathcal{F}_1 \leq \mathcal{F}_2$ ならば、
+$A$ が $\mathcal{F}_1$-可測ならば $\mathcal{F}_2$-可測なので、
+$\mathrm{layer}(\mathcal{F}_1) \subseteq \mathrm{layer}(\mathcal{F}_2)$。
+
+\textbf{(最小層への帰属)}：生成σ-代数 $\sigma(\{A\})$ の定義により、$A$ は $\sigma(\{A\})$-可測。
+
+\textbf{(最小性)}：$A$ が $\mathcal{F}$-可測ならば、$\sigma(\{A\}) \leq \mathcal{F}$（生成の最小性）。
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[
+  sigma/.style={draw, rectangle, rounded corners, minimum width=7cm, minimum height=0.7cm, fill=green!20},
+  set/.style={draw, circle, fill=red!60, inner sep=1pt}
+]
+  % σ-代数の階層
+  \node[sigma] (S4) at (0,4) {$\mathcal{P}(\Omega)$：すべての集合が可測};
+  \node[sigma] (S3) at (0,3) {$\mathcal{F}_3$：より細かいσ-代数};
+  \node[sigma] (S2) at (0,2) {$\mathcal{F}_2$};
+  \node[sigma] (S1) at (0,1) {$\mathcal{F}_1$：粗いσ-代数};
+  \node[sigma] (S0) at (0,0) {$\{\emptyset, \Omega\}$：最も粗い};
+
+  % 集合の例
+  \node[set, label=left:$A$] at (-3,1.5) {};
+  \draw[-Latex, red, thick] (-2.8,1.5) -- (-0.5,1.5) node[midway, above, text=black] {初めて可測};
+
+  % 注釈
+  \node[align=left, text width=7cm] at (0,-1.5) {
+    集合 $A$ が初めて可測になるσ-代数が\\
+    $\mathrm{minLayer}(A) = \sigma(\{A\})$（生成σ-代数）
+  };
+\end{tikzpicture}
+\end{center}
+
+\section{フィルトレーション：時間発展する情報}
+
+\subsection{確率論におけるフィルトレーション}
+
+\begin{motivation}
+確率論では、時間とともに「得られる情報」が増えていく状況を扱う：
+\begin{itemize}
+  \item コイン投げ：1回目、2回目、…と結果が明らかになる
+  \item 株価の観測：時刻 $t$ までの価格履歴
+  \item ブラウン運動：時刻 $t$ までの軌道の情報
+\end{itemize}
+この「情報の増加」を数学的に表現するのが\textbf{フィルトレーション}である。
+\end{motivation}
+
+\begin{definition}[フィルトレーション]\label{def:filtration}
+確率空間 $(\Omega, \mathcal{F}, P)$ 上の\textbf{フィルトレーション} (filtration) とは、
+σ-代数の単調増加列
+\[
+  \mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}
+\]
+である。$\mathcal{F}_n$ は「時刻 $n$ までに得られる情報」を表すσ-代数と解釈される。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[
+  time/.style={draw, circle, minimum size=1cm, fill=blue!30},
+  sigma/.style={draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=yellow!30}
+]
+  % 時間軸
+  \draw[-Latex, ultra thick] (-0.5,0) -- (10,0) node[right] {時間 $t$};
+
+  % 各時刻
+  \foreach \t/\x in {0/0, 1/2, 2/4, 3/6, n/9} {
+    \node[time] at (\x,0) {$t=\t$};
+    \node[sigma] (F\t) at (\x,1.5) {$\mathcal{F}_\t$};
+    \draw[-Latex] (\x,0.5) -- (F\t);
+  }
+
+  % 包含関係
+  \draw[-Latex, thick, red] (F0) -- (F1) node[midway, above] {$\subseteq$};
+  \draw[-Latex, thick, red] (F1) -- (F2) node[midway, above] {$\subseteq$};
+  \draw[-Latex, thick, red] (F2) -- (F3) node[midway, above] {$\subseteq$};
+  \draw[dashed, thick] (F3) -- (Fn);
+
+  \node[align=center, text width=8cm] at (5,-2) {
+    時間が進むにつれ、より多くの事象が「観測可能」になる\\
+    $\mathcal{F}_n$ = 時刻 $n$ までに決定できる事象全体
+  };
+\end{tikzpicture}
+\end{center}
+
+\subsection{フィルトレーションから構造塔へ}
+
+\begin{proposition}[フィルトレーションは構造塔]\label{prop:filtration-to-tower}
+フィルトレーション $(\mathcal{F}_n)_{n \in \mathbb{N}}$ が次の条件を満たすとき：
+\[
+  \forall A \subseteq \Omega,\ \exists n \in \mathbb{N},\ A \text{ は } \mathcal{F}_n\text{-可測}
+  \quad \text{(最終的被覆条件)}
+\]
+このフィルトレーションから構造塔が構成できる：
+\begin{itemize}
+  \item 要素空間：$X = \mathcal{P}(\Omega)$
+  \item 添字集合：$I = \mathbb{N}$（時刻）
+  \item 層関数：$\mathrm{layer}(n) = \{ A \mid A \text{ は } \mathcal{F}_n\text{-可測}\}$
+  \item 最小層：$\mathrm{minLayer}(A) = \min\{ n \mid A \in \mathcal{F}_n \}$（初めて可測になる時刻）
+\end{itemize}
+\end{proposition}
+
+\begin{proof}
+\textbf{(被覆性)}：最終的被覆条件より従う。
+
+\textbf{(単調性)}：フィルトレーションの定義 $\mathcal{F}_m \subseteq \mathcal{F}_n$ ($m \leq n$) より、
+$\mathrm{layer}(m) \subseteq \mathrm{layer}(n)$。
+
+\textbf{(最小層)}：$\min$ の存在は well-ordering principle より従う。
+最小性は $\min$ の定義より明らか。
+\end{proof}
+
+\begin{example}[コイン投げのフィルトレーション]
+コインを無限回投げる：$\Omega = \{H, T\}^\mathbb{N}$。
+\begin{itemize}
+  \item $\mathcal{F}_0 = \{\emptyset, \Omega\}$：何も知らない
+  \item $\mathcal{F}_1$：1回目の結果で決まる事象全体
+  \item $\mathcal{F}_2$：1,2回目の結果で決まる事象全体
+  \item $\vdots$
+  \item $\mathcal{F}_n$：最初の $n$ 回で決まる事象全体
+\end{itemize}
+
+集合 $A = $ 「1回目が表」の $\mathrm{minLayer}(A) = 1$（1回目で初めて決定できる）。
+\end{example}
+
+\section{停止時間と最小層の関係}
+
+\subsection{停止時間の定義}
+
+\begin{definition}[停止時間]\label{def:stopping-time}
+フィルトレーション $(\mathcal{F}_n)$ に対し、確率変数 $\tau: \Omega \to \mathbb{N} \cup \{\infty\}$ が
+\textbf{停止時間} (stopping time) であるとは：
+\[
+  \forall n \in \mathbb{N},\ \{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \mathcal{F}_n
+\]
+つまり、「時刻 $n$ に停止したかどうか」が時刻 $n$ の情報で決定できる。
+\end{definition}
+
+\begin{example}[基本的な停止時間]
+\begin{itemize}
+  \item \textbf{定時刻}：$\tau(\omega) = k$（常に時刻 $k$）
+  \item \textbf{初到達時刻}：$\tau = \inf\{ n \geq 0 \mid X_n \in B \}$（集合 $B$ に初めて入る時刻）
+  \item \textbf{初通過時刻}：$\tau = \inf\{ n \geq 0 \mid X_n \geq a \}$（閾値 $a$ を初めて超える時刻）
+\end{itemize}
+\end{example}
+
+\subsection{停止時間と構造塔}
+
+\begin{center}
+\begin{tikzpicture}[
+  state/.style={draw, circle, minimum size=0.6cm, fill=orange!40},
+  event/.style={draw, ellipse, minimum width=2cm, minimum height=0.8cm, fill=purple!20}
+]
+  % 状態空間（簡略化）
+  \node[state] (w1) at (0,3) {$\omega_1$};
+  \node[state] (w2) at (2,3) {$\omega_2$};
+  \node[state] (w3) at (4,3) {$\omega_3$};
+  \node[state] (w4) at (6,3) {$\omega_4$};
+
+  % 停止時刻
+  \draw[-Latex, red, ultra thick] (w1) -- (0,1) node[below] {$\tau(\omega_1)=2$};
+  \draw[-Latex, red, ultra thick] (w2) -- (2,0.5) node[below] {$\tau(\omega_2)=1$};
+  \draw[-Latex, red, ultra thick] (w3) -- (4,0) node[below] {$\tau(\omega_3)=0$};
+  \draw[-Latex, red, ultra thick] (w4) -- (6,1.5) node[below] {$\tau(\omega_4)=3$};
+
+  % 事象
+  \node[event] at (-1,0) {$A_0$};
+  \node[event] at (1,0.5) {$A_1$};
+  \node[event] at (3,1) {$A_2$};
+  \node[event] at (5,1.5) {$A_3$};
+
+  % 説明
+  \node[align=left, text width=8cm] at (3,-1.5) {
+    各 $\omega$ に対し、「$\omega$ に関する決定的事象が\\
+    初めて観測できる時刻」が $\tau(\omega)$\\
+    $\iff$ その事象の $\mathrm{minLayer}$（構造塔的解釈）
+  };
+\end{tikzpicture}
+\end{center}
+
+\begin{keypoint}
+\textbf{停止時間と最小層の関係：}
+停止時間 $\tau(\omega)$ は、次のように解釈できる：
+\[
+  \tau(\omega) = \mathrm{minLayer}_\text{filtration}(\text{「$\omega$ を識別する事象」})
+\]
+つまり、$\omega$ に関する情報が「初めて可測になる時刻」が $\tau(\omega)$ である。
+
+これは構造塔の $\mathrm{minLayer}$ の確率論的解釈に他ならない。
+\end{keypoint}
+
+\subsection{形式化における課題}
+
+\begin{remark}[Lean 4 での表現]
+現在の形式化では：
+\begin{verbatim}
+theorem stopping_time_as_minLayer (ℱ : SigmaAlgebraFiltration (Ω := Ω))
+    (τ : StoppingTime ℱ) (ω : Ω) :
+    -- τ(ω) は ω に関する何らかの事象の minLayer
+    True := by
+  trivial  -- TODO: 厳密な定式化と証明
+\end{verbatim}
+
+この関係を厳密に定式化するには、以下が必要：
+\begin{itemize}
+  \item $\omega$ に対応する「決定的事象」の構成
+  \item その事象の可測性と最小層の計算
+  \item 停止時間の定義との整合性の証明
+\end{itemize}
+これは今後の研究課題である。
+\end{remark}
+
+\section{構造塔の他の応用例}
+
+σ-代数以外にも、構造塔は様々な数学的対象に適用できる：
+
+\begin{example}[位相空間の構造塔]
+位相空間 $(X, \tau)$ において、開集合族の包含関係：
+\begin{itemize}
+  \item 粗い位相 $\tau_1 \subseteq \tau_2$ 細かい位相
+  \item $\mathrm{layer}(\tau) = $ 「位相 $\tau$ での開集合全体」
+  \item $\mathrm{minLayer}(U) = $ 「$U$ を開集合にする最小の位相」$= \{ \emptyset, U, U^c, X \}$
+\end{itemize}
+\end{example}
+
+\begin{example}[部分群の構造塔]
+群 $G$ の部分群の包含関係：
+\begin{itemize}
+  \item $H_1 \subseteq H_2 \subseteq \cdots \subseteq G$
+  \item $\mathrm{layer}(H) = H$（部分群そのもの）
+  \item $\mathrm{minLayer}(g) = \langle g \rangle$（$g$ で生成される巡回部分群）
+\end{itemize}
+\end{example}
+
+\begin{example}[主イデアルの構造塔]
+整数環 $\mathbb{Z}$ の主イデアル：
+\begin{itemize}
+  \item $(12) \subseteq (6) \subseteq (3) \subseteq (1) = \mathbb{Z}$
+  \item 約数関係による包含：$a \mid b \iff (b) \subseteq (a)$
+  \item $\mathrm{minLayer}(n) = (n)$（$n$ 自身のイデアル）
+\end{itemize}
+\end{example}
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, minimum width=3cm, minimum height=1.5cm, fill=cyan!20, align=center}
+]
+  \node[box] (sigma) at (0,0) {σ-代数\\フィルトレーション};
+  \node[box] (top) at (5,0) {位相空間\\開集合の階層};
+  \node[box] (alg) at (2.5,-3) {代数構造\\部分群・イデアル};
+
+  \node[draw, ellipse, minimum width=4cm, minimum height=2cm, dashed, ultra thick, red] at (2.5,-1) {};
+  \node[text=red, font=\Large\bfseries] at (2.5,-4.5) {構造塔理論で統一};
+
+  \draw[-Latex, thick, blue] (sigma) -- (2.5,-1);
+  \draw[-Latex, thick, blue] (top) -- (2.5,-1);
+  \draw[-Latex, thick, blue] (alg) -- (2.5,-1);
+\end{tikzpicture}
+\end{center}
+
+\section{まとめと今後の展望}
+
+\subsection{本稿のまとめ}
+
+本稿では、構造塔理論を通じてσ-代数とフィルトレーションを統一的に理解した：
+
+\begin{enumerate}
+  \item \textbf{構造塔の定義}：階層構造を持つ数学的対象の抽象化
+  \item \textbf{σ-代数の構造塔}：可測性による階層構造の形式化
+  \item \textbf{フィルトレーション}：時間発展する情報の構造塔的記述
+  \item \textbf{停止時間}：最小層の確率論的解釈
+\end{enumerate}
+
+\begin{keypoint}
+\textbf{構造塔理論の意義：}
+構造塔理論により、以下が可能になる：
+\begin{itemize}
+  \item 異なる数学的分野の階層構造を統一的に扱う
+  \item 共通の性質（被覆性、単調性、最小層）を一度証明すれば、多くの分野で適用可能
+  \item Lean 4 による形式化で、抽象理論の正しさを機械的に検証できる
+\end{itemize}
+\end{keypoint}
+
+\subsection{今後の発展方向}
+
+\begin{enumerate}
+  \item \textbf{測度論への拡張}
+  \begin{itemize}
+    \item 測度空間の構造塔
+    \item 可測関数の階層構造
+    \item 積分の構造塔的理解
+  \end{itemize}
+
+  \item \textbf{マルチンゲール理論}
+  \begin{itemize}
+    \item 適合過程 (adapted process) の形式化
+    \item 条件付き期待値の階層構造
+    \item オプショナル停止定理の構造塔的証明
+  \end{itemize}
+
+  \item \textbf{確率過程論への応用}
+  \begin{itemize}
+    \item ブラウン運動のフィルトレーション
+    \item ドゥーブの不等式・定理
+    \item 確率収束の階層的理解
+  \end{itemize}
+
+  \item \textbf{他分野への展開}
+  \begin{itemize}
+    \item 代数幾何学：層の構造塔
+    \item 関数解析：作用素環の階層
+    \item 圏論的な一般化
+  \end{itemize}
+\end{enumerate}
+
+\subsection{学習のための推奨事項}
+
+本稿の内容をより深く理解するために：
+
+\begin{itemize}
+  \item \textbf{測度論の基礎}：Halmos「測度論」、伊藤清三「ルベーグ積分入門」
+  \item \textbf{確率論}：Durrett「Probability: Theory and Examples」、Williams「Probability with Martingales」
+  \item \textbf{Lean 4 形式化}：「Theorem Proving in Lean 4」、Mathlib のドキュメント
+  \item \textbf{圏論的視点}：Awodey「Category Theory」、Mac Lane「Categories for the Working Mathematician」
+\end{itemize}
+
+\section*{謝辞}
+
+本稿の Lean 4 形式化コードは CODEX (OpenAI) により生成され、
+数学的解説および TeX ドキュメントは Claude Code (Anthropic) により作成された。
+構造塔理論の着想は Bourbaki の「母構造」(structures mères) の概念に基づいている。
+
+\appendix
+
+\section{Lean 4 コードの全体}
+
+参考のため、\texttt{SigmaAlgebraTower\_Skeleton.lean} の主要部分を掲載する：
+
+\begin{verbatim}
+/-- σ-代数を添字とする構造塔 -/
+def SigmaAlgebraTower : StructureTowerMin (Set Ω) (MeasurableSpace Ω) where
+  layer 𝓕 := {A : Set Ω | @MeasurableSet Ω 𝓕 A}
+
+  covering := by
+    intro A
+    use ⊤
+    trivial
+
+  monotone := by
+    intro 𝓕₁ 𝓕₂ h�� A hA
+    exact h𝓕 A hA
+
+  minLayer := fun A =>
+    MeasurableSpace.generateFrom {A}
+
+  minLayer_mem := by
+    intro A
+    exact MeasurableSpace.measurableSet_generateFrom (by simp : A ∈ ({A} : Set (Set Ω)))
+
+  minLayer_minimal := by
+    intro A 𝓕 hA
+    apply MeasurableSpace.generateFrom_le
+    intro B hB
+    rcases hB with rfl
+    exact hA
+
+/-- フィルトレーションから構造塔を構成 -/
+noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltration (Ω := Ω)) :
+    StructureTowerMin (Set Ω) ℕ where
+  layer n := {A : Set Ω | @MeasurableSet Ω (ℱ.𝓕 n) A}
+
+  covering := by
+    intro A
+    obtain ⟨n, hA⟩ := ℱ.covers A
+    exact ⟨n, hA⟩
+
+  monotone := by
+    intro m n hmn A hA
+    exact ℱ.mono m n hmn A hA
+
+  minLayer := fun A => Nat.find (ℱ.covers A)
+
+  minLayer_mem := by
+    intro A
+    exact Nat.find_spec (ℱ.covers A)
+
+  minLayer_minimal := by
+    intro A n hA
+    exact Nat.find_min' (ℱ.covers A) hA
+\end{verbatim}
+
+\section{記号表}
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+記号 & 意味 \\
+\hline\hline
+$\Omega$ & 標本空間（確率論）または台集合 \\
+$\mathcal{F}$ & σ-代数 \\
+$\mathcal{F}_n$ & 時刻 $n$ でのσ-代数（フィルトレーション） \\
+$\mathrm{layer}(i)$ & 添字 $i$ での構造塔の層 \\
+$\mathrm{minLayer}(x)$ & 要素 $x$ の最小層 \\
+$\sigma(S)$ & 集合族 $S$ から生成されるσ-代数 \\
+$\tau$ & 停止時間 \\
+$\mathbb{N}$ & 自然数全体 \\
+$\mathcal{P}(X)$ & 集合 $X$ のベキ集合 \\
+\hline
+\end{tabular}
+\end{center}
+
+\end{document}

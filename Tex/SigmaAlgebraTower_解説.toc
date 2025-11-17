@@ -1,0 +1,22 @@
+\contentsline {section}{\numberline {1}導入：なぜ構造塔なのか}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}数学における階層構造}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}構造塔の直感的イメージ}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}構造塔の形式的定義}{3}{section.2}%
+\contentsline {section}{\numberline {3}σ-代数の構造塔}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}σ-代数の復習}{4}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}σ-代数の順序構造}{4}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}σ-代数の構造塔の構成}{5}{subsection.3.3}%
+\contentsline {section}{\numberline {4}フィルトレーション：時間発展する情報}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}確率論におけるフィルトレーション}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}フィルトレーションから構造塔へ}{6}{subsection.4.2}%
+\contentsline {section}{\numberline {5}停止時間と最小層の関係}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}停止時間の定義}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}停止時間と構造塔}{8}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}形式化における課題}{8}{subsection.5.3}%
+\contentsline {section}{\numberline {6}構造塔の他の応用例}{9}{section.6}%
+\contentsline {section}{\numberline {7}まとめと今後の展望}{10}{section.7}%
+\contentsline {subsection}{\numberline {7.1}本稿のまとめ}{10}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}今後の発展方向}{10}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}学習のための推奨事項}{11}{subsection.7.3}%
+\contentsline {section}{\numberline {付録A}Lean 4 コードの全体}{11}{appendix.A}%
+\contentsline {section}{\numberline {付録B}記号表}{13}{appendix.B}%
