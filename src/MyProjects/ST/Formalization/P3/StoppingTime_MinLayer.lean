@@ -254,18 +254,9 @@ def stoppedFiltrationCore (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
     intro ω
     exact truncateStoppingTime_le (ℱ := ℱ) (τ := τ) hnm ω
 
-/-- 停止フィルトレーション（covers は後続作業で設定する予定） -/
-noncomputable def stoppedFiltration (ℱ : Filtration Ω)
-    (τ : StoppingTime ℱ) : Filtration Ω :=
-{ base := stoppedFiltrationCore ℱ τ
-  covers := by
-    -- TODO: Provide the covering property once optional stopping requires minLayer on the stopped filtration.
-    intro A
-    sorry }
-
-/-- 停止フィルトレーションの各層は元のフィルトレーションに含まれる。 -/
-lemma stoppedFiltration_le (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
-    ∀ n, (stoppedFiltration ℱ τ).base.𝓕 n ≤ ℱ.base.𝓕 n := by
+/-- 停止フィルトレーション(核)の各層は元のフィルトレーションに含まれる。 -/
+lemma stoppedFiltrationCore_le (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
+    ∀ n, (stoppedFiltrationCore ℱ τ).𝓕 n ≤ ℱ.base.𝓕 n := by
   intro n A hA
   change
       (StoppedSigmaAlgebra ℱ (truncateStoppingTime ℱ τ n)).MeasurableSet' A at hA
@@ -279,10 +270,10 @@ lemma stoppedFiltration_le (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
     hA n
   simpa [hset] using hmeas
 
-/-- 停止集合 `{τ ≤ n}` は停止フィルトレーションの層 `n` で可測。 -/
-lemma stoppingSet_measurable_in_stoppedFiltration (ℱ : Filtration Ω)
+/-- 停止集合 `{τ ≤ n}` は停止フィルトレーション核の層 `n` で可測。 -/
+lemma stoppingSet_measurable_in_stoppedFiltrationCore (ℱ : Filtration Ω)
     (τ : StoppingTime ℱ) (n : ℕ) :
-    @MeasurableSet Ω ((stoppedFiltration ℱ τ).base.𝓕 n)
+    @MeasurableSet Ω ((stoppedFiltrationCore ℱ τ).𝓕 n)
         {ω : Ω | τ.τ ω ≤ n} := by
   change
       (StoppedSigmaAlgebra ℱ (truncateStoppingTime ℱ τ n)).MeasurableSet'
@@ -357,8 +348,8 @@ example {Ω : Type*} [MeasurableSpace Ω]
     (τ : StructureTowerProbability.StoppingTime ℱ)
     (n : ℕ) :
     @MeasurableSet Ω
-        ((StructureTowerProbability.stoppedFiltration ℱ τ).base.𝓕 n)
+        ((StructureTowerProbability.stoppedFiltrationCore ℱ τ).𝓕 n)
         {ω : Ω | τ.τ ω ≤ n} := by
   simpa using
-    StructureTowerProbability.stoppingSet_measurable_in_stoppedFiltration
+    StructureTowerProbability.stoppingSet_measurable_in_stoppedFiltrationCore
       (ℱ := ℱ) (τ := τ) n
