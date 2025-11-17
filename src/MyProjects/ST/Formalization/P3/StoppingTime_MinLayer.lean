@@ -12,6 +12,7 @@ import MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton
 
 `SigmaAlgebraTower_Skeleton.lean` で構築したフィルトレーション/構造塔を
 停止時間へ適用する最初のステップ。
+このモジュールは optional stopping 章から参照される基盤 API 集である。
 
 GPT4.md の方針:
 
@@ -347,6 +348,58 @@ lemma stopped_const_of_ge {β : Type*} (X : ℕ → Ω → β) (τ : Ω → ℕ)
     stopped X τ m ω = stopped X τ n ω := by
   have hτm : τ ω ≤ m := le_trans hτ hnm
   simp [stopped, Nat.min_eq_right hτ, Nat.min_eq_right hτm]
+
+/-- 停止時刻そのものの値 `X (τ ω)`. -/
+def atStoppingTime {β : Type*} (X : ℕ → Ω → β) (τ : Ω → ℕ) : Ω → β :=
+  fun ω => X (τ ω) ω
+
+/-- 停止過程を停止時刻以上で評価すると `atStoppingTime` と一致。 -/
+lemma stopped_eq_atStoppingTime {β : Type*} (X : ℕ → Ω → β) (τ : Ω → ℕ)
+    {N : ℕ} {ω : Ω} (hN : τ ω ≤ N) :
+    stopped X τ N ω = atStoppingTime X τ ω := by
+  simp [stopped, atStoppingTime, Nat.min_eq_right hN]
+
+/-- 停止過程をラップする薄い構造体。 -/
+structure StoppedProcess (ℱ : Filtration Ω) (β : Type*) where
+  /-- 元の過程。 -/
+  X : ℕ → Ω → β
+  /-- 停止時間。 -/
+  τ : StoppingTime ℱ
+
+namespace StoppedProcess
+
+variable {ℱ : Filtration Ω} {β : Type*}
+
+/-- 停止過程の値。 -/
+def value (SP : StoppedProcess ℱ β) : ℕ → Ω → β :=
+  stopped SP.X SP.τ.τ
+
+/-- 停止時刻での値。 -/
+def valueAt (SP : StoppedProcess ℱ β) : Ω → β :=
+  atStoppingTime SP.X SP.τ.τ
+
+/-- 停止前では元の過程と一致。 -/
+lemma eq_before_stopping (SP : StoppedProcess ℱ β)
+    {n : ℕ} {ω : Ω} (hn : n ≤ SP.τ.τ ω) :
+    SP.value n ω = SP.X n ω := by
+  unfold value
+  exact stopped_eq_of_le SP.X SP.τ.τ hn
+
+/-- 停止後は値が固定される。 -/
+lemma const_after_stopping (SP : StoppedProcess ℱ β)
+    {n m : ℕ} {ω : Ω} (hτ : SP.τ.τ ω ≤ n) (hnm : n ≤ m) :
+    SP.value m ω = SP.value n ω := by
+  unfold value
+  exact stopped_const_of_ge SP.X SP.τ.τ hτ hnm
+
+/-- 停止時刻での値と一致する。 -/
+lemma value_eq_valueAt_of_le (SP : StoppedProcess ℱ β)
+    {N : ℕ} {ω : Ω} (hN : SP.τ.τ ω ≤ N) :
+    SP.value N ω = SP.valueAt ω := by
+  unfold value valueAt
+  exact stopped_eq_atStoppingTime SP.X SP.τ.τ hN
+
+end StoppedProcess
 /-! ## TODO: 停止過程・オプショナル停止への接続 -/
 
 /-
@@ -385,3 +438,24 @@ example {Ω : Type*} [MeasurableSpace Ω]
   simpa using
     StructureTowerProbability.stopped_eq_of_le
       (X := X) (τ := τ) (n := 0) (ω := ω) (hn := Nat.zero_le _)
+
+example {Ω : Type*} [MeasurableSpace Ω]
+    (ℱ : StructureTowerProbability.Filtration Ω)
+    (X : ℕ → Ω → ℝ) (τ : StructureTowerProbability.StoppingTime ℱ)
+    (ω : Ω) (n : ℕ) (hn : n ≤ τ.τ ω) :
+    let SP : StructureTowerProbability.StoppedProcess ℱ ℝ :=
+      ⟨X, τ⟩
+    SP.value n ω = X n ω := by
+  intro SP
+  exact StructureTowerProbability.StoppedProcess.eq_before_stopping SP hn
+
+example {Ω : Type*} [MeasurableSpace Ω]
+    (ℱ : StructureTowerProbability.Filtration Ω)
+    (X : ℕ → Ω → ℝ) (τ : StructureTowerProbability.StoppingTime ℱ)
+    (ω : Ω) (hτ : τ.τ ω ≤ 5) :
+    let SP : StructureTowerProbability.StoppedProcess ℱ ℝ :=
+      ⟨X, τ⟩
+    SP.value 10 ω = SP.value 5 ω := by
+  intro SP
+  exact StructureTowerProbability.StoppedProcess.const_after_stopping
+    SP hτ (by decide : 5 ≤ 10)
