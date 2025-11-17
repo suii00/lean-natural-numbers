@@ -19,3 +19,12 @@
 - 修正が正しい理由：停止時間の可測性 (`τ.measurable n`) と σ-代数の閉性（補集合・差集合・可算和）がそのまま働くため、StoppedSigmaAlgebra が定義通り σ-代数になる。
 - 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer` を再実行し、警告のみで成功（705 jobs / 約 6.3s）。
 - どういう意図でこの実装に至ったか：停止 σ-代数の基本補題を先にクリアしておくことで、後続の停止過程やマルチンゲール議論を構造塔の上で安心して進められるようにするため。
+
+## エラー修正ログ (2025-11-17 夜)
+
+- エラー概要：`stoppingSet_mem_stoppedSigma` の結論を集合の所属記号で書いていたため、Lean が `Set` への Membership インスタンスを推論できずビルドが失敗。
+- 原因：`MeasurableSpace.MeasurableSet'` は `Set Ω → Prop` を返す述語であり、`A ∈ MeasurableSet'` という書き方はできない。さらに `{τ ≤ n} ∩ {τ ≤ k}` と `{τ ≤ min n k}` の同値性証明で `Nat.le_min` を関数のように使っていた。
+- 修正内容：補題の結論を `(StoppedSigmaAlgebra ℱ τ).MeasurableSet' ...` という述語に修正し、証明は `intro k` 以下で `Nat.min` との集合同値を示す形に整備。`Nat.le_min` は `Iff` であることを踏まえて `.mpr` を用い、交差から最小値への不等式を得るように書き換えた。
+- 修正が正しい理由：`StoppedSigmaAlgebra` の定義は「各 n で {τ ≤ n} との交差が ℱₙ で可測」であり、述語として扱うことで Lean の期待する型に一致する。また `Nat.le_min` の `↔` 形を正しく使うことで、停止集合同士の交差が `{τ ≤ min n k}` に等しいことを型安全に証明できる。
+- 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 5.8s）を再実行し、既知の警告のみで成功。
+- どういう意図でこの実装に至ったか：停止 σ-代数の API をエラーなしで使える最小単位に整え、次の段階（停止フィルトレーションや minLayer との統合）へ進む前にビルドを確実に通すため。

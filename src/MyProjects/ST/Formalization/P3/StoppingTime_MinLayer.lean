@@ -121,6 +121,31 @@ def StoppedSigmaAlgebra (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
         exact ⟨Set.mem_iUnion.mpr ⟨i, hi.1⟩, hi.2⟩
     simpa [hEq] using hUnion
 
+/-- 停止集合自身も停止 σ-代数に属する。 -/
+lemma stoppingSet_mem_stoppedSigma (ℱ : Filtration Ω)
+    (τ : StoppingTime ℱ) (n : ℕ) :
+    (StoppedSigmaAlgebra ℱ τ).MeasurableSet' {ω : Ω | τ.τ ω ≤ n} := by
+  intro k
+  have hEq :
+      {ω : Ω | τ.τ ω ≤ n} ∩ {ω : Ω | τ.τ ω ≤ k}
+        = {ω : Ω | τ.τ ω ≤ Nat.min n k} := by
+    ext ω; constructor
+    · rintro ⟨h1, h2⟩
+      exact (Nat.le_min).mpr ⟨h1, h2⟩
+    · intro hω
+      exact ⟨le_trans hω (Nat.min_le_left _ _),
+        le_trans hω (Nat.min_le_right _ _)⟩
+  have hmin :
+      @MeasurableSet Ω (ℱ.base.𝓕 (Nat.min n k))
+        {ω : Ω | τ.τ ω ≤ Nat.min n k} :=
+    τ.measurable (Nat.min n k)
+  have hmono :
+      ℱ.base.𝓕 (Nat.min n k) ≤ ℱ.base.𝓕 k :=
+    ℱ.base.mono (Nat.min_le_right _ _)
+  have hmeas : @MeasurableSet Ω (ℱ.base.𝓕 k)
+      {ω : Ω | τ.τ ω ≤ Nat.min n k} :=
+    hmono _ hmin
+  simpa [hEq] using hmeas
 /-! ## TODO: 停止過程・オプショナル停止への接続 -/
 
 /-
