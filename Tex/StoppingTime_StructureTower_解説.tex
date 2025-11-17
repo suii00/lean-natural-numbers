@@ -1,0 +1,569 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,calc}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{left=25mm,right=25mm,top=30mm,bottom=30mm}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{corollary}[definition]{系}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+\title{停止時間と構造塔による確率論の形式化\\
+{\large σ-代数フィルトレーションのLean 4実装}}
+\author{%
+  形式化実装: CODEX (OpenAI) / Lean 4 \\
+  数学的解説: Claude Code (Anthropic) / \LaTeX{}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、確率論における停止時間（stopping time）とσ-代数のフィルトレーションを、
+構造塔（structure tower）の枠組みで統一的に理解する試みを解説する。
+Lean 4による形式化を通じて、抽象的な構造塔理論が具体的な確率論の概念に
+どのように適用されるかを明示的に示す。
+特に、minLayerという概念が「事象が初めて可測になる時刻」という
+確率論的直観と一致することを強調する。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+\subsection{動機}
+確率論において、\textbf{フィルトレーション}（filtration）と\textbf{停止時間}（stopping time）は
+マルチンゲール理論の基礎をなす重要な概念である。
+フィルトレーションは「時間とともに増加する情報」を表し、
+停止時間は「ある条件が満たされる最初の時刻」を記述する。
+
+一方、Bourbaki流の数学的構造論では、包含関係による階層構造を
+\textbf{構造塔}として抽象化する試みがある。
+本稿では、この構造塔の理論をσ-代数のフィルトレーションに適用し、
+停止時間を構造塔の\texttt{minLayer}として再解釈する形式化を紹介する。
+
+\subsection{実装について}
+本稿で解説する形式化は以下のファイルで実装されている：
+\begin{itemize}
+  \item \texttt{SigmaAlgebraTower\_Skeleton.lean}:
+        σ-代数の構造塔とフィルトレーションの基本定義
+  \item \texttt{StoppingTime\_MinLayer.lean}:
+        停止時間とminLayerの関係、停止σ-代数の実装
+\end{itemize}
+
+Lean 4のコードはCODEX (OpenAI)による支援を受けて生成され、
+本解説文書はClaude Code (Anthropic)によって作成された。
+
+\section{構造塔の基本概念}
+
+\subsection{構造塔の定義}
+
+\begin{definition}[構造塔]
+前順序集合 $I$ で添字付けられた型 $X$ の\textbf{構造塔}とは、
+以下のデータからなる：
+\begin{itemize}
+  \item 層の族: $\mathrm{layer}: I \to \mathcal{P}(X)$
+  \item 被覆性: $\forall x \in X, \exists i \in I, x \in \mathrm{layer}(i)$
+  \item 単調性: $i \leq j \Rightarrow \mathrm{layer}(i) \subseteq \mathrm{layer}(j)$
+  \item 最小層関数: $\mathrm{minLayer}: X \to I$
+  \item 帰属性: $\forall x \in X, x \in \mathrm{layer}(\mathrm{minLayer}(x))$
+  \item 極小性: $\forall x \in X, \forall i \in I, x \in \mathrm{layer}(i)
+                \Rightarrow \mathrm{minLayer}(x) \leq i$
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+$\mathrm{minLayer}(x)$ は、$x$ が初めて現れる「最小の層」を与える関数である。
+これが停止時間の概念と深く関係する。
+\end{remark}
+
+\subsection{構造塔の図式表現}
+
+構造塔の階層構造は以下のように図示できる：
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % 層の描画
+  \foreach \i in {0,1,2,3,4} {
+    \draw[thick] (-3,\i) -- (3,\i);
+    \node[left] at (-3.2,\i) {$\mathrm{layer}(\i)$};
+  }
+
+  % 包含関係の矢印
+  \draw[->,thick,blue] (-2.5,0.2) -- (-2.5,0.8);
+  \draw[->,thick,blue] (-2.5,1.2) -- (-2.5,1.8);
+  \draw[->,thick,blue] (-2.5,2.2) -- (-2.5,2.8);
+  \draw[->,thick,blue] (-2.5,3.2) -- (-2.5,3.8);
+  \node[blue] at (-2.5,2) [right=2mm] {単調性: $\subseteq$};
+
+  % 要素の配置
+  \node[circle,fill=red,inner sep=2pt] (x) at (0.5,1) {};
+  \node[right] at (0.5,1) {$x$};
+  \draw[->,red,thick] (0.5,1) -- (0.5,-0.3);
+  \node[red] at (1.5,0.3) {$\mathrm{minLayer}(x) = 1$};
+
+  \node[circle,fill=green!70!black,inner sep=2pt] (y) at (1.8,2.5) {};
+  \node[right] at (1.8,2.5) {$y$};
+  \draw[->,green!70!black,thick] (1.8,2.5) -- (1.8,1.7);
+  \node[green!70!black] at (2.8,2.1) {$\mathrm{minLayer}(y) = 2$};
+\end{tikzpicture}
+\end{center}
+
+\section{σ-代数とフィルトレーション}
+
+\subsection{σ-代数の基本}
+
+\begin{definition}[σ-代数]
+確率空間 $\Omega$ 上の集合族 $\mathcal{F} \subseteq \mathcal{P}(\Omega)$ が
+\textbf{σ-代数}であるとは、以下を満たすことをいう：
+\begin{enumerate}
+  \item $\Omega \in \mathcal{F}$
+  \item $A \in \mathcal{F} \Rightarrow A^c \in \mathcal{F}$
+  \item $(A_n)_{n \in \mathbb{N}} \subseteq \mathcal{F}
+         \Rightarrow \bigcup_{n=0}^\infty A_n \in \mathcal{F}$
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[σ-代数の順序]
+σ-代数 $\mathcal{F}_1, \mathcal{F}_2$ に対して、
+$\mathcal{F}_1 \leq \mathcal{F}_2$ とは、
+すべての $A \in \mathcal{F}_1$ に対して $A \in \mathcal{F}_2$ が成り立つこと、
+すなわち $\mathcal{F}_1 \subseteq \mathcal{F}_2$ と定義する。
+
+「$\mathcal{F}_1$ は $\mathcal{F}_2$ より\textbf{粗い}（coarser）」、
+「$\mathcal{F}_2$ は $\mathcal{F}_1$ より\textbf{細かい}（finer）」という。
+\end{definition}
+
+\subsection{フィルトレーション}
+
+\begin{definition}[フィルトレーション]
+確率空間 $(\Omega, \mathcal{F}, \mathbb{P})$ 上の
+\textbf{フィルトレーション}とは、σ-代数の増加列
+\[
+  \mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2
+  \subseteq \cdots \subseteq \mathcal{F}
+\]
+である。$\mathcal{F}_n$ は「時刻 $n$ までに得られた情報」を表す。
+\end{definition}
+
+\begin{example}
+コイン投げの例：時刻 $n$ で $n$ 回コインを投げる。
+\begin{itemize}
+  \item $\mathcal{F}_0$: 何も知らない（自明なσ-代数 $\{\emptyset, \Omega\}$）
+  \item $\mathcal{F}_1$: 1回目の結果を知っている
+  \item $\mathcal{F}_2$: 1, 2回目の結果を知っている
+  \item $\vdots$
+\end{itemize}
+\end{example}
+
+\subsection{フィルトレーションの図式}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+  % 時間軸
+  \draw[->,thick] (0,0) -- (8,0) node[right] {時間 $n$};
+
+  % σ-代数の層
+  \foreach \n in {0,1,2,3,4} {
+    \draw[fill=blue!20!white,opacity=0.3]
+      (\n*1.5,0) ellipse (0.4cm and \n*0.3cm + 0.5cm);
+    \node at (\n*1.5,-0.8-\n*0.3) {$\mathcal{F}_{\n}$};
+  }
+
+  % 包含関係
+  \draw[->,thick,red] (0.5,0.3) -- (1,0.3) node[midway,above] {$\subseteq$};
+  \draw[->,thick,red] (2,0.3) -- (2.5,0.3) node[midway,above] {$\subseteq$};
+  \draw[->,thick,red] (3.5,0.3) -- (4,0.3) node[midway,above] {$\subseteq$};
+  \draw[->,thick,red] (5,0.3) -- (5.5,0.3) node[midway,above] {$\subseteq$};
+
+  % 情報の増加
+  \node[blue] at (3,-2.5) {情報の単調増加};
+\end{tikzpicture}
+\end{center}
+
+\section{σ-代数の構造塔}
+
+\subsection{構造塔としてのσ-代数}
+
+σ-代数のフィルトレーションは、自然に構造塔の構造を持つ。
+
+\begin{theorem}[σ-代数の構造塔]
+確率空間 $\Omega$ 上で、以下のように構造塔を定義できる：
+\begin{itemize}
+  \item $X = \mathcal{P}(\Omega)$（$\Omega$ の部分集合全体）
+  \item $I = \{\text{$\Omega$ 上のσ-代数}\}$（順序は包含関係 $\subseteq$）
+  \item $\mathrm{layer}(\mathcal{F}) = \{A \subseteq \Omega \mid A \text{ は } \mathcal{F}\text{-可測}\}$
+  \item $\mathrm{minLayer}(A) = \sigma(\{A\})$（$A$ を含む最小のσ-代数）
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+被覆性、単調性、帰属性、極小性を順に確認する。
+\begin{itemize}
+  \item \textbf{被覆性}: すべての $A \subseteq \Omega$ に対して、
+        $A \in \mathrm{layer}(\mathcal{P}(\Omega))$（最大のσ-代数）。
+  \item \textbf{単調性}: $\mathcal{F}_1 \subseteq \mathcal{F}_2$ ならば、
+        $A$ が $\mathcal{F}_1$-可測ならば $\mathcal{F}_2$-可測。
+  \item \textbf{帰属性}: $A \in \sigma(\{A\})$ は生成σ-代数の定義より明らか。
+  \item \textbf{極小性}: $A \in \mathcal{F}$ ならば、
+        $\sigma(\{A\})$ の普遍性より $\sigma(\{A\}) \subseteq \mathcal{F}$。
+\end{itemize}
+\end{proof}
+
+\subsection{離散時間フィルトレーション}
+
+実際の実装では、離散時間 $\mathbb{N}$ で添字付けられたフィルトレーションを扱う。
+
+\begin{definition}[離散時間フィルトレーション with covers]
+\texttt{SigmaAlgebraFiltrationWithCovers} は以下からなる：
+\begin{itemize}
+  \item $\mathcal{F}_n$ ($n \in \mathbb{N}$): 単調増加するσ-代数の列
+  \item 被覆条件: $\forall A \subseteq \Omega, \exists n \in \mathbb{N},
+        A \in \mathcal{F}_n$
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+被覆条件は「どの事象も、十分大きな時刻では可測になる」ことを保証する。
+これは $\bigcup_{n=0}^\infty \mathcal{F}_n = \mathcal{F}$ を意味する。
+\end{remark}
+
+\section{停止時間とminLayer}
+
+\subsection{停止時間の定義}
+
+\begin{definition}[停止時間]
+フィルトレーション $(\mathcal{F}_n)_{n \geq 0}$ に関する
+\textbf{停止時間}とは、確率変数 $\tau: \Omega \to \mathbb{N} \cup \{\infty\}$ で、
+すべての $n \in \mathbb{N}$ に対して
+\[
+  \{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \mathcal{F}_n
+\]
+を満たすものである。
+\end{definition}
+
+\begin{remark}
+停止時間の本質は「時刻 $n$ において、$\tau \leq n$ であるかどうかが判定可能」
+という条件である。これは「未来の情報を使わない」ことを意味する。
+\end{remark}
+
+\subsection{minLayerとしての停止時間}
+
+構造塔の視点では、停止時間は\texttt{minLayer}の確率論版として理解できる。
+
+\begin{definition}[firstMeasurableTime]
+フィルトレーション $(\mathcal{F}_n)$ と $\omega \in \Omega$ に対して、
+\[
+  \mathrm{firstMeasurableTime}(\omega)
+  := \min\{n \in \mathbb{N} \mid \{\omega\} \in \mathcal{F}_n\}
+\]
+を $\omega$ の\textbf{初めて可測になる時刻}と呼ぶ。
+\end{definition}
+
+\begin{proposition}
+$\mathrm{firstMeasurableTime}$ は停止時間である。
+\end{proposition}
+
+\begin{proof}
+任意の $n \in \mathbb{N}$ に対して、
+\[
+  \{\omega \mid \mathrm{firstMeasurableTime}(\omega) \leq n\}
+  = \bigcup_{k=0}^n \{\omega \mid \{\omega\} \in \mathcal{F}_k\}
+\]
+であり、$\mathcal{F}_n$ の完備性と単調性より $\mathcal{F}_n$-可測である。
+\end{proof}
+
+\subsection{停止時間とminLayerの関係図}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  % フィルトレーションの層
+  \foreach \n in {0,1,2,3,4} {
+    \draw[thick] (0,\n*1.2) -- (8,\n*1.2);
+    \node[left] at (-0.3,\n*1.2) {$\mathcal{F}_{\n}$};
+  }
+
+  % 時刻軸
+  \node at (4,-0.8) {時刻 $n$};
+
+  % ω1の軌跡
+  \node[circle,fill=red,inner sep=2pt,label=right:{$\omega_1$}] (w1) at (2,0) {};
+  \draw[->,red,very thick] (w1) -- (2,2.4) node[midway,left]
+    {可測でない};
+  \node[red] at (2,2.8) {$\tau(\omega_1) = 2$};
+  \draw[red,very thick,dashed] (2,2.4) circle (0.3cm);
+
+  % ω2の軌跡
+  \node[circle,fill=blue,inner sep=2pt,label=right:{$\omega_2$}] (w2) at (5,0) {};
+  \draw[->,blue,very thick] (w2) -- (5,1.2) node[midway,left]
+    {可測でない};
+  \node[blue] at (5,1.6) {$\tau(\omega_2) = 1$};
+  \draw[blue,very thick,dashed] (5,1.2) circle (0.3cm);
+
+  % 説明
+  \node[text width=3cm] at (9.5,3) {
+    $\tau(\omega)$: $\{\omega\}$ が\\
+    初めて可測になる時刻\\
+    $= \mathrm{minLayer}(\{\omega\})$
+  };
+\end{tikzpicture}
+\end{center}
+
+\section{停止σ-代数}
+
+\subsection{定義と構成}
+
+停止時間に「停止」した情報を表すσ-代数を定義できる。
+
+\begin{definition}[停止σ-代数]
+停止時間 $\tau$ に対して、\textbf{停止σ-代数} $\mathcal{F}_\tau$ を
+\[
+  \mathcal{F}_\tau := \{A \subseteq \Omega \mid
+    \forall n \in \mathbb{N}, A \cap \{\tau \leq n\} \in \mathcal{F}_n\}
+\]
+と定義する。
+\end{definition}
+
+\begin{remark}
+$\mathcal{F}_\tau$ は「時刻 $\tau$ までに得られた情報」を表す。
+各 $\omega$ ごとに異なる時刻で「停止」することがポイントである。
+\end{remark}
+
+\begin{theorem}
+$\mathcal{F}_\tau$ はσ-代数である。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+\begin{enumerate}
+  \item $\Omega \cap \{\tau \leq n\} = \{\tau \leq n\} \in \mathcal{F}_n$ より $\Omega \in \mathcal{F}_\tau$。
+  \item $A \in \mathcal{F}_\tau$ のとき、
+        \[
+          A^c \cap \{\tau \leq n\} = \{\tau \leq n\} \setminus (A \cap \{\tau \leq n\}) \in \mathcal{F}_n
+        \]
+  \item 可算和集合についても同様に示せる。
+\end{enumerate}
+詳細は \texttt{StoppingTime\_MinLayer.lean} の 74--122行目を参照。
+\end{proof}
+
+\subsection{切り詰め停止時間}
+
+\begin{definition}[切り詰め停止時間]
+停止時間 $\tau$ と $n \in \mathbb{N}$ に対して、
+\[
+  \tau \wedge n := \tau \wedge n(\omega) = \min(\tau(\omega), n)
+\]
+を\textbf{切り詰め停止時間}（truncated stopping time）と呼ぶ。
+\end{definition}
+
+\begin{proposition}
+$\tau \wedge n$ は停止時間である。
+\end{proposition}
+
+\begin{lemma}[切り詰め停止時間の単調性]
+$n \leq m$ ならば、すべての $\omega \in \Omega$ に対して
+\[
+  (\tau \wedge n)(\omega) \leq (\tau \wedge m)(\omega)
+\]
+\end{lemma}
+
+\subsection{停止フィルトレーション}
+
+切り詰め停止時間を使って、新しいフィルトレーションを構成できる。
+
+\begin{definition}[停止フィルトレーション]
+\[
+  \mathcal{F}_{\tau \wedge n} := \{A \subseteq \Omega \mid
+    \forall k \in \mathbb{N}, A \cap \{\tau \wedge n \leq k\} \in \mathcal{F}_k\}
+\]
+このとき、$(\mathcal{F}_{\tau \wedge n})_{n \geq 0}$ は新しいフィルトレーションをなす。
+\end{definition}
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=large]
+  \mathcal{F}_0 \arrow[r, "\subseteq"] \arrow[d, "\supseteq"] &
+  \mathcal{F}_1 \arrow[r, "\subseteq"] \arrow[d, "\supseteq"] &
+  \mathcal{F}_2 \arrow[r, "\subseteq"] \arrow[d, "\supseteq"] &
+  \cdots \\
+  \mathcal{F}_{\tau \wedge 0} \arrow[r, "\subseteq"] &
+  \mathcal{F}_{\tau \wedge 1} \arrow[r, "\subseteq"] &
+  \mathcal{F}_{\tau \wedge 2} \arrow[r, "\subseteq"] &
+  \cdots
+\end{tikzcd}
+\end{center}
+
+\begin{theorem}
+すべての $n \in \mathbb{N}$ に対して $\mathcal{F}_{\tau \wedge n} \subseteq \mathcal{F}_n$。
+\end{theorem}
+
+\section{実装の詳細}
+
+\subsection{Lean 4での形式化}
+
+Lean 4では以下のように構造を定義する：
+
+\begin{verbatim}
+structure StoppingTime (ℱ : Filtration Ω) where
+  τ : Ω → ℕ
+  measurable : ∀ n, @MeasurableSet Ω (ℱ.base.𝓕 n) {ω | τ ω ≤ n}
+
+def StoppedSigmaAlgebra (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
+    MeasurableSpace Ω where
+  MeasurableSet' A := ∀ n, @MeasurableSet Ω (ℱ.base.𝓕 n)
+                           (A ∩ {ω | τ.τ ω ≤ n})
+\end{verbatim}
+
+\subsection{主要な定理}
+
+実装されている主な定理：
+\begin{enumerate}
+  \item \texttt{stopping\_sets\_in\_tower}: 停止集合が構造塔の層に属すること
+  \item \texttt{singleton\_measurable\_at\_first\_time}:
+        単点が firstMeasurableTime で可測であること
+  \item \texttt{first\_measurable\_time\_minimal}: firstMeasurableTime の極小性
+  \item \texttt{stoppedSigma\_le\_of\_pointwise\_le}:
+        停止時間の順序と停止σ-代数の包含関係
+  \item \texttt{truncateStoppingTime\_le}: 切り詰め停止時間の単調性
+\end{enumerate}
+
+\section{今後の展望}
+
+\subsection{未実装の課題}
+
+現在の実装には以下の \texttt{sorry} が残っている：
+\begin{itemize}
+  \item \texttt{stoppedFiltration} の被覆性（\texttt{covers}）の証明
+\end{itemize}
+
+\subsection{将来の発展方向}
+
+\begin{enumerate}
+  \item \textbf{オプショナル停止定理}（Optional Stopping Theorem）の形式化
+  \item \textbf{マルチンゲール}の構造塔的定式化
+  \item \textbf{Doobの分解定理}への応用
+  \item 連続時間への一般化
+  \item 確率測度との統合（現在は可測空間のみ）
+\end{enumerate}
+
+\subsection{構造塔理論の意義}
+
+構造塔の視点を導入することで、以下の利点が得られる：
+\begin{itemize}
+  \item 「初めて可測になる」という直観を \texttt{minLayer} として形式化
+  \item フィルトレーションの階層構造を明示的に扱える
+  \item 停止時間と構造塔の \texttt{minLayer} の統一的理解
+  \item Bourbaki的な抽象化と具体的な確率論の接続
+\end{itemize}
+
+\section{結論}
+
+本稿では、停止時間とσ-代数のフィルトレーションを構造塔の枠組みで理解する
+Lean 4による形式化を解説した。
+特に、\texttt{minLayer}という抽象的な概念が、
+「事象が初めて可測になる時刻」という確率論的直観と一致することを示した。
+
+停止σ-代数と切り詰め停止時間の実装により、
+オプショナル停止定理やマルチンゲール理論への道が開かれた。
+構造塔理論と確率論の融合は、
+形式化数学の新しい可能性を示唆している。
+
+\begin{thebibliography}{99}
+\bibitem{williams} D. Williams,
+  \textit{Probability with Martingales},
+  Cambridge University Press, 1991.
+
+\bibitem{karatzas} I. Karatzas and S. Shreve,
+  \textit{Brownian Motion and Stochastic Calculus},
+  Springer, 1991.
+
+\bibitem{bourbaki} N. Bourbaki,
+  \textit{Éléments de mathématique: Théorie des ensembles},
+  Springer, 2006.
+
+\bibitem{lean4} Leonardo de Moura et al.,
+  \textit{The Lean 4 Theorem Prover},
+  \url{https://lean-lang.org/}
+
+\bibitem{mathlib} The mathlib Community,
+  \textit{The Lean Mathematical Library},
+  \url{https://github.com/leanprover-community/mathlib4}
+\end{thebibliography}
+
+\appendix
+
+\section{記号表}
+
+\begin{tabular}{ll}
+$\Omega$ & 確率空間（標本空間） \\
+$\mathcal{F}$ & σ-代数 \\
+$(\mathcal{F}_n)_{n \geq 0}$ & フィルトレーション \\
+$\tau$ & 停止時間 \\
+$\mathcal{F}_\tau$ & 停止σ-代数 \\
+$\tau \wedge n$ & 切り詰め停止時間 \\
+$\mathrm{minLayer}$ & 最小層関数 \\
+$\sigma(\{A\})$ & $A$ を含む最小のσ-代数 \\
+\end{tabular}
+
+\section{Lean 4コードの抜粋}
+
+\subsection{firstMeasurableTimeの定義}
+
+\begin{verbatim}
+noncomputable def firstMeasurableTime (ℱ : Filtration Ω) (ω : Ω) : ℕ :=
+  (towerOf (Ω := Ω) ℱ).minLayer {ω}
+
+theorem singleton_measurable_at_first_time (ℱ : Filtration Ω) (ω : Ω) :
+    @MeasurableSet Ω (ℱ.base.𝓕 (firstMeasurableTime ℱ ω)) {ω} := by
+  unfold firstMeasurableTime
+  exact (towerOf (Ω := Ω) ℱ).minLayer_mem {ω}
+\end{verbatim}
+
+\subsection{停止σ-代数の性質}
+
+\begin{verbatim}
+lemma stoppingSet_mem_stoppedSigma (ℱ : Filtration Ω)
+    (τ : StoppingTime ℱ) (n : ℕ) :
+    (StoppedSigmaAlgebra ℱ τ).MeasurableSet' {ω : Ω | τ.τ ω ≤ n} := by
+  intro k
+  have hEq : {ω : Ω | τ.τ ω ≤ n} ∩ {ω : Ω | τ.τ ω ≤ k}
+           = {ω : Ω | τ.τ ω ≤ Nat.min n k} := by
+    ext ω; constructor
+    · rintro ⟨h1, h2⟩
+      exact (Nat.le_min).mpr ⟨h1, h2⟩
+    · intro hω
+      exact ⟨le_trans hω (Nat.min_le_left _ _),
+             le_trans hω (Nat.min_le_right _ _)⟩
+  ...
+\end{verbatim}
+
+\vspace{2em}
+
+\begin{center}
+\rule{0.8\textwidth}{0.4pt}
+
+\vspace{1em}
+
+{\large 本文書の作成について}
+
+\vspace{0.5em}
+
+Lean 4による形式化: CODEX (OpenAI) による支援
+
+数学的解説とLaTeX組版: Claude Code (Anthropic)
+
+\vspace{0.5em}
+
+\rule{0.8\textwidth}{0.4pt}
+\end{center}
+
+\end{document}

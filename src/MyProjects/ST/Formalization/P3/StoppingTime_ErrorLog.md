@@ -37,3 +37,12 @@
 - 修正が正しい理由：`congrArg` を介して可測性命題そのものを書き換えることで、Lean が期待する集合と証明済み集合が一致し、`τ.measurable` など既存の補題をそのまま使えるようになったため。`truncateStoppingTime` の単調性と `stoppedSigma_le_of_pointwise_le` の組み合わせで停止フィルトレーション `𝓖_n := 𝓕_{τ∧n}` が確実に単調となり、Bourbaki 的構造塔設計とも整合する。
 - 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 6.4s）。既知の Skeleton 警告のみ。
 - どういう意図でこの実装に至ったかメモ：Stopped σ-代数から停止フィルトレーションまでをワンストップで扱えるようにし、今後 `towerOf` やマルチンゲール章へ進む際に `τ∧n` の API を使い回す土台を整えるため。
+
+## エラー修正ログ (2025-11-18 早朝)
+
+- エラー概要：`stoppedFiltration` を `Filtration` に昇格させた際、`covers` を未実装のまま `sorry` で残しつつ、停止集合 `{τ ≤ n}` の可測性を停止フィルトレーションで証明している途中に、集合同値であるにもかかわらず写像を忘れて型が合わずビルドが失敗。
+- 原因：停止集合の補題で `A ∩ {τ̃ ≤ k}` を `{τ ≤ n}` と同一視する際、`intro hω` で得られる証明をタプルのまま扱わなかったため、Lean が `ω ∈ {τ ≤ n}` と `ω ∈ {τ ≤ n} ∩ …` を混同して型エラーになっていた。
+- 修正内容：`intro hω; exact hω.1` としてタプルの第1成分を取り出し、交差集合から元の集合へ戻す補題を明示。さらに `stoppedFiltration` の `covers` フィールドには TODO コメントを付け、今後 optional stopping で使用する際に実装する方針を残した。
+- 修正が正しい理由：交差集合に入る証明を正しく分解して扱えば、Lean が期待する `ω ∈ {τ ≤ n}` を得られ、`simp [hEq]` で停止集合の可測性を証明できる。`covers` を TODO として明示しつつ `mono` を確保することで、停止フィルトレーションを利用した API（停止集合の可測性や包含補題）を安全に使える。
+- 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 約 6.2s、`covers` の `sorry` と Skeleton 由来の警告のみ）。
+- どういう意図でこの実装に至ったかメモ：停止フィルトレーションを Structure Tower の文脈でも扱えるようにし、`Gₙ := F_{τ∧n}` が Lean 上で明確なオブジェクトになるように最小限の API を整備した。`covers` は optional stopping 章で必要な形が固まり次第、そこで埋める予定。
