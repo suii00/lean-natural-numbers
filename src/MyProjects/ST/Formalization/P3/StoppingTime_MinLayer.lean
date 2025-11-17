@@ -4,6 +4,12 @@ import MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton
 /-!
 # StoppingTime_MinLayer
 
+このモジュールは構造塔アプローチで停止時間を扱うための最小骨格を提供する。
+
+* 構造塔 `StructureTowerMin` とフィルトレーション `SigmaAlgebraFiltrationWithCovers` の橋渡し
+* 停止時間/停止集合/停止 σ-代数/停止フィルトレーション核の定義
+* 後続の optional stopping に向けた停止過程 `stopped` の純粋関数レベル定義
+
 `SigmaAlgebraTower_Skeleton.lean` で構築したフィルトレーション/構造塔を
 停止時間へ適用する最初のステップ。
 
@@ -241,7 +247,8 @@ lemma truncateStoppingTime_le (ℱ : Filtration Ω) (τ : StoppingTime ℱ)
   dsimp [truncateStoppingTime]
   simpa using min_le_min le_rfl hnm
 
-/-- 停止フィルトレーション（covers なしの核）。 -/
+/-- 停止時間 `τ` に対応する停止フィルトレーションの「核」。
+`Gₙ := StoppedSigmaAlgebra ℱ (τ ∧ n)` だけを保持し、covers は要求しない。 -/
 def stoppedFiltrationCore (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
     SigmaAlgebraFiltration.Core (Ω := Ω) (ι := ℕ) where
   𝓕 n := StoppedSigmaAlgebra ℱ (truncateStoppingTime ℱ τ n)
@@ -322,6 +329,24 @@ lemma stoppingSet_measurable_in_stoppedFiltrationCore (ℱ : Filtration Ω)
         @MeasurableSet Ω (ℱ.base.𝓕 k) {ω : Ω | τ.τ ω ≤ n} :=
       ℱ.base.mono hnk _ hmeas
     simpa [hEq] using hmeas'
+
+/-- 停止過程（純粋に関数レベルの定義）。 -/
+def stopped {β : Type*} (X : ℕ → Ω → β) (τ : Ω → ℕ) :
+    ℕ → Ω → β :=
+  fun n ω => X (Nat.min n (τ ω)) ω
+
+/-- 停止時刻より前では元の過程と一致する。 -/
+lemma stopped_eq_of_le {β : Type*} (X : ℕ → Ω → β) (τ : Ω → ℕ)
+    {n : ℕ} {ω : Ω} (hn : n ≤ τ ω) :
+    stopped X τ n ω = X n ω := by
+  simp [stopped, Nat.min_eq_left hn]
+
+/-- 停止時刻以降では値が固定される。 -/
+lemma stopped_const_of_ge {β : Type*} (X : ℕ → Ω → β) (τ : Ω → ℕ)
+    {n m : ℕ} {ω : Ω} (hτ : τ ω ≤ n) (hnm : n ≤ m) :
+    stopped X τ m ω = stopped X τ n ω := by
+  have hτm : τ ω ≤ m := le_trans hτ hnm
+  simp [stopped, Nat.min_eq_right hτ, Nat.min_eq_right hτm]
 /-! ## TODO: 停止過程・オプショナル停止への接続 -/
 
 /-
@@ -353,3 +378,10 @@ example {Ω : Type*} [MeasurableSpace Ω]
   simpa using
     StructureTowerProbability.stoppingSet_measurable_in_stoppedFiltrationCore
       (ℱ := ℱ) (τ := τ) n
+
+example {Ω : Type*} [MeasurableSpace Ω]
+    (X : ℕ → Ω → ℕ) (τ : Ω → ℕ) (ω : Ω) :
+    StructureTowerProbability.stopped X τ 0 ω = X 0 ω := by
+  simpa using
+    StructureTowerProbability.stopped_eq_of_le
+      (X := X) (τ := τ) (n := 0) (ω := ω) (hn := Nat.zero_le _)

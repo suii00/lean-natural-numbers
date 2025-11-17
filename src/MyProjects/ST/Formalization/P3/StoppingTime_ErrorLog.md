@@ -46,3 +46,12 @@
 - 修正が正しい理由：交差集合に入る証明を正しく分解して扱えば、Lean が期待する `ω ∈ {τ ≤ n}` を得られ、`simp [hEq]` で停止集合の可測性を証明できる。`covers` を TODO として明示しつつ `mono` を確保することで、停止フィルトレーションを利用した API（停止集合の可測性や包含補題）を安全に使える。
 - 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 約 6.2s、`covers` の `sorry` と Skeleton 由来の警告のみ）。
 - どういう意図でこの実装に至ったかメモ：停止フィルトレーションを Structure Tower の文脈でも扱えるようにし、`Gₙ := F_{τ∧n}` が Lean 上で明確なオブジェクトになるように最小限の API を整備した。`covers` は optional stopping 章で必要な形が固まり次第、`stoppedFiltrationCore` を拡張する形で追加する予定。
+
+## エラー修正ログ (2025-11-18 正午)
+
+- エラー概要：モジュール docstring 追加と停止過程 example を入れた際、新しい example 内で `[MeasurableSpace Ω]` を仮定せずに `stopped_eq_of_le` を使用したため、Lean が `MeasurableSpace Ω` を推論できずビルドが失敗。
+- 原因：ファイル全体では `[MeasurableSpace Ω]` をセクション変数として固定しているが、example ではローカルに `Ω` だけを仮定していたため、補題適用時に必要なインスタンスが scope 外になっていた。
+- 修正内容：example に `[MeasurableSpace Ω]` を追加して、停止過程補題が要求するインスタンスを明示。併せて、`stoppedFiltrationCore` とモジュール全体の docstring を整え、構造塔→停止時間→停止フィルトレーション→停止過程という導線をコメントレベルで説明した。
+- 修正が正しい理由：例示でも `[MeasurableSpace Ω]` を前提に置けば、`stopped_eq_of_le` をそのまま適用でき、Lean の型クラス解決が成立する。docstring の追加はコードの挙動に影響せず、モジュールの目的を明文化することで将来の改修時に判断材料を残せる。
+- 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 約 6.8s、既知の unused section variable 警告のみ）。
+- どういう意図でこの実装に至ったかメモ：StoppingTime_MinLayer を「構造塔⇄停止時間⇄停止過程」の基礎モジュールとして完成形に近づけ、TeX 章や optional stopping への橋渡し資料として使いやすくするため。
