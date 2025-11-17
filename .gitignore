@@ -27,3 +27,4 @@ node_modules/
 *.aux
 *.fdb_latexmk
 *.out
+*.toc
