@@ -1,0 +1,52 @@
+\contentsline {section}{\numberline {1}導入：なぜ構造塔なのか}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}数学における「構造」の統一的理解}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}構造塔：階層性の形式化}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}構造塔の数学的定義}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}形式的定義}{3}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}定義の直観的理解}{3}{subsection.2.2}%
+\contentsline {section}{\numberline {3}具体例1：整数の絶対値による構造塔}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}構成}{4}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}視覚化}{4}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Lean 4 での実装}{4}{subsection.3.3}%
+\contentsline {section}{\numberline {4}具体例2：有限集合の濃度による構造塔}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}構成}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}視覚化}{6}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}重要な定理}{6}{subsection.4.3}%
+\contentsline {section}{\numberline {5}具体例3：部分群の包含関係による構造塔}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}群論の復習}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}構成}{7}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}視覚化（整数加法群の例）}{7}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Lean 4 での実装}{8}{subsection.5.4}%
+\contentsline {section}{\numberline {6}具体例4：2の冪による構造塔}{9}{section.6}%
+\contentsline {subsection}{\numberline {6.1}構成}{9}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}重要な補題}{9}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}視覚化}{9}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Bourbaki的母構造との対応}{10}{section.7}%
+\contentsline {subsection}{\numberline {7.1}3つの母構造における構造塔}{10}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}母構造の組み合わせ}{10}{subsection.7.2}%
+\contentsline {subsubsection}{\numberline {7.2.1}順序位相空間}{10}{subsubsection.7.2.1}%
+\contentsline {subsubsection}{\numberline {7.2.2}位相群}{10}{subsubsection.7.2.2}%
+\contentsline {section}{\numberline {8}圏論的視点：構造塔の射}{11}{section.8}%
+\contentsline {subsection}{\numberline {8.1}構造塔間の射}{11}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}具体例：絶対値から濃度への写像}{11}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}関手性}{11}{subsection.8.3}%
+\contentsline {section}{\numberline {9}応用と展望}{12}{section.9}%
+\contentsline {subsection}{\numberline {9.1}測度論への応用}{12}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}確率論への応用（フィルトレーション）}{12}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}代数幾何への応用}{12}{subsection.9.3}%
+\contentsline {section}{\numberline {10}Lean 4 による形式化の意義}{13}{section.10}%
+\contentsline {subsection}{\numberline {10.1}なぜ形式化するのか}{13}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Lean 4 の特徴}{13}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}本プロジェクトの成果}{13}{subsection.10.3}%
+\contentsline {section}{\numberline {11}演習問題}{14}{section.11}%
+\contentsline {subsection}{\numberline {11.1}基礎問題}{14}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}発展問題}{14}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}研究課題}{14}{subsection.11.3}%
+\contentsline {section}{\numberline {12}まとめ}{15}{section.12}%
+\contentsline {subsection}{\numberline {12.1}本稿で学んだこと}{15}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}構造塔の本質}{15}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}今後の展望}{15}{subsection.12.3}%
+\contentsline {section}{\numberline {付録A}Lean 4 基本文法ガイド}{18}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}構造体の定義}{18}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}証明の基本タクティク}{18}{subsection.A.2}%
+\contentsline {section}{\numberline {付録B}用語集}{18}{appendix.B}%
