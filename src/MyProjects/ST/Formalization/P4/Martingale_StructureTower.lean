@@ -2,6 +2,7 @@ import Mathlib.Probability.ConditionalExpectation
 import Mathlib.Probability.Process.Filtration
 import Mathlib.Probability.Process.Adapted
 import Mathlib.MeasureTheory.Function.LocallyIntegrable
+import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 
 /-
 # Martingale_StructureTower
@@ -21,8 +22,8 @@ open MeasureTheory
 
 namespace StructureTowerProbability
 
-/-- 以降の章では mathlib の `Filtration` をそのまま利用する（添字は ℕ）。 -/
-abbrev Filtration (Ω : Type*) [m : MeasurableSpace Ω] :=
+/-- 以降の章では mathlib のフィルトレーションを `MLFiltration` という別名で利用する（添字は ℕ）。 -/
+abbrev MLFiltration (Ω : Type*) [m : MeasurableSpace Ω] :=
   MeasureTheory.Filtration ℕ m
 
 /-- 離散時間実数値過程。 -/
@@ -56,7 +57,7 @@ mathlib 既存の `condexp μ (ℱ.𝓕 n)` を明示的に呼び出すだけだ
 -/
 noncomputable def condExp
     (μ : Measure Ω) [IsFiniteMeasure μ]
-    (ℱ : Filtration Ω) (n : ℕ) (f : Ω → ℝ) : Ω → ℝ :=
+    (ℱ : MLFiltration Ω) (n : ℕ) (f : Ω → ℝ) : Ω → ℝ :=
   MeasureTheory.condExp (ℱ n) μ f
 
 /--
@@ -70,7 +71,7 @@ noncomputable def condExp
 -/
 structure Martingale
     (μ : Measure Ω) [IsFiniteMeasure μ] where
-  filtration : Filtration Ω
+  filtration : MLFiltration Ω
   process : Process Ω
   adapted :
       MeasureTheory.Adapted filtration process
@@ -85,7 +86,17 @@ namespace Martingale
 
 variable {μ : Measure Ω} [IsFiniteMeasure μ]
 
-noncomputable def const (ℱ : Filtration Ω) (c : ℝ) : Martingale μ := by
+/-- 各時刻 `n` の可積分性を取り出す補題。 -/
+lemma integrable_n (M : Martingale μ) (n : ℕ) :
+    Integrable (M.process n) μ :=
+  M.integrable n
+
+/-- 適合性（`StronglyMeasurable[ℱ n]`）をそのまま取り出す補題。 -/
+lemma adapted_stronglyMeasurable (M : Martingale μ) (n : ℕ) :
+    StronglyMeasurable[M.filtration n] (M.process n) :=
+  M.adapted n
+
+noncomputable def const (ℱ : MLFiltration Ω) (c : ℝ) : Martingale μ := by
   classical
   refine
     { filtration := ℱ
@@ -189,6 +200,10 @@ noncomputable def smul (a : ℝ) (M : Martingale μ) : Martingale μ := by
 lemma smul_filtration (a : ℝ) (M : Martingale μ) :
     (smul (μ := μ) a M).filtration = M.filtration :=
   rfl
+
+/-- マルチンゲールを停止時間 `τ` で止めたパスワイズ過程。 -/
+def stoppedProcess (M : Martingale μ) (τ : Ω → ℕ) : Process Ω :=
+  StructureTowerProbability.stopped M.process τ
 
 /-- マルチンゲールの「マルチンゲール性」をそのまま取り出す補題。 -/
 lemma condExp_next (M : Martingale μ) (n : ℕ) :
