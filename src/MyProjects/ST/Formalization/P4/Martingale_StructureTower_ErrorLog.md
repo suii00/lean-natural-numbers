@@ -58,3 +58,11 @@
 - どういう意図でこの実装に至ったか：Optional stopping の有界停止時間版へ進むために、停止過程自体がマルチンゲールになることを sorry なしで確立し、P3 の停止時間 API と P4 のマルチンゲール理論を橋渡しする基盤を固めた。
 - どういう意図でこの実装に至ったか：Optional stopping の有界停止時間版へ進むために、停止過程自体がマルチンゲールになることを sorry なしで確立し、P3 の停止時間 API と P4 のマルチンゲール理論を橋渡しする基盤を固めた。
 - どういう意図でこの実装に至ったか：Optional stopping の準備として停止過程がマルチンゲールになる基本結果を sorry なしで確立し、P3 の停止時間 API と P4 のマルチンゲール理論を橋渡しするため。
+## エラー修正ログ (2025-11-18 夜・その2)
+
+- エラー概要：`stoppedProcess_increment_indicator` で `Set.indicator_of_not_mem`（deprecated）と `simpa` を使い続けていたため、linter が常に警告を出していた。
+- 原因：Mathlib 側で lemma 名が `indicator_of_notMem` に更新されたのに追随できておらず、証明も単なる書き換えで済むのに `simpa` を使っていた。
+- 修正内容：`P4/Martingale_StructureTower.lean:263-275` で `Set.indicator_of_notMem` に差し替え、書き換え部分を `simp` だけで済む形に整理して linter 指摘（deprecated + unnecessarySimpa）を解消。
+- 修正が正しい理由：`Set.indicator_of_notMem` は現行 Mathlib の lemma で、集合外では 0 になる性質を直接使える。`simp` のみでゴールが閉じるため、不要な `simpa` を排除し証明が純粋な書き換えになった。
+- 動作確認：`lake build MyProjects.ST.Formalization.P4.Martingale_StructureTower`（既知の unused-section 警告のみで成功）。
+- どういう意図でこの実装に至ったか：主要証明は固まっているので、残った linter 警告を潰して optional stopping の次段階に集中できるよう前掃除を行った。

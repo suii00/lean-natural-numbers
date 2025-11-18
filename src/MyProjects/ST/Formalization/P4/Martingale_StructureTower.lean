@@ -270,7 +270,7 @@ lemma stoppedProcess_increment_indicator (M : Martingale μ) (τ : Ω → ℕ)
   by_cases hτ : τ ω ≤ n
   · have : ω ∉ {ω : Ω | τ ω > n} := by
       simpa [Set.mem_setOf_eq, not_lt.mpr hτ]
-    simpa [Set.indicator_of_not_mem, this, hτ] using h
+    simpa [Set.indicator_of_notMem, this, hτ] using h
   · have : ω ∈ {ω : Ω | τ ω > n} := by
       simpa [Set.mem_setOf_eq] using not_le.mp hτ
     simpa [Set.indicator_of_mem, this, hτ] using h
