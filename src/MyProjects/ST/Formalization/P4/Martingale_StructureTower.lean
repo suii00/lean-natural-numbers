@@ -315,6 +315,7 @@ noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
   · intro n
     simpa [Martingale.stoppedProcess] using h_stop_int n
   · intro n
+    classical
     have h_stop_int_n := h_stop_int n
     have h_stop_int_succ := h_stop_int (n + 1)
     have h_diff_int :
@@ -323,17 +324,29 @@ noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
             M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω) μ :=
       h_stop_int_succ.sub h_stop_int_n
     have h_cond_split :
-        condExp μ M.filtration n (M.stoppedProcess τ n) +
+        condExp μ M.filtration n (M.stoppedProcess τ (n + 1)) =ᵐ[μ]
+          condExp μ M.filtration n (M.stoppedProcess τ n) +
             condExp μ M.filtration n
               (fun ω =>
-                M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
-          =ᵐ[μ]
-            condExp μ M.filtration n (M.stoppedProcess τ (n + 1)) := by
-      simpa [condExp, Pi.add_apply, sub_eq_add_neg, Martingale.stoppedProcess]
-        using
-          (MeasureTheory.condExp_add
+                M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω) := by
+      have h_add :=
+        (MeasureTheory.condExp_add
             (μ := μ) (m := M.filtration n)
             (hf := h_stop_int_n) (hg := h_diff_int))
+      have h_sum :
+          (fun ω =>
+              M.stoppedProcess τ n ω +
+                (M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)) =
+            fun ω => M.stoppedProcess τ (n + 1) ω := by
+        funext ω; simp
+      have h_sum_ae :
+          (fun ω =>
+              M.stoppedProcess τ n ω +
+                (M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)) =ᵐ[μ]
+            fun ω => M.stoppedProcess τ (n + 1) ω :=
+        Filter.EventuallyEq.of_eq h_sum
+      have h_congr := MeasureTheory.condExp_congr_ae h_sum_ae
+      exact h_congr.trans h_add
     have h_stop_meas :
         StronglyMeasurable[M.filtration n] (M.stoppedProcess τ n) := by
       simpa [Martingale.stoppedProcess] using h_stop_strong n
@@ -431,12 +444,12 @@ noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
                 (fun ω =>
                   M.process (n + 1) ω - M.process n ω) ω)
           =ᵐ[μ]
-            fun ω =>
-              Set.indicator {ω : Ω | τ ω > n}
+        fun ω =>
+          Set.indicator {ω : Ω | τ ω > n}
+            (fun ω =>
+              condExp μ M.filtration n
                 (fun ω =>
-                  condExp μ M.filtration n
-                    (fun ω =>
-                      M.process (n + 1) ω - M.process n ω) ω) := by
+                  M.process (n + 1) ω - M.process n ω) ω) ω := by
       simpa [condExp] using
         (MeasureTheory.condExp_indicator
           (μ := μ) (m := M.filtration n)
@@ -468,14 +481,14 @@ noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
                     (fun ω =>
                       M.process (n + 1) ω - M.process n ω) ω) ω) =
            ᵐ[μ]
-              fun ω =>
-                Set.indicator {ω : Ω | τ ω > n}
-                  (fun _ : Ω => (0 : ℝ)) ω := by
+            fun ω =>
+              Set.indicator {ω : Ω | τ ω > n}
+                (fun _ : Ω => (0 : ℝ)) ω := by
         refine hΔ_cond.mono ?_
         intro ω hω
         by_cases hmem : ω ∈ {ω : Ω | τ ω > n}
         · simp [Set.indicator_of_mem, hmem, hω]
-        · simp [Set.indicator_of_not_mem, hmem]
+        · simp [Set.indicator_of_notMem, hmem]
       have h_indicator_zero_eq :
           (fun ω =>
               Set.indicator {ω : Ω | τ ω > n}
@@ -483,15 +496,20 @@ noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
             = fun _ => 0 := by
         funext ω; by_cases hmem : ω ∈ {ω : Ω | τ ω > n}; simp [hmem]
       exact h_indicator_zero.trans (Filter.EventuallyEq.of_eq h_indicator_zero_eq)
-    refine
-      h_cond_split.trans
-        ((h_cond_stop.add h_cond_delta).trans ?_)
-    have h_final :
+    have h_rhs :
         (fun ω =>
-            M.stoppedProcess τ n ω + 0)
-          = fun ω => M.stoppedProcess τ n ω := by
-      funext ω; simp
-    exact Filter.EventuallyEq.of_eq h_final
+            condExp μ M.filtration n (M.stoppedProcess τ n) ω +
+              condExp μ M.filtration n
+                (fun ω => M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω) ω)
+          =ᵐ[μ] M.stoppedProcess τ n := by
+      have h_sum := (h_cond_stop.add h_cond_delta)
+      refine h_sum.trans ?_
+      have h_final :
+          (fun ω => M.stoppedProcess τ n ω + 0) =
+            fun ω => M.stoppedProcess τ n ω := by
+        funext ω; simp
+      exact Filter.EventuallyEq.of_eq h_final
+    exact h_cond_split.trans h_rhs
 
 end Martingale
 
@@ -510,3 +528,4 @@ end Martingale
 -/
 
 end StructureTowerProbability
+
