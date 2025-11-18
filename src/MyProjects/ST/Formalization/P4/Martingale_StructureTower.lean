@@ -28,6 +28,24 @@ abbrev Filtration (Ω : Type*) [m : MeasurableSpace Ω] :=
 abbrev Process (Ω : Type*) :=
   ℕ → Ω → ℝ
 
+namespace Process
+
+variable {Ω}
+
+/-- 定数過程。 -/
+def const (c : ℝ) : Process Ω :=
+  fun _ _ => c
+
+/-- 和。 -/
+def add (X Y : Process Ω) : Process Ω :=
+  fun n ω => X n ω + Y n ω
+
+/-- スカラー倍。 -/
+def smul (a : ℝ) (X : Process Ω) : Process Ω :=
+  fun n ω => a * X n ω
+
+end Process
+
 variable {Ω : Type*} [MeasurableSpace Ω]
 
 /--
