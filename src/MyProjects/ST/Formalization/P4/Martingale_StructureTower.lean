@@ -1,5 +1,6 @@
 import Mathlib.Probability.ConditionalExpectation
 import Mathlib.Probability.Process.Filtration
+import Mathlib.Probability.Process.Adapted
 import Mathlib.MeasureTheory.Function.LocallyIntegrable
 
 /-
@@ -72,7 +73,7 @@ structure Martingale
   filtration : Filtration Ω
   process : Process Ω
   adapted :
-      ∀ n, StronglyMeasurable[filtration n] (process n)
+      MeasureTheory.Adapted filtration process
   integrable :
       ∀ n, Integrable (process n) μ
   martingale :
@@ -83,6 +84,110 @@ structure Martingale
 namespace Martingale
 
 variable {μ : Measure Ω} [IsFiniteMeasure μ]
+
+/-- `Martingale` のそれぞれの時刻での可積分性。 -/
+lemma integrable_n (M : Martingale μ) (n : ℕ) :
+    Integrable (M.process n) μ :=
+  M.integrable n
+
+/-- `Martingale` の適合性を `StronglyMeasurable[ℱ n]` として取り出す。 -/
+lemma adapted_stronglyMeasurable (M : Martingale μ) (n : ℕ) :
+    StronglyMeasurable[M.filtration n] (M.process n) :=
+  M.adapted n
+
+/-- 定数過程は任意のフィルトレーションについてマルチンゲール。 -/
+noncomputable def const (ℱ : Filtration Ω) (c : ℝ) : Martingale μ := by
+  classical
+  refine
+    { filtration := ℱ
+      process := Process.const (Ω := Ω) c
+      adapted := by
+        simpa [Process.const] using
+          (MeasureTheory.adapted_const (β := ℝ) ℱ c)
+      integrable := by
+        intro n
+        change Integrable (fun _ : Ω => c) μ
+        exact integrable_const (μ := μ) c
+      martingale := by
+        intro n
+        have hconst :
+            MeasureTheory.condExp (ℱ n) μ (fun _ : Ω => c)
+              = fun _ : Ω => c :=
+          MeasureTheory.condExp_const (μ := μ) (hm := ℱ.le n) c
+        exact
+          Filter.EventuallyEq.of_eq <|
+            by simpa [Process.const, condExp] using hconst }
+
+/-- マルチンゲールの和。2 つのマルチンゲールが同じフィルトレーションに従うとき定義できる。 -/
+noncomputable def add (M N : Martingale μ)
+    (hℱ : M.filtration = N.filtration) : Martingale μ := by
+  classical
+  refine
+    { filtration := M.filtration
+      process := Process.add M.process N.process
+      adapted := by
+        have hN :
+            MeasureTheory.Adapted M.filtration N.process := by
+          simpa [hℱ] using N.adapted
+        simpa [Process.add] using
+          M.adapted.add hN
+      integrable := ?_
+      martingale := ?_ }
+  · intro n
+    simpa [Process.add] using
+      (M.integrable n).add (N.integrable n)
+  · intro n
+    have h_add :
+        condExp μ M.filtration n
+            (fun ω => M.process (n + 1) ω + N.process (n + 1) ω)
+          =ᵐ[μ]
+            fun ω =>
+              condExp μ M.filtration n (M.process (n + 1)) ω +
+                condExp μ M.filtration n (N.process (n + 1)) ω := by
+      simpa [condExp, Process.add] using
+        (MeasureTheory.condExp_add (μ := μ) (m := M.filtration n)
+          (hf := M.integrable (n + 1))
+          (hg := N.integrable (n + 1)))
+    have h_sum :
+        (fun ω =>
+            condExp μ M.filtration n (M.process (n + 1)) ω +
+              condExp μ M.filtration n (N.process (n + 1)) ω)
+          =ᵐ[μ]
+          fun ω => M.process n ω + N.process n ω := by
+      refine (M.martingale n).add ?_
+      simpa [condExp, hℱ] using N.martingale n
+    refine h_add.trans ?_
+    simpa [Process.add, condExp] using h_sum
+
+/-- マルチンゲールのスカラー倍。 -/
+noncomputable def smul (a : ℝ) (M : Martingale μ) : Martingale μ := by
+  classical
+  refine
+    { filtration := M.filtration
+      process := Process.smul a M.process
+      adapted := by
+        simpa [Process.smul] using
+          M.adapted.smul a
+      integrable := ?_
+      martingale := ?_ }
+  · intro n
+    simpa [Process.smul] using
+      (M.integrable n).smul a
+  · intro n
+    have h_smul :
+        condExp μ M.filtration n (fun ω => a * M.process (n + 1) ω)
+          =ᵐ[μ]
+            fun ω => a * condExp μ M.filtration n (M.process (n + 1)) ω := by
+      simpa [Process.smul, condExp] using
+        (MeasureTheory.condExp_smul (μ := μ) (c := a)
+          (m := M.filtration n) (f := M.process (n + 1)))
+    have h_scaled :
+        (fun _ : Ω => a) =ᵐ[μ] fun _ : Ω => a :=
+      Filter.EventuallyEq.rfl
+    have h_target :=
+        h_scaled.smul (M.martingale n)
+    refine h_smul.trans ?_
+    simpa [Process.smul, condExp] using h_target
 
 /-- マルチンゲールの「マルチンゲール性」をそのまま取り出す補題。 -/
 lemma condExp_next (M : Martingale μ) (n : ℕ) :
