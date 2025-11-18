@@ -1,4 +1,8 @@
 import Mathlib.MeasureTheory.MeasurableSpace.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.L1
+import Mathlib.MeasureTheory.Integral.Bochner.VitaliCaratheodory
+import Mathlib.Probability.Process.Filtration
 import MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton
 
 /-!
@@ -400,6 +404,46 @@ lemma value_eq_valueAt_of_le (SP : StoppedProcess ℱ β)
   exact stopped_eq_atStoppingTime SP.X SP.τ.τ hN
 
 end StoppedProcess
+
+/-
+## 測度論モジュールとの橋渡し (下準備)
+
+`StoppingTime_MinLayer` は構造塔と停止時間の骨格を担う一方、P4 側では
+mathlib 標準のフィルトレーション/過程（`MeasureTheory.Filtration`、`Adapted`）を扱う。
+そこで、停止過程 `stopped` が可測性・可積分性を保つという命題の**型**だけを先に配置し、
+証明は今後の optional stopping 章で埋める方針とする。
+-/
+section MeasureBridge
+
+open MeasureTheory
+
+variable {Ω : Type*} [m : MeasurableSpace Ω] {μ : Measure Ω}
+
+/-- TODO(bridge_adapted): 停止時集合 `{τ ≤ n}` の可測性から、停止過程も適合
+(`StronglyMeasurable` 版) であることを示す。 -/
+lemma stopped_stronglyMeasurable_of_stoppingSets
+    (ℱ : MeasureTheory.Filtration ℕ m)
+    (X : ℕ → Ω → ℝ)
+    (hX : ∀ n, StronglyMeasurable[ℱ n] (X n))
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω ≤ n}) :
+    ∀ n, StronglyMeasurable[ℱ n]
+      (StructureTowerProbability.stopped X τ n) := by
+  -- TODO(bridge_adapted): 分割 `{τ = k}`・`{τ > n}` による有限貼り合わせで証明する。
+  sorry
+
+/-- TODO(bridge_integrable): 有界停止時間の仮定から停止過程の各時刻が Integrable
+であることを示す。 -/
+lemma stopped_integrable_of_bdd
+    (X : ℕ → Ω → ℝ)
+    (hX : ∀ n, Integrable (X n) μ)
+    (τ : Ω → ℕ) (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    ∀ n, Integrable (StructureTowerProbability.stopped X τ n) μ := by
+  -- TODO(bridge_integrable): `{τ = k}` ごとの有限和表示を使って証明する。
+  sorry
+
+end MeasureBridge
+
 /-! ## TODO: 停止過程・オプショナル停止への接続 -/
 
 /-
