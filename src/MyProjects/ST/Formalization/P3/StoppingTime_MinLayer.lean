@@ -460,8 +460,10 @@ private lemma stopped_indicator_split (X : ℕ → Ω → ℝ) (τ : Ω → ℕ)
             (fun k => Set.indicator {ω : Ω | τ ω = k} (X k) ω) = 0 := by
       refine Finset.sum_eq_zero fun k hk => ?_
       have hk_le : k ≤ n := Nat.lt_succ_iff.mp (Finset.mem_range.mp hk)
+      have hklt : k < τ ω := lt_of_le_of_lt hk_le hgt
+      have hkne : τ ω ≠ k := (ne_of_lt hklt).symm
       have : ω ∉ {ω : Ω | τ ω = k} := by
-        simp [Set.mem_setOf_eq, lt_of_le_of_lt hk_le hgt]
+        simp [Set.mem_setOf_eq, hkne]
       simp [Set.indicator_of_notMem, this]
     have hstop :
         StructureTowerProbability.stopped X τ n ω = X n ω := by
@@ -500,6 +502,118 @@ private lemma stopped_indicator_sum_of_bdd (X : ℕ → Ω → ℝ) (τ : Ω →
   simpa [StructureTowerProbability.stopped, Nat.min_comm]
     using hsum.symm
 
+private lemma measurable_tau_eq_base (ℱ : MeasureTheory.Filtration ℕ m)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω ≤ n}) :
+    ∀ k, @MeasurableSet Ω (ℱ k) {ω : Ω | τ ω = k}
+  | 0 => by
+      have h := hτ 0
+      have hEq :
+          {ω : Ω | τ ω = 0} = {ω : Ω | τ ω ≤ 0} := by
+        ext ω; constructor <;> intro hω <;>
+          simpa [Set.mem_setOf_eq, Nat.le_zero] using hω
+      simpa [hEq] using h
+  | Nat.succ k => by
+      have h_le_succ := hτ (Nat.succ k)
+      have h_le_k :
+          @MeasurableSet Ω (ℱ (Nat.succ k)) {ω : Ω | τ ω ≤ k} :=
+        (ℱ.mono (Nat.le_succ k)) _ (hτ k)
+      have hEq :
+          {ω : Ω | τ ω = Nat.succ k}
+            = {ω : Ω | τ ω ≤ Nat.succ k}
+                ∩ {ω : Ω | τ ω ≤ k}ᶜ := by
+        ext ω; constructor
+        · intro hω
+          have hτeq : τ ω = Nat.succ k := by
+            simpa [Set.mem_setOf_eq] using hω
+          refine ⟨?_, ?_⟩
+          · simpa [Set.mem_setOf_eq, hτeq]
+          · have : ¬ τ ω ≤ k := by
+              intro hle
+              exact (Nat.not_succ_le_self k) (by simpa [hτeq] using hle)
+            simpa [Set.mem_setOf_eq, Set.mem_compl, hτeq] using this
+        · rintro ⟨hω₁, hω₂⟩
+          have hnot : ¬ τ ω ≤ k := by
+            simpa [Set.mem_setOf_eq, Set.mem_compl] using hω₂
+          have hklt : k < τ ω := lt_of_not_ge hnot
+          have hle : τ ω ≤ Nat.succ k := by
+            simpa [Set.mem_setOf_eq] using hω₁
+          have hτeq : τ ω = Nat.succ k :=
+            le_antisymm hle (Nat.succ_le_of_lt hklt)
+          simpa [Set.mem_setOf_eq, hτeq]
+      simpa [hEq] using h_le_succ.inter h_le_k.compl
+
+private lemma measurable_tau_eq (ℱ : MeasureTheory.Filtration ℕ m)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω ≤ n})
+    {k n : ℕ} (hk : k ≤ n) :
+    @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω = k} :=
+  (ℱ.mono hk) _ ((measurable_tau_eq_base ℱ τ hτ) k)
+
+private lemma measurable_tau_gt (ℱ : MeasureTheory.Filtration ℕ m)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω ≤ n}) (n : ℕ) :
+    @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω > n} := by
+  have h_le := hτ n
+  have hEq :
+      {ω : Ω | τ ω > n}
+        = ({ω : Ω | τ ω ≤ n})ᶜ := by
+    ext ω; simp [Set.mem_setOf_eq, not_le]
+  simpa [hEq] using h_le.compl
+
+private lemma stronglyMeasurable_finset_sum_aux
+    (ℱ : MeasureTheory.Filtration ℕ m) (n : ℕ)
+    (f : ℕ → Ω → ℝ) (s : Finset ℕ)
+    (hf : ∀ k ∈ s, StronglyMeasurable[ℱ n] (f k)) :
+    StronglyMeasurable[ℱ n]
+      (fun ω => s.sum fun k => f k ω) := by
+  classical
+  revert hf
+  refine Finset.induction_on s ?base ?step
+  · intro hf
+    have hconst :
+        StronglyMeasurable[ℱ n] (fun _ : Ω => (0 : ℝ)) :=
+      stronglyMeasurable_const
+    simpa using hconst
+  · intro a s ha ih hf
+    have hfa : StronglyMeasurable[ℱ n] (f a) :=
+      hf a (Finset.mem_insert_self _ _)
+    have hfs :
+        StronglyMeasurable[ℱ n]
+          (fun ω => s.sum fun k => f k ω) :=
+      ih fun k hk => hf k (Finset.mem_insert_of_mem hk)
+    have :
+        StronglyMeasurable[ℱ n]
+          (fun ω => f a ω + s.sum fun k => f k ω) :=
+      hfa.add hfs
+    simpa [Finset.sum_insert, ha] using this
+
+private lemma integrable_finset_sum_aux
+    (μ : Measure Ω) (f : ℕ → Ω → ℝ) (s : Finset ℕ)
+    (hf : ∀ k ∈ s, Integrable (f k) μ) :
+    Integrable (fun ω => s.sum fun k => f k ω) μ := by
+  classical
+  revert hf
+  refine Finset.induction_on s ?base ?step
+  · intro hf
+    have hconst :
+        Integrable (fun _ : Ω => (0 : ℝ)) μ :=
+      by
+        simpa using
+          (integrable_zero : Integrable (fun _ : Ω => (0 : ℝ)) μ)
+    simpa using hconst
+  · intro a s ha ih hf
+    have hfa : Integrable (f a) μ :=
+      hf a (Finset.mem_insert_self _ _)
+    have hfs :
+        Integrable (fun ω => s.sum fun k => f k ω) μ :=
+      ih fun k hk => hf k (Finset.mem_insert_of_mem hk)
+    have :
+        Integrable
+          (fun ω => f a ω + s.sum fun k => f k ω) μ :=
+      hfa.add hfs
+    simpa [Finset.sum_insert, ha] using this
+
 /-- 停止時集合 `{τ ≤ n}` の可測性から、停止過程も `ℱ`-適合 (`StronglyMeasurable`) である。 -/
 lemma stopped_stronglyMeasurable_of_stoppingSets
     (ℱ : MeasureTheory.Filtration ℕ m)
@@ -511,52 +625,14 @@ lemma stopped_stronglyMeasurable_of_stoppingSets
       (StructureTowerProbability.stopped X τ n) := by
   classical
   intro n
-  have hle :
-      ∀ k ≤ n,
-        @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω ≤ k} := by
-    intro k hk
-    exact (ℱ.mono hk) _ (hτ k)
   have h_eq :
       ∀ k ≤ n,
         @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω = k} := by
     intro k hk
-    cases' k with k
-    · have := hle 0 (Nat.zero_le _)
-      have hEq :
-          {ω : Ω | τ ω = 0} = {ω : Ω | τ ω ≤ 0} := by
-        ext ω; constructor <;> intro hω <;>
-          simpa [Set.mem_setOf_eq, Nat.le_zero] using hω
-      simpa [hEq] using this
-    · have hsucc : Nat.succ k ≤ n := hk
-      have hk_lt : k < n := lt_of_lt_of_le (Nat.lt_succ_self k) hsucc
-      have hk_le : k ≤ n := Nat.le_of_lt hk_lt
-      have h_le_succ := hle (Nat.succ k) hsucc
-      have h_le_k := hle k hk_le
-      have hEq :
-          {ω : Ω | τ ω = Nat.succ k}
-            = {ω : Ω | τ ω ≤ Nat.succ k}
-                \ {ω : Ω | τ ω ≤ k} := by
-        ext ω; constructor
-        · intro hω
-          refine ⟨?_, ?_⟩
-          · simpa [Set.mem_setOf_eq, hω]
-          · have : ¬ τ ω ≤ k := by
-              intro hle'
-              exact (Nat.not_succ_le_self k) (by simpa [hω] using hle')
-            simpa [Set.mem_setOf_eq] using this
-        · rintro ⟨hω₁, hω₂⟩
-          have hnot : ¬ τ ω ≤ k := by
-            simpa [Set.mem_setOf_eq] using hω₂
-          have hklt' : k < τ ω := lt_of_not_ge hnot
-          have : τ ω = Nat.succ k :=
-            le_antisymm (by simpa [Set.mem_setOf_eq] using hω₁)
-              (Nat.succ_le_of_lt hklt')
-          simpa [Set.mem_setOf_eq, this]
-      simpa [hEq] using h_le_succ.diff h_le_k
+    simpa using measurable_tau_eq (ℱ := ℱ) (τ := τ) (hτ := hτ) hk
   have h_gt :
       @MeasurableSet Ω (ℱ n) {ω : Ω | τ ω > n} := by
-    have := (hle n (le_rfl)).compl
-    simpa [Set.compl_setOf, Set.mem_setOf_eq, not_le] using this
+    simpa using measurable_tau_gt (ℱ := ℱ) (τ := τ) (hτ := hτ) n
   have hX_le :
       ∀ k ≤ n, StronglyMeasurable[ℱ n] (X k) := by
     intro k hk
@@ -571,17 +647,24 @@ lemma stopped_stronglyMeasurable_of_stoppingSets
           (Finset.range (n + 1)).sum
             (fun k =>
               Set.indicator {ω : Ω | τ ω = k} (X k) ω)) := by
-    have hterm :
-        ∀ k,
-          k ∈ Finset.range (n + 1) →
-            StronglyMeasurable[ℱ n]
-              (fun ω =>
-                Set.indicator {ω : Ω | τ ω = k} (X k) ω) := by
-      intro k hk
-      have hk_le : k ≤ n := Nat.lt_succ_iff.mp (Finset.mem_range.mp hk)
-      exact (hX_le k hk_le).indicator (h_eq k hk_le)
-    exact StronglyMeasurable.finset_sum fun k hk => hterm k hk
-  simpa [stopped_indicator_split] using hfirst.add hsum
+    refine stronglyMeasurable_finset_sum_aux
+        (ℱ := ℱ) (n := n)
+        (f :=
+          fun k ω =>
+            Set.indicator {ω : Ω | τ ω = k} (X k) ω)
+        (s := Finset.range (n + 1)) ?_
+    intro k hk
+    have hk_le : k ≤ n := Nat.lt_succ_iff.mp (Finset.mem_range.mp hk)
+    exact (hX_le k hk_le).indicator (h_eq k hk_le)
+  have hsplit :
+      StructureTowerProbability.stopped X τ n =
+        fun ω =>
+          Set.indicator {ω : Ω | τ ω > n} (X n) ω +
+            (Finset.range (n + 1)).sum
+              (fun k =>
+                Set.indicator {ω : Ω | τ ω = k} (X k) ω) :=
+    stopped_indicator_split (X := X) (τ := τ) (n := n)
+  simpa [hsplit] using hfirst.add hsum
 
 /-- 有界停止時間の仮定のもとで、停止過程の各時刻が可積分となる。 -/
 lemma stopped_integrable_of_bdd
@@ -594,43 +677,13 @@ lemma stopped_integrable_of_bdd
     ∀ n, Integrable (StructureTowerProbability.stopped X τ n) μ := by
   classical
   obtain ⟨K, hK⟩ := hτ_bdd
-  have hτ_le :
-      ∀ n, @MeasurableSet Ω m {ω : Ω | τ ω ≤ n} := by
-    intro n
-    exact (ℱ.le n) _ (hτ n)
+  have hτ_eq_base :
+      ∀ k, @MeasurableSet Ω (ℱ k) {ω : Ω | τ ω = k} :=
+    measurable_tau_eq_base (ℱ := ℱ) (τ := τ) (hτ := hτ)
   have hτ_eq :
       ∀ k, @MeasurableSet Ω m {ω : Ω | τ ω = k} := by
     intro k
-    cases' k with k
-    · have := hτ_le 0
-      have hEq :
-          {ω : Ω | τ ω = 0} = {ω : Ω | τ ω ≤ 0} := by
-        ext ω; constructor <;> intro hω <;>
-          simpa [Set.mem_setOf_eq, Nat.le_zero] using hω
-      simpa [hEq] using this
-    · have h₁ := hτ_le (Nat.succ k)
-      have h₂ := hτ_le k
-      have hEq :
-          {ω : Ω | τ ω = Nat.succ k}
-            = {ω : Ω | τ ω ≤ Nat.succ k}
-                \ {ω : Ω | τ ω ≤ k} := by
-        ext ω; constructor
-        · intro hω
-          refine ⟨?_, ?_⟩
-          · simpa [Set.mem_setOf_eq, hω]
-          · have : ¬ τ ω ≤ k := by
-              intro hle
-              exact (Nat.not_succ_le_self k) (by simpa [hω] using hle)
-            simpa [Set.mem_setOf_eq] using this
-        · rintro ⟨hω₁, hω₂⟩
-          have hnot : ¬ τ ω ≤ k := by
-            simpa [Set.mem_setOf_eq] using hω₂
-          have hklt' : k < τ ω := lt_of_not_ge hnot
-          have : τ ω = Nat.succ k :=
-            le_antisymm (by simpa [Set.mem_setOf_eq] using hω₁)
-              (Nat.succ_le_of_lt hklt')
-          simpa [Set.mem_setOf_eq, this]
-      simpa [hEq] using h₁.diff h₂
+    exact (ℱ.le k) _ (hτ_eq_base k)
   intro n
   have hsum :
       Integrable
@@ -639,12 +692,25 @@ lemma stopped_integrable_of_bdd
             (fun k =>
               Set.indicator {ω : Ω | τ ω = k}
                 (X (Nat.min k n)) ω)) μ :=
-    Integrable.finset_sum fun k hk => by
-      have hk_meas := hτ_eq k
-      exact (hX (Nat.min k n)).indicator hk_meas
-  have hdecomp :=
+    by
+    refine integrable_finset_sum_aux
+        (μ := μ)
+        (f :=
+          fun k ω =>
+            Set.indicator {ω : Ω | τ ω = k}
+              (X (Nat.min k n)) ω)
+        (s := Finset.range (K + 1)) ?_
+    intro k hk
+    exact (hX (Nat.min k n)).indicator (hτ_eq k)
+  have hsplit :
+      StructureTowerProbability.stopped X τ n =
+        fun ω =>
+          (Finset.range (K + 1)).sum
+            (fun k =>
+              Set.indicator {ω : Ω | τ ω = k}
+                (X (Nat.min k n)) ω) :=
     stopped_indicator_sum_of_bdd (X := X) (τ := τ) (K := K) hK n
-  simpa [hdecomp] using hsum
+  simpa [hsplit] using hsum
 
 end MeasureBridge
 

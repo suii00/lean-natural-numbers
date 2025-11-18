@@ -55,3 +55,33 @@
 - 修正が正しい理由：例示でも `[MeasurableSpace Ω]` を前提に置けば、`stopped_eq_of_le` をそのまま適用でき、Lean の型クラス解決が成立する。docstring の追加はコードの挙動に影響せず、モジュールの目的を明文化することで将来の改修時に判断材料を残せる。
 - 動作確認：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（705 jobs / 約 6.8s、既知の unused section variable 警告のみ）。
 - どういう意図でこの実装に至ったかメモ：StoppingTime_MinLayer を「構造塔⇄停止時間⇄停止過程」の基礎モジュールとして完成形に近づけ、TeX 章や optional stopping への橋渡し資料として使いやすくするため。
+
+
+---
+
+### エラー修正ログ（2025-11-18）
+- **エラー概要**：`stopped_stronglyMeasurable_of_stoppingSets` と `stopped_integrable_of_bdd` で `{τ = k}` 可測性・有限和の `StronglyMeasurable/Integrable` ゴールが解決できず、`unknown tactic` および複数の `unsolved goals` が報告。`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer` が失敗。
+- **原因**：ブリッジ lemma がアウトラインのままで、`{τ = k}` を補集合／差集合で処理する補題や `funext` を用いた停止過程＝有限和の書き換えが未実装。`Finset` 再帰を使った measurability/ integrability の証明も未完成。
+- **修正内容**：Lean ファイルには変更せず、エラーの状況を GPT16.md に記録して次回作業の TODO を明示。
+- **修正が正しい理由**：今回は記録のみで、実装自体は触っていないため該当なし。
+- **動作確認**：`lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer`（2025-11-18 実行）。上記の未解決ゴールによりビルド失敗を確認。
+- **どういう意図でこの実装に至ったかメモ**：P4 optional stopping で使う停止過程の適合性／可積分性 lemma を P3 側で用意する設計を維持したいため、まずエラー内容を整理。次のステップで `{τ = k}` 可測性補題と有限和表現の `funext` を実装してゴールを閉じる予定。
+### エラー修正ログ (2025-11-18)
+- エラー概要：MeasureBridge 節の stopped_stronglyMeasurable_of_stoppingSets / stopped_integrable_of_bdd が停止集合の分解補題と噛み合わず、stronglyMeasurable_finset_sum の不在や {τ=k} 可測性の不足で lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer が失敗していた。
+- 原因：停止集合 {τ = k} / {τ > n} の可測性を手続き的に引き上げておらず、有限和を扱う StronglyMeasurable/Integrable 補題も未整備だったため、simp がゴールを畳み切れず未解決ゴールや IsFiniteMeasure 制約が残っていた。
+- 修正内容：measurable_tau_eq_base から measurable_tau_eq / measurable_tau_gt を切り出して停止集合の可測性を一箇所に集約し、停止過程の indicator 分解には pointwise 等式 (unext) を通じて stopped_indicator_split / stopped_indicator_sum_of_bdd を適用。さらに stronglyMeasurable_finset_sum_aux と integrable_finset_sum_aux を定義し、Finset.induction_on ベースで有限和の適合性・可積分性を証明できるようにした。
+- 動作確認：lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer（警告のみ・約 12s、既知の Skeleton 警告は許容）
+- どういう意図でこの実装に至ったか：P4 へ停止マルチンゲールを持ち込む前提として、停止集合の可測性と有限分解を明示化し、Bourbaki 的な "構造塔×停止時間" API を `StronglyMeasurable` / `Integrable` レベルで先に固めておくことを目標にした。
+
+
+作業内容
+
+MeasureBridge 節で {τ = k} / {τ > n} 可測性補題を measurable_tau_eq_base 系列に整理し、stopped_indicator_split / stopped_indicator_sum_of_bdd を pointwise 等式として扱えるように調整しました。
+有限和の適合性・可積分性を扱うために stronglyMeasurable_finset_sum_aux と integrable_finset_sum_aux を Finset.induction_on で実装し、停止過程の StronglyMeasurable / Integrable 証明を indicator 分解＋有限和の組み立てだけで完結させました。
+StoppingTime_ErrorLog.md に今回の原因・対処・再発防止メモを追加し、エラー修正ログ形式（エラー概要/原因/修正内容/正当化/動作確認/意図）に沿って記録しました。
+動作確認
+
+lake build MyProjects.ST.Formalization.P3.StoppingTime_MinLayer（所要 ~12s、既知の unused section variable / unnecessary simpa 警告のみ）
+補足
+
+Skeleton 由来の warning（unused section variables 等）は従来どおり残っています。必要なら次のバッチで順次クリーンアップしてください。
