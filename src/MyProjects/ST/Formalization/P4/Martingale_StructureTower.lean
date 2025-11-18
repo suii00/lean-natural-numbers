@@ -85,17 +85,6 @@ namespace Martingale
 
 variable {μ : Measure Ω} [IsFiniteMeasure μ]
 
-/-- `Martingale` のそれぞれの時刻での可積分性。 -/
-lemma integrable_n (M : Martingale μ) (n : ℕ) :
-    Integrable (M.process n) μ :=
-  M.integrable n
-
-/-- `Martingale` の適合性を `StronglyMeasurable[ℱ n]` として取り出す。 -/
-lemma adapted_stronglyMeasurable (M : Martingale μ) (n : ℕ) :
-    StronglyMeasurable[M.filtration n] (M.process n) :=
-  M.adapted n
-
-/-- 定数過程は任意のフィルトレーションについてマルチンゲール。 -/
 noncomputable def const (ℱ : Filtration Ω) (c : ℝ) : Martingale μ := by
   classical
   refine
@@ -116,7 +105,9 @@ noncomputable def const (ℱ : Filtration Ω) (c : ℝ) : Martingale μ := by
           MeasureTheory.condExp_const (μ := μ) (hm := ℱ.le n) c
         exact
           Filter.EventuallyEq.of_eq <|
-            by simpa [Process.const, condExp] using hconst }
+          by simpa [Process.const, condExp] using hconst }
+
+--!
 
 /-- マルチンゲールの和。2 つのマルチンゲールが同じフィルトレーションに従うとき定義できる。 -/
 noncomputable def add (M N : Martingale μ)
@@ -159,6 +150,11 @@ noncomputable def add (M N : Martingale μ)
     refine h_add.trans ?_
     simpa [Process.add, condExp] using h_sum
 
+@[simp]
+lemma add_filtration (M N : Martingale μ) (hℱ : M.filtration = N.filtration) :
+    (add (μ := μ) M N hℱ).filtration = M.filtration :=
+  rfl
+
 /-- マルチンゲールのスカラー倍。 -/
 noncomputable def smul (a : ℝ) (M : Martingale μ) : Martingale μ := by
   classical
@@ -188,6 +184,11 @@ noncomputable def smul (a : ℝ) (M : Martingale μ) : Martingale μ := by
         h_scaled.smul (M.martingale n)
     refine h_smul.trans ?_
     simpa [Process.smul, condExp] using h_target
+
+@[simp]
+lemma smul_filtration (a : ℝ) (M : Martingale μ) :
+    (smul (μ := μ) a M).filtration = M.filtration :=
+  rfl
 
 /-- マルチンゲールの「マルチンゲール性」をそのまま取り出す補題。 -/
 lemma condExp_next (M : Martingale μ) (n : ℕ) :
