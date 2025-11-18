@@ -15,3 +15,12 @@
 - 修正が正しい理由：mathlib の `Adapted`/`condexp` API を直接用いることで、適合性とマルチンゲール性の線形性が既知レマに還元でき、証明がすべて a.e. 等式として成立する。`Process` の演算は pointwise に定義されており、`EventuallyEq.add`/`smul` を経由することで `condExp_add` などと整合する。
 - 動作確認：`lake build MyProjects.ST.Formalization.P4.Martingale_StructureTower`（2476 jobs / 約 9s、警告なし）。
 - どういう意図でこの実装に至ったかメモ：マルチンゲールの最小線形構造（定数・和・スカラー倍）を P4 で確立し、P3 の停止時間 API と連携できる足場を固めることで、次段階（停止過程の測度論的性質や optional stopping）へ滑らかに進めるため。
+
+## エラー修正ログ (2025-11-18 夕方)
+
+- エラー概要：`Martingale.stoppedProcess` を追加しただけでは optional stopping に必要な基本補題が無く、停止前後での挙動を Lean 上で扱えず進捗が止まった。
+- 原因：P3 側の純粋パスワイズ補題（`stopped_eq_of_le` など）を Martingale namespace に引き上げるラッパが無かったため、停止後の値を元のマルチンゲールへ戻す道具がなかった。
+- 修正内容：`Martingale.stoppedProcess` を P3 の `StructureTowerProbability.stopped` に基づいて定義し直し、`stoppedProcess_eq_of_le` / `stoppedProcess_const_of_ge` / `stoppedProcess_eq_atStoppingTime` を追加。これにより停止前は元の過程と一致、停止後は値が固定、十分大きい時刻では `atStoppingTime` に一致することが直接使えるようになった。
+- 修正が正しい理由：定義レベルで `StructureTowerProbability.stopped` を使っているため、既存の P3 補題をそのまま `simpa` で流用でき、証明はパスワイズの同値に帰着する。Optional stopping の条件式・期待値等式で必要になる最小の道具が揃った。
+- 動作確認：`lake build MyProjects.ST.Formalization.P4.Martingale_StructureTower`（2478 jobs / 約 9.3s、既知警告のみで成功）。
+- どういう意図でこの実装に至ったかメモ：P3 の停止時間 API と P4 のマルチンゲール理論を橋渡しし、停止前後の振る舞いを Lean 上で即座に利用できるようにして optional stopping（特に有界停止時間版）へ進むための下準備を整えるため。

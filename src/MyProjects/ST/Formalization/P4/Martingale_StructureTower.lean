@@ -205,6 +205,38 @@ lemma smul_filtration (a : ℝ) (M : Martingale μ) :
 def stoppedProcess (M : Martingale μ) (τ : Ω → ℕ) : Process Ω :=
   StructureTowerProbability.stopped M.process τ
 
+/-- 停止時間より前では元の過程と一致。 -/
+lemma stoppedProcess_eq_of_le (M : Martingale μ) (τ : Ω → ℕ)
+    {n : ℕ} {ω : Ω} (hn : n ≤ τ ω) :
+    M.stoppedProcess τ n ω = M.process n ω := by
+  change StructureTowerProbability.stopped _ _ _ _ = _
+  simpa using
+    (StructureTowerProbability.stopped_eq_of_le
+      (X := M.process) (τ := τ) (n := n) (ω := ω) hn)
+
+/-- 停止後は値が固定される。 -/
+lemma stoppedProcess_const_of_ge (M : Martingale μ) (τ : Ω → ℕ)
+    {n m : ℕ} {ω : Ω} (hτ : τ ω ≤ n) (hnm : n ≤ m) :
+    M.stoppedProcess τ m ω = M.stoppedProcess τ n ω := by
+  change
+      StructureTowerProbability.stopped _ _ _ _
+        = StructureTowerProbability.stopped _ _ _ _
+  simpa using
+    (StructureTowerProbability.stopped_const_of_ge
+      (X := M.process) (τ := τ) (n := n) (m := m) (ω := ω) hτ hnm)
+
+/-- 十分大きな時刻で止めると `atStoppingTime` と一致。 -/
+lemma stoppedProcess_eq_atStoppingTime (M : Martingale μ) (τ : Ω → ℕ)
+    {N : ℕ} {ω : Ω} (hN : τ ω ≤ N) :
+    M.stoppedProcess τ N ω
+      = StructureTowerProbability.atStoppingTime M.process τ ω := by
+  change
+      StructureTowerProbability.stopped _ _ _ _
+        = StructureTowerProbability.atStoppingTime _ _ _
+  simpa using
+    (StructureTowerProbability.stopped_eq_atStoppingTime
+      (X := M.process) (τ := τ) (N := N) (ω := ω) hN)
+
 /-- マルチンゲールの「マルチンゲール性」をそのまま取り出す補題。 -/
 lemma condExp_next (M : Martingale μ) (n : ℕ) :
     condExp μ M.filtration n (M.process (n + 1))
