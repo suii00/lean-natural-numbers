@@ -260,7 +260,7 @@ lemma stoppedProcess_succ_sub (M : Martingale μ) (τ : Ω → ℕ)
     simp [h, h₁, h₂]
 
 /-- 指示関数を用いた停止過程の増分表示。 -/
-lemma stoppedProcess_succ_sub_indicator (M : Martingale μ) (τ : Ω → ℕ)
+lemma stoppedProcess_increment_indicator (M : Martingale μ) (τ : Ω → ℕ)
     (n : ℕ) (ω : Ω) :
     M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω =
       Set.indicator {ω | τ ω > n}
@@ -280,6 +280,26 @@ lemma condExp_next (M : Martingale μ) (n : ℕ) :
     condExp μ M.filtration n (M.process (n + 1))
       =ᵐ[μ] M.process n :=
   M.martingale n
+
+/-- 有界停止時間で止めた過程もマルチンゲールになることを示す骨格。
+`τ` は現在は単なる関数として扱っているが、`StoppingTime` ブリッジ整備後に
+仮定を強化する予定。 -/
+noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
+    (τ : Ω → ℕ) (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    Martingale μ := by
+  classical
+  refine
+    { filtration := M.filtration
+      process := M.stoppedProcess τ
+      adapted := ?_
+      integrable := ?_
+      martingale := ?_ }
+  · -- TODO: 証明を P3 の停止過程適合性補題と接続して埋める。
+    sorry
+  · -- TODO: 有界停止時間 `hτ_bdd` と `M.integrable` から可積分性を導く。
+    sorry
+  · -- TODO: `stoppedProcess_increment_indicator` と `condExp` 線形性で増分期待値を 0 にする。
+    sorry
 
 end Martingale
 
