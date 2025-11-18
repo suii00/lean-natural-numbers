@@ -237,6 +237,44 @@ lemma stoppedProcess_eq_atStoppingTime (M : Martingale μ) (τ : Ω → ℕ)
     (StructureTowerProbability.stopped_eq_atStoppingTime
       (X := M.process) (τ := τ) (N := N) (ω := ω) hN)
 
+/-- 停止過程の増分を「元の増分か 0 か」で書いたもの。 -/
+lemma stoppedProcess_succ_sub (M : Martingale μ) (τ : Ω → ℕ)
+    (n : ℕ) (ω : Ω) :
+    M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω =
+      (if τ ω ≤ n then 0
+        else M.process (n + 1) ω - M.process n ω) := by
+  classical
+  by_cases h : τ ω ≤ n
+  · have hconst :=
+      M.stoppedProcess_const_of_ge (τ := τ)
+        (n := n) (m := n + 1) (ω := ω) h (Nat.le_succ _)
+    simpa [h, hconst] using sub_eq (M.stoppedProcess τ (n + 1) ω)
+      (M.stoppedProcess τ n ω)
+  · have hlt : n < τ ω := Nat.lt_of_not_ge h
+    have hsucc : n + 1 ≤ τ ω := Nat.succ_le_of_lt hlt
+    have hle : n ≤ τ ω := Nat.le_of_lt hlt
+    have h₁ :=
+      M.stoppedProcess_eq_of_le (τ := τ) (n := n + 1) (ω := ω) hsucc
+    have h₂ :=
+      M.stoppedProcess_eq_of_le (τ := τ) (n := n) (ω := ω) hle
+    simp [h, h₁, h₂]
+
+/-- 指示関数を用いた停止過程の増分表示。 -/
+lemma stoppedProcess_succ_sub_indicator (M : Martingale μ) (τ : Ω → ℕ)
+    (n : ℕ) (ω : Ω) :
+    M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω =
+      Set.indicator {ω | τ ω > n}
+        (fun ω => M.process (n + 1) ω - M.process n ω) ω := by
+  classical
+  have h := M.stoppedProcess_succ_sub (τ := τ) (n := n) ω
+  by_cases hτ : τ ω ≤ n
+  · have : ω ∉ {ω : Ω | τ ω > n} := by
+      simpa [Set.mem_setOf_eq, not_lt.mpr hτ]
+    simpa [Set.indicator_of_notMem, this, hτ] using h
+  · have : ω ∈ {ω : Ω | τ ω > n} := by
+      simpa [Set.mem_setOf_eq] using not_le.mp hτ
+    simpa [Set.indicator_of_mem, this, hτ] using h
+
 /-- マルチンゲールの「マルチンゲール性」をそのまま取り出す補題。 -/
 lemma condExp_next (M : Martingale μ) (n : ℕ) :
     condExp μ M.filtration n (M.process (n + 1))
