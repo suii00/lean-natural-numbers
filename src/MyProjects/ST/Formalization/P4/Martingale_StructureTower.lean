@@ -281,7 +281,8 @@ lemma condExp_next (M : Martingale μ) (n : ℕ) :
       =ᵐ[μ] M.process n :=
   M.martingale n
 
-/-- 停止過程の適合性。 -/
+/-- If the sets `{ω | τ ω ≤ n}` are measurable in the filtration,
+then the stopped process is adapted to that filtration. -/
 lemma stoppedProcess_adapted_of_measurableSets
     (M : Martingale μ) (τ : Ω → ℕ)
     (hτ :
@@ -294,7 +295,8 @@ lemma stoppedProcess_adapted_of_measurableSets
       (ℱ := M.filtration) (X := M.process) (hX := M.adapted)
       (τ := τ) (hτ := hτ) n)
 
-/-- 有界停止時間のもとで停止過程が可積分であること。 -/
+/-- A stopped process associated to a bounded stopping time
+remains integrable at every discrete time. -/
 lemma stoppedProcess_integrable_of_bdd
     (M : Martingale μ) (τ : Ω → ℕ)
     (hτ :
@@ -309,7 +311,9 @@ lemma stoppedProcess_integrable_of_bdd
       (hX := M.integrable) (τ := τ)
       (hτ := hτ) (hτ_bdd := hτ_bdd) n)
 
-/-- 有界停止時間で止めた過程のマルチンゲール性。 -/
+/-- Optional stopping for bounded stopping times:
+the stopped process satisfies the martingale identity
+`condExp μ … (Y_{n+1}) =ᵐ Y_n`. -/
 lemma stoppedProcess_martingale_property_of_bdd
     (M : Martingale μ) (τ : Ω → ℕ)
     (hτ :
@@ -572,6 +576,38 @@ lemma constStopping_bdd (K : ℕ) :
     ∃ L : ℕ, ∀ ω : Ω, (fun _ : Ω => K) ω ≤ L :=
   ⟨K, by intro ω; exact le_rfl⟩
 
+/-- 定数停止時間 `τ ≡ K` で止めた過程の明示形（pathwise）。 -/
+lemma stoppedProcess_constStopping_eval (M : Martingale μ)
+    (K n : ℕ) (ω : Ω) :
+    M.stoppedProcess (fun _ => K) n ω =
+      if n ≤ K then M.process n ω else M.process K ω := by
+  classical
+  by_cases hle : n ≤ K
+  · have hτ : n ≤ (fun _ : Ω => K) ω := by simpa using hle
+    have h_eval :=
+      M.stoppedProcess_eq_of_le (τ := fun _ => K)
+        (n := n) (ω := ω) hτ
+    simpa [hle, h_eval]
+  · have hconst :
+      M.stoppedProcess (fun _ => K) n ω =
+        M.stoppedProcess (fun _ => K) K ω := by
+      have hτ : (fun _ : Ω => K) ω ≤ K := by
+        simpa using (show K ≤ K from le_rfl)
+      have hk : K ≤ n := le_of_lt (Nat.lt_of_not_ge hle)
+      simpa using
+        (M.stoppedProcess_const_of_ge
+          (τ := fun _ => K) (n := K) (m := n)
+          (ω := ω) hτ hk)
+    have hbase :
+        M.stoppedProcess (fun _ => K) K ω = M.process K ω := by
+      have hτ : K ≤ (fun _ : Ω => K) ω := by
+        simpa using (show K ≤ K from le_rfl)
+      simpa using
+        (M.stoppedProcess_eq_of_le
+          (τ := fun _ => K) (n := K) (ω := ω)
+          hτ)
+    simpa [hle, hconst, hbase]
+
 lemma stoppedProcess_stronglyMeasurable_of_stoppingSets
     (M : Martingale μ)
     (τ : Ω → ℕ)
@@ -580,37 +616,13 @@ lemma stoppedProcess_stronglyMeasurable_of_stoppingSets
   ∀ n,
     StronglyMeasurable[M.filtration n]
       (M.stoppedProcess τ n) := by
-  classical
-  -- P3 の bridge lemma そのまま利用
-  have h_stop_strong :
-    ∀ n,
-      StronglyMeasurable[M.filtration n]
-        (StructureTowerProbability.stopped M.process τ n) :=
-    StructureTowerProbability.stopped_stronglyMeasurable_of_stoppingSets
-      (ℱ := M.filtration) (X := M.process)
-      (hX := M.adapted) (τ := τ) (hτ := hτ)
   intro n
-  -- stoppedProcess が P3 の stopped のラッパであることを使って書き換え
-  simpa [Martingale.stoppedProcess] using h_stop_strong n
+  exact
+    (stoppedProcess_adapted_of_measurableSets
+      (M := M) (τ := τ) (hτ := hτ)) n
 
-/-- 有界停止時間で止めた過程がマルチンゲール性を満たすこと（本体）。 -/
-lemma stoppedProcess_martingaleProperty_of_bdd
-    (M : Martingale μ)
-    (τ : Ω → ℕ)
-    (hτ :
-      ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
-    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
-  ∀ n,
-    condExp μ M.filtration n
-      (M.stoppedProcess τ (n + 1)) =ᵐ[μ]
-    M.stoppedProcess τ n := by
-  classical
-  simpa using
-    (stoppedProcess_martingale_property_of_bdd
-      (M := M) (τ := τ) (hτ := hτ) (hτ_bdd := hτ_bdd))
-
-
-/-- 有界停止時間で止めたマルチンゲールは再びマルチンゲールになる。 -/
+/-- Bounded optional stopping: stopping a martingale at a bounded
+stopping time yields another martingale on the same filtration. -/
 noncomputable def stoppedProcess_martingale_of_bdd
     (M : Martingale μ)
     (τ : Ω → ℕ)
@@ -623,11 +635,12 @@ by
   refine
     { filtration := M.filtration
       , process    := M.stoppedProcess τ
-      , adapted    := M.stoppedProcess_stronglyMeasurable_of_stoppingSets τ hτ
+      , adapted    := M.stoppedProcess_adapted_of_measurableSets τ hτ
       , integrable := M.stoppedProcess_integrable_of_bdd τ hτ hτ_bdd
-      , martingale := M.stoppedProcess_martingaleProperty_of_bdd τ hτ hτ_bdd }
+      , martingale := M.stoppedProcess_martingale_property_of_bdd τ hτ hτ_bdd }
 
-/-- `stoppedProcess_martingale_of_bdd` を `τ ≡ 0` に適用したときの sanity check。 -/
+/-- Sanity check: for the constant stopping time `τ ≡ 0`,
+the resulting martingale is the constant process `M.process 0`. -/
 lemma stoppedProcess_martingale_of_bdd_zero_process
     (M : Martingale μ) :
     ∀ (n : ℕ) (ω : Ω),
@@ -639,6 +652,21 @@ lemma stoppedProcess_martingale_of_bdd_zero_process
   intro n ω
   change M.stoppedProcess (fun _ => 0) n ω = M.process 0 ω
   simpa using (stoppedProcess_const_zero (M := M) n ω)
+
+/-- Pathwise behaviour for constant stopping times:
+the stopped martingale agrees with `M` up to `K` and freezes afterwards. -/
+lemma stoppedProcess_martingale_of_bdd_const_process
+    (M : Martingale μ) (K : ℕ) :
+    ∀ (n : ℕ) (ω : Ω),
+      (stoppedProcess_martingale_of_bdd
+          (M := M) (τ := fun _ => K)
+          (hτ := measurableSet_constStopping (M := M) (K := K))
+          (hτ_bdd := constStopping_bdd (K := K))).process n ω =
+        if n ≤ K then M.process n ω else M.process K ω := by
+  intro n ω
+  change M.stoppedProcess (fun _ => K) n ω =
+    if n ≤ K then M.process n ω else M.process K ω
+  simpa [stoppedProcess_constStopping_eval]
 
 end Martingale
 
