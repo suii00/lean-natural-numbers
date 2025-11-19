@@ -532,28 +532,60 @@ lemma stoppedProcess_martingale_property_of_bdd
     exact Filter.EventuallyEq.of_eq h_final
   exact h_cond_split.trans h_rhs
 
-/-- 有界停止時間で止めた過程もマルチンゲールになることを示す骨格。
-`τ` は現在は単なる関数として扱っているが、`StoppingTime` ブリッジ整備後に
-仮定を強化する予定。 -/
+lemma stoppedProcess_stronglyMeasurable_of_stoppingSets
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ :
+      ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n}) :
+  ∀ n,
+    StronglyMeasurable[M.filtration n]
+      (M.stoppedProcess τ n) := by
+  classical
+  -- P3 の bridge lemma そのまま利用
+  have h_stop_strong :
+    ∀ n,
+      StronglyMeasurable[M.filtration n]
+        (StructureTowerProbability.stopped M.process τ n) :=
+    StructureTowerProbability.stopped_stronglyMeasurable_of_stoppingSets
+      (ℱ := M.filtration) (X := M.process)
+      (hX := M.adapted) (τ := τ) (hτ := hτ)
+  intro n
+  -- stoppedProcess が P3 の stopped のラッパであることを使って書き換え
+  simpa [Martingale.stoppedProcess] using h_stop_strong n
 
-noncomputable def stoppedProcess_martingale_of_bdd (M : Martingale μ)
+/-- 有界停止時間で止めた過程がマルチンゲール性を満たすこと（本体）。 -/
+lemma stoppedProcess_martingaleProperty_of_bdd
+    (M : Martingale μ)
     (τ : Ω → ℕ)
     (hτ :
       ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
     (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
-    Martingale μ := by
+  ∀ n,
+    condExp μ M.filtration n
+      (M.stoppedProcess τ (n + 1)) =ᵐ[μ]
+    M.stoppedProcess τ n := by
+  classical
+  simpa using
+    (stoppedProcess_martingale_property_of_bdd
+      (M := M) (τ := τ) (hτ := hτ) (hτ_bdd := hτ_bdd))
+
+
+/-- 有界停止時間で止めたマルチンゲールは再びマルチンゲールになる。 -/
+noncomputable def stoppedProcess_martingale_of_bdd
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ :
+      ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+  Martingale μ :=
+by
+  classical
   refine
     { filtration := M.filtration
-      process := M.stoppedProcess τ
-      adapted :=
-        stoppedProcess_adapted_of_measurableSets (M := M) (τ := τ) (hτ := hτ)
-      integrable :=
-        stoppedProcess_integrable_of_bdd (M := M) (τ := τ)
-          (hτ := hτ) (hτ_bdd := hτ_bdd)
-      martingale :=
-        stoppedProcess_martingale_property_of_bdd (M := M) (τ := τ)
-          (hτ := hτ) (hτ_bdd := hτ_bdd) }
-
+      , process    := M.stoppedProcess τ
+      , adapted    := M.stoppedProcess_stronglyMeasurable_of_stoppingSets τ hτ
+      , integrable := M.stoppedProcess_integrable_of_bdd τ hτ hτ_bdd
+      , martingale := M.stoppedProcess_martingaleProperty_of_bdd τ hτ hτ_bdd }
 
 end Martingale
 

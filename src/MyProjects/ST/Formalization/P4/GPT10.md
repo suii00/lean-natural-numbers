@@ -209,11 +209,3 @@ lemma stoppedProcess_martingaleProperty_of_bdd
 
 ---
 
-## エラー修正ログ (2025-11-18)
-
-- **エラー概要**: `Filter.EventuallyEq.of_eq` のフィルタ引数に存在しない `MeasureTheory.Measure.ae` / `μ.ae` を指定して `Invalid field 'ae'` が発生。
-- **原因**: `Measure` 構造体には `ae` フィールドがなく、`ae` フィルタを明示指定しようとして不正フィールドを参照していた。
-- **修正内容**: `h_zero` と `h_indicator_zero'` を `by refine Filter.EventuallyEq.of_eq ?_` 形式に変更し、`h_zero_eq` / `h_indicator_zero_eq` を直接渡して `ae` フィルタは Lean に推論させるようにした。
-- **修正が正しい理由**: `Filter.EventuallyEq.of_eq` は `ae` フィルタを自動推論でき、等式補題をそのまま渡すだけで a.e. 等式を得られるため。誤ったフィールド参照が消え、型が一致する。
-- **動作確認**: ローカルな補題書き換えのみのため追加ビルドは未実施。必要なら `lake build` で全体確認を行う。
-- **どういう意図でこの実装に至ったかメモ**: Lean 標準のフィルタ推論に任せることで、記法依存のエラーを防ぎ、将来の mathlib 更新でも壊れにくい形へ揃えるため。
