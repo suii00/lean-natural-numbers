@@ -1,0 +1,665 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,decorations.pathreplacing}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+\usepackage{hyperref}
+
+% 定理環境の設定
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% カスタムボックス
+\newtcolorbox{mainbox}[2][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  title=#2,
+  #1
+}
+
+\newtcolorbox{codebox}[1][]{
+  colback=gray!5!white,
+  colframe=gray!75!black,
+  fonttitle=\bfseries,
+  title=Lean 4 形式化,
+  #1
+}
+
+\title{構造塔とマルチンゲール理論の形式化\\
+{\normalsize Lean 4による確率論的構造の数学的基礎}}
+\author{Claude Code (Anthropic) \and CODEX (OpenAI)\\
+{\small 形式化支援: AI協働研究プロジェクト}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4を用いた離散時間マルチンゲール理論の形式化について解説する。
+特に、構造塔(Structure Tower)の枠組みにおける確率過程の階層的記述に焦点を当て、
+フィルトレーション、条件付き期待値、マルチンゲール性、そして停止時間とオプショナル停止定理の
+数学的基礎を厳密に定式化する。本形式化は、mathlibの確率論ライブラリを基盤とし、
+今後の拡張(ドゥーブの定理、収束定理など)への土台を提供する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+
+\subsection{背景と動機}
+
+確率論における\textbf{マルチンゲール理論}は、現代確率論の中核をなす理論体系である。
+特に、離散時間マルチンゲールは、賭博の数学的モデルとして始まり、
+現在では金融工学、統計的推測、確率微分方程式など、広範な応用分野を持つ。
+
+本稿では、このマルチンゲール理論をLean 4で形式化する際の数学的構造を詳述する。
+特に以下の点に重点を置く:
+
+\begin{itemize}
+\item \textbf{構造塔との統合}: フィルトレーションを「構造の階層」として捉える視点
+\item \textbf{最小限の公理系}: 条件付き期待値をmathlib APIとして受け入れ、その上層の理論を構築
+\item \textbf{停止時間との融合}: 既存の停止時間理論(StoppingTime\_MinLayer.lean)との一貫性
+\item \textbf{形式的検証可能性}: 全ての命題が機械的に検証可能な形での記述
+\end{itemize}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+\item \textbf{第2節}: 構造塔とフィルトレーションの関係
+\item \textbf{第3節}: 離散時間確率過程の代数的構造
+\item \textbf{第4節}: 条件付き期待値の形式化
+\item \textbf{第5節}: マルチンゲールの定義と基本性質
+\item \textbf{第6節}: 停止時間と停止過程
+\item \textbf{第7節}: 有界停止時間に対するオプショナル停止定理
+\item \textbf{第8節}: まとめと今後の展望
+\end{enumerate}
+
+\section{構造塔とフィルトレーション}
+
+\subsection{フィルトレーションの階層構造}
+
+確率空間 $(\Omega, \mathcal{F}, \mu)$ 上の\textbf{フィルトレーション}とは、
+増大する $\sigma$-加法族の列 $\{\mathcal{F}_n\}_{n \in \mathbb{N}}$ である:
+\[
+\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}
+\]
+
+\begin{mainbox}{構造塔としての解釈}
+フィルトレーションは、時間とともに\textbf{利用可能な情報が増大する構造}を表す。
+これは、構造塔の理論における「階層的包含関係」の典型例である:
+
+\begin{center}
+\begin{tikzpicture}[
+  level/.style={thick},
+  level 1/.style={sibling distance=4cm},
+  level 2/.style={sibling distance=2cm}
+]
+  \node[draw, rectangle, fill=blue!20] {$\mathcal{F}$ (全情報)}
+    child {node[draw, rectangle, fill=blue!15] {$\mathcal{F}_3$}
+      child {node[draw, rectangle, fill=blue!10] {$\mathcal{F}_2$}
+        child {node[draw, rectangle, fill=blue!5] {$\mathcal{F}_1$}
+          child {node[draw, rectangle, fill=white] {$\mathcal{F}_0$}}
+        }
+      }
+    };
+
+  \node[right=4cm] at (0,0) {
+    \begin{minipage}{5cm}
+    \small
+    各層は「時刻 $n$ までに\\
+    観測可能な情報」を表す\\[1em]
+    上位の層ほど\\
+    詳細な情報を含む
+    \end{minipage}
+  };
+\end{tikzpicture}
+\end{center}
+\end{mainbox}
+
+\begin{codebox}
+\small
+\begin{verbatim}
+abbrev MLFiltration (Ω : Type*) [m : MeasurableSpace Ω] :=
+  MeasureTheory.Filtration ℕ m
+\end{verbatim}
+\end{codebox}
+
+この定義は、mathlib の \texttt{Filtration} 型を離散時間($\mathbb{N}$-indexed)に
+特化したものである。
+
+\subsection{適合過程とは}
+
+確率過程 $X : \mathbb{N} \to \Omega \to \mathbb{R}$ が
+フィルトレーション $\{\mathcal{F}_n\}$ に\textbf{適合}(adapted)するとは、
+各時刻 $n$ において $X_n$ が $\mathcal{F}_n$-可測であることを意味する:
+
+\begin{definition}[適合性]
+$X$ が $\{\mathcal{F}_n\}$ に適合するとは、
+\[
+\forall n \in \mathbb{N}, \quad X_n \text{ は } \mathcal{F}_n\text{-強可測}
+\]
+が成り立つことである。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+  % 時間軸
+  \draw[->] (-0.5,0) -- (6,0) node[right] {時間 $n$};
+  \foreach \x in {0,1,2,3,4,5} {
+    \draw (\x,0.1) -- (\x,-0.1) node[below] {$\x$};
+  }
+
+  % フィルトレーション
+  \foreach \x in {0,1,2,3,4,5} {
+    \fill[blue!20, opacity=0.3] (\x,0) rectangle (\x+0.5, {0.5+\x*0.3});
+    \node at (\x+0.25, {0.25+\x*0.3}) {\small $\mathcal{F}_{\x}$};
+  }
+
+  % 過程の値
+  \draw[thick, red] plot[smooth] coordinates {(0,2) (1,2.3) (2,2.1) (3,2.5) (4,2.4) (5,2.7)};
+  \foreach \x in {0,1,2,3,4,5} {
+    \fill[red] (\x, {2+0.1*\x+0.1*sin(\x*100)}) circle (2pt);
+  }
+
+  \node[right, red] at (5.2, 2.7) {$X_n(\omega)$};
+
+  % 適合性の矢印
+  \draw[->, dashed, blue] (2, {0.5+2*0.3}) -- (2, {2.1}) node[midway, right] {\small 可測};
+\end{tikzpicture}
+\end{center}
+
+\textbf{直観}: 時刻 $n$ での過程の値 $X_n$ は、その時点で利用可能な情報 $\mathcal{F}_n$ のみに依存する。
+
+\section{離散時間確率過程}
+
+\subsection{過程の代数的構造}
+
+離散時間実数値過程を以下のように定義する:
+
+\begin{codebox}
+\small
+\begin{verbatim}
+abbrev Process (Ω : Type*) := ℕ → Ω → ℝ
+\end{verbatim}
+\end{codebox}
+
+これは関数型 $\mathbb{N} \to (\Omega \to \mathbb{R})$ と同値であり、
+「各時刻に確率変数を対応させる写像」として解釈できる。
+
+\subsection{過程の演算}
+
+過程の空間は自然なベクトル空間構造を持つ:
+
+\begin{definition}[過程の演算]
+\begin{align}
+(\text{定数過程}) \quad & \mathbf{c} : n \mapsto (\omega \mapsto c) \\
+(\text{和}) \quad & (X + Y)_n(\omega) := X_n(\omega) + Y_n(\omega) \\
+(\text{スカラー倍}) \quad & (aX)_n(\omega) := a \cdot X_n(\omega)
+\end{align}
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  % X過程
+  \begin{scope}[xshift=0cm]
+    \draw[->] (-0.5,0) -- (4,0) node[right] {$n$};
+    \draw[thick, blue] plot[smooth] coordinates {(0,1) (1,1.5) (2,1.2) (3,1.8)};
+    \node[above, blue] at (3, 1.8) {$X_n$};
+  \end{scope}
+
+  % Y過程
+  \begin{scope}[xshift=5cm]
+    \draw[->] (-0.5,0) -- (4,0) node[right] {$n$};
+    \draw[thick, red] plot[smooth] coordinates {(0,0.5) (1,0.8) (2,1.1) (3,0.9)};
+    \node[above, red] at (3, 0.9) {$Y_n$};
+  \end{scope}
+
+  % 和
+  \begin{scope}[xshift=10cm]
+    \draw[->] (-0.5,0) -- (4,0) node[right] {$n$};
+    \draw[thick, violet] plot[smooth] coordinates {(0,1.5) (1,2.3) (2,2.3) (3,2.7)};
+    \node[above, violet] at (3, 2.7) {$(X+Y)_n$};
+  \end{scope}
+
+  \node at (2.5, -1) {$+$};
+  \node at (7.5, -1) {$=$};
+\end{tikzpicture}
+\end{center}
+
+これらの演算は、後述するマルチンゲールの空間が線形空間をなすことの基礎となる。
+
+\section{条件付き期待値}
+
+\subsection{条件付き期待値の公理的扱い}
+
+本形式化では、mathlib の \texttt{condExp} を基本的な道具として受け入れる:
+
+\begin{codebox}
+\small
+\begin{verbatim}
+noncomputable def condExp
+    (μ : Measure Ω) [IsFiniteMeasure μ]
+    (ℱ : MLFiltration Ω) (n : ℕ) (f : Ω → ℝ) : Ω → ℝ :=
+  MeasureTheory.condExp (ℱ n) μ f
+\end{verbatim}
+\end{codebox}
+
+これは $E[f \mid \mathcal{F}_n]$ を表す。
+
+\subsection{条件付き期待値の基本性質}
+
+\begin{proposition}[線形性]
+$f, g$ が可積分ならば、
+\[
+E[af + bg \mid \mathcal{F}_n] = a E[f \mid \mathcal{F}_n] + b E[g \mid \mathcal{F}_n] \quad \text{a.e.}
+\]
+\end{proposition}
+
+\begin{proposition}[塔の性質(Tower Property)]
+$m \leq n$ ならば、
+\[
+E[E[f \mid \mathcal{F}_n] \mid \mathcal{F}_m] = E[f \mid \mathcal{F}_m] \quad \text{a.e.}
+\]
+\end{proposition}
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=large]
+  f \arrow[r, "E[\cdot|\mathcal{F}_n]"]
+    \arrow[dr, "E[\cdot|\mathcal{F}_m]"']
+  & E[f|\mathcal{F}_n] \arrow[d, "E[\cdot|\mathcal{F}_m]"] \\
+  & E[f|\mathcal{F}_m]
+\end{tikzcd}
+\end{center}
+
+この可換図式は、情報の粗視化の整合性を示す重要な性質である。
+
+\section{マルチンゲールの定義と性質}
+
+\subsection{マルチンゲールの最小定義}
+
+\begin{definition}[マルチンゲール]\label{def:martingale}
+確率過程 $X = \{X_n\}_{n \in \mathbb{N}}$ がフィルトレーション
+$\{\mathcal{F}_n\}$ に関する\textbf{マルチンゲール}であるとは、
+以下の3条件を満たすことである:
+\begin{enumerate}
+\item \textbf{適合性}: 各 $n$ で $X_n$ は $\mathcal{F}_n$-強可測
+\item \textbf{可積分性}: 各 $n$ で $X_n \in L^1(\mu)$
+\item \textbf{マルチンゲール性}: 各 $n$ に対し、
+\[
+E[X_{n+1} \mid \mathcal{F}_n] = X_n \quad \text{a.e.}
+\]
+\end{enumerate}
+\end{definition}
+
+\begin{codebox}
+\small
+\begin{verbatim}
+structure Martingale (μ : Measure Ω) [IsFiniteMeasure μ] where
+  filtration : MLFiltration Ω
+  process : Process Ω
+  adapted : MeasureTheory.Adapted filtration process
+  integrable : ∀ n, Integrable (process n) μ
+  martingale : ∀ n, condExp μ filtration n (process (n+1))
+                      =ᵐ[μ] process n
+\end{verbatim}
+\end{codebox}
+
+\subsection{マルチンゲール性の直観的意味}
+
+マルチンゲール性 $E[X_{n+1} \mid \mathcal{F}_n] = X_n$ は、
+「現時点の情報に基づく将来の期待値が、現在の値に等しい」ことを意味する。
+
+\begin{mainbox}{賭博との対応}
+\begin{itemize}
+\item $X_n$: 時刻 $n$ での累積利得
+\item $\mathcal{F}_n$: 時刻 $n$ までのゲームの履歴
+\item $E[X_{n+1} \mid \mathcal{F}_n] = X_n$: 「公正なゲーム」の条件
+\end{itemize}
+期待値の意味で「得も損もしない」ゲームを記述する。
+\end{mainbox}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+  % 時間軸
+  \draw[->] (-1,0) -- (7,0) node[right] {時間 $n$};
+
+  % 確率変数の値
+  \foreach \n/\y in {0/2, 1/2.5, 2/2.2, 3/2.8, 4/2.6, 5/3.0, 6/2.9} {
+    \fill (\n, \y) circle (3pt);
+    \node[below] at (\n, -0.2) {$\n$};
+  }
+
+  \draw[thick, blue] plot[smooth] coordinates {(0,2) (1,2.5) (2,2.2) (3,2.8) (4,2.6) (5,3.0) (6,2.9)};
+
+  % 条件付き期待値の矢印
+  \draw[->, thick, red, dashed] (3, 2.8) -- (4, 2.8);
+  \node[above, red] at (3.5, 2.8) {\small $E[X_4|\mathcal{F}_3]$};
+
+  \draw[->, thick, green!60!black] (4, 2.8) -- (4, 2.6);
+  \node[right, green!60!black] at (4.1, 2.7) {\small 実現値};
+
+  % 注釈
+  \node[right] at (6.5, 3.0) {$X_n$};
+  \draw[decorate, decoration={brace, amplitude=5pt}] (3,-0.7) -- (4,-0.7);
+  \node[below] at (3.5, -1.2) {\small 期待値=現在値};
+\end{tikzpicture}
+\end{center}
+
+\subsection{マルチンゲールの線形性}
+
+\begin{theorem}[マルチンゲールの和]\label{thm:martingale_sum}
+$M, N$ が同じフィルトレーション $\{\mathcal{F}_n\}$ に関するマルチンゲールならば、
+$M + N$ もマルチンゲールである。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+\begin{align}
+E[(M+N)_{n+1} \mid \mathcal{F}_n]
+&= E[M_{n+1} + N_{n+1} \mid \mathcal{F}_n] \\
+&= E[M_{n+1} \mid \mathcal{F}_n] + E[N_{n+1} \mid \mathcal{F}_n]
+  \quad (\text{線形性}) \\
+&= M_n + N_n \quad (\text{マルチンゲール性})
+\end{align}
+\end{proof}
+
+\begin{theorem}[マルチンゲールのスカラー倍]
+$M$ がマルチンゲールで $a \in \mathbb{R}$ ならば、
+$aM$ もマルチンゲールである。
+\end{theorem}
+
+\begin{mainbox}{マルチンゲール空間の構造}
+フィルトレーション $\{\mathcal{F}_n\}$ を固定したとき、
+そのマルチンゲール全体は実ベクトル空間をなす:
+\[
+\mathcal{M}(\{\mathcal{F}_n\}, \mu) :=
+\{ M : M \text{ は } \{\mathcal{F}_n\}\text{-マルチンゲール} \}
+\]
+\end{mainbox}
+
+\section{停止時間と停止過程}
+
+\subsection{停止時間の定義}
+
+\begin{definition}[停止時間]
+$\tau : \Omega \to \mathbb{N}$ が $\{\mathcal{F}_n\}$-停止時間であるとは、
+\[
+\forall n \in \mathbb{N}, \quad \{\omega : \tau(\omega) \leq n\} \in \mathcal{F}_n
+\]
+が成り立つことである。
+\end{definition}
+
+\textbf{直観}: 「いつ止まるか」の決定が、その時点までの情報のみで判断できる。
+
+\begin{example}[停止時間の例]
+\begin{itemize}
+\item 定数停止時間: $\tau(\omega) \equiv K$ (任意の $K \in \mathbb{N}$)
+\item 初到達時刻: $\tau(\omega) = \inf\{n : X_n(\omega) \geq a\}$
+\item 初離脱時刻: $\tau(\omega) = \inf\{n : X_n(\omega) \notin [a,b]\}$
+\end{itemize}
+\end{example}
+
+\subsection{停止過程の定義}
+
+\begin{definition}[停止過程]
+マルチンゲール $M = \{M_n\}$ と停止時間 $\tau$ に対し、
+\textbf{停止過程} $M^\tau$ を次で定義する:
+\[
+M^\tau_n(\omega) := M_{\min(n, \tau(\omega))}(\omega)
+\]
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  % 元の過程
+  \draw[->] (-0.5,0) -- (7,0) node[right] {$n$};
+  \draw[->] (0,-0.5) -- (0,3.5) node[above] {$M_n(\omega)$};
+
+  \draw[thick, blue] plot[smooth] coordinates
+    {(0,1) (1,1.3) (2,1.8) (3,2.2) (4,1.9) (5,2.3) (6,2.6)};
+
+  % 停止時間
+  \draw[red, very thick, dashed] (3,0) -- (3,3.5);
+  \node[below, red] at (3,-0.3) {$\tau(\omega)=3$};
+
+  % 停止過程
+  \draw[thick, violet, dashed] plot[smooth] coordinates
+    {(3,2.2) (4,2.2) (5,2.2) (6,2.2)};
+  \fill[violet] (3, 2.2) circle (3pt);
+
+  \node[above right, blue] at (6, 2.6) {$M_n$};
+  \node[right, violet] at (6.2, 2.2) {$M^\tau_n$ (停止後)};
+
+  % 注釈
+  \draw[decorate, decoration={brace, amplitude=8pt, mirror}]
+    (3,0.1) -- (6,0.1);
+  \node[below] at (4.5, -0.6) {\small 停止後は値が凍結};
+\end{tikzpicture}
+\end{center}
+
+\subsection{停止過程の増分表現}
+
+\begin{lemma}[停止過程の増分]\label{lem:stopped_increment}
+停止過程の増分は次のように表せる:
+\[
+M^\tau_{n+1}(\omega) - M^\tau_n(\omega) =
+\mathbf{1}_{\{\tau > n\}}(\omega) \cdot (M_{n+1}(\omega) - M_n(\omega))
+\]
+\end{lemma}
+
+\textbf{意味}: 停止後 ($\tau \leq n$) は増分がゼロになる。
+
+\begin{codebox}
+\small
+\begin{verbatim}
+lemma stoppedProcess_increment_indicator (M : Martingale μ) (τ : Ω → ℕ)
+    (n : ℕ) (ω : Ω) :
+    M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω =
+      Set.indicator {ω | τ ω > n}
+        (fun ω => M.process (n + 1) ω - M.process n ω) ω
+\end{verbatim}
+\end{codebox}
+
+\section{有界停止時間に対するオプショナル停止定理}
+
+\subsection{定理の主張}
+
+\begin{theorem}[有界停止時間に対するオプショナル停止]\label{thm:optional_stopping}
+$M$ をマルチンゲール、$\tau$ を停止時間とする。
+もし $\tau$ が\textbf{有界}、すなわち
+\[
+\exists K \in \mathbb{N}, \quad \forall \omega \in \Omega, \quad \tau(\omega) \leq K
+\]
+ならば、停止過程 $M^\tau$ もまたマルチンゲールである。
+\end{theorem}
+
+\begin{mainbox}{定理の意義}
+この定理は、「有限時間で必ず止まる戦略」において、
+マルチンゲール性(公正性)が保たれることを保証する。
+
+\textbf{重要な注意}: 停止時間が無限大を取り得る場合、
+一般には成立しない(反例: 倍賭け戦略)。
+\end{mainbox}
+
+\subsection{証明の概略}
+
+証明は次の3つのステップからなる:
+
+\begin{enumerate}
+\item \textbf{適合性の保存}:
+停止過程 $M^\tau_n$ は $\mathcal{F}_n$-可測である。
+これは停止時間の定義から従う。
+
+\item \textbf{可積分性の保存}:
+有界性 $\tau \leq K$ より、各 $M^\tau_n$ は
+$\{M_0, M_1, \ldots, M_K\}$ の有限個の可積分関数の線形結合で表せる。
+
+\item \textbf{マルチンゲール性の検証}:
+\begin{align}
+E[M^\tau_{n+1} \mid \mathcal{F}_n]
+&= E[M^\tau_n + (M^\tau_{n+1} - M^\tau_n) \mid \mathcal{F}_n] \\
+&= M^\tau_n + E[\mathbf{1}_{\{\tau > n\}} (M_{n+1} - M_n) \mid \mathcal{F}_n] \\
+&= M^\tau_n + \mathbf{1}_{\{\tau > n\}} \cdot E[M_{n+1} - M_n \mid \mathcal{F}_n] \\
+&= M^\tau_n + \mathbf{1}_{\{\tau > n\}} \cdot 0 \\
+&= M^\tau_n
+\end{align}
+ここで、$\{\tau > n\} \in \mathcal{F}_n$ であることと、
+$E[M_{n+1} - M_n \mid \mathcal{F}_n] = 0$ (マルチンゲール性)を用いた。
+\end{enumerate}
+
+\subsection{形式的証明の構造}
+
+Lean 4での証明は約200行に及ぶが、その核心は以下の流れである:
+
+\begin{codebox}
+\small
+\begin{verbatim}
+lemma stoppedProcess_martingale_property_of_bdd
+    (M : Martingale μ) (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    ∀ n, condExp μ M.filtration n (M.stoppedProcess τ (n + 1))
+          =ᵐ[μ] M.stoppedProcess τ n
+\end{verbatim}
+\end{codebox}
+
+証明の主要な技術的要素:
+\begin{itemize}
+\item 条件付き期待値の線形性 (\texttt{condExp\_add})
+\item 指示関数の引き出し (\texttt{condExp\_indicator})
+\item マルチンゲール性の本質的利用 (\texttt{M.martingale n})
+\item 概収束の合成 (\texttt{EventuallyEq.trans})
+\end{itemize}
+
+\subsection{応用例}
+
+\begin{example}[定数停止時間]
+$\tau(\omega) \equiv K$ のとき、
+\[
+M^\tau_n = \begin{cases}
+M_n & (n \leq K) \\
+M_K & (n > K)
+\end{cases}
+\]
+特に $K=0$ なら $M^\tau_n = M_0$ (定数マルチンゲール)。
+\end{example}
+
+\begin{example}[初到達時刻への応用]
+$\tau = \inf\{n : |M_n| \geq a\}$ が有界ならば、
+$M^\tau$ はマルチンゲールである。これは、
+「レベル $\pm a$ に到達するまで」の累積利得を表す。
+\end{example}
+
+\section{まとめと今後の展望}
+
+\subsection{本形式化の達成}
+
+本稿では、以下の内容を形式化した:
+
+\begin{enumerate}
+\item \textbf{基本概念}:
+  \begin{itemize}
+  \item フィルトレーションと適合過程
+  \item 条件付き期待値のラッパー
+  \item マルチンゲールの構造体定義
+  \end{itemize}
+
+\item \textbf{代数的性質}:
+  \begin{itemize}
+  \item マルチンゲールの線形性(和・スカラー倍)
+  \item 定数マルチンゲールの構成
+  \end{itemize}
+
+\item \textbf{停止時間理論}:
+  \begin{itemize}
+  \item 停止過程の定義と基本性質
+  \item 停止過程の増分表現
+  \item 有界停止時間に対するオプショナル停止定理
+  \end{itemize}
+\end{enumerate}
+
+\subsection{今後の拡張方向}
+
+\begin{mainbox}{拡張計画}
+\begin{enumerate}
+\item \textbf{条件付き期待値の深化}:
+  \begin{itemize}
+  \item 塔の性質 (tower property) の形式化
+  \item Jensen の不等式の条件付きバージョン
+  \end{itemize}
+
+\item \textbf{マルチンゲール不等式}:
+  \begin{itemize}
+  \item Doob の最大値不等式
+  \item Doob の $L^p$ 不等式
+  \item 上交差不等式
+  \end{itemize}
+
+\item \textbf{収束定理}:
+  \begin{itemize}
+  \item Doob のマルチンゲール収束定理
+  \item 一様可積分性と $L^1$ 収束
+  \end{itemize}
+
+\item \textbf{一般の停止時間}:
+  \begin{itemize}
+  \item 可積分性条件の下でのオプショナル停止定理
+  \item 無限停止時間への拡張
+  \end{itemize}
+
+\item \textbf{応用}:
+  \begin{itemize}
+  \item ランダムウォークの性質
+  \item ギャンブラー破産問題
+  \item 離散時間確率解析への橋渡し
+  \end{itemize}
+\end{enumerate}
+\end{mainbox}
+
+\subsection{構造塔との関係性}
+
+本形式化は、\textbf{構造塔}(Structure Tower)の理論的枠組みの一例である。
+フィルトレーションという「増大する構造の列」を扱うことで、
+以下の抽象的概念の具体例を提供する:
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=huge]
+  \text{抽象構造塔} \arrow[r, "\text{具体化}"]
+    \arrow[d, "\text{公理}"]
+  & \text{フィルトレーション} \arrow[d, "\text{性質}"] \\
+  \text{階層的包含} \arrow[r, dashed]
+  & \sigma\text{-加法族の増大列}
+\end{tikzcd}
+\end{center}
+
+この視点は、将来的に他の数学分野(イデアル階層、位相の細密化、フィルター基など)
+との統一的理解を可能にする。
+
+\subsection{結語}
+
+本稿で示した形式化は、現代確率論の基盤となるマルチンゲール理論を、
+完全に検証可能な形で記述する試みである。
+Lean 4の型システムと証明支援機能により、
+数学的直観と形式的厳密性の両立が実現されている。
+
+今後の展開として、より高度な定理(Doob の収束定理など)への拡張や、
+連続時間への一般化が期待される。また、本形式化が
+数学教育や研究における新たなツールとして活用されることを願う。
+
+\vspace{1em}
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}\\[0.5em]
+\textit{本文書は Claude Code と CODEX による協働生成物である。}\\
+\textit{形式化コードは Lean 4 コミュニティの基盤がなければ成立し得なかった。}
+\end{center}
+
+\end{document}
