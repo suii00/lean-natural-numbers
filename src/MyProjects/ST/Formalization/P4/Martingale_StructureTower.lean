@@ -532,6 +532,46 @@ lemma stoppedProcess_martingale_property_of_bdd
     exact Filter.EventuallyEq.of_eq h_final
   exact h_cond_split.trans h_rhs
 
+/-- 定数停止時間 `τ ≡ 0` で止めた過程は常に `M.process 0` に等しい。 -/
+lemma stoppedProcess_const_zero (M : Martingale μ) :
+    ∀ n ω, M.stoppedProcess (fun _ => 0) n ω = M.process 0 ω := by
+  intro n ω
+  have h_fix :
+      M.stoppedProcess (fun _ => 0) 0 ω = M.process 0 ω := by
+    simpa using
+      (M.stoppedProcess_eq_of_le (τ := fun _ => 0)
+        (n := 0) (ω := ω) (Nat.le_of_eq rfl))
+  have h_const :
+      M.stoppedProcess (fun _ => 0) n ω =
+        M.stoppedProcess (fun _ => 0) 0 ω := by
+    simpa using
+      (M.stoppedProcess_const_of_ge (τ := fun _ => 0)
+        (n := 0) (m := n) (ω := ω)
+        (by exact Nat.le_of_eq rfl) (Nat.zero_le n))
+  simpa [h_const] using h_fix
+
+/-- 定数停止時間の可測性（集合は自明）。 -/
+lemma measurableSet_constStopping (M : Martingale μ) (K n : ℕ) :
+    @MeasurableSet Ω (M.filtration n)
+      {ω : Ω | (fun _ : Ω => K) ω ≤ n} := by
+  classical
+  by_cases h : K ≤ n
+  · have hset :
+        {ω : Ω | (fun _ : Ω => K) ω ≤ n} = (Set.univ : Set Ω) := by
+      ext ω; simp [h]
+    simpa [hset] using (MeasurableSet.univ :
+      @MeasurableSet Ω (M.filtration n) Set.univ)
+  · have hset :
+        {ω : Ω | (fun _ : Ω => K) ω ≤ n} = (∅ : Set Ω) := by
+      ext ω; simp [h]
+    simpa [hset] using (MeasurableSet.empty :
+      @MeasurableSet Ω (M.filtration n) (∅ : Set Ω))
+
+/-- 定数停止時間は自明に有界。 -/
+lemma constStopping_bdd (K : ℕ) :
+    ∃ L : ℕ, ∀ ω : Ω, (fun _ : Ω => K) ω ≤ L :=
+  ⟨K, by intro ω; exact le_rfl⟩
+
 lemma stoppedProcess_stronglyMeasurable_of_stoppingSets
     (M : Martingale μ)
     (τ : Ω → ℕ)
@@ -586,6 +626,19 @@ by
       , adapted    := M.stoppedProcess_stronglyMeasurable_of_stoppingSets τ hτ
       , integrable := M.stoppedProcess_integrable_of_bdd τ hτ hτ_bdd
       , martingale := M.stoppedProcess_martingaleProperty_of_bdd τ hτ hτ_bdd }
+
+/-- `stoppedProcess_martingale_of_bdd` を `τ ≡ 0` に適用したときの sanity check。 -/
+lemma stoppedProcess_martingale_of_bdd_zero_process
+    (M : Martingale μ) :
+    ∀ (n : ℕ) (ω : Ω),
+      (stoppedProcess_martingale_of_bdd (M := M) (τ := fun _ => 0)
+          (hτ :=
+            measurableSet_constStopping (M := M) (K := 0))
+          (hτ_bdd := constStopping_bdd (K := 0))).process n ω
+        = M.process 0 ω := by
+  intro n ω
+  change M.stoppedProcess (fun _ => 0) n ω = M.process 0 ω
+  simpa using (stoppedProcess_const_zero (M := M) n ω)
 
 end Martingale
 
