@@ -118,8 +118,6 @@ noncomputable def const (ℱ : MLFiltration Ω) (c : ℝ) : Martingale μ := by
           Filter.EventuallyEq.of_eq <|
           by simpa [Process.const, condExp] using hconst }
 
---!
-
 /-- マルチンゲールの和。2 つのマルチンゲールが同じフィルトレーションに従うとき定義できる。 -/
 noncomputable def add (M N : Martingale μ)
     (hℱ : M.filtration = N.filtration) : Martingale μ := by
@@ -311,6 +309,177 @@ lemma stoppedProcess_integrable_of_bdd
       (hX := M.integrable) (τ := τ)
       (hτ := hτ) (hτ_bdd := hτ_bdd) n)
 
+/-- For a bounded stopping time, the increment of the stopped process has
+conditional expectation `0`. This is the core cancellation step used in bounded
+optional stopping. -/
+lemma stoppedProcess_increment_condExp_zero_of_bdd
+    (M : Martingale μ) (τ : Ω → ℕ)
+    (hτ :
+      ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K)
+    (n : ℕ) :
+    condExp μ M.filtration n
+        (fun ω =>
+          M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
+      =ᵐ[μ] 0 := by
+  classical
+  -- integrability/可測性の準備
+  have h_stop_int :
+      ∀ k,
+        Integrable (StructureTowerProbability.stopped M.process τ k) μ :=
+    StructureTowerProbability.stopped_integrable_of_bdd
+      (ℱ := M.filtration) (X := M.process)
+      (hX := M.integrable) (τ := τ) (hτ := hτ) (hτ_bdd := hτ_bdd)
+  have h_stop_int_n := h_stop_int n
+  have h_stop_int_succ := h_stop_int (n + 1)
+  have h_diff_int :
+      Integrable
+        (fun ω =>
+          M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω) μ :=
+    h_stop_int_succ.sub h_stop_int_n
+  -- 増分を indicator で書き直す
+  have h_diff_fun :
+      (fun ω =>
+          M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
+        = fun ω =>
+            Set.indicator {ω : Ω | τ ω > n}
+              (fun ω => M.process (n + 1) ω - M.process n ω) ω := by
+    funext ω
+    simpa [Martingale.stoppedProcess] using
+      (Martingale.stoppedProcess_increment_indicator
+        (M := M) (τ := τ) (n := n) (ω := ω))
+  -- measurable set {τ > n}
+  have h_meas :
+      @MeasurableSet Ω (M.filtration n)
+        {ω : Ω | τ ω > n} := by
+    have h_le := hτ n
+    have h_eq :
+        {ω : Ω | τ ω > n}
+          = ({ω : Ω | τ ω ≤ n})ᶜ := by
+      ext ω; simp [Set.mem_setOf_eq, not_le]
+    simpa [h_eq] using h_le.compl
+  -- 元の過程の増分の condExp = 0
+  have hΔ_int :
+      Integrable
+        (fun ω => M.process (n + 1) ω - M.process n ω) μ :=
+    (M.integrable (n + 1)).sub (M.integrable n)
+  have h_cond_sub :
+      condExp μ M.filtration n
+          (fun ω => M.process (n + 1) ω - M.process n ω)
+        =ᵐ[μ]
+          condExp μ M.filtration n (M.process (n + 1)) -
+            condExp μ M.filtration n (M.process n) := by
+    simpa [condExp] using
+      (MeasureTheory.condExp_sub
+        (μ := μ) (m := M.filtration n)
+        (hf := M.integrable (n + 1))
+        (hg := M.integrable n))
+  have h_cond_proc_eq :
+      condExp μ M.filtration n (M.process n) = M.process n :=
+    MeasureTheory.condExp_of_stronglyMeasurable
+      (hm := M.filtration.le n)
+      (hf := M.adapted n)
+      (hfi := M.integrable n)
+  have h_cond_proc :
+      condExp μ M.filtration n (M.process n) =ᵐ[μ] M.process n :=
+    Filter.EventuallyEq.of_eq h_cond_proc_eq
+  have hΔ_cond :
+      condExp μ M.filtration n
+          (fun ω => M.process (n + 1) ω - M.process n ω)
+        =ᵐ[μ] 0 := by
+    refine h_cond_sub.trans ?_
+    have h_diff_zero :
+        (fun ω =>
+            condExp μ M.filtration n (M.process (n + 1)) ω +
+              (-condExp μ M.filtration n (M.process n) ω))
+          =ᵐ[μ]
+            fun ω => M.process n ω + (-M.process n ω) := by
+      refine (M.martingale n).add ?_
+      have h_cond_proc_neg :
+          (fun ω => -condExp μ M.filtration n (M.process n) ω)
+            =ᵐ[μ] fun ω => -M.process n ω := by
+        exact h_cond_proc.neg
+      exact h_cond_proc_neg
+    have h_zero_eq :
+        (fun ω => M.process n ω + (-M.process n ω))
+          = fun _ => 0 := by
+      funext ω; simp
+    have h_zero :
+        (fun ω => M.process n ω + (-M.process n ω)) =ᵐ[μ] fun _ => 0 := by
+      refine Filter.EventuallyEq.of_eq ?_
+      exact h_zero_eq
+    exact h_diff_zero.trans h_zero
+  -- indicator 付きの増分を 0 に潰す
+  have h_indicator :
+      condExp μ M.filtration n
+          (fun ω =>
+            Set.indicator {ω : Ω | τ ω > n}
+              (fun ω => M.process (n + 1) ω - M.process n ω) ω)
+        =ᵐ[μ]
+          fun ω =>
+            Set.indicator {ω : Ω | τ ω > n}
+              (fun ω =>
+                condExp μ M.filtration n
+                  (fun ω =>
+                    M.process (n + 1) ω - M.process n ω) ω) ω := by
+    simpa [condExp] using
+      (MeasureTheory.condExp_indicator
+        (μ := μ) (m := M.filtration n)
+        (hf_int := hΔ_int) (hs := h_meas))
+  have h_cond_delta :
+      condExp μ M.filtration n
+          (fun ω =>
+            M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
+        =ᵐ[μ] 0 := by
+    have h_delta' :
+        condExp μ M.filtration n
+            (fun ω =>
+              M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
+          =ᵐ[μ]
+            condExp μ M.filtration n
+              (fun ω =>
+                Set.indicator {ω : Ω | τ ω > n}
+                  (fun ω =>
+                    M.process (n + 1) ω - M.process n ω) ω) := by
+      refine condExp_congr_ae ?_
+      simpa [h_diff_fun]
+    refine h_delta'.trans ?_
+    refine h_indicator.trans ?_
+    have h_indicator_zero :
+        (fun ω =>
+            Set.indicator {ω : Ω | τ ω > n}
+              (fun ω =>
+                condExp μ M.filtration n
+                  (fun ω =>
+                    M.process (n + 1) ω - M.process n ω) ω) ω)
+          =ᵐ[μ]
+            fun ω =>
+              Set.indicator {ω : Ω | τ ω > n}
+                (fun _ : Ω => (0 : ℝ)) ω := by
+      refine hΔ_cond.mono ?_
+      intro ω hω
+      by_cases hmem : ω ∈ {ω : Ω | τ ω > n}
+      · simp [Set.indicator_of_mem, hmem, hω]
+      · simp [Set.indicator_of_notMem, hmem]
+    have h_indicator_zero_eq :
+        (fun ω =>
+            Set.indicator {ω : Ω | τ ω > n}
+              (fun _ : Ω => (0 : ℝ)) ω)
+          = fun _ => 0 := by
+      funext ω
+      by_cases hmem : ω ∈ {ω : Ω | τ ω > n}
+      · simp [Set.indicator_of_mem, hmem]
+      · simp [Set.indicator_of_notMem, hmem]
+    have h_indicator_zero' :
+        (fun ω =>
+          Set.indicator {ω : Ω | τ ω > n}
+            (fun _ : Ω => (0 : ℝ)) ω)
+          =ᵐ[μ] fun _ => 0 := by
+      refine Filter.EventuallyEq.of_eq ?_
+      exact h_indicator_zero_eq
+    exact h_indicator_zero.trans h_indicator_zero'
+  exact h_cond_delta
+
 /-- Optional stopping for bounded stopping times:
 the stopped process satisfies the martingale identity
 `condExp μ … (Y_{n+1}) =ᵐ Y_n`. -/
@@ -384,143 +553,13 @@ lemma stoppedProcess_martingale_property_of_bdd
       condExp μ M.filtration n (M.stoppedProcess τ n)
         =ᵐ[μ] M.stoppedProcess τ n :=
     Filter.EventuallyEq.of_eq h_cond_stop_eq
-  have h_diff_fun :
-      (fun ω =>
-          M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
-        = fun ω =>
-            Set.indicator {ω : Ω | τ ω > n}
-              (fun ω => M.process (n + 1) ω - M.process n ω) ω := by
-    funext ω
-    simpa [Martingale.stoppedProcess] using
-      (Martingale.stoppedProcess_increment_indicator
-        (M := M) (τ := τ) (n := n) (ω := ω))
-  have h_meas :
-      @MeasurableSet Ω (M.filtration n)
-        {ω : Ω | τ ω > n} := by
-    have h_le := hτ n
-    have h_eq :
-        {ω : Ω | τ ω > n}
-          = ({ω : Ω | τ ω ≤ n})ᶜ := by
-      ext ω; simp [Set.mem_setOf_eq, not_le]
-    simpa [h_eq] using h_le.compl
-  have hΔ_int :
-      Integrable
-        (fun ω => M.process (n + 1) ω - M.process n ω) μ :=
-    (M.integrable (n + 1)).sub (M.integrable n)
-  have h_cond_sub :
-      condExp μ M.filtration n
-          (fun ω => M.process (n + 1) ω - M.process n ω)
-        =ᵐ[μ]
-          condExp μ M.filtration n (M.process (n + 1)) -
-            condExp μ M.filtration n (M.process n) := by
-    simpa [condExp] using
-      (MeasureTheory.condExp_sub
-        (μ := μ) (m := M.filtration n)
-        (hf := M.integrable (n + 1))
-        (hg := M.integrable n))
-  have h_cond_proc_eq :
-      condExp μ M.filtration n (M.process n) = M.process n :=
-    MeasureTheory.condExp_of_stronglyMeasurable
-      (hm := M.filtration.le n)
-      (hf := M.adapted n)
-      (hfi := M.integrable n)
-  have h_cond_proc :
-      condExp μ M.filtration n (M.process n) =ᵐ[μ] M.process n :=
-    Filter.EventuallyEq.of_eq h_cond_proc_eq
-  have hΔ_cond :
-      condExp μ M.filtration n
-          (fun ω => M.process (n + 1) ω - M.process n ω)
-        =ᵐ[μ] 0 := by
-    refine h_cond_sub.trans ?_
-    have h_diff_zero :
-        (fun ω =>
-            condExp μ M.filtration n (M.process (n + 1)) ω +
-              (-condExp μ M.filtration n (M.process n) ω))
-          =ᵐ[μ]
-            fun ω => M.process n ω + (-M.process n ω) := by
-      refine (M.martingale n).add ?_
-      have h_cond_proc_neg :
-          (fun ω => -condExp μ M.filtration n (M.process n) ω)
-            =ᵐ[μ] fun ω => -M.process n ω := by
-        exact h_cond_proc.neg
-      exact h_cond_proc_neg
-    have h_zero_eq :
-        (fun ω => M.process n ω + (-M.process n ω))
-          = fun _ => 0 := by
-      funext ω; simp
-    have h_zero :
-        (fun ω => M.process n ω + (-M.process n ω)) =ᵐ[μ] fun _ => 0 := by
-      refine Filter.EventuallyEq.of_eq ?_
-      exact h_zero_eq
-    exact h_diff_zero.trans h_zero
-  have h_indicator :
-      condExp μ M.filtration n
-          (fun ω =>
-            Set.indicator {ω : Ω | τ ω > n}
-              (fun ω => M.process (n + 1) ω - M.process n ω) ω)
-        =ᵐ[μ]
-          fun ω =>
-            Set.indicator {ω : Ω | τ ω > n}
-              (fun ω =>
-                condExp μ M.filtration n
-                  (fun ω =>
-                    M.process (n + 1) ω - M.process n ω) ω) ω := by
-    simpa [condExp] using
-      (MeasureTheory.condExp_indicator
-        (μ := μ) (m := M.filtration n)
-        (hf_int := hΔ_int) (hs := h_meas))
   have h_cond_delta :
       condExp μ M.filtration n
           (fun ω =>
             M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
-        =ᵐ[μ] 0 := by
-    have h_delta' :
-        condExp μ M.filtration n
-            (fun ω =>
-              M.stoppedProcess τ (n + 1) ω - M.stoppedProcess τ n ω)
-          =ᵐ[μ]
-            condExp μ M.filtration n
-              (fun ω =>
-                Set.indicator {ω : Ω | τ ω > n}
-                  (fun ω =>
-                    M.process (n + 1) ω - M.process n ω) ω) := by
-      refine condExp_congr_ae ?_
-      simpa [h_diff_fun]
-    refine h_delta'.trans ?_
-    refine h_indicator.trans ?_
-    have h_indicator_zero :
-        (fun ω =>
-            Set.indicator {ω : Ω | τ ω > n}
-              (fun ω =>
-                condExp μ M.filtration n
-                  (fun ω =>
-                    M.process (n + 1) ω - M.process n ω) ω) ω)
-          =ᵐ[μ]
-            fun ω =>
-              Set.indicator {ω : Ω | τ ω > n}
-                (fun _ : Ω => (0 : ℝ)) ω := by
-      refine hΔ_cond.mono ?_
-      intro ω hω
-      by_cases hmem : ω ∈ {ω : Ω | τ ω > n}
-      · simp [Set.indicator_of_mem, hmem, hω]
-      · simp [Set.indicator_of_notMem, hmem]
-    have h_indicator_zero_eq :
-        (fun ω =>
-            Set.indicator {ω : Ω | τ ω > n}
-              (fun _ : Ω => (0 : ℝ)) ω)
-          = fun _ => 0 := by
-      funext ω
-      by_cases hmem : ω ∈ {ω : Ω | τ ω > n}
-      · simp [Set.indicator_of_mem, hmem]
-      · simp [Set.indicator_of_notMem, hmem]
-    have h_indicator_zero' :
-        (fun ω =>
-          Set.indicator {ω : Ω | τ ω > n}
-            (fun _ : Ω => (0 : ℝ)) ω)
-          =ᵐ[μ] fun _ => 0 := by
-      refine Filter.EventuallyEq.of_eq ?_
-      exact h_indicator_zero_eq
-    exact h_indicator_zero.trans h_indicator_zero'
+        =ᵐ[μ] 0 :=
+    stoppedProcess_increment_condExp_zero_of_bdd
+      (M := M) (τ := τ) (hτ := hτ) (hτ_bdd := hτ_bdd) n
   have h_rhs :
       (fun ω =>
           condExp μ M.filtration n (M.stoppedProcess τ n) ω +
@@ -537,7 +576,7 @@ lemma stoppedProcess_martingale_property_of_bdd
   exact h_cond_split.trans h_rhs
 
 /-- 定数停止時間 `τ ≡ 0` で止めた過程は常に `M.process 0` に等しい。 -/
-lemma stoppedProcess_const_zero (M : Martingale μ) :
+@[simp] lemma stoppedProcess_const_zero (M : Martingale μ) :
     ∀ n ω, M.stoppedProcess (fun _ => 0) n ω = M.process 0 ω := by
   intro n ω
   have h_fix :
