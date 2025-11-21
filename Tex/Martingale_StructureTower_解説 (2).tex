@@ -1,0 +1,826 @@
+\documentclass[12pt,a4paper]{article}
+
+% XeLaTeX用のシンプルな日本語設定
+\usepackage{fontspec}
+\setmainfont{Noto Serif CJK JP}[Scale=1.0]
+\setsansfont{Noto Sans CJK JP}[Scale=1.0]
+\setmonofont{Noto Sans Mono CJK JP}[Scale=0.9]
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc,decorations.pathreplacing}
+
+% その他のパッケージ
+\usepackage{hyperref}
+\usepackage{enumerate}
+\usepackage{framed}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% ページ設定
+\usepackage[top=25mm,bottom=25mm,left=25mm,right=25mm]{geometry}
+
+% Lean コードの設定
+\lstdefinelanguage{Lean}{
+  keywords={import, def, theorem, lemma, example, structure, inductive, where, by, intro, exact, have, show, sorry, noncomputable, abbrev, section, end, namespace, variable, open},
+  keywordstyle=\color{blue}\bfseries,
+  sensitive=true,
+  comment=[l]{--},
+  commentstyle=\color{gray}\itshape,
+  string=[b]",
+  stringstyle=\color{red},
+}
+
+\lstset{
+  language=Lean,
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+\newtheorem{corollary}[definition]{系}
+
+% カスタムコマンド
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\cF}{\mathcal{F}}
+\DeclareMathOperator{\condExp}{condExp}
+\DeclareMathOperator{\ae}{a.e.}
+
+\title{\Large マルチンゲール理論と構造塔\\
+Martingale\_StructureTower: \\
+条件付き期待値から停止定理へ}
+
+\author{学部生向け数学解説\\
+\vspace{5mm}
+\normalsize Claude Code により生成\\
+\normalsize Lean 4 コード: CODEX (OpenAI)\\
+\normalsize \TeX 解説: Claude Code\\
+\vspace{3mm}
+\normalsize プロジェクト: Structure Tower Theory}
+
+\date{2025年11月19日}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔理論の視点からマルチンゲール理論を形式化する。離散時間マルチンゲールの定義、基本演算（和・スカラー倍）、停止過程の構成、そして有界停止時間に対するオプショナル停止定理を扱う。\texttt{Martingale\_StructureTower.lean} の Lean 4 コードを基に、確率論の中心的な概念であるマルチンゲールと停止時間の関係を学部3-4年生向けに解説する。測度論的確率論と条件付き期待値の基礎知識を前提とする。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論：マルチンゲール理論の基礎}
+
+\subsection{マルチンゲールとは}
+
+\textbf{マルチンゲール}（martingale）は、確率論において最も重要な概念の一つである。直感的には、「公平なギャンブル」を数学的に定式化したものである。
+
+\begin{definition}[非形式的なマルチンゲール]
+確率過程 $(X_n)_{n \in \N}$ がマルチンゲールであるとは、各時刻 $n$ までの情報を使って次の時刻 $n+1$ の値を予測すると、期待値が現在の値 $X_n$ に等しいことをいう：
+\[
+\E[X_{n+1} \mid \cF_n] = X_n
+\]
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.9]
+  % 時間軸
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻 $n$};
+  \draw[->,thick] (0,-2) -- (0,3) node[above] {$X_n$};
+  
+  % マルチンゲールの軌道（上下に変動）
+  \draw[thick,blue] (0,0) -- (1,0.5) -- (2,0.3) -- (3,0.8) -- (4,0.5) -- (5,1.2) -- (6,0.9) -- (7,1.3) -- (8,0.8) -- (9,1.5);
+  
+  % 条件付き期待値
+  \draw[dashed,red] (4,0.5) -- (5,0.5);
+  \node[red,above] at (4.5,0.5) {\small $\E[X_5 \mid \cF_4] = X_4$};
+  
+  \fill[blue] (4,0.5) circle (3pt) node[below] {$X_4$};
+  \fill[blue] (5,1.2) circle (3pt) node[above] {$X_5$};
+  
+  % 公平性の説明
+  \draw[<->,green!60!black,thick] (4,0.5) -- (5,1.2);
+  \node[green!60!black,right] at (5.5,0.85) {\small 平均的には変化なし};
+\end{tikzpicture}
+\end{center}
+
+\subsection{構造塔との関係}
+
+マルチンゲール理論は、構造塔の枠組みで自然に理解できる：
+
+\begin{itemize}
+\item \textbf{フィルトレーション} $(\cF_n)_{n \in \N}$：情報の階層構造
+\item \textbf{適合過程}：各時刻 $n$ で $\cF_n$-可測
+\item \textbf{条件付き期待値}：上位の層から下位の層への「射影」
+\item \textbf{マルチンゲール性}：層間での「平衡」
+\end{itemize}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+\item 第\ref{sec:basic}節：条件付き期待値とマルチンゲールの定義
+\item 第\ref{sec:operations}節：マルチンゲールの基本演算
+\item 第\ref{sec:stopped}節：停止過程の構成
+\item 第\ref{sec:optional}節：有界オプショナル停止定理
+\item 第\ref{sec:applications}節：応用と展望
+\end{enumerate}
+
+\section{条件付き期待値とマルチンゲール}\label{sec:basic}
+
+\subsection{条件付き期待値}
+
+\begin{definition}[条件付き期待値]
+確率空間 $(\Omega, \cF, \mu)$ 上の可積分確率変数 $f : \Omega \to \R$ と部分 $\sigma$-代数 $\mathcal{G} \subseteq \cF$ に対して、\textbf{条件付き期待値} $\E[f \mid \mathcal{G}]$ は以下を満たす $\mathcal{G}$-可測関数である：
+\begin{enumerate}
+\item $\E[f \mid \mathcal{G}]$ は $\mathcal{G}$-可測
+\item 任意の $A \in \mathcal{G}$ に対して、
+\[
+\int_A \E[f \mid \mathcal{G}] \, d\mu = \int_A f \, d\mu
+\]
+\end{enumerate}
+これは $\mu$-a.e. で一意に定まる。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,ellipse,minimum width=4cm,minimum height=2.5cm,fill=blue!10] (F) at (0,0) {};
+  \node[draw,ellipse,minimum width=2.5cm,minimum height=1.5cm,fill=blue!20] (G) at (0,0) {};
+  
+  \node at (0,1.5) {$\cF$};
+  \node at (0,0.5) {$\mathcal{G}$};
+  
+  \draw[->,thick,red] (1.5,0) -- (0.8,0) node[midway,above] {射影};
+  \node[right] at (2,0) {$f$ ($\cF$-可測)};
+  \node[right] at (0.8,-0.3) {$\E[f \mid \mathcal{G}]$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{条件付き期待値の基本性質}
+
+\begin{proposition}[線形性]
+可積分な $f, g : \Omega \to \R$ と $a, b \in \R$ に対して、
+\[
+\E[af + bg \mid \mathcal{G}] = a\E[f \mid \mathcal{G}] + b\E[g \mid \mathcal{G}] \quad (\mu\text{-a.e.})
+\]
+\end{proposition}
+
+\begin{proposition}[塔の性質]
+$\mathcal{G} \subseteq \mathcal{H} \subseteq \cF$ のとき、
+\[
+\E[\E[f \mid \mathcal{H}] \mid \mathcal{G}] = \E[f \mid \mathcal{G}] \quad (\mu\text{-a.e.})
+\]
+\end{proposition}
+
+この「塔の性質」は、構造塔の単調性と深く関係している。
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,rectangle,minimum width=3cm,minimum height=1cm] (F) at (0,3) {$\cF$};
+  \node[draw,rectangle,minimum width=2.5cm,minimum height=1cm] (H) at (0,1.5) {$\mathcal{H}$};
+  \node[draw,rectangle,minimum width=2cm,minimum height=1cm] (G) at (0,0) {$\mathcal{G}$};
+  
+  \draw[->,thick,blue] (F) -- (H) node[midway,right] {$\E[\cdot \mid \mathcal{H}]$};
+  \draw[->,thick,blue] (H) -- (G) node[midway,right] {$\E[\cdot \mid \mathcal{G}]$};
+  \draw[->,thick,red,dashed] (F) to[bend right=30] (G) node[midway,left] {$\E[\cdot \mid \mathcal{G}]$};
+  
+  \node[right=0.5cm of F] {\small 包含};
+  \node[right=2cm of H,text width=3cm,align=left] {\small 合成して\\直接射影と一致};
+\end{tikzpicture}
+\end{center}
+
+\subsection{マルチンゲールの厳密な定義}
+
+\begin{definition}[離散時間マルチンゲール]
+確率空間 $(\Omega, \cF, \mu)$ 上のフィルトレーション $(\cF_n)_{n \in \N}$ に対して、確率過程 $(X_n)_{n \in \N}$ が\textbf{マルチンゲール}であるとは、以下を満たすことをいう：
+\begin{enumerate}
+\item \textbf{適合性}：各 $n$ で $X_n$ は $\cF_n$-可測
+\item \textbf{可積分性}：各 $n$ で $\E[|X_n|] < \infty$
+\item \textbf{マルチンゲール性}：任意の $n \in \N$ に対して、
+\[
+\E[X_{n+1} \mid \cF_n] = X_n \quad (\mu\text{-a.e.})
+\]
+\end{enumerate}
+\end{definition}
+
+Lean 4 での実装（72-83行目）：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=72]
+structure Martingale
+    (μ : Measure Ω) [IsFiniteMeasure μ] where
+  filtration : MLFiltration Ω
+  process : Process Ω
+  adapted :
+      MeasureTheory.Adapted filtration process
+  integrable :
+      ∀ n, Integrable (process n) μ
+  martingale :
+      ∀ n,
+        condExp μ filtration n (process (n + 1))
+          =ᵐ[μ] process n
+\end{lstlisting}
+
+\subsection{マルチンゲールの直感}
+
+マルチンゲールは「情報の増加に対して平均的に変化しない」過程である：
+
+\begin{itemize}
+\item 時刻 $n$ で得られる情報：$\cF_n$
+\item 時刻 $n+1$ での値：$X_{n+1}$
+\item 時刻 $n$ での予測：$\E[X_{n+1} \mid \cF_n]$
+\item マルチンゲール性：予測値 = 現在値
+\end{itemize}
+
+\begin{example}[ランダムウォーク]
+$(\xi_n)_{n \geq 1}$ を独立同分布で $\E[\xi_n] = 0$ とする。このとき、
+\[
+X_n := \sum_{k=1}^n \xi_k
+\]
+はマルチンゲールである。実際、$\cF_n = \sigma(X_1, \ldots, X_n)$ とすると、
+\[
+\E[X_{n+1} \mid \cF_n] = X_n + \E[\xi_{n+1} \mid \cF_n] = X_n + \E[\xi_{n+1}] = X_n
+\]
+\end{example}
+
+\section{マルチンゲールの基本演算}\label{sec:operations}
+
+\subsection{定数マルチンゲール}
+
+\begin{proposition}[定数マルチンゲール]
+任意の定数 $c \in \R$ に対して、定数過程 $X_n \equiv c$ はマルチンゲールである。
+\end{proposition}
+
+\begin{proof}
+条件付き期待値の性質より、
+\[
+\E[X_{n+1} \mid \cF_n] = \E[c \mid \cF_n] = c = X_n
+\]
+\end{proof}
+
+Lean 4 での実装（99-119行目）：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=99]
+noncomputable def const (ℱ : MLFiltration Ω) (c : ℝ) : Martingale μ := by
+  classical
+  refine
+    { filtration := ℱ
+      process := Process.const (Ω := Ω) c
+      adapted := ...
+      integrable := ...
+      martingale := by
+        intro n
+        have hconst :
+            MeasureTheory.condExp (ℱ n) μ (fun _ : Ω => c)
+              = fun _ : Ω => c :=
+          MeasureTheory.condExp_const (μ := μ) (hm := ℱ.le n) c
+        ... }
+\end{lstlisting}
+
+\subsection{マルチンゲールの和}
+
+\begin{theorem}[マルチンゲールの和]
+$(X_n)$ と $(Y_n)$ が同じフィルトレーション $(\cF_n)$ に関するマルチンゲールならば、$(X_n + Y_n)$ もマルチンゲールである。
+\end{theorem}
+
+\begin{proof}
+適合性と可積分性は明らか。マルチンゲール性については、条件付き期待値の線形性より、
+\begin{align*}
+\E[X_{n+1} + Y_{n+1} \mid \cF_n] &= \E[X_{n+1} \mid \cF_n] + \E[Y_{n+1} \mid \cF_n] \\
+&= X_n + Y_n
+\end{align*}
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.8]
+  % X のマルチンゲール
+  \draw[thick,blue] (0,0) -- (1,0.5) -- (2,0.3) -- (3,0.8) -- (4,0.6) -- (5,1);
+  \node[blue,above] at (2.5,1.2) {$X_n$};
+  
+  % Y のマルチンゲール
+  \draw[thick,red] (0,-1) -- (1,-0.7) -- (2,-1.2) -- (3,-0.9) -- (4,-1.1) -- (5,-0.8);
+  \node[red,below] at (2.5,-1.5) {$Y_n$};
+  
+  % 和
+  \draw[thick,green!60!black] (0,-1) -- (1,-0.2) -- (2,-0.9) -- (3,-0.1) -- (4,-0.5) -- (5,0.2);
+  \node[green!60!black,right] at (5,0.2) {$X_n + Y_n$};
+  
+  % 時間軸
+  \draw[->,thick] (0,-2) -- (6,-2) node[right] {時刻};
+  
+  \node at (3,-2.5) {どれもマルチンゲール};
+\end{tikzpicture}
+\end{center}
+
+\subsection{スカラー倍}
+
+\begin{proposition}[スカラー倍]
+$(X_n)$ がマルチンゲールで $a \in \R$ ならば、$(aX_n)$ もマルチンゲールである。
+\end{proposition}
+
+\begin{proof}
+条件付き期待値の線形性より、
+\[
+\E[aX_{n+1} \mid \cF_n] = a\E[X_{n+1} \mid \cF_n] = aX_n
+\]
+\end{proof}
+
+これらの性質により、マルチンゲールの集合は\textbf{ベクトル空間}をなす。
+
+\section{停止過程とマルチンゲール性}\label{sec:stopped}
+
+\subsection{停止過程の定義}
+
+\begin{definition}[停止過程]
+マルチンゲール $(X_n)$ と停止時間 $\tau$ に対して、\textbf{停止過程} $X^\tau$ を
+\[
+X^\tau_n(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+と定義する。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.85]
+  % 時間軸
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻 $n$};
+  \draw[->,thick] (0,-0.5) -- (0,3.5) node[above] {値};
+  
+  % 元のマルチンゲール
+  \draw[thick,blue,dashed] (0,1) -- (1,1.3) -- (2,0.9) -- (3,1.5) -- (4,1.2) -- (5,1.8) -- (6,1.5) -- (7,2.1) -- (8,1.9) -- (9,2.3);
+  \node[blue] at (9,2.8) {元の過程 $X_n$};
+  
+  % 停止時刻
+  \draw[red,dashed,thick] (4,0) -- (4,3.5);
+  \fill[red] (4,1.2) circle (4pt);
+  \node[red,below] at (4,-0.2) {$\tau(\omega)=4$};
+  
+  % 停止過程
+  \draw[thick,green!60!black,line width=1.5pt] (0,1) -- (1,1.3) -- (2,0.9) -- (3,1.5) -- (4,1.2);
+  \draw[thick,green!60!black,line width=1.5pt] (4,1.2) -- (5,1.2) -- (6,1.2) -- (7,1.2) -- (8,1.2) -- (9,1.2);
+  \node[green!60!black] at (7,0.7) {停止過程 $X^\tau_n$};
+  
+  % 注釈
+  \draw[decorate,decoration={brace,amplitude=5pt}] (0,0.4) -- (4,0.4) node[midway,below=5pt] {\small 変動};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (4,0.4) -- (9,0.4) node[midway,below=5pt] {\small 固定};
+\end{tikzpicture}
+\end{center}
+
+\subsection{停止過程の基本性質}
+
+\begin{lemma}[停止前での一致]
+$n \leq \tau(\omega)$ ならば、$X^\tau_n(\omega) = X_n(\omega)$ である。
+\end{lemma}
+
+\begin{lemma}[停止後の固定]
+$\tau(\omega) \leq n \leq m$ ならば、$X^\tau_m(\omega) = X^\tau_n(\omega)$ である。
+\end{lemma}
+
+Lean 4 での実装：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=209]
+lemma stoppedProcess_eq_of_le (M : Martingale μ) (τ : Ω → ℕ)
+    {n : ℕ} {ω : Ω} (hn : n ≤ τ ω) :
+    M.stoppedProcess τ n ω = M.process n ω
+
+lemma stoppedProcess_const_of_ge (M : Martingale μ) (τ : Ω → ℕ)
+    {n m : ℕ} {ω : Ω} (hτ : τ ω ≤ n) (hnm : n ≤ m) :
+    M.stoppedProcess τ m ω = M.stoppedProcess τ n ω
+\end{lstlisting}
+
+\subsection{停止過程の可積分性}
+
+\begin{theorem}[停止過程の可積分性]
+マルチンゲール $(X_n)$ と有界停止時間 $\tau$（$\exists K, \forall \omega, \tau(\omega) \leq K$）に対して、各時刻 $n$ で $X^\tau_n$ は可積分である。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+有界性より、$X^\tau_n(\omega)$ は有限個の値 $X_0(\omega), \ldots, X_K(\omega)$ のいずれかである。各 $X_k$ は可積分なので、$X^\tau_n$ も可積分である。
+\end{proof}
+
+\section{有界オプショナル停止定理}\label{sec:optional}
+
+\subsection{定理の主張}
+
+\begin{theorem}[有界オプショナル停止定理]
+$(X_n, \cF_n)_{n \in \N}$ をマルチンゲールとし、$\tau$ を有界停止時間とする。このとき、停止過程 $(X^\tau_n, \cF_n)_{n \in \N}$ もマルチンゲールである。
+\end{theorem}
+
+これは確率論における最も重要な定理の一つである。
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,rectangle,rounded corners,minimum width=4cm,minimum height=1.5cm,fill=blue!10] (mart) at (0,0) {マルチンゲール $X_n$};
+  \node[draw,rectangle,rounded corners,minimum width=4cm,minimum height=1.5cm,fill=blue!10] (stop) at (6,0) {停止過程 $X^\tau_n$};
+  
+  \draw[->,thick,red] (mart) -- (stop) node[midway,above] {停止時間 $\tau$};
+  \node[below=0.5cm of mart] {\small 公平なギャンブル};
+  \node[below=0.5cm of stop] {\small 依然として公平};
+\end{tikzpicture}
+\end{center}
+
+\subsection{定理の意味}
+
+この定理は、「適切な時点でゲームを止めても、期待値は変わらない」ことを示している：
+
+\begin{itemize}
+\item \textbf{直感}：マルチンゲールは「公平」
+\item \textbf{停止}：適切なルールで止める
+\item \textbf{結論}：止めた後も「公平」が保たれる
+\end{itemize}
+
+\begin{remark}[有界性の必要性]
+停止時間が有界でない場合、定理は一般には成り立たない。例えば、「初めて正の値になったら止める」というルールでは、期待値が変化しうる。
+\end{remark}
+
+\subsection{証明の概略}
+
+証明の鍵は、停止過程の増分の構造である。
+
+\begin{lemma}[停止過程の増分]
+停止過程の増分は次のように書ける：
+\[
+X^\tau_{n+1} - X^\tau_n = \mathbf{1}_{\{\tau > n\}} \cdot (X_{n+1} - X_n)
+\]
+ここで、$\mathbf{1}_{\{\tau > n\}}$ は指示関数である。
+\end{lemma}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.8]
+  % 時間軸
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻};
+  
+  % 停止前の領域
+  \fill[green!20] (0,0) rectangle (4,2);
+  \node[green!60!black] at (2,1) {$\tau > n$：変化あり};
+  
+  % 停止後の領域
+  \fill[red!20] (4,0) rectangle (9,2);
+  \node[red!60!black] at (6.5,1) {$\tau \leq n$：変化なし};
+  
+  % 停止時刻
+  \draw[thick,dashed,blue] (4,0) -- (4,2);
+  \node[blue] at (4,2.3) {$\tau$};
+  
+  % 増分
+  \draw[->,thick,green!60!black] (1,0.3) -- (2,0.3) node[midway,below] {\small $\Delta X^\tau_n$};
+  \draw[->,thick,red!60!black] (6,0.3) -- (7,0.3) node[midway,below] {\small $0$};
+\end{tikzpicture}
+\end{center}
+
+\begin{proof}[証明の概略]
+停止過程がマルチンゲールであることを示すには、
+\[
+\E[X^\tau_{n+1} \mid \cF_n] = X^\tau_n
+\]
+を示せばよい。増分の公式より、
+\begin{align*}
+\E[X^\tau_{n+1} - X^\tau_n \mid \cF_n] 
+&= \E[\mathbf{1}_{\{\tau > n\}} \cdot (X_{n+1} - X_n) \mid \cF_n] \\
+&= \mathbf{1}_{\{\tau > n\}} \cdot \E[X_{n+1} - X_n \mid \cF_n] \\
+&= \mathbf{1}_{\{\tau > n\}} \cdot 0 = 0
+\end{align*}
+ここで、$\{\tau > n\} \in \cF_n$（停止時間の性質）と、$(X_n)$ がマルチンゲールであることを使った。
+\end{proof}
+
+\subsection{Lean 4 での実装}
+
+完全な証明（626-640行目）：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=626]
+noncomputable def stoppedProcess_martingale_of_bdd
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ :
+      ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+  Martingale μ :=
+by
+  classical
+  refine
+    { filtration := M.filtration
+      , process    := M.stoppedProcess τ
+      , adapted    := M.stoppedProcess_adapted_of_measurableSets τ hτ
+      , integrable := M.stoppedProcess_integrable_of_bdd τ hτ hτ_bdd
+      , martingale := M.stoppedProcess_martingale_property_of_bdd τ hτ hτ_bdd }
+\end{lstlisting}
+
+\section{定数停止時間の例}\label{sec:examples}
+
+\subsection{定数停止時間}
+
+最も単純な例として、定数停止時間 $\tau(\omega) \equiv K$ を考える。
+
+\begin{theorem}[定数停止時間での停止過程]
+定数停止時間 $\tau \equiv K$ で止めた過程は、
+\[
+X^\tau_n(\omega) = \begin{cases}
+X_n(\omega) & \text{if } n \leq K \\
+X_K(\omega) & \text{if } n > K
+\end{cases}
+\]
+である。
+\end{theorem}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.85]
+  % 時間軸
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻 $n$};
+  \foreach \x in {0,1,2,3,4,5,6,7,8,9}
+    \draw (\x,0.1) -- (\x,-0.1) node[below] {\tiny $\x$};
+  
+  % K=3 の場合
+  \draw[->,thick] (0,-0.5) -- (0,3) node[above] {$X_n$};
+  
+  % 元の過程
+  \draw[thick,blue,dashed] (0,1) -- (1,1.4) -- (2,1.1) -- (3,1.7) -- (4,1.5) -- (5,2) -- (6,1.8) -- (7,2.2) -- (8,2.5) -- (9,2.3);
+  
+  % 停止過程 (K=3)
+  \draw[thick,green!60!black,line width=1.5pt] (0,1) -- (1,1.4) -- (2,1.1) -- (3,1.7);
+  \draw[thick,green!60!black,line width=1.5pt] (3,1.7) -- (4,1.7) -- (5,1.7) -- (6,1.7) -- (7,1.7) -- (8,1.7) -- (9,1.7);
+  
+  % K の位置
+  \draw[red,dashed,thick] (3,0) -- (3,3);
+  \node[red] at (3,2.8) {$K=3$};
+  
+  \fill[green!60!black] (3,1.7) circle (3pt);
+  
+  \node[blue] at (8,2.8) {\small 元の過程};
+  \node[green!60!black] at (6,1.2) {\small $X^\tau_n = X_3$ for $n \geq 3$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{ゼロでの停止}
+
+特に、$K = 0$ の場合：
+
+\begin{corollary}[$K=0$ での停止]
+$\tau \equiv 0$ で止めた過程は、すべての時刻で $X_0$ に等しい：
+\[
+X^\tau_n(\omega) = X_0(\omega) \quad \text{for all } n
+\]
+これは定数マルチンゲールである。
+\end{corollary}
+
+Lean 4 での確認（540-555行目）：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=540]
+lemma stoppedProcess_const_zero (M : Martingale μ) :
+    ∀ n ω, M.stoppedProcess (fun _ => 0) n ω = M.process 0 ω := by
+  intro n ω
+  have h_fix :
+      M.stoppedProcess (fun _ => 0) 0 ω = M.process 0 ω := ...
+  have h_const :
+      M.stoppedProcess (fun _ => 0) n ω =
+        M.stoppedProcess (fun _ => 0) 0 ω := ...
+  simpa [h_const] using h_fix
+\end{lstlisting}
+
+\section{応用と理論的意義}\label{sec:applications}
+
+\subsection{マルチンゲールの収束定理}
+
+オプショナル停止定理は、より高度な結果への足がかりとなる：
+
+\begin{theorem}[ドゥーブのマルチンゲール収束定理（非形式的）]
+有界なマルチンゲール $(X_n)$ は、$\mu$-a.e. で収束する。
+\end{theorem}
+
+この定理の証明において、停止時間と停止過程が本質的な役割を果たす。
+
+\subsection{構造塔理論の視点}
+
+構造塔の視点から、マルチンゲール理論の構造が明確になる：
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  % 構造塔
+  \node[draw,rectangle,minimum width=3cm,minimum height=0.8cm,fill=blue!10] (F0) at (0,0) {$\cF_0$};
+  \node[draw,rectangle,minimum width=3.5cm,minimum height=1cm,fill=blue!15] (F1) at (0,1.3) {$\cF_1$};
+  \node[draw,rectangle,minimum width=4cm,minimum height=1.2cm,fill=blue!20] (F2) at (0,2.8) {$\cF_2$};
+  \node[draw,rectangle,minimum width=4.5cm,minimum height=1.4cm,fill=blue!25] (F3) at (0,4.5) {$\cF_3$};
+  
+  \draw[->,thick] (F0) -- (F1);
+  \draw[->,thick] (F1) -- (F2);
+  \draw[->,thick] (F2) -- (F3);
+  
+  % マルチンゲール
+  \node[right=4cm of F0] (X0) {$X_0$};
+  \node[right=4cm of F1] (X1) {$X_1$};
+  \node[right=4cm of F2] (X2) {$X_2$};
+  \node[right=4cm of F3] (X3) {$X_3$};
+  
+  \draw[->,dashed,red] (X1) to[bend left=20] node[right] {\small $\E[\cdot \mid \cF_0]$} (X0);
+  \draw[->,dashed,red] (X2) to[bend left=20] node[right] {\small $\E[\cdot \mid \cF_1]$} (X1);
+  \draw[->,dashed,red] (X3) to[bend left=20] node[right] {\small $\E[\cdot \mid \cF_2]$} (X2);
+  
+  \node[left=0.5cm of F0] {\small 層};
+  \node[right=0.5cm of X0] {\small 過程の値};
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}
+\item \textbf{フィルトレーション}：構造塔の層
+\item \textbf{適合性}：各値が対応する層に属する
+\item \textbf{条件付き期待値}：上の層から下の層への射影
+\item \textbf{マルチンゲール性}：射影が恒等写像
+\end{itemize}
+
+\subsection{今後の展望}
+
+本稿で扱った内容は、以下への基礎となる：
+
+\begin{enumerate}
+\item \textbf{一般オプショナル停止}：無限停止時間への拡張
+\item \textbf{マルチンゲール変換}：予測可能過程による変換
+\item \textbf{ドゥーブ分解}：劣マルチンゲールの分解
+\item \textbf{確率積分}：連続時間への拡張
+\item \textbf{伊藤積分}：ブラウン運動とマルチンゲール
+\end{enumerate}
+
+\subsection{構造塔理論の統一的視点}
+
+構造塔理論は、以下の分野を統一的に扱う枠組みを提供する：
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,ellipse,minimum width=3cm,minimum height=1cm,fill=blue!10] (tower) at (0,0) {構造塔理論};
+  
+  \node[draw,rectangle,minimum width=2.5cm,minimum height=0.8cm] (prob) at (-3,2) {確率論};
+  \node[draw,rectangle,minimum width=2.5cm,minimum height=0.8cm] (topo) at (3,2) {位相幾何学};
+  \node[draw,rectangle,minimum width=2.5cm,minimum height=0.8cm] (alg) at (-3,-2) {代数学};
+  \node[draw,rectangle,minimum width=2.5cm,minimum height=0.8cm] (ana) at (3,-2) {解析学};
+  
+  \draw[->,thick] (tower) -- (prob) node[midway,above left] {\small フィルトレーション};
+  \draw[->,thick] (tower) -- (topo) node[midway,above right] {\small 開集合の階層};
+  \draw[->,thick] (tower) -- (alg) node[midway,below left] {\small イデアルの鎖};
+  \draw[->,thick] (tower) -- (ana) node[midway,below right] {\small 関数空間};
+\end{tikzpicture}
+\end{center}
+
+\section{まとめ}
+
+\subsection{本稿の成果}
+
+本稿では、構造塔理論の視点からマルチンゲール理論を形式化した：
+
+\begin{enumerate}
+\item 条件付き期待値とマルチンゲールの定義
+\item マルチンゲールの基本演算（和・スカラー倍）
+\item 停止過程の構成と性質
+\item 有界オプショナル停止定理の証明
+\item 定数停止時間の具体例
+\end{enumerate}
+
+\subsection{形式化の階層}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,rectangle,minimum width=5cm,minimum height=0.8cm,fill=blue!10] (level1) at (0,0) 
+    {Level 1: 構造塔（抽象）};
+  \node[draw,rectangle,minimum width=5cm,minimum height=0.8cm,fill=blue!15] (level2) at (0,1.2) 
+    {Level 2: $\sigma$-代数の構造塔};
+  \node[draw,rectangle,minimum width=5cm,minimum height=0.8cm,fill=blue!20] (level3) at (0,2.4) 
+    {Level 3: フィルトレーション};
+  \node[draw,rectangle,minimum width=5cm,minimum height=0.8cm,fill=blue!25] (level4) at (0,3.6) 
+    {Level 4: 停止時間と停止過程};
+  \node[draw,rectangle,minimum width=5cm,minimum height=0.8cm,fill=blue!30] (level5) at (0,4.8) 
+    {Level 5: マルチンゲール理論};
+  \node[draw,rectangle,minimum width=5cm,minimum height=0.8cm,fill=blue!35] (level6) at (0,6) 
+    {Level 6: オプショナル停止定理};
+  
+  \draw[->,thick] (level1) -- (level2);
+  \draw[->,thick] (level2) -- (level3);
+  \draw[->,thick] (level3) -- (level4);
+  \draw[->,thick] (level4) -- (level5);
+  \draw[->,thick] (level5) -- (level6);
+  
+  \node[right=1.5cm of level3] {\small 本稿の};
+  \node[right=1.5cm of level4] {\small 中心的};
+  \node[right=1.5cm of level5] {\small テーマ};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Lean 4 コードへのリンク}
+
+本稿の対象ファイル：
+
+\texttt{Martingale\_StructureTower.lean}
+
+主要定義：
+
+\begin{itemize}
+\item 条件付き期待値：58-61行目
+\item マルチンゲール：72-83行目
+\item 定数マルチンゲール：99-119行目
+\item マルチンゲールの和：124-162行目
+\item 停止過程：205-206行目
+\item 有界オプショナル停止：626-640行目
+\end{itemize}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+\item \textbf{一般停止時間}：有界性を緩和した定理
+\item \textbf{劣マルチンゲール}：不等式版のマルチンゲール
+\item \textbf{ドゥーブ分解}：劣マルチンゲールの構造定理
+\item \textbf{収束定理}：マルチンゲールの極限挙動
+\item \textbf{連続時間}：ブラウン運動とマルチンゲール
+\end{enumerate}
+
+\section*{参考文献}
+
+\begin{enumerate}
+\item David Williams, \textit{Probability with Martingales}, Cambridge University Press (1991)
+\item Rick Durrett, \textit{Probability: Theory and Examples}, Cambridge University Press (2019)
+\item Patrick Billingsley, \textit{Probability and Measure}, Wiley (1995)
+\item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://github.com/leanprover-community/mathlib4}
+\item Jean-François Le Gall, \textit{Brownian Motion, Martingales, and Stochastic Calculus}, Springer (2016)
+\end{enumerate}
+
+\appendix
+
+\section{条件付き期待値の詳細}
+
+\subsection{存在と一意性}
+
+\begin{theorem}[ラドン-ニコディム]
+$(\Omega, \cF, \mu)$ を確率空間、$\mathcal{G} \subseteq \cF$ を部分 $\sigma$-代数とする。$f \in L^1(\mu)$ に対して、$\E[f \mid \mathcal{G}]$ が $\mu$-a.e. で一意に存在する。
+\end{theorem}
+
+\subsection{基本性質のまとめ}
+
+\begin{enumerate}
+\item \textbf{線形性}：$\E[af + bg \mid \mathcal{G}] = a\E[f \mid \mathcal{G}] + b\E[g \mid \mathcal{G}]$
+\item \textbf{単調性}：$f \leq g$ a.e. ならば $\E[f \mid \mathcal{G}] \leq \E[g \mid \mathcal{G}]$ a.e.
+\item \textbf{塔の性質}：$\E[\E[f \mid \mathcal{H}] \mid \mathcal{G}] = \E[f \mid \mathcal{G}]$ ($\mathcal{G} \subseteq \mathcal{H}$)
+\item \textbf{取り出し}：$g$ が $\mathcal{G}$-可測ならば $\E[fg \mid \mathcal{G}] = g\E[f \mid \mathcal{G}]$ a.e.
+\item \textbf{定数}：$\E[c \mid \mathcal{G}] = c$ a.e.
+\end{enumerate}
+
+\section{停止過程の詳細な証明}
+
+\subsection{増分の公式}
+
+\begin{lemma}
+停止過程の増分は次のように表せる：
+\[
+X^\tau_{n+1}(\omega) - X^\tau_n(\omega) = \begin{cases}
+X_{n+1}(\omega) - X_n(\omega) & \text{if } \tau(\omega) > n \\
+0 & \text{if } \tau(\omega) \leq n
+\end{cases}
+\]
+\end{lemma}
+
+\begin{proof}
+場合分けして確認する。
+
+\textbf{Case 1}: $\tau(\omega) > n$ のとき、
+\begin{align*}
+\min(n+1, \tau(\omega)) &= n+1 \\
+\min(n, \tau(\omega)) &= n
+\end{align*}
+より、$X^\tau_{n+1}(\omega) - X^\tau_n(\omega) = X_{n+1}(\omega) - X_n(\omega)$。
+
+\textbf{Case 2}: $\tau(\omega) \leq n$ のとき、
+\begin{align*}
+\min(n+1, \tau(\omega)) &= \tau(\omega) \\
+\min(n, \tau(\omega)) &= \tau(\omega)
+\end{align*}
+より、$X^\tau_{n+1}(\omega) - X^\tau_n(\omega) = 0$。
+\end{proof}
+
+\subsection{マルチンゲール性の証明}
+
+\begin{theorem}
+有界停止時間 $\tau$ に対して、$(X^\tau_n)$ はマルチンゲールである。
+\end{theorem}
+
+\begin{proof}
+適合性と可積分性は既に示した。マルチンゲール性を示す。
+
+\begin{align*}
+\E[X^\tau_{n+1} - X^\tau_n \mid \cF_n]
+&= \E[\mathbf{1}_{\{\tau > n\}} (X_{n+1} - X_n) \mid \cF_n] \\
+&= \mathbf{1}_{\{\tau > n\}} \E[X_{n+1} - X_n \mid \cF_n] \quad (\{\tau > n\} \in \cF_n) \\
+&= \mathbf{1}_{\{\tau > n\}} \cdot 0 \quad (\text{$(X_n)$ はマルチンゲール}) \\
+&= 0
+\end{align*}
+
+したがって、$\E[X^\tau_{n+1} \mid \cF_n] = X^\tau_n$ が成り立つ。
+\end{proof}
+
+\end{document}

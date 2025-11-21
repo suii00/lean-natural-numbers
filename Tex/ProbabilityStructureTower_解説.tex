@@ -1,0 +1,729 @@
+\documentclass[12pt,a4paper]{article}
+
+% XeLaTeX用のシンプルな日本語設定
+\usepackage{fontspec}
+\setmainfont{Noto Serif CJK JP}[Scale=1.0]
+\setsansfont{Noto Sans CJK JP}[Scale=1.0]
+\setmonofont{Noto Sans Mono CJK JP}[Scale=0.9]
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc}
+
+% その他のパッケージ
+\usepackage{hyperref}
+\usepackage{enumerate}
+\usepackage{framed}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% ページ設定
+\usepackage[top=25mm,bottom=25mm,left=25mm,right=25mm]{geometry}
+
+% Lean コードの設定
+\lstdefinelanguage{Lean}{
+  keywords={import, def, theorem, lemma, example, structure, inductive, where, by, intro, exact, have, show, sorry, noncomputable, abbrev, section, end, namespace, variable, open},
+  keywordstyle=\color{blue}\bfseries,
+  sensitive=true,
+  comment=[l]{--},
+  commentstyle=\color{gray}\itshape,
+  string=[b]",
+  stringstyle=\color{red},
+}
+
+\lstset{
+  language=Lean,
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+\newtheorem{corollary}[definition]{系}
+
+% カスタムコマンド
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cF}{\mathcal{F}}
+\newcommand{\sA}{\mathfrak{A}}
+\DeclareMathOperator{\generateFrom}{generateFrom}
+\DeclareMathOperator{\minLayer}{minLayer}
+
+\title{\Large 確率論における構造塔\\
+SigmaAlgebraTower \& StoppingTime: \\
+フィルトレーションから停止時間へ}
+
+\author{学部生向け数学解説\\
+\vspace{5mm}
+\normalsize Claude Code により生成\\
+\normalsize Lean 4 コード: CODEX (OpenAI)\\
+\normalsize \TeX 解説: Claude Code\\
+\vspace{3mm}
+\normalsize プロジェクト: Structure Tower Theory}
+
+\date{2025年11月19日}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔理論を確率論に応用した形式化について解説する。特に、$\sigma$-代数の階層構造としてのフィルトレーション、停止時間と $\minLayer$ 関数の関係、停止過程の構成を扱う。\texttt{SigmaAlgebraTower\_Skeleton.lean} と \texttt{StoppingTime\_MinLayer.lean} の Lean 4 コードを基に、確率論における構造塔の理論的基礎と具体的実装を学部3-4年生向けに解説する。測度論と確率論の基礎知識を前提とする。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論：確率論における階層構造}
+
+\subsection{フィルトレーションとは}
+
+確率論において、\textbf{フィルトレーション}（filtration）は情報の増加を数学的に表現する概念である。
+
+\begin{definition}[フィルトレーション]
+可測空間 $(\Omega, \cF)$ 上の\textbf{フィルトレーション} $(\cF_n)_{n \in \N}$ とは、$\sigma$-代数の増加列
+\[
+\cF_0 \subseteq \cF_1 \subseteq \cF_2 \subseteq \cdots \subseteq \cF
+\]
+である。直感的には、$\cF_n$ は「時刻 $n$ までに得られた情報」を表す。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,rectangle,minimum width=1.5cm,minimum height=1cm] (F0) at (0,0) {$\cF_0$};
+  \node[draw,rectangle,minimum width=2cm,minimum height=1.5cm] (F1) at (2.5,0) {$\cF_1$};
+  \node[draw,rectangle,minimum width=2.5cm,minimum height=2cm] (F2) at (5.5,0) {$\cF_2$};
+  \node[draw,rectangle,minimum width=3cm,minimum height=2.5cm] (F3) at (9,0) {$\cF_3$};
+  
+  \draw[->,thick] (F0) -- (F1) node[midway,above] {包含};
+  \draw[->,thick] (F1) -- (F2);
+  \draw[->,thick] (F2) -- (F3);
+  
+  \node[above] at (0,0.8) {\small 時刻0の情報};
+  \node[above] at (2.5,1.1) {\small 時刻1の情報};
+  \node[above] at (5.5,1.4) {\small 時刻2の情報};
+  \node[above] at (9,1.7) {\small 時刻3の情報};
+\end{tikzpicture}
+\end{center}
+
+\subsection{構造塔との対応}
+
+フィルトレーションは、まさに構造塔の典型例である：
+
+\begin{itemize}
+\item \textbf{基礎集合}：$\Omega$ の部分集合全体
+\item \textbf{添字集合}：時刻 $\N$（自然な順序付き）
+\item \textbf{層}：各時刻 $n$ での可測集合族 $\cF_n$
+\item \textbf{単調性}：$n \leq m \Rightarrow \cF_n \subseteq \cF_m$
+\end{itemize}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+\item 第\ref{sec:sigma}節：$\sigma$-代数の構造塔
+\item 第\ref{sec:stopping}節：停止時間と $\minLayer$
+\item 第\ref{sec:stopped}節：停止過程の構成
+\item 第\ref{sec:applications}節：応用と展望
+\end{enumerate}
+
+\section{$\sigma$-代数の構造塔}\label{sec:sigma}
+
+\subsection{$\sigma$-代数の順序構造}
+
+\begin{definition}[$\sigma$-代数の順序]
+可測空間 $\Omega$ 上の二つの $\sigma$-代数 $\cF_1, \cF_2$ に対して、
+\[
+\cF_1 \leq \cF_2 \overset{\text{def}}{\Longleftrightarrow} \cF_1 \subseteq \cF_2
+\]
+と定義する。すなわち、$\cF_1$ で可測な集合は全て $\cF_2$ でも可測。
+\end{definition}
+
+この順序により、$\sigma$-代数全体は半順序集合をなす。
+
+\begin{remark}[粗いと細かい]
+$\cF_1 \leq \cF_2$ のとき：
+\begin{itemize}
+\item $\cF_1$ は\textbf{粗い}（coarser）：区別できる事象が少ない
+\item $\cF_2$ は\textbf{細かい}（finer）：区別できる事象が多い
+\end{itemize}
+\end{remark}
+
+\subsection{SigmaAlgebraTower の定義}
+
+\begin{definition}[σ-代数の構造塔]
+$\Omega$ を可測空間とする。$\sigma$-代数を添字とする構造塔を次のように定義する：
+\begin{itemize}
+\item \textbf{基礎集合}：$\mathcal{P}(\Omega)$（$\Omega$ の部分集合全体）
+\item \textbf{添字集合}：$\text{MeasurableSpace}(\Omega)$（$\Omega$ 上の $\sigma$-代数全体）
+\item \textbf{層 $\cF$}：$\{A \subseteq \Omega \mid A \text{ は } \cF \text{ で可測}\}$
+\item \textbf{minLayer}：各集合 $A$ に対して、$A$ を可測にする最小の $\sigma$-代数 $\generateFrom\{A\}$
+\end{itemize}
+\end{definition}
+
+Lean 4 での実装（\texttt{SigmaAlgebraTower\_Skeleton.lean} 71-108行目）：
+
+\begin{lstlisting}[language=Lean]
+def SigmaAlgebraTower : StructureTowerMin (Set Ω) (MeasurableSpace Ω) where
+  layer 𝓕 := {A : Set Ω | @MeasurableSet Ω 𝓕 A}
+  
+  covering := by
+    intro A
+    use ⊤  -- 全体のσ-代数
+    trivial
+  
+  monotone := by
+    intro 𝓕₁ 𝓕₂ h𝓕 A hA
+    exact h𝓕 A hA
+  
+  minLayer := fun A =>
+    MeasurableSpace.generateFrom {A}
+  
+  minLayer_mem := by
+    intro A
+    exact MeasurableSpace.measurableSet_generateFrom
+      (by simp : A ∈ ({A} : Set (Set Ω)))
+  
+  minLayer_minimal := by
+    intro A 𝓕 hA
+    apply MeasurableSpace.generateFrom_le
+    intro B hB
+    rcases hB with rfl
+    exact hA
+\end{lstlisting}
+
+\subsection{生成 $\sigma$-代数の最小性}
+
+\begin{theorem}[generateFrom の最小性]
+集合族 $S \subseteq \mathcal{P}(\Omega)$ と $\sigma$-代数 $\cF$ に対して、
+\[
+(\forall B \in S,\ B \in \cF) \Longrightarrow \generateFrom(S) \subseteq \cF
+\]
+が成り立つ。すなわち、$\generateFrom(S)$ は $S$ を含む最小の $\sigma$-代数である。
+\end{theorem}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,circle,minimum size=3cm] (gen) at (0,0) {};
+  \node[draw,circle,minimum size=5cm] (F) at (0,0) {};
+  
+  \node at (0,-0.5) {$\generateFrom(S)$};
+  \node at (0,2) {$\cF$};
+  
+  \fill[red] (-0.3,0.3) circle (2pt) node[left] {$B_1 \in S$};
+  \fill[red] (0.4,-0.2) circle (2pt) node[right] {$B_2 \in S$};
+  
+  \draw[->,thick,blue] (-1.2,-1.2) -- (-2,-2) node[below] {最小の $\sigma$-代数};
+\end{tikzpicture}
+\end{center}
+
+\subsection{構造塔としての性質}
+
+\begin{proposition}[単調性]
+$\cF_1 \leq \cF_2$ ならば、層の包含関係
+\[
+\text{layer}(\cF_1) \subseteq \text{layer}(\cF_2)
+\]
+が成り立つ。すなわち、$\cF_1$-可測な集合は $\cF_2$-可測である。
+\end{proposition}
+
+\begin{proposition}[被覆性]
+任意の集合 $A \subseteq \Omega$ に対して、ある $\sigma$-代数 $\cF$（例えば $\cF = \top$）が存在して、
+\[
+A \in \text{layer}(\cF)
+\]
+が成り立つ。
+\end{proposition}
+
+\section{フィルトレーションと構造塔}\label{sec:filtration}
+
+\subsection{フィルトレーションの形式化}
+
+\begin{definition}[離散フィルトレーション]
+可測空間 $(\Omega, \cF)$ 上の\textbf{離散フィルトレーション}とは、単調な $\sigma$-代数の族
+\[
+(\cF_n)_{n \in \N} : \N \to \text{MeasurableSpace}(\Omega)
+\]
+であって、$n \leq m \Rightarrow \cF_n \subseteq \cF_m$ を満たすものである。
+\end{definition}
+
+Lean 4 での実装：
+
+\begin{lstlisting}[language=Lean]
+structure Core where
+  𝓕 : ι → MeasurableSpace Ω
+  mono : Monotone 𝓕
+\end{lstlisting}
+
+\subsection{被覆性を持つフィルトレーション}
+
+確率論の応用のため、「すべての集合がいずれ可測になる」という性質を追加する。
+
+\begin{definition}[被覆性を持つフィルトレーション]
+フィルトレーション $(\cF_n)_{n \in \N}$ が\textbf{被覆性}（covering property）を持つとは、
+\[
+\forall A \subseteq \Omega,\ \exists n \in \N,\ A \in \cF_n
+\]
+が成り立つことをいう。
+\end{definition}
+
+\begin{lstlisting}[language=Lean]
+structure SigmaAlgebraFiltrationWithCovers where
+  base : SigmaAlgebraFiltration.Core (Ω := Ω) (ι := ℕ)
+  covers : ∀ A : Set Ω, ∃ n : ℕ, @MeasurableSet Ω (base.𝓕 n) A
+\end{lstlisting}
+
+\subsection{フィルトレーションから構造塔へ}
+
+被覆性を持つフィルトレーション $\cF$ から、構造塔 $\text{TowerOf}(\cF)$ を構成できる：
+
+\begin{theorem}[フィルトレーションの構造塔化]
+被覆性を持つフィルトレーション $\cF = (\cF_n)_{n \in \N}$ に対して、構造塔
+\[
+\text{TowerOf}(\cF) : \text{StructureTowerMin}(\mathcal{P}(\Omega), \N)
+\]
+が次のように定義される：
+\begin{itemize}
+\item $\text{layer}(n) = \{A \subseteq \Omega \mid A \in \cF_n\}$
+\item $\minLayer(A) = \min\{n \in \N \mid A \in \cF_n\}$（Nat.find を使用）
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+被覆性より、各 $A$ に対して $A \in \cF_n$ となる $n$ が存在する。Nat.find により最小の $n$ が一意に定まる。単調性と最小性は定義から従う。
+\end{proof}
+
+\section{停止時間と $\minLayer$}\label{sec:stopping}
+
+\subsection{停止時間の定義}
+
+\begin{definition}[停止時間]
+フィルトレーション $(\cF_n)_{n \in \N}$ に対して、確率変数 $\tau : \Omega \to \N$ が\textbf{停止時間}（stopping time）であるとは、
+\[
+\forall n \in \N,\ \{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \cF_n
+\]
+が成り立つことをいう。
+\end{definition}
+
+\begin{remark}[停止時間の直感]
+停止時間 $\tau(\omega)$ は、「標本点 $\omega$ に関する情報が初めて明らかになる時刻」を表す。重要なのは、$\tau(\omega) \leq n$ かどうかを判定するのに、時刻 $n$ までの情報 $\cF_n$ で十分であることである。
+\end{remark}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.8]
+  % 時間軸
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻 $n$};
+  \foreach \x in {0,2,4,6,8}
+    \draw (\x,0.1) -- (\x,-0.1) node[below] {$\x$};
+  
+  % 標本点
+  \draw[thick,blue] (0,3) node[left] {$\omega_1$} -- (4,3);
+  \fill[blue] (4,3) circle (3pt) node[above] {$\tau(\omega_1)=4$};
+  
+  \draw[thick,red] (0,2) node[left] {$\omega_2$} -- (6,2);
+  \fill[red] (6,2) circle (3pt) node[above] {$\tau(\omega_2)=6$};
+  
+  % 停止集合
+  \fill[yellow,opacity=0.3] (0,0) rectangle (4,3.5);
+  \node at (2,3.5) {$\{\tau \leq 4\} \in \cF_4$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{停止集合と構造塔}
+
+\begin{theorem}[停止集合の層への所属]
+停止時間 $\tau$ に対して、各 $n \in \N$ で
+\[
+\{\omega \mid \tau(\omega) \leq n\} \in \text{layer}(n)
+\]
+が成り立つ。すなわち、停止集合は対応する層に属する。
+\end{theorem}
+
+\begin{proof}
+停止時間の定義より、$\{\tau \leq n\} \in \cF_n$ である。構造塔の層 $\text{layer}(n)$ は $\cF_n$ の可測集合全体なので、$\{\tau \leq n\} \in \text{layer}(n)$ が成り立つ。
+\end{proof}
+
+Lean 4 での実装：
+
+\begin{lstlisting}[language=Lean]
+lemma stopping_sets_in_tower (ℱ : Filtration Ω)
+    (τ : StoppingTime ℱ) (n : ℕ) :
+    {ω : Ω | τ.τ ω ≤ n} ∈ (towerOf (Ω := Ω) ℱ).layer n := by
+  change @MeasurableSet Ω (ℱ.base.𝓕 n) {ω : Ω | τ.τ ω ≤ n}
+  exact τ.measurable n
+\end{lstlisting}
+
+\subsection{単点の初可測時刻}
+
+構造塔の $\minLayer$ を使って、新しい概念を導入できる。
+
+\begin{definition}[初可測時刻]
+標本点 $\omega \in \Omega$ に対して、\textbf{初可測時刻}（first measurable time）を
+\[
+\text{firstMeasurableTime}(\omega) := \minLayer_{\text{TowerOf}(\cF)}(\{\omega\})
+\]
+と定義する。これは、単点集合 $\{\omega\}$ が初めて可測になる時刻である。
+\end{definition}
+
+\begin{theorem}[初可測時刻での可測性]
+任意の $\omega \in \Omega$ に対して、
+\[
+\{\omega\} \in \cF_{\text{firstMeasurableTime}(\omega)}
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{theorem}[初可測時刻の最小性]
+$\{\omega\} \in \cF_n$ ならば、$\text{firstMeasurableTime}(\omega) \leq n$ である。
+\end{theorem}
+
+\subsection{停止時間と $\minLayer$ の関係}
+
+停止時間は、各標本点の「初可測時刻」と密接に関連している。
+
+\begin{remark}[概念的対応]
+停止時間 $\tau$ は、以下のように解釈できる：
+\begin{itemize}
+\item $\tau(\omega)$ は、$\omega$ に関する「何らかの情報」が初めて分かる時刻
+\item これは、$\omega$ を含む事象が初めて可測になる時刻と対応
+\item 構造塔の言葉では、$\minLayer$ の概念そのもの
+\end{itemize}
+\end{remark}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,rectangle,minimum width=3cm,minimum height=1.5cm] (stop) at (0,0) {停止時間 $\tau(\omega)$};
+  \node[draw,rectangle,minimum width=3cm,minimum height=1.5cm] (min) at (6,0) {$\minLayer(\{\omega\})$};
+  
+  \draw[->,thick,blue] (stop) -- (min) node[midway,above] {構造塔の視点};
+  
+  \node[below=0.5cm of stop,text width=3.5cm,align=center] {\small $\omega$ に関する情報が\\初めて分かる時刻};
+  \node[below=0.5cm of min,text width=3.5cm,align=center] {\small $\{\omega\}$ が初めて\\可測になる時刻};
+\end{tikzpicture}
+\end{center}
+
+\section{停止過程の構成}\label{sec:stopped}
+
+\subsection{停止過程の定義}
+
+\begin{definition}[停止過程]
+確率過程 $X = (X_n)_{n \in \N}$ と停止時間 $\tau$ に対して、\textbf{停止過程}（stopped process）$X^\tau$ を
+\[
+X^\tau_n(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+と定義する。すなわち、停止時刻 $\tau(\omega)$ 以降は値が固定される。
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.8]
+  % 軸
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻 $n$};
+  \draw[->,thick] (0,0) -- (0,4) node[above] {$X_n$};
+  
+  % 元の過程
+  \draw[thick,blue] (0,1) -- (1,1.5) -- (2,1.8) -- (3,2.5) -- (4,2.2) -- (5,2.8) -- (6,3.2) -- (7,3.5) -- (8,3.3) -- (9,3.8);
+  \node[blue] at (9,4.2) {元の過程 $X_n$};
+  
+  % 停止時刻
+  \draw[red,dashed,thick] (4,0) -- (4,4);
+  \node[red] at (4,-0.5) {$\tau(\omega)=4$};
+  
+  % 停止過程
+  \draw[thick,green!60!black,line width=1.5pt] (0,1) -- (1,1.5) -- (2,1.8) -- (3,2.5) -- (4,2.2) -- (5,2.2) -- (6,2.2) -- (7,2.2) -- (8,2.2) -- (9,2.2);
+  \node[green!60!black] at (7,1.5) {停止過程 $X^\tau_n$};
+  
+  \fill[red] (4,2.2) circle (4pt);
+\end{tikzpicture}
+\end{center}
+
+Lean 4 での定義：
+
+\begin{lstlisting}[language=Lean]
+def stopped (X : ℕ → Ω → α) (τ : Ω → ℕ) (n : ℕ) : Ω → α :=
+  fun ω => X (Nat.min n (τ ω)) ω
+\end{lstlisting}
+
+\subsection{停止 $\sigma$-代数}
+
+\begin{definition}[停止 $\sigma$-代数]
+停止時間 $\tau$ に対して、\textbf{停止 $\sigma$-代数} $\cF_\tau$ を次のように定義する：
+\[
+A \in \cF_\tau \overset{\text{def}}{\Longleftrightarrow} \forall n \in \N,\ A \cap \{\tau \leq n\} \in \cF_n
+\]
+\end{definition}
+
+\begin{remark}[停止 $\sigma$-代数の直感]
+$\cF_\tau$ は「停止時刻 $\tau$ までに得られる情報」を表す。事象 $A$ が $\cF_\tau$ に属するとは、各時刻 $n$ で「$A$ かつ $\tau \leq n$」が判定可能であることを意味する。
+\end{remark}
+
+\subsection{停止過程の可測性}
+
+\begin{theorem}[停止過程の適合性]
+フィルトレーション $(\cF_n)_{n \in \N}$ に適合する確率過程 $X$ と停止時間 $\tau$ に対して、停止過程 $X^\tau$ も $(\cF_n)_{n \in \N}$ に適合する。すなわち、
+\[
+\forall n \in \N,\ X^\tau_n \text{ は } \cF_n\text{-可測}
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{proof}[証明の概要]
+$X^\tau_n(\omega)$ の値は、$\{\tau \leq k\}$ と $\{\tau > k\}$ で場合分けされる。各場合で対応する $X_k$ が $\cF_n$-可測であることを示す。詳細は \texttt{StoppingTime\_MinLayer.lean} の 617-667行目を参照。
+\end{proof}
+
+\subsection{切り詰め停止時間}
+
+\begin{definition}[切り詰め停止時間]
+停止時間 $\tau$ と自然数 $n$ に対して、\textbf{切り詰め停止時間} $\tau \wedge n$ を
+\[
+(\tau \wedge n)(\omega) := \min(\tau(\omega), n)
+\]
+と定義する。
+\end{definition}
+
+\begin{proposition}[切り詰めも停止時間]
+$\tau$ が停止時間ならば、$\tau \wedge n$ も停止時間である。
+\end{proposition}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth,scale=0.8]
+  \draw[->,thick] (0,0) -- (10,0) node[right] {時刻};
+  
+  % 元の停止時間
+  \fill[blue] (7,2) circle (3pt);
+  \draw[blue,thick] (0,2) -- (7,2);
+  \node[blue,above] at (7,2) {$\tau(\omega)=7$};
+  
+  % 切り詰め
+  \draw[red,dashed,thick] (4,0) -- (4,3);
+  \node[red] at (4,-0.5) {$n=4$};
+  
+  % 切り詰め後
+  \fill[green!60!black] (4,1) circle (3pt);
+  \draw[green!60!black,thick,line width=1.5pt] (0,1) -- (4,1);
+  \node[green!60!black,below] at (4,1) {$\tau \wedge n = 4$};
+  
+  \draw[->,blue,thick] (7,1.8) to[bend left] (4.5,1.2);
+\end{tikzpicture}
+\end{center}
+
+\section{応用と理論的意義}\label{sec:applications}
+
+\subsection{オプショナル停止定理への準備}
+
+停止過程の理論は、確率論の重要な結果である\textbf{オプショナル停止定理}（optional stopping theorem）の基礎となる。
+
+\begin{theorem}[オプショナル停止定理（簡易版）]
+マルチンゲール $(M_n, \cF_n)_{n \in \N}$ と有界停止時間 $\tau$ に対して、停止過程 $M^\tau$ もマルチンゲールである。
+\end{theorem}
+
+この定理の証明において、停止過程の可測性が本質的な役割を果たす。
+
+\subsection{構造塔理論の視点}
+
+構造塔の視点から見ると、確率論の多くの概念が統一的に理解できる：
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,ellipse,minimum width=3cm,minimum height=1cm] (filt) at (0,3) {フィルトレーション};
+  \node[draw,ellipse,minimum width=3cm,minimum height=1cm] (tower) at (0,0) {構造塔};
+  \node[draw,ellipse,minimum width=3cm,minimum height=1cm] (stop) at (5,3) {停止時間};
+  \node[draw,ellipse,minimum width=3cm,minimum height=1cm] (min) at (5,0) {$\minLayer$};
+  
+  \draw[->,thick,blue] (filt) -- (tower) node[midway,left] {TowerOf};
+  \draw[->,thick,red] (stop) -- (min) node[midway,right] {対応};
+  \draw[<->,thick,dashed] (filt) -- (stop);
+  \draw[<->,thick,dashed] (tower) -- (min);
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}
+\item \textbf{フィルトレーション} $\longleftrightarrow$ \textbf{構造塔}：情報の増加 = 層の包含
+\item \textbf{停止時間} $\longleftrightarrow$ \textbf{minLayer}：初可測時刻
+\item \textbf{停止 $\sigma$-代数} $\longleftrightarrow$ \textbf{層の交叉}：停止時刻での情報
+\item \textbf{適合過程} $\longleftrightarrow$ \textbf{層保存写像}：層の構造を保つ
+\end{itemize}
+
+\subsection{測度論的拡張}
+
+現在の形式化は $\sigma$-代数レベルにとどまっているが、次のステップとして測度の導入が考えられる：
+
+\begin{enumerate}
+\item \textbf{測度の構造塔}：$(\Omega, \cF_n, \mu)$ の階層
+\item \textbf{可積分性の伝播}：層間での可積分性の関係
+\item \textbf{条件付き期待値}：$\mathbb{E}[X \mid \cF_n]$ と $\minLayer$ の関係
+\item \textbf{マルチンゲール}：適合過程の特別な場合
+\end{enumerate}
+
+\subsection{他の数学分野への応用}
+
+構造塔理論の枠組みは、確率論を超えて広がる可能性を持つ：
+
+\begin{itemize}
+\item \textbf{代数幾何学}：層の理論との対応
+\item \textbf{トポロジー}：開集合の階層構造
+\item \textbf{論理学}：知識の増加のモデル化
+\item \textbf{計算機科学}：プログラムの状態遷移
+\end{itemize}
+
+\section{まとめ}
+
+\subsection{本稿の成果}
+
+本稿では、構造塔理論を確率論に応用した以下の内容を解説した：
+
+\begin{enumerate}
+\item $\sigma$-代数を構造塔として形式化
+\item フィルトレーションの構造塔的解釈
+\item 停止時間と $\minLayer$ の関係
+\item 停止過程の構成と性質
+\end{enumerate}
+
+\subsection{形式化の階層}
+
+\begin{center}
+\begin{tikzpicture}[>=stealth]
+  \node[draw,rectangle,minimum width=4cm,minimum height=1cm,fill=blue!10] (level1) at (0,0) 
+    {Level 1: 構造塔（抽象）};
+  \node[draw,rectangle,minimum width=4cm,minimum height=1cm,fill=blue!20] (level2) at (0,1.5) 
+    {Level 2: $\sigma$-代数の構造塔};
+  \node[draw,rectangle,minimum width=4cm,minimum height=1cm,fill=blue!30] (level3) at (0,3) 
+    {Level 3: フィルトレーション};
+  \node[draw,rectangle,minimum width=4cm,minimum height=1cm,fill=blue!40] (level4) at (0,4.5) 
+    {Level 4: 停止時間と停止過程};
+  \node[draw,rectangle,minimum width=4cm,minimum height=1cm,fill=blue!50] (level5) at (0,6) 
+    {Level 5: マルチンゲール理論};
+  
+  \draw[->,thick] (level1) -- (level2);
+  \draw[->,thick] (level2) -- (level3);
+  \draw[->,thick] (level3) -- (level4);
+  \draw[->,thick] (level4) -- (level5);
+  
+  \node[right=1cm of level1,text width=3cm] {\small ブルバキの一般理論};
+  \node[right=1cm of level2,text width=3cm] {\small 可測性の階層};
+  \node[right=1cm of level3,text width=3cm] {\small 情報の増加};
+  \node[right=1cm of level4,text width=3cm] {\small 本稿の主題};
+  \node[right=1cm of level5,text width=3cm] {\small 将来の展開};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Lean 4 コードへのリンク}
+
+本稿の対象ファイル：
+
+\begin{itemize}
+\item \texttt{SigmaAlgebraTower\_Skeleton.lean}：$\sigma$-代数の構造塔
+\item \texttt{StoppingTime\_MinLayer.lean}：停止時間と $\minLayer$ の関係
+\end{itemize}
+
+主要定義：
+
+\begin{itemize}
+\item SigmaAlgebraTower：71-108行目
+\item フィルトレーションの構造塔化：263-286行目
+\item 停止時間の定義：49-51行目
+\item 停止過程：242-248行目
+\end{itemize}
+
+\subsection{今後の展望}
+
+\begin{enumerate}
+\item \textbf{測度の導入}：確率測度と積分の構造塔
+\item \textbf{条件付き期待値}：$\minLayer$ を使った新しい特徴づけ
+\item \textbf{マルチンゲール}：停止定理の構造塔的証明
+\item \textbf{確率収束}：層の極限としての収束概念
+\item \textbf{一般化}：連続時間や非可算添字への拡張
+\end{enumerate}
+
+\section*{参考文献}
+
+\begin{enumerate}
+\item Nicolas Bourbaki, \textit{Éléments de mathématique: Théorie des ensembles}
+\item Patrick Billingsley, \textit{Probability and Measure}, Wiley (1995)
+\item David Williams, \textit{Probability with Martingales}, Cambridge University Press (1991)
+\item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://github.com/leanprover-community/mathlib4}
+\item Rick Durrett, \textit{Probability: Theory and Examples}, Cambridge University Press (2019)
+\end{enumerate}
+
+\appendix
+
+\section{Lean コードの詳細解説}
+
+\subsection{SigmaAlgebraTower の実装}
+
+完全な定義（71-108行目）：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=71]
+def SigmaAlgebraTower : StructureTowerMin (Set Ω) (MeasurableSpace Ω) where
+  layer 𝓕 := {A : Set Ω | @MeasurableSet Ω 𝓕 A}
+  
+  covering := by
+    intro A
+    use ⊤
+    trivial
+  
+  monotone := by
+    intro 𝓕₁ 𝓕₂ h𝓕 A hA
+    exact h𝓕 A hA
+  
+  minLayer := fun A =>
+    MeasurableSpace.generateFrom {A}
+  
+  minLayer_mem := by
+    intro A
+    exact MeasurableSpace.measurableSet_generateFrom
+      (by simp : A ∈ ({A} : Set (Set Ω)))
+  
+  minLayer_minimal := by
+    intro A 𝓕 hA
+    apply MeasurableSpace.generateFrom_le
+    intro B hB
+    rcases hB with rfl
+    exact hA
+\end{lstlisting}
+
+各フィールドの意味：
+
+\begin{itemize}
+\item \texttt{layer}：各 $\sigma$-代数に対応する可測集合の族
+\item \texttt{covering}：全体 $\sigma$-代数 $\top$ を使って被覆性を示す
+\item \texttt{monotone}：$\sigma$-代数の順序から層の包含を導く
+\item \texttt{minLayer}：\texttt{generateFrom} を使って最小 $\sigma$-代数を構成
+\item \texttt{minLayer\_mem}：生成 $\sigma$-代数の性質を使う
+\item \texttt{minLayer\_minimal}：\texttt{generateFrom\_le} による最小性
+\end{itemize}
+
+\subsection{停止過程の実装}
+
+停止過程の定義と主要な補題：
+
+\begin{lstlisting}[language=Lean,numbers=left,firstnumber=242]
+def stopped (X : ℕ → Ω → α) (τ : Ω → ℕ) (n : ℕ) : Ω → α :=
+  fun ω => X (Nat.min n (τ ω)) ω
+
+lemma stopped_eq_of_le (X : ℕ → Ω → α) (τ : Ω → ℕ)
+    (n : ℕ) (ω : Ω) (hn : n ≤ τ ω) :
+    stopped X τ n ω = X n ω := by
+  simp [stopped, Nat.min_eq_left hn]
+
+lemma stopped_const_after (X : ℕ → Ω → α) (τ : Ω → ℕ)
+    (ω : Ω) (hτ : τ ω ≤ n) (hnm : n ≤ m) :
+    stopped X τ m ω = stopped X τ n ω := by
+  simp [stopped]
+  have : Nat.min m (τ ω) = τ ω := Nat.min_eq_right (le_trans hτ hnm)
+  have : Nat.min n (τ ω) = τ ω := Nat.min_eq_right hτ
+  simp [*]
+\end{lstlisting}
+
+これらの補題により、停止過程の基本的な性質が証明される。
+
+\end{document}
