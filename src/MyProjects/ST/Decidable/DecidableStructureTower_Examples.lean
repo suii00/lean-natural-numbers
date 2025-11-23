@@ -614,9 +614,9 @@ lemma polyDegreeTower_X :
     polyDegreeTower.minLayer (Polynomial.X : Polynomial ℚ) = 1 := by
   simp [polyDegreeTower]
 
-lemma polyDegreeTower_C_nonzero {c : ℚ} (hc : c ≠ 0) :
+lemma polyDegreeTower_C_nonzero {c : ℚ} :
     polyDegreeTower.minLayer (Polynomial.C c) = 0 := by
-  simp [polyDegreeTower, hc]
+  simp [polyDegreeTower]
 
 lemma polyDegreeTower_X_pow (n : ℕ) :
     polyDegreeTower.minLayer ((Polynomial.X : Polynomial ℚ) ^ n) = n := by
@@ -709,6 +709,73 @@ noncomputable def polyExample : Polynomial ℚ :=
 #check ((polySmulHom (1 : Units ℚ)).map polyExample).natDegree
 #check ((polySmulHom (-1 : Units ℚ)).map polyExample).natDegree
 #check polyExample.natDegree
+
+/-! Addition and multiplication as upper-bound homs on the polynomial tower -/
+
+noncomputable def polyAddHomLe :
+    StructureTowerWithMin.HomLe
+      (StructureTowerWithMin.prod polyDegreeTower polyDegreeTower)
+      polyDegreeTower :=
+{ map := fun pq => pq.1 + pq.2
+  indexMap := fun ij => Nat.max ij.1 ij.2
+  indexMap_mono := by
+    intro i j h
+    apply (max_le_iff).mpr
+    constructor
+    · exact le_trans h.1 (Nat.le_max_left _ _)
+    · exact le_trans h.2 (Nat.le_max_right _ _)
+  layer_preserving := by
+    intro pq ij hpq
+    dsimp [polyDegreeTower, StructureTowerWithMin.prod] at hpq ⊢
+    rcases hpq with ⟨hp, hq⟩
+    have hdeg : (pq.1 + pq.2).natDegree ≤ max pq.1.natDegree pq.2.natDegree :=
+      Polynomial.natDegree_add_le _ _
+    have hbound : max pq.1.natDegree pq.2.natDegree ≤ Nat.max ij.1 ij.2 := by
+      apply (max_le_iff).mpr
+      constructor
+      · exact le_trans hp (Nat.le_max_left _ _)
+      · exact le_trans hq (Nat.le_max_right _ _)
+    exact le_trans hdeg hbound
+  minLayer_le := by
+    intro pq
+    have hdeg : (pq.1 + pq.2).natDegree ≤ max pq.1.natDegree pq.2.natDegree :=
+      Polynomial.natDegree_add_le _ _
+    -- minLayer = natDegree by definition of polyDegreeTower
+    simpa [polyDegreeTower] using hdeg }
+
+noncomputable def polyMulHomLe :
+    StructureTowerWithMin.HomLe
+      (StructureTowerWithMin.prod polyDegreeTower polyDegreeTower)
+      polyDegreeTower :=
+{ map := fun pq => pq.1 * pq.2
+  indexMap := fun ij => ij.1 + ij.2
+  indexMap_mono := by
+    intro i j h
+    exact Nat.add_le_add h.1 h.2
+  layer_preserving := by
+    intro pq ij hpq
+    dsimp [polyDegreeTower, StructureTowerWithMin.prod] at hpq ⊢
+    rcases hpq with ⟨hp, hq⟩
+    have hdeg :
+        (pq.1 * pq.2).natDegree ≤ pq.1.natDegree + pq.2.natDegree :=
+      Polynomial.natDegree_mul_le (p := pq.1) (q := pq.2)
+    exact le_trans hdeg (Nat.add_le_add hp hq)
+  minLayer_le := by
+    intro pq
+    have hdeg :
+        (pq.1 * pq.2).natDegree ≤ pq.1.natDegree + pq.2.natDegree :=
+      Polynomial.natDegree_mul_le (p := pq.1) (q := pq.2)
+    -- minLayer = natDegree, so the bound is equality
+    simpa [polyDegreeTower] using hdeg }
+
+/-
+Summary of the polynomial degree tower:
+
+* `polyDegreeTower` encodes polynomials over ℚ with layers bounded by `natDegree`.
+* `polyAddHomLe` / `polyMulHomLe` describe how addition and multiplication behave
+  with respect to degree bounds (upper-bound preserving).
+* `polySmulHom` describes the action of nonzero scalars (units ℚ) as tower automorphisms.
+-/
 
 /-
 Note about the zero scalar:

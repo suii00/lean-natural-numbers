@@ -119,6 +119,17 @@
 
 ---
 
+### エラー修正ログ（polyMulHomLe / polyAddHomLe の `natDegree_mul_le` 適用ミス）
+
+- **エラー概要**：`polyMulHomLe` / `polyAddHomLe` で `Polynomial.natDegree_mul_le` を関数として適用しようとし、`Function expected` エラーでビルド失敗。
+- **原因**：`natDegree_mul_le` は既に不等式の定理であり、`_` で関数適用すると「関数ではない」と解釈されるため。
+- **修正内容**：`have hdeg := Polynomial.natDegree_mul_le (p := pq.1) (q := pq.2)` の形で定理として取得し、上限計算に `le_trans` で利用するよう書き換え。`polyAddHomLe` も上限計算を明示的な `max_le_iff`/`Nat.le_max_*` 連鎖に整理。
+- **修正が正しい理由**：`natDegree_mul_le` を定理として取り出すだけで目標の不等式型に一致し、以降の推移律も型が揃う。`max`/`+` の単調性を明示し、型推論の行き詰まりを排除した。
+- **動作確認**：プロジェクトルートで `lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-24 実行）。
+- **どういう意図でこの実装に至ったかメモ**：HomLe で「層の上界」を安全に追跡するセクションを壊さずに拡張するため、度数上界補題の使い方を明示的にして再利用しやすくした。***
+
+---
+
 ### エラー修正ログ（HomLe 追加）
 
 - **エラー概要**：なし（新規インフラ追加のみでビルド成功）。
