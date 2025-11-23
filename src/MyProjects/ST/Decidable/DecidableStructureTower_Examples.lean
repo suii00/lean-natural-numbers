@@ -1,6 +1,9 @@
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.Int.Basic
 import Mathlib.Data.List.Basic
+import Mathlib.Data.Finset.Card
+import Mathlib.Algebra.Polynomial.Basic
+import Mathlib.Algebra.Polynomial.Degree.Definitions
 import Mathlib.Order.Basic
 
 /-
@@ -13,6 +16,7 @@ This file gives Bourbaki-flavoured, fully computable examples of
 ## Contents
 * Integer tower stratified by absolute value.
 * List tower stratified by length.
+* Finite-set tower stratified by cardinality.
 
 Each tower supplies explicit decidable membership and a concrete `minLayer`,
 emphasising constructive set-theoretic structure.
@@ -50,6 +54,81 @@ namespace StructureTowerWithMin
 
 instance instIndexPreorder (T : StructureTowerWithMin) : Preorder T.Index :=
   T.indexPreorder
+
+/-- Morphisms of structure towers preserving layers and minimal layers. -/
+structure Hom (T T' : StructureTowerWithMin) where
+  map : T.carrier → T'.carrier
+  indexMap : T.Index → T'.Index
+  indexMap_mono : ∀ {i j}, i ≤ j → indexMap i ≤ indexMap j
+  layer_preserving :
+    ∀ {x i}, x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+  minLayer_preserving :
+    ∀ x, indexMap (T.minLayer x) = T'.minLayer (map x)
+
+/-- Identity homomorphism of a structure tower. -/
+def Hom.id (T : StructureTowerWithMin) : Hom T T where
+  map := fun x => x
+  indexMap := fun i => i
+  indexMap_mono := fun h => h
+  layer_preserving := by intro x i hi; simpa using hi
+  minLayer_preserving := by intro x; rfl
+
+/-- Composition of structure-tower homomorphisms. -/
+def Hom.comp {T₁ T₂ T₃ : StructureTowerWithMin}
+    (g : Hom T₂ T₃) (f : Hom T₁ T₂) : Hom T₁ T₃ where
+  map := fun x => g.map (f.map x)
+  indexMap := fun i => g.indexMap (f.indexMap i)
+  indexMap_mono := by
+    intro i j h
+    exact g.indexMap_mono (f.indexMap_mono h)
+  layer_preserving := by
+    intro x i hi
+    exact g.layer_preserving (f.layer_preserving hi)
+  minLayer_preserving := by
+    intro x
+    calc
+      g.indexMap (f.indexMap (T₁.minLayer x))
+          = g.indexMap (T₂.minLayer (f.map x)) := by
+              simpa using congrArg g.indexMap (f.minLayer_preserving x)
+      _ = T₃.minLayer (g.map (f.map x)) := by
+              simpa using g.minLayer_preserving (f.map x)
+
+/-- Image of a layer element via a hom. -/
+lemma Hom.map_mem_layer {T T' : StructureTowerWithMin}
+    (h : Hom T T') {x i} (hx : x ∈ T.layer i) :
+    h.map x ∈ T'.layer (h.indexMap i) :=
+  h.layer_preserving hx
+
+/-- minLayer equality transported along a hom. -/
+lemma Hom.map_minLayer {T T' : StructureTowerWithMin}
+    (h : Hom T T') (x : T.carrier) :
+    h.indexMap (T.minLayer x) = T'.minLayer (h.map x) :=
+  h.minLayer_preserving x
+
+/-- Product of two structure towers (componentwise layers). -/
+def prod (T₁ T₂ : StructureTowerWithMin) : StructureTowerWithMin where
+  carrier := T₁.carrier × T₂.carrier
+  Index := T₁.Index × T₂.Index
+  indexPreorder := inferInstance
+  layer := fun ij =>
+    {p : T₁.carrier × T₂.carrier |
+      p.1 ∈ T₁.layer ij.1 ∧ p.2 ∈ T₂.layer ij.2}
+  covering := by
+    intro p
+    rcases T₁.covering p.1 with ⟨i, hi⟩
+    rcases T₂.covering p.2 with ⟨j, hj⟩
+    refine ⟨(i, j), ?_⟩
+    exact ⟨hi, hj⟩
+  monotone := by
+    intro i j hij p hp
+    exact ⟨T₁.monotone hij.1 hp.1, T₂.monotone hij.2 hp.2⟩
+  minLayer := fun p => (T₁.minLayer p.1, T₂.minLayer p.2)
+  minLayer_mem := by
+    intro p
+    exact ⟨T₁.minLayer_mem _, T₂.minLayer_mem _⟩
+  minLayer_minimal := by
+    intro p ij hp
+    exact ⟨T₁.minLayer_minimal _ _ hp.1, T₂.minLayer_minimal _ _ hp.2⟩
 
 end StructureTowerWithMin
 
@@ -162,6 +241,71 @@ lemma intAbsTower_symm (k : ℤ) :
     intAbsTower.minLayer k = intAbsTower.minLayer (-k) := by
   simp [intAbsTower]
 
+/-! ### Morphism-style computations (exercise hints) -/
+
+/-- Doubling map sends layer `n` into layer `2*n` (computable check). -/
+def doubleRespectsLayers (k : ℤ) (n : ℕ) : Bool :=
+  checkIntLayer (2 * k) (2 * n)
+
+-- examples
+#eval doubleRespectsLayers (3 : ℤ) 3   -- true, |6| ≤ 6
+#eval doubleRespectsLayers (-4 : ℤ) 3  -- true, |−8| ≤ 6 is false → returns false
+
+/-- Addition into the product tower: `k₁ + k₂` lies in layer `|k₁|+|k₂|`. -/
+def addRespectsLayers (k₁ k₂ : ℤ) : Bool :=
+  checkIntLayer (k₁ + k₂) (Int.natAbs k₁ + Int.natAbs k₂)
+
+-- examples
+#eval addRespectsLayers (2 : ℤ) 3     -- true
+#eval addRespectsLayers (-5 : ℤ) 4    -- true
+#eval addRespectsLayers (7 : ℤ) (-2)  -- true
+
+/-- Doubling as a morphism of integer towers. -/
+def intAbsTowerDouble : StructureTowerWithMin.Hom intAbsTower intAbsTower :=
+{ map := fun k => 2 * k
+  indexMap := fun n => 2 * n
+  indexMap_mono := by
+    intro i j hij
+    exact Nat.mul_le_mul_left 2 hij
+  layer_preserving := by
+    intro k n hk
+    -- |2k| = 2 * |k| ≤ 2n
+    have h' : Int.natAbs (2 * k) = 2 * Int.natAbs k := by
+      simpa using Int.natAbs_mul (2) k
+    have hk' : 2 * Int.natAbs k ≤ 2 * n :=
+      Nat.mul_le_mul_left 2 hk
+    dsimp [intAbsTower]
+    simp [h', hk']
+  minLayer_preserving := by
+    intro k
+    dsimp [intAbsTower]
+    have h' : Int.natAbs (2 * k) = 2 * Int.natAbs k := by
+      simpa using Int.natAbs_mul (2) k
+    simp [h'] }
+
+/-- Diagonal map into the product integer tower. -/
+def intAbsTowerDiag :
+    StructureTowerWithMin.Hom intAbsTower
+      (StructureTowerWithMin.prod intAbsTower intAbsTower) :=
+{ map := fun k => (k, k)
+  indexMap := fun n => (n, n)
+  indexMap_mono := by
+    intro i j h
+    exact ⟨h, h⟩
+  layer_preserving := by
+    intro k n hk
+    dsimp [StructureTowerWithMin.prod, intAbsTower] at *
+    -- goal is conjunction of the same inequality
+    exact ⟨hk, hk⟩
+  minLayer_preserving := by
+    intro k
+    rfl }
+
+-- sample morphism computations
+#eval intAbsTowerDouble.indexMap 5    -- 10
+#eval intAbsTowerDouble.map (-3)      -- -6
+#eval intAbsTowerDiag.indexMap 4      -- (4, 4)
+
 /-
 ## Example 2: lists stratified by length
 
@@ -256,14 +400,134 @@ lemma listLengthTower_append (l₁ l₂ : List ℕ) :
   simp [listLengthTower, List.length_append]
 
 /-
-## Example 3 (sketch): finite sets ordered by cardinality
+## Example 3: finite sets ordered by cardinality
 
-* carrier: `Finset ℕ`
-* layer n: `{S : Finset ℕ | S.card ≤ n}`
-* `minLayer S = S.card`
-
-This is left as an exercise; it is also computable.
+Here layers are bounded by size, with explicit decidability.
 -/
+
+/-- Decidable membership in the predicate `card ≤ n` for finite sets. -/
+instance Finset.decidableCardLe (S : Finset ℕ) (n : ℕ) :
+    Decidable (S ∈ {T : Finset ℕ | T.card ≤ n}) :=
+  decidable_of_iff (S.card ≤ n) (by simp)
+
+/-- Structure tower ordered by finite-set cardinality. -/
+abbrev finsetCardTower : StructureTowerWithMin where
+  carrier := Finset ℕ
+  Index := ℕ
+  indexPreorder := inferInstance
+  layer := fun n => {S : Finset ℕ | S.card ≤ n}
+  covering := by
+    intro S; refine ⟨S.card, ?_⟩; simp
+  monotone := by
+    intro n m hnm S hS; simp at hS ⊢; exact Nat.le_trans hS hnm
+  minLayer := fun S => S.card
+  minLayer_mem := by intro S; simp
+  minLayer_minimal := by intro S i hi; simp at hi; exact hi
+
+/-- Decidable membership helper for the finite-set tower. -/
+instance (S : Finset ℕ) (n : ℕ) : Decidable (S ∈ finsetCardTower.layer n) := by
+  dsimp [finsetCardTower]; infer_instance
+
+/-- Computable check of membership as Bool. -/
+def checkFinsetLayer (S : Finset ℕ) (n : ℕ) : Bool :=
+  decide (S.card ≤ n)
+
+-- sample computations
+#eval finsetCardTower.minLayer ({1, 2, 3} : Finset ℕ)   -- 3
+#eval checkFinsetLayer ({1, 2} : Finset ℕ) 1            -- false
+#eval checkFinsetLayer ({5} : Finset ℕ) 1               -- true
+
+/-
+## Example 4: polynomials stratified by degree
+
+Carrier: `Polynomial ℚ`, layer `n` consists of polynomials of degree ≤ n, and
+`minLayer` is `natDegree`.  This matches the usual notion of complexity for
+polynomials.
+-/
+
+/-- Decidable membership in `natDegree ≤ n` for polynomials. -/
+instance Polynomial.decidableNatDegreeLe (p : Polynomial ℚ) (n : ℕ) :
+    Decidable (p ∈ {q : Polynomial ℚ | q.natDegree ≤ n}) :=
+  decidable_of_iff (p.natDegree ≤ n) (by simp)
+
+/-- Polynomial degree tower. -/
+abbrev polyDegreeTower : StructureTowerWithMin where
+  carrier := Polynomial ℚ
+  Index := ℕ
+  indexPreorder := inferInstance
+  layer := fun n => {p : Polynomial ℚ | p.natDegree ≤ n}
+  covering := by
+    intro p; refine ⟨p.natDegree, ?_⟩; simp
+  monotone := by
+    intro n m hnm p hp; simp at hp ⊢; exact Nat.le_trans hp hnm
+  minLayer := fun p => p.natDegree
+  minLayer_mem := by intro p; simp
+  minLayer_minimal := by intro p i hi; simp at hi; exact hi
+
+/-- Decidable membership helper for the polynomial tower. -/
+instance (p : Polynomial ℚ) (n : ℕ) :
+    Decidable (p ∈ polyDegreeTower.layer n) := by
+  dsimp [polyDegreeTower]; infer_instance
+
+/-- Bool membership check for the polynomial tower. -/
+def checkPolyLayer (p : Polynomial ℚ) (n : ℕ) : Bool :=
+  decide (p.natDegree ≤ n)
+
+-- sample sanity checks (non-executable)
+#check polyDegreeTower.minLayer (Polynomial.X + 1 : Polynomial ℚ)      -- : ℕ
+#check polyDegreeTower.minLayer ((Polynomial.X)^2 + 3 : Polynomial ℚ)  -- : ℕ
+#check checkPolyLayer (Polynomial.X^3 + Polynomial.X) (3 : ℕ)          -- : Bool
+#check checkPolyLayer (Polynomial.X^3 + Polynomial.X) (2 : ℕ)          -- : Bool
+
+/-! Degree bounds for sums/products (Bool checks) -/
+
+/-- Addition respects a supplied degree bound (noncomputable). -/
+noncomputable def polyAddRespects (p q : Polynomial ℚ) (n : ℕ) : Bool :=
+  checkPolyLayer (p + q) n
+
+/-- Multiplication respects a supplied degree bound (noncomputable). -/
+noncomputable def polyMulRespects (p q : Polynomial ℚ) (n : ℕ) : Bool :=
+  checkPolyLayer (p * q) n
+
+/-! Automatic safe bounds for polynomial operations -/
+
+/-- Safe upper bound for `p + q`: `max` of their minimal layers. -/
+noncomputable def polyAddBound (p q : Polynomial ℚ) : ℕ :=
+  Nat.max (polyDegreeTower.minLayer p) (polyDegreeTower.minLayer q)
+
+/-- Safe upper bound for `p * q`: sum of their minimal layers. -/
+noncomputable def polyMulBound (p q : Polynomial ℚ) : ℕ :=
+  polyDegreeTower.minLayer p + polyDegreeTower.minLayer q
+
+/-- Check with the automatic max-bound for addition. -/
+noncomputable def polyAddWithinBound (p q : Polynomial ℚ) : Bool :=
+  polyAddRespects p q (polyAddBound p q)
+
+/-- Check with the automatic sum-bound for multiplication. -/
+noncomputable def polyMulWithinBound (p q : Polynomial ℚ) : Bool :=
+  polyMulRespects p q (polyMulBound p q)
+
+-- sanity #check examples (non-executable)
+#check polyAddRespects (Polynomial.X) (Polynomial.X^2) (2 : ℕ)      -- : Bool
+#check polyAddRespects (Polynomial.X^2) (Polynomial.X^3) (3 : ℕ)    -- : Bool
+#check polyMulRespects (Polynomial.X) (Polynomial.X^2) (3 : ℕ)      -- : Bool
+#check polyMulRespects (Polynomial.X + 1) (Polynomial.X + 1) (2 : ℕ) -- : Bool
+#check polyAddWithinBound (Polynomial.X) (Polynomial.X^2)           -- : Bool
+#check polyMulWithinBound (Polynomial.X) (Polynomial.X^2)           -- : Bool
+
+/-! Degree bounds (noncomputable lemmas for reference) -/
+
+theorem poly_add_natDegree_le
+    (p q : Polynomial ℚ) :
+    (p + q).natDegree ≤ Nat.max p.natDegree q.natDegree := by
+  have : (p + q).natDegree ≤ Nat.max p.natDegree q.natDegree :=
+    Polynomial.natDegree_add_le _ _
+  simpa using this
+
+theorem poly_mul_natDegree_le
+    (p q : Polynomial ℚ) :
+    (p * q).natDegree ≤ p.natDegree + q.natDegree := by
+  simpa using Polynomial.natDegree_mul_le (p := p) (q := q)
 
 /-
 ## Why computability matters
