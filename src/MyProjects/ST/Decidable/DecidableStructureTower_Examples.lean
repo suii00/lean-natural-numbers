@@ -497,6 +497,28 @@ def checkPolyLayer (p : Polynomial ℚ) (n : ℕ) : Bool :=
 #check checkPolyLayer (Polynomial.X^3 + Polynomial.X) (3 : ℕ)          -- : Bool
 #check checkPolyLayer (Polynomial.X^3 + Polynomial.X) (2 : ℕ)          -- : Bool
 
+/-! Basic degree facts for the polynomial tower -/
+
+lemma polyDegreeTower_zero :
+    polyDegreeTower.minLayer (0 : Polynomial ℚ) = 0 := by
+  simp [polyDegreeTower]
+
+lemma polyDegreeTower_one :
+    polyDegreeTower.minLayer (1 : Polynomial ℚ) = 0 := by
+  simp [polyDegreeTower]
+
+lemma polyDegreeTower_X :
+    polyDegreeTower.minLayer (Polynomial.X : Polynomial ℚ) = 1 := by
+  simp [polyDegreeTower]
+
+lemma polyDegreeTower_C_nonzero {c : ℚ} (hc : c ≠ 0) :
+    polyDegreeTower.minLayer (Polynomial.C c) = 0 := by
+  simp [polyDegreeTower, hc]
+
+lemma polyDegreeTower_X_pow (n : ℕ) :
+    polyDegreeTower.minLayer ((Polynomial.X : Polynomial ℚ) ^ n) = n := by
+  simp [polyDegreeTower]
+
 /-! Degree bounds for sums/products (Bool checks) -/
 
 /-- Addition respects a supplied degree bound (noncomputable). -/
