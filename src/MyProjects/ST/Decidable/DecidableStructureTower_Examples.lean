@@ -704,6 +704,27 @@ noncomputable def polySmulHom (c : Units ℚ) :
 -- sample evaluation: degree preserved (nonzero unit)
 #check polySmulHom (Units.mk0 2 (by norm_num))
 
+def polyExample : Polynomial ℚ :=
+  Polynomial.X^3 + (2 : ℚ) * Polynomial.X + 1
+
+-- degrees stay the same under nonzero scalar multiplication
+-- (type-only checks; evaluation would be noncomputable)
+#check ((polySmulHom (1 : Units ℚ)).map polyExample).natDegree
+#check ((polySmulHom (-1 : Units ℚ)).map polyExample).natDegree
+#check polyExample.natDegree
+
+/-
+Note about the zero scalar:
+
+Scaling by `0 : ℚ` is *not* a `Hom polyDegreeTower polyDegreeTower`,
+because it collapses every polynomial to `0` and strictly decreases
+the minimal layer for any nonzero `p`.
+
+Once we introduce a weaker notion `HomLe` with only an upper bound
+  T'.minLayer (map x) ≤ indexMap (T.minLayer x),
+the zero-scalar map will become a canonical example.
+-/
+
 -- note: 0 倍は `polyZeroHomLe` に含めており、Hom ではなく HomLe として扱う
 
 /-
