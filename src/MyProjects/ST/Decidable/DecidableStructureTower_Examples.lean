@@ -701,11 +701,8 @@ noncomputable def polySmulHom (c : Units ℚ) :
 #check polySmulHom (1 : Units ℚ)
 #check polySmulHom (-1 : Units ℚ)
 
--- sample evaluation: degree preserved (nonzero unit)
-#check polySmulHom (Units.mk0 2 (by norm_num))
-
-def polyExample : Polynomial ℚ :=
-  Polynomial.X^3 + (2 : ℚ) * Polynomial.X + 1
+noncomputable def polyExample : Polynomial ℚ :=
+  Polynomial.X^3 + (2 : ℚ) • Polynomial.X + 1
 
 -- degrees stay the same under nonzero scalar multiplication
 -- (type-only checks; evaluation would be noncomputable)
