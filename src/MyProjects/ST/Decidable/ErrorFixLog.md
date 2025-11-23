@@ -142,3 +142,17 @@
 - **修正が正しい理由**：非計算的対象を `noncomputable` にすることで IR 生成を避け、上界付き射としての性質だけを保持。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：Hom/HomLe の線引きを実例で示すため。整数平行移動は上界付き射の典型例、多項式の 0 倍も上界のみ保証する例として整理。***
+
+---
+
+### エラー修正ログ（intAddHomLe の群準同型化で ext が詰まった件）
+
+- **エラー概要**：`intAddHomLe_comp` などで `ext` がパターンを消費せずゴールが残り、`a.natAbs + b.natAbs = (a + b).natAbs` が未解決。
+- **原因**：`HomLe` に ext 補題が未登録、かつ indexMap 比較に三角不等式が必要だったため。
+- **修正内容**：
+  - `@[ext] lemma HomLe.ext` を追加し、構造体の等式を `map` と `indexMap` の等式に還元可能にした。
+  - `intAddHomLe_comp` では ext 後に `simp` で三角不等式を処理し、残ゴールを解消。
+  - 重複定義していた `intAddHomLe_zero/comp` を整理して一つに統一。
+- **修正が正しい理由**：ext 補題により `HomLe` の等式が機械的に解消され、三角不等式は `Int.natAbs_add_le` で証明できる。`lake build` 成功で確認。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：整数加法作用を群準同型的に扱えるようにし、Hom/HomLe インフラの実用性を示すため。***

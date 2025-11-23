@@ -150,6 +150,11 @@ structure HomLe (T T' : StructureTowerWithMin) where
   minLayer_le :
     ∀ x, T'.minLayer (map x) ≤ indexMap (T.minLayer x)
 
+/-- Extensionality for `HomLe`. -/
+@[ext] lemma HomLe.ext {T T' : StructureTowerWithMin} (f g : HomLe T T')
+    (hmap : f.map = g.map) (hindex : f.indexMap = g.indexMap) : f = g := by
+  cases f; cases g; cases hmap; cases hindex; rfl
+
 /-- Forgetful map from `Hom` to `HomLe`. -/
 def Hom.toHomLe {T T' : StructureTowerWithMin} (h : Hom T T') : HomLe T T' :=
 { map := h.map
@@ -344,6 +349,10 @@ def intAddHomLe (a : ℤ) : StructureTowerWithMin.HomLe intAbsTower intAbsTower 
 #eval (intAddHomLe 3).map (-2)          -- 1
 #eval (intAddHomLe (-5)).indexMap 4     -- 9
 #eval checkInLayer intAbsTower ((intAddHomLe 3).map 5) ((intAddHomLe 3).indexMap 5)
+
+lemma intAddHomLe_zero :
+    intAddHomLe 0 = StructureTowerWithMin.HomLe.id intAbsTower := by
+  ext k n <;> simp [intAddHomLe, StructureTowerWithMin.HomLe.id]
 
 /-! ### Morphism-style computations (exercise hints) -/
 
