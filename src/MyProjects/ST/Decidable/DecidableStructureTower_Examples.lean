@@ -55,6 +55,24 @@ namespace StructureTowerWithMin
 instance instIndexPreorder (T : StructureTowerWithMin) : Preorder T.Index :=
   T.indexPreorder
 
+/-- Minimal layer is unique up to antisymmetry: any other minimal index differs
+    from `minLayer x` by a pair of inequalities. Use `le_antisymm` when the
+    index order is antisymmetric. -/
+lemma minLayer_unique (T : StructureTowerWithMin)
+    (x : T.carrier) (i : T.Index)
+    (hi : x ∈ T.layer i) (hmin : ∀ k, x ∈ T.layer k → i ≤ k) :
+    i ≤ T.minLayer x ∧ T.minLayer x ≤ i :=
+  ⟨hmin _ (T.minLayer_mem x), T.minLayer_minimal x i hi⟩
+
+/-- Membership is equivalent to being above the minimal layer. -/
+lemma minLayer_le_iff (T : StructureTowerWithMin) (x : T.carrier) (i : T.Index) :
+    T.minLayer x ≤ i ↔ x ∈ T.layer i := by
+  constructor
+  · intro hle
+    exact T.monotone hle (T.minLayer_mem x)
+  · intro hi
+    exact T.minLayer_minimal x i hi
+
 /-- Morphisms of structure towers preserving layers and minimal layers. -/
 structure Hom (T T' : StructureTowerWithMin) where
   map : T.carrier → T'.carrier
