@@ -701,6 +701,11 @@ noncomputable def polySmulHom (c : Units ℚ) :
 #check polySmulHom (1 : Units ℚ)
 #check polySmulHom (-1 : Units ℚ)
 
+-- sample evaluation: degree preserved (nonzero unit)
+#check polySmulHom (Units.mk0 2 (by norm_num))
+
+-- note: 0 倍は `polyZeroHomLe` に含めており、Hom ではなく HomLe として扱う
+
 /-
 ## Example 5: strings stratified by length
 
