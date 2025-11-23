@@ -94,3 +94,14 @@
 - **修正が正しい理由**：警告のみで動作には影響しない。必要なら `hc` を `_` で消すなど軽微に対応可能。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：補題の形を簡潔に保ち、必要なら後で仮定を削除できるように記録だけ残した。***
+
+---
+
+### エラー修正ログ（stringLengthTower 追加は問題なし・警告なし）
+
+- **エラー概要**：なし（ビルド成功、警告も発生せず）。
+- **原因**：リスト長塔のパターンをそのまま文字列長に適用したため新規の落とし穴がなかった。
+- **修正内容**：carrier=String の塔を追加し、Decidable・#eval 例を整備。
+- **修正が正しい理由**：`String.length` は計算可能で、層定義・minLayer・被覆性・単調性がすべて簡潔に示せる。`lake build` 成功で確認済み。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：計算可能な minLayer の代表例を増やし、CS 寄りの直感的サンプルを提供するため。***

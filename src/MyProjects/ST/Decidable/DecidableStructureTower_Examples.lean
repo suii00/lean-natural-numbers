@@ -5,6 +5,7 @@ import Mathlib.Data.Finset.Card
 import Mathlib.Algebra.Polynomial.Basic
 import Mathlib.Algebra.Polynomial.Degree.Definitions
 import Mathlib.Order.Basic
+import Mathlib.Data.String.Basic
 
 /-
 # Computable structure towers
@@ -17,6 +18,8 @@ This file gives Bourbaki-flavoured, fully computable examples of
 * Integer tower stratified by absolute value.
 * List tower stratified by length.
 * Finite-set tower stratified by cardinality.
+* Polynomial tower stratified by degree.
+* String tower stratified by length.
 
 Each tower supplies explicit decidable membership and a concrete `minLayer`,
 emphasising constructive set-theoretic structure.
@@ -462,6 +465,13 @@ Carrier: `Polynomial ℚ`, layer `n` consists of polynomials of degree ≤ n, an
 `minLayer` is `natDegree`.  This matches the usual notion of complexity for
 polynomials.
 -/
+/-
+## Example 4: polynomials stratified by degree
+
+Carrier: `Polynomial ℚ`, layer `n` consists of polynomials of degree ≤ n, and
+`minLayer` is `natDegree`.  This matches the usual notion of complexity for
+polynomials.
+-/
 
 /-- Decidable membership in `natDegree ≤ n` for polynomials. -/
 instance Polynomial.decidableNatDegreeLe (p : Polynomial ℚ) (n : ℕ) :
@@ -568,6 +578,47 @@ theorem poly_mul_natDegree_le
     (p q : Polynomial ℚ) :
     (p * q).natDegree ≤ p.natDegree + q.natDegree := by
   simpa using Polynomial.natDegree_mul_le (p := p) (q := q)
+
+/-
+## Example 5: strings stratified by length
+
+Carrier: `String`, layer `n` consists of strings of length ≤ n, and
+`minLayer` is `String.length`.
+-/
+
+/-- Decidable membership in the predicate `length ≤ n` for strings. -/
+instance String.decidableLengthLe (s : String) (n : ℕ) :
+    Decidable (s ∈ {t : String | t.length ≤ n}) :=
+  decidable_of_iff (s.length ≤ n) (by simp)
+
+/-- Structure tower ordered by string length. -/
+abbrev stringLengthTower : StructureTowerWithMin where
+  carrier := String
+  Index := ℕ
+  indexPreorder := inferInstance
+  layer := fun n => {s : String | s.length ≤ n}
+  covering := by
+    intro s; refine ⟨s.length, ?_⟩; simp
+  monotone := by
+    intro n m hnm s hs; simp at hs ⊢; exact Nat.le_trans hs hnm
+  minLayer := fun s => s.length
+  minLayer_mem := by intro s; simp
+  minLayer_minimal := by intro s i hi; simp at hi; exact hi
+
+/-- Decidable membership helper for the string tower. -/
+instance (s : String) (n : ℕ) :
+    Decidable (s ∈ stringLengthTower.layer n) := by
+  dsimp [stringLengthTower]; infer_instance
+
+/-- Bool membership check for the string tower. -/
+def checkStringLayer (s : String) (n : ℕ) : Bool :=
+  decide (s.length ≤ n)
+
+-- sample computations
+#eval stringLengthTower.minLayer "hello"        -- 5
+#eval stringLengthTower.minLayer ""             -- 0
+#eval checkStringLayer "lean" 3                 -- false
+#eval checkStringLayer "lean" 4                 -- true
 
 /-
 ## Why computability matters
