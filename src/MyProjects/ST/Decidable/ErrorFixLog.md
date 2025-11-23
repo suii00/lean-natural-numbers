@@ -105,3 +105,14 @@
 - **修正が正しい理由**：`String.length` は計算可能で、層定義・minLayer・被覆性・単調性がすべて簡潔に示せる。`lake build` 成功で確認済み。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：計算可能な minLayer の代表例を増やし、CS 寄りの直感的サンプルを提供するため。***
+
+---
+
+### エラー修正ログ（Hom の結合律・単位律追加）
+
+- **エラー概要**：なし（新たな定理追加のみでビルド成功）。
+- **原因**：`Hom.comp` を rfl 定義としていたため、結合律・左右単位律はいずれも `rfl` で証明でき、エラーは発生しなかった。
+- **修正内容**：`Hom.comp_assoc` / `Hom.id_comp` / `Hom.comp_id` を追加し、圏論的な基礎を明示。
+- **修正が正しい理由**：定義が単なる関数合成の入れ子なので `rfl` で成立し、`lake build` も成功。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：構造塔の射を“圏”として扱う基盤を整え、後続の射構成・演習に備えるため。***

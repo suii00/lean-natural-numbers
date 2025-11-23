@@ -114,6 +114,20 @@ def Hom.comp {T₁ T₂ T₃ : StructureTowerWithMin}
       _ = T₃.minLayer (g.map (f.map x)) := by
               simpa using g.minLayer_preserving (f.map x)
 
+/-- Associativity of hom composition. -/
+@[simp] lemma Hom.comp_assoc {T₁ T₂ T₃ T₄ : StructureTowerWithMin}
+    (h₁ : Hom T₁ T₂) (h₂ : Hom T₂ T₃) (h₃ : Hom T₃ T₄) :
+    Hom.comp h₃ (Hom.comp h₂ h₁) = Hom.comp (Hom.comp h₃ h₂) h₁ := by
+  rfl
+
+/-- Left identity for hom composition. -/
+@[simp] lemma Hom.id_comp {T₁ T₂ : StructureTowerWithMin} (f : Hom T₁ T₂) :
+    Hom.comp (Hom.id T₂) f = f := rfl
+
+/-- Right identity for hom composition. -/
+@[simp] lemma Hom.comp_id {T₁ T₂ : StructureTowerWithMin} (f : Hom T₁ T₂) :
+    Hom.comp f (Hom.id T₁) = f := rfl
+
 /-- Image of a layer element via a hom. -/
 lemma Hom.map_mem_layer {T T' : StructureTowerWithMin}
     (h : Hom T T') {x i} (hx : x ∈ T.layer i) :
