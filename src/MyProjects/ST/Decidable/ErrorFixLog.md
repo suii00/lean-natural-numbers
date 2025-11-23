@@ -127,3 +127,18 @@
 - **修正が正しい理由**：従来の `Hom` を包含する弱い概念として整備しただけで既存コードに影響を与えず、`lake build` が通ることを確認。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：整数塔の加法写像や 0 倍のように minLayer が厳密には一致しない計算的射を扱う足場を用意するため。***
+
+---
+
+### エラー修正ログ（HomLe 利用例追加：整数平行移動／多項式 0 倍）
+
+- **エラー概要**：
+  - `intAddHomLe` 追加は問題なし。
+  - `polyZeroHomLe` で IR チェックが「Polynomial.zero に実行コードなし」で失敗。
+- **原因**：`polyZeroHomLe` を computable として定義したため、非計算的な `Polynomial` を #eval しようとして失敗。
+- **修正内容**：
+  - `polyZeroHomLe` を `noncomputable` に変更し、`indexMap_mono` も定義域に合わせて単純化。
+  - その後ビルド成功を確認。
+- **修正が正しい理由**：非計算的対象を `noncomputable` にすることで IR 生成を避け、上界付き射としての性質だけを保持。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：Hom/HomLe の線引きを実例で示すため。整数平行移動は上界付き射の典型例、多項式の 0 倍も上界のみ保証する例として整理。***

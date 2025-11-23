@@ -321,6 +321,30 @@ lemma intAbsTower_symm (k : ℤ) :
     intAbsTower.minLayer k = intAbsTower.minLayer (-k) := by
   simp [intAbsTower]
 
+/-! HomLe example: integer translation (additive action up to an upper bound). -/
+
+/-- Addition by a fixed integer as an upper-bound-preserving morphism. -/
+def intAddHomLe (a : ℤ) : StructureTowerWithMin.HomLe intAbsTower intAbsTower :=
+{ map := fun k => k + a
+  indexMap := fun n => n + Int.natAbs a
+  indexMap_mono := by
+    intro i j h; exact Nat.add_le_add_right h _
+  layer_preserving := by
+    intro k n hk
+    have htriangle : Int.natAbs (k + a) ≤ Int.natAbs k + Int.natAbs a :=
+      Int.natAbs_add_le k a
+    have hbound : Int.natAbs k + Int.natAbs a ≤ n + Int.natAbs a :=
+      Nat.add_le_add_right hk _
+    exact Nat.le_trans htriangle hbound
+  minLayer_le := by
+    intro k
+    simpa using Int.natAbs_add_le k a }
+
+-- sample checks
+#eval (intAddHomLe 3).map (-2)          -- 1
+#eval (intAddHomLe (-5)).indexMap 4     -- 9
+#eval checkInLayer intAbsTower ((intAddHomLe 3).map 5) ((intAddHomLe 3).indexMap 5)
+
 /-! ### Morphism-style computations (exercise hints) -/
 
 /-- Doubling map sends layer `n` into layer `2*n` (computable check). -/
@@ -678,6 +702,25 @@ def checkStringLayer (s : String) (n : ℕ) : Bool :=
 #eval stringLengthTower.minLayer ""             -- 0
 #eval checkStringLayer "lean" 3                 -- false
 #eval checkStringLayer "lean" 4                 -- true
+
+/-
+## HomLe example: polynomial zero map (upper bound only)
+
+0 倍は次数を 0 に潰すため、minLayer の一致は取れないが上界は 0 で保証できる。
+-/
+
+noncomputable def polyZeroHomLe :
+    StructureTowerWithMin.HomLe polyDegreeTower polyDegreeTower :=
+{ map := fun _ => 0
+  indexMap := fun _ => 0
+  indexMap_mono := by intro i j h; exact le_rfl
+  layer_preserving := by
+    intro p n _
+    -- 0 polynomial has natDegree 0
+    simp [polyDegreeTower]
+  minLayer_le := by
+    intro p
+    simp [polyDegreeTower] }
 
 /-
 ## Why computability matters
