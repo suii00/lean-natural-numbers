@@ -4,6 +4,7 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Card
 import Mathlib.Algebra.Polynomial.Basic
 import Mathlib.Algebra.Polynomial.Degree.Definitions
+import Mathlib.Algebra.Polynomial.Degree.Domain
 import Mathlib.Order.Basic
 import Mathlib.Data.String.Basic
 
@@ -670,6 +671,35 @@ theorem poly_mul_natDegree_le
     (p q : Polynomial ℚ) :
     (p * q).natDegree ≤ p.natDegree + q.natDegree := by
   simpa using Polynomial.natDegree_mul_le (p := p) (q := q)
+
+/-
+### Nonzero scalar multiplication as an automorphism of the polynomial tower
+-/
+
+noncomputable def polySmulHom (c : Units ℚ) :
+    StructureTowerWithMin.Hom polyDegreeTower polyDegreeTower :=
+{ map := fun p => (c : ℚ) • p
+  indexMap := fun n => n
+  indexMap_mono := by intro i j h; simpa using h
+  layer_preserving := by
+    intro p n hp
+    classical
+    have hc : (c : ℚ) ≠ 0 := Units.ne_zero c
+    have hdeg : ((c : ℚ) • p).natDegree = p.natDegree :=
+      Polynomial.natDegree_smul (p := p) (ha := hc)
+    dsimp [polyDegreeTower] at hp ⊢
+    simpa [hdeg]
+  minLayer_preserving := by
+    intro p
+    classical
+    have hc : (c : ℚ) ≠ 0 := Units.ne_zero c
+    have hdeg : ((c : ℚ) • p).natDegree = p.natDegree :=
+      Polynomial.natDegree_smul (p := p) (ha := hc)
+    simp [polyDegreeTower, hdeg] }
+
+-- sanity checks (types)
+#check polySmulHom (1 : Units ℚ)
+#check polySmulHom (-1 : Units ℚ)
 
 /-
 ## Example 5: strings stratified by length

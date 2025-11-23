@@ -156,3 +156,16 @@
 - **修正が正しい理由**：ext 補題により `HomLe` の等式が機械的に解消され、三角不等式は `Int.natAbs_add_le` で証明できる。`lake build` 成功で確認。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：整数加法作用を群準同型的に扱えるようにし、Hom/HomLe インフラの実用性を示すため。***
+
+---
+
+### エラー修正ログ（polySmulHom 実装時の natDegree_smul 未解決）
+
+- **エラー概要**：`Polynomial.natDegree_smul` が見つからずビルド失敗。
+- **原因**：必要な補題が `Mathlib.Algebra.Polynomial.Degree.Domain` にあり、既存の import では不足していた。
+- **修正内容**：
+  - `Mathlib.Algebra.Polynomial.Degree.Domain` を追加 import。
+  - 非零スカラー倍の自己同型 `polySmulHom : ℚˣ → Hom polyDegreeTower polyDegreeTower` を実装し、`natDegree_smul` を用いて minLayer の一致を証明。
+- **修正が正しい理由**：`ℚˣ` は群であり、`natDegree_smul` が適用できるため minLayer が保持される。import 追加後 `lake build` が成功。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：非零スカラー倍が塔の自己同型になる典型例を示し、Hom/HomLe の境界整理を具体化するため。***
