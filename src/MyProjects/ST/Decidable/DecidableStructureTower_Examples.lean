@@ -140,6 +140,51 @@ lemma Hom.map_minLayer {T T' : StructureTowerWithMin}
     h.indexMap (T.minLayer x) = T'.minLayer (h.map x) :=
   h.minLayer_preserving x
 
+/-- Homomorphisms that only bound the minimal layer from above. -/
+structure HomLe (T T' : StructureTowerWithMin) where
+  map : T.carrier → T'.carrier
+  indexMap : T.Index → T'.Index
+  indexMap_mono : ∀ {i j}, i ≤ j → indexMap i ≤ indexMap j
+  layer_preserving :
+    ∀ {x i}, x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+  minLayer_le :
+    ∀ x, T'.minLayer (map x) ≤ indexMap (T.minLayer x)
+
+/-- Forgetful map from `Hom` to `HomLe`. -/
+def Hom.toHomLe {T T' : StructureTowerWithMin} (h : Hom T T') : HomLe T T' :=
+{ map := h.map
+  indexMap := h.indexMap
+  indexMap_mono := h.indexMap_mono
+  layer_preserving := h.layer_preserving
+  minLayer_le := by
+    intro x
+    simpa [h.minLayer_preserving x] using le_of_eq (h.minLayer_preserving x) }
+
+/-- Identity morphism for `HomLe`. -/
+def HomLe.id (T : StructureTowerWithMin) : HomLe T T :=
+{ map := fun x => x
+  indexMap := fun i => i
+  indexMap_mono := fun h => h
+  layer_preserving := by intro x i hi; simpa using hi
+  minLayer_le := by intro x; exact le_rfl }
+
+/-- Composition for `HomLe`. -/
+def HomLe.comp {T₁ T₂ T₃ : StructureTowerWithMin}
+    (g : HomLe T₂ T₃) (f : HomLe T₁ T₂) : HomLe T₁ T₃ :=
+{ map := fun x => g.map (f.map x)
+  indexMap := fun i => g.indexMap (f.indexMap i)
+  indexMap_mono := by
+    intro i j h; exact g.indexMap_mono (f.indexMap_mono h)
+  layer_preserving := by
+    intro x i hi; exact g.layer_preserving (f.layer_preserving hi)
+  minLayer_le := by
+    intro x
+    calc
+      T₃.minLayer (g.map (f.map x))
+          ≤ g.indexMap (T₂.minLayer (f.map x)) := g.minLayer_le _
+      _ ≤ g.indexMap (f.indexMap (T₁.minLayer x)) :=
+        g.indexMap_mono (f.minLayer_le x) }
+
 /-- Product of two structure towers (componentwise layers). -/
 def prod (T₁ T₂ : StructureTowerWithMin) : StructureTowerWithMin where
   carrier := T₁.carrier × T₂.carrier

@@ -116,3 +116,14 @@
 - **修正が正しい理由**：定義が単なる関数合成の入れ子なので `rfl` で成立し、`lake build` も成功。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：構造塔の射を“圏”として扱う基盤を整え、後続の射構成・演習に備えるため。***
+
+---
+
+### エラー修正ログ（HomLe 追加）
+
+- **エラー概要**：なし（新規インフラ追加のみでビルド成功）。
+- **原因**：minLayer が一致しない射を扱うための柔軟な階層が必要だったため。
+- **修正内容**：`HomLe`（minLayer 上界のみを保証する射）を追加し、`Hom.toHomLe` 忘却、`HomLe.id` / `HomLe.comp` を実装。
+- **修正が正しい理由**：従来の `Hom` を包含する弱い概念として整備しただけで既存コードに影響を与えず、`lake build` が通ることを確認。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：整数塔の加法写像や 0 倍のように minLayer が厳密には一致しない計算的射を扱う足場を用意するため。***
