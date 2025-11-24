@@ -24,7 +24,6 @@ ComputableStoppingTime.lean ← 停止時間（情報＋時刻の構造）
 ↓
 AlgorithmicMartingale.lean ← マルチンゲールと Optional Stopping Theorem
 
-
 ここではまだ「確率測度」や「期待値」は導入せず，
 **情報（filtration）＋時刻（ℕ）** という構造にのみ集中する。
 
@@ -96,16 +95,12 @@ def const (ℱ : DecidableFiltration Ω) (c : ℕ) (hc : c ≤ ℱ.timeHorizon) 
   time := fun _ => c
   adapted := by
     intro t ht
-    -- {ω | τ(ω) ≤ t} = {ω | c ≤ t} は ω に依らないので，
-    -- t ≥ c なら全体集合，t < c なら空集合になる。
     by_cases hct : c ≤ t
-    · -- t ≥ c の場合：{τ ≤ t} = Ω
-      have hset : {ω : Ω.carrier | c ≤ t} = (Set.univ : Set Ω.carrier) := by
+    · have hset : {ω : Ω.carrier | c ≤ t} = (Set.univ : Set Ω.carrier) := by
         ext ω; simp [hct]
       have h := Prob.FiniteAlgebra.has_univ (ℱ.observableAt t ht)
       simpa [hset] using h
-    · -- t < c の場合：{τ ≤ t} = ∅
-      have hset : {ω : Ω.carrier | c ≤ t} = (∅ : Set Ω.carrier) := by
+    · have hset : {ω : Ω.carrier | c ≤ t} = (∅ : Set Ω.carrier) := by
         ext ω; simp [hct]
       have h := (ℱ.observableAt t ht).has_empty
       have h' : (∅ : Set Ω.carrier) ∈ (ℱ.observableAt t ht).events := by
@@ -125,16 +120,6 @@ lemma const_isBounded (ℱ : DecidableFiltration Ω) (c : ℕ)
 
 /-!
 ## 3. min・max による停止時間演算
-
-2 つの停止時間 `τ₁, τ₂` に対し，
-
-* `min τ₁ τ₂` : それぞれの標本点での最小値
-* `max τ₁ τ₂` : それぞれの標本点での最大値
-
-も停止時間になる。
-
-- `{min(τ₁, τ₂) ≤ t} = {τ₁ ≤ t} ∪ {τ₂ ≤ t}`（有限和で閉じているので可観測）
-- `{max(τ₁, τ₂) ≤ t} = {τ₁ ≤ t} ∩ {τ₂ ≤ t}`（有限積で閉じているので可観測）
 -/
 
 /-- 2 つの停止時間の `min`。 -/
@@ -149,19 +134,14 @@ def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     have h2 :
         {ω : Ω.carrier | τ₂.time ω ≤ t} ∈ (ℱ.observableAt t ht).events :=
       τ₂.adapted t ht
-    -- 右辺 {τ₁ ≤ t} ∪ {τ₂ ≤ t} が代数で閉じていることを使う
     have hUnion := (ℱ.observableAt t ht).closed_union h1 h2
-
-    -- 集合レベルの等式：
-    -- {min(τ₁, τ₂) ≤ t} = {τ₁ ≤ t} ∪ {τ₂ ≤ t}
+    classical
     have hset :
         {ω : Ω.carrier | Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t} =
           ({ω : Ω.carrier | τ₁.time ω ≤ t} ∪ {ω : Ω.carrier | τ₂.time ω ≤ t}) := by
-      apply Set.ext
-      intro ω
+      ext ω
       constructor
       · intro hmin_le_t
-        -- min ≤ t ならどちらか一方が t 以下
         have hle : τ₁.time ω ≤ τ₂.time ω ∨ τ₂.time ω ≤ τ₁.time ω :=
           le_total _ _
         cases hle with
@@ -169,7 +149,6 @@ def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
             have hmin : Nat.min (τ₁.time ω) (τ₂.time ω) = τ₁.time ω :=
               Nat.min_eq_left hle
             have hineq : τ₁.time ω ≤ t := by
-              -- `hmin_le_t : min ≤ t` を `τ₁.time ω ≤ t` に書き換える
               have h' : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t := hmin_le_t
               simpa [hmin] using h'
             exact Or.inl hineq
@@ -184,9 +163,7 @@ def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
         rcases hdisj with h₁ | h₂
         · exact le_trans (Nat.min_le_left _ _) h₁
         · exact le_trans (Nat.min_le_right _ _) h₂
-
     simpa [hset, Prob.Event.union] using hUnion
-
 
 /-- 2 つの停止時間の `max`。 -/
 def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
@@ -200,58 +177,52 @@ def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     have h2 :
         {ω : Ω.carrier | τ₂.time ω ≤ t} ∈ (ℱ.observableAt t ht).events :=
       τ₂.adapted t ht
-    -- 右辺 {τ₁ ≤ t} ∩ {τ₂ ≤ t} が代数で閉じていることを使う
     have hInter :=
       Prob.FiniteAlgebra.closed_intersection
         (ℱ := ℱ.observableAt t ht) h1 h2
-
-    -- {max(τ₁, τ₂) ≤ t} = {τ₁ ≤ t ∧ τ₂ ≤ t}
+    classical
     have hset :
         {ω : Ω.carrier | Nat.max (τ₁.time ω) (τ₂.time ω) ≤ t} =
           {ω : Ω.carrier | τ₁.time ω ≤ t ∧ τ₂.time ω ≤ t} := by
-      apply Set.ext
-      intro ω
-      constructor
+      ext ω; constructor
       · intro h
-        exact
-          ⟨le_trans (Nat.le_max_left _ _) h,
-           le_trans (Nat.le_max_right _ _) h⟩
-      · intro h
-        rcases h with ⟨h1ω, h2ω⟩
+        exact ⟨le_trans (Nat.le_max_left _ _) h,
+              le_trans (Nat.le_max_right _ _) h⟩
+      · intro h; rcases h with ⟨h1ω, h2ω⟩
         exact (max_le_iff).2 ⟨h1ω, h2ω⟩
-
-    -- {τ₁ ≤ t ∧ τ₂ ≤ t} = {τ₁ ≤ t} ∩ {τ₂ ≤ t} は定義的に同じ
     have hset' :
         {ω : Ω.carrier | τ₁.time ω ≤ t ∧ τ₂.time ω ≤ t} =
           ({ω : Ω.carrier | τ₁.time ω ≤ t} ∩ {ω : Ω.carrier | τ₂.time ω ≤ t}) := by
       rfl
-
     simpa [hset, hset', Prob.Event.intersection] using hInter
 
-
-/-- `min` はそれぞれの停止時間以下。 -/
-lemma min_le_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
+@[simp] lemma min_le_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     min τ₁ τ₂ ≤ τ₁ := by
   intro ω
-  simp [min, Nat.min_le_left]
+  simp [min]
 
-/-- `min` はそれぞれの停止時間以下。 -/
-lemma min_le_right (τ₁ τ₂ : ComputableStoppingTime ℱ) :
+@[simp] lemma min_le_right (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     min τ₁ τ₂ ≤ τ₂ := by
   intro ω
-  simp [min, Nat.min_le_right]
+  simp [min]
 
-/-- 各点で `τ₁ ≤ max τ₁ τ₂`。 -/
-lemma le_max_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
+@[simp] lemma le_max_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     τ₁ ≤ max τ₁ τ₂ := by
   intro ω
-  simp [max, Nat.le_max_left]
+  simp [max]
 
-/-- 各点で `τ₂ ≤ max τ₁ τ₂`。 -/
-lemma le_max_right (τ₁ τ₂ : ComputableStoppingTime ℱ) :
+@[simp] lemma le_max_right (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     τ₂ ≤ max τ₁ τ₂ := by
   intro ω
-  simp [max, Nat.le_max_right]
+  simp [max]
+
+/-- 上界付きの停止時間から、より小さい停止時間も同じ上界で抑えられる。 -/
+lemma isBounded_of_le
+    {τ₁ τ₂ : ComputableStoppingTime ℱ} {N : ℕ}
+    (h : τ₁ ≤ τ₂) (hB : isBounded τ₂ N) :
+    isBounded τ₁ N := by
+  intro ω
+  exact le_trans (h ω) (hB ω)
 
 /-- 有界な停止時間同士の `min` も有界。 -/
 lemma min_isBounded
@@ -285,22 +256,13 @@ end ComputableStoppingTime
 
 /-!
 ## 4. 簡単な計算例（#eval）
-
-ここでは，1 回のコイン投げ（`Bool`）を標本空間とした最も単純な例を示す。
-
-- 標本空間：`Ω = {true, false}`（`true = 表`, `false = 裏`）
-- 代数：全ての部分集合（`powerSet`）
-- フィルトレーション：全時刻で同じ代数を返す定数フィルトレーション
-- 停止時間の例：
-  * `τ_const(ω) ≡ 1`
-  * `τ_ht(ω) = 0` if `ω = true`, `1` if `ω = false`
-- `min`, `max` による新しい停止時間の構成と `#eval` による値の確認
 -/
 
 section Examples
 
 open ComputableStoppingTime
 
+-- 以下は理論本体には依存しない教育用サンプル集。
 /-- 1 回のコイン投げ（Bool）を標本空間とする有限標本空間。 -/
 def coinSpace : Prob.FiniteSampleSpace where
   carrier := Bool
