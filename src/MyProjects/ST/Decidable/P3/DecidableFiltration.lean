@@ -65,7 +65,8 @@ def isBounded (τ : StoppingTime ℱ) (N : ℕ) : Prop :=
 /-- 定数停止時間はその値で有界。 -/
 lemma const_isBounded (ℱ : DecidableFiltration Ω) (c : ℕ) (hc : c ≤ ℱ.timeHorizon) :
     StoppingTime.isBounded (StoppingTime.const ℱ c hc) c := by
-  intro ω; simp [StoppingTime.const]
+  intro ω
+  simp [StoppingTime.const]
 
 /-- 2 つの停止時間の min。 -/
 def min (τ₁ τ₂ : StoppingTime ℱ) : StoppingTime ℱ where
@@ -143,7 +144,7 @@ def constFiltration (Ω : Prob.FiniteSampleSpace)
   monotone := by
     intro s t _ _ _; exact Set.Subset.refl _
 
-/-  timeHorizon = 1 の最小例（未完のため一旦コメントアウト）
+/-- timeHorizon = 1 の最小例。 -/
 def twoStepFiltration (Ω : Prob.FiniteSampleSpace)
     (F0 F1 : Prob.FiniteAlgebra Ω.carrier) (h01 : F0 ⊆ₐ F1) :
     DecidableFiltration Ω where
@@ -155,6 +156,29 @@ def twoStepFiltration (Ω : Prob.FiniteSampleSpace)
     | _ => F1 -- t ≤ 1 のため到達しないが、型合わせで F1
   monotone := by
     intro s t hs ht hst
-    -- TODO: case split on s,t ≤ 1 and use h01
-    admit
--/
+    cases s with
+    | zero =>
+        cases t with
+        | zero =>
+            simpa using
+              (Prob.FiniteAlgebra.subalgebra_refl (Ω := Ω.carrier) (ℱ := F0))
+        | succ t' =>
+            have ht0 : t' = 0 := by
+              have ht0_le : t' ≤ 0 :=
+                Nat.succ_le_succ_iff.mp (by simpa using ht)
+              exact Nat.le_antisymm ht0_le (Nat.zero_le _)
+            subst ht0
+            simpa using h01
+    | succ s' =>
+        have hs0 : s' = 0 := by
+          have hs0_le : s' ≤ 0 :=
+            Nat.succ_le_succ_iff.mp (by simpa using hs)
+          exact Nat.le_antisymm hs0_le (Nat.zero_le _)
+        subst hs0
+        have htl : 1 ≤ t := hst
+        have ht1 : t = 1 := Nat.le_antisymm ht htl
+        subst ht1
+        simpa using
+          (Prob.FiniteAlgebra.subalgebra_refl (Ω := Ω.carrier) (ℱ := F1))
+
+
