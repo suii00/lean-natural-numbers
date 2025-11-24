@@ -544,7 +544,10 @@ def evenDiceEvent : Event diceSample.carrier :=
 
 /-- 偶数事象の decidability -/
 noncomputable instance : DecidablePred (· ∈ evenDiceEvent) :=
-  by intro n; exact Nat.decEq _ _
+  by
+    intro n
+    change Decidable (n.val % 2 = 0)
+    infer_instance
 
 /-- 具体的な membership のチェック -/
 noncomputable def checkEvenDice (n : Fin 6) : Bool :=
@@ -590,7 +593,10 @@ def bigDiceEvent : Event diceSample.carrier :=
   {n : Fin 6 | n.val ≥ 3}
 
 noncomputable instance : DecidablePred (· ∈ bigDiceEvent) :=
-  by intro n; exact Nat.decLe _ _
+  by
+    intro n
+    change Decidable (3 ≤ n.val)
+    infer_instance
 
 noncomputable def checkBigDice (n : Fin 6) : Bool :=
   decide (n ∈ bigDiceEvent)
@@ -688,7 +694,10 @@ def sumSevenEvent : Event twoDiceSample.carrier :=
   {p : Fin 6 × Fin 6 | p.1.val + p.2.val = 7}
 
 noncomputable instance : DecidablePred (· ∈ sumSevenEvent) :=
-  by intro p; exact Nat.decEq _ _
+  by
+    intro p
+    change Decidable (p.1.val + p.2.val = 7)
+    infer_instance
 
 noncomputable def checkSumSeven (p : Fin 6 × Fin 6) : Bool :=
   decide (p ∈ sumSevenEvent)
