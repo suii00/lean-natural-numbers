@@ -1,0 +1,825 @@
+%!TEX TS-program = lualatex
+%!TEX encoding = UTF-8
+
+\documentclass[12pt,a4paper,ja=standard]{bxjsarticle}
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図表パッケージ
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc,matrix}
+
+% レイアウト
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+
+% ハイパーリンク
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% カスタムボックス
+\newtcolorbox{keypoint}[1][]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    fonttitle=\bfseries,
+    title=重要ポイント,
+    #1
+}
+
+\newtcolorbox{insight}[1][]{
+    colback=green!5!white,
+    colframe=green!75!black,
+    fonttitle=\bfseries,
+    title=数学的洞察,
+    #1
+}
+
+\newtcolorbox{connection}[1][]{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    fonttitle=\bfseries,
+    title=構造塔との接続,
+    #1
+}
+
+% タイトル情報
+\title{\Huge\bfseries 離散確率論の代数的構造\\
+\Large DecidableAlgebra.lean: 有限代数と可測性}
+
+\author{
+    \large Lean 4 コード: Codex (OpenAI) \\
+    \large \TeX 解説: Claude Code \\
+    \vspace{0.3cm}
+    \normalsize プロジェクト: 構造塔理論と確率論
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、\texttt{DecidableEvents.lean} の自然な拡張として、有限標本空間における\textbf{有限代数}（finite algebra）の形式化について解説する。有限代数は Boolean 演算で閉じた事象族であり、$\sigma$-代数の有限版に相当する。これにより、「観測可能な情報の構造」を数学的に記述でき、将来の DecidableFiltration（構造塔のインスタンス化）への準備が整う。本解説は学部 3--4 年生を対象とし、測度論の基礎知識を前提とする。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{序論：事象から代数へ}
+
+\subsection{前回のまとめ}
+
+\texttt{DecidableEvents.lean} では、以下を学んだ：
+
+\begin{itemize}
+    \item 有限標本空間 $\Omega$ の定義
+    \item 事象 $A \subseteq \Omega$ と decidability
+    \item 基本演算（補集合、和、積）
+    \item 具体例（サイコロ、コイン投げ）
+\end{itemize}
+
+しかし、個々の事象だけでは不十分である。確率論では、\textbf{事象の族}（family of events）を扱う必要がある。
+
+\subsection{なぜ事象の族が必要か}
+
+\begin{example}[情報の増加]
+3回コイン投げの実験を考える。標本空間は $\Omega = \{H, T\}^3$（8通り）。
+
+\begin{itemize}
+    \item \textbf{時刻 0}：何も知らない $\Rightarrow$ 識別可能な事象：$\{\emptyset, \Omega\}$（2個）
+    \item \textbf{時刻 1}：1回目の結果を知る $\Rightarrow$ 識別可能な事象：4個
+    \item \textbf{時刻 2}：2回目まで知る $\Rightarrow$ 識別可能な事象：8個
+    \item \textbf{時刻 3}：すべて知る $\Rightarrow$ 識別可能な事象：16個
+\end{itemize}
+
+各時刻で「観測可能な事象の族」が必要になる。
+\end{example}
+
+\subsection{本稿の位置づけ}
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, thick, minimum width=5cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[box] (level1) at (0,0) {1. DecidableEvents.lean\\{\small 事象の基礎}};
+    \node[box, fill=blue!10, below=0.5cm of level1] (level2) {2. DecidableAlgebra.lean\\{\small 事象の構造化された族}};
+    \node[box, below=0.5cm of level2] (level3) {3. DecidableFiltration.lean\\{\small 構造塔のインスタンス}};
+    \node[box, below=0.5cm of level3] (level4) {4. ComputableStoppingTime.lean\\{\small 停止時間}};
+    \node[box, below=0.5cm of level4] (level5) {5. AlgorithmicMartingale.lean\\{\small マルチンゲール理論}};
+    
+    \draw[arrow] (level1) -- (level2);
+    \draw[arrow] (level2) -- (level3);
+    \draw[arrow] (level3) -- (level4);
+    \draw[arrow] (level4) -- (level5);
+    
+    \node[right=0.3cm of level2, text width=3cm, font=\small] {{\color{blue}$\leftarrow$ 今回}};
+    \node[right=0.3cm of level3, text width=3cm, font=\small] {{\color{red}構造塔理論}};
+\end{tikzpicture}
+\end{center}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+    \item 第 \ref{sec:finite-algebra} 節：有限代数の定義と基本性質
+    \item 第 \ref{sec:examples} 節：具体例（自明な代数、偶奇代数）
+    \item 第 \ref{sec:measurable} 節：可測関数
+    \item 第 \ref{sec:connection} 節：構造塔との接続
+    \item 第 \ref{sec:conclusion} 節：まとめと展望
+\end{enumerate}
+
+\section{有限代数の定義}\label{sec:finite-algebra}
+
+\subsection{$\sigma$-代数の復習}
+
+\begin{definition}[$\sigma$-代数]
+標本空間 $\Omega$ 上の事象族 $\mathcal{F} \subseteq \mathcal{P}(\Omega)$ が \textbf{$\sigma$-代数}（sigma-algebra）であるとは：
+
+\begin{enumerate}
+    \item \textbf{全事象}：$\Omega \in \mathcal{F}$
+    \item \textbf{補集合で閉じている}：$A \in \mathcal{F} \Rightarrow A^c \in \mathcal{F}$
+    \item \textbf{可算和で閉じている}：$(A_n)_{n \in \mathbb{N}} \subseteq \mathcal{F} \Rightarrow \bigcup_{n=1}^{\infty} A_n \in \mathcal{F}$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+組 $(\Omega, \mathcal{F})$ を\textbf{可測空間}（measurable space）と呼ぶ。
+\end{remark}
+
+\subsection{有限代数の定義}
+
+有限標本空間では、可算和の条件を\textbf{有限和}に弱めても十分である。
+
+\begin{definition}[有限代数]
+標本空間 $\Omega$ 上の事象族 $\mathcal{F} \subseteq \mathcal{P}(\Omega)$ が \textbf{有限代数}（finite algebra）であるとは：
+
+\begin{enumerate}
+    \item \textbf{空事象}：$\emptyset \in \mathcal{F}$（または同値に $\Omega \in \mathcal{F}$）
+    \item \textbf{補集合で閉じている}：$A \in \mathcal{F} \Rightarrow A^c \in \mathcal{F}$
+    \item \textbf{和で閉じている}：$A, B \in \mathcal{F} \Rightarrow A \cup B \in \mathcal{F}$
+\end{enumerate}
+\end{definition}
+
+\begin{tcolorbox}[title=Lean コード（170--179 行目）]
+\begin{verbatim}
+structure FiniteAlgebra (Ω : Type*) where
+  /-- 事象の族 -/
+  events : Set (Event Ω)
+  /-- 空事象を含む -/
+  has_empty : Event.empty ∈ events
+  /-- 補集合で閉じている -/
+  closed_complement : ∀ {A : Event Ω}, 
+    A ∈ events → Event.complement A ∈ events
+  /-- 和で閉じている -/
+  closed_union : ∀ {A B : Event Ω}, 
+    A ∈ events → B ∈ events → Event.union A B ∈ events
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{なぜ「代数」と呼ぶか}
+
+\begin{insight}
+有限代数は\textbf{代数的構造}を持つ：
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{演算} & \textbf{代数的役割} & \textbf{記号} \\
+\hline
+補集合 & 単項演算 & $(\cdot)^c : \mathcal{F} \to \mathcal{F}$ \\
+和集合 & 二項演算 & $\cup : \mathcal{F} \times \mathcal{F} \to \mathcal{F}$ \\
+積集合 & 二項演算 & $\cap : \mathcal{F} \times \mathcal{F} \to \mathcal{F}$ \\
+\hline
+\end{tabular}
+\end{center}
+
+これらの演算で\textbf{閉じている} = 代数的構造
+\end{insight}
+
+\subsection{基本的な性質}
+
+\begin{theorem}[全事象の包含]
+$\mathcal{F}$ が有限代数ならば、$\Omega \in \mathcal{F}$。
+\end{theorem}
+
+\begin{proof}
+$\emptyset \in \mathcal{F}$ かつ補集合で閉じているので、
+\[
+\emptyset^c = \Omega \in \mathcal{F}
+\]
+\end{proof}
+
+\begin{theorem}[積で閉じている]
+$\mathcal{F}$ が有限代数で $A, B \in \mathcal{F}$ ならば、$A \cap B \in \mathcal{F}$。
+\end{theorem}
+
+\begin{proof}
+De Morgan の法則を使用：
+\[
+A \cap B = (A^c \cup B^c)^c
+\]
+
+\begin{enumerate}
+    \item $A, B \in \mathcal{F}$ より、$A^c, B^c \in \mathcal{F}$（補集合で閉じている）
+    \item $A^c \cup B^c \in \mathcal{F}$（和で閉じている）
+    \item $(A^c \cup B^c)^c \in \mathcal{F}$（補集合で閉じている）
+\end{enumerate}
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}
+    % De Morgan の視覚化
+    \draw[thick] (0,0) rectangle (6,3);
+    \node at (3,3.3) {\textbf{De Morgan の法則}};
+    
+    % 左側：A ∩ B
+    \begin{scope}
+        \clip (1,1.5) circle (0.8);
+        \fill[blue!30] (2,1.5) circle (0.8);
+    \end{scope}
+    \draw[thick] (1,1.5) circle (0.8);
+    \draw[thick] (2,1.5) circle (0.8);
+    \node at (0.5,2.5) {$A$};
+    \node at (2.5,2.5) {$B$};
+    \node at (1.5,0.3) {$A \cap B$};
+    
+    % 矢印
+    \draw[->, very thick] (3,1.5) -- (3.5,1.5);
+    \node at (3.25,1.8) {$=$};
+    
+    % 右側：(A^c ∪ B^c)^c
+    \begin{scope}[xshift=3.5cm]
+        \fill[blue!30] (0,0) rectangle (2.5,3);
+        \fill[white] (0.5,1.5) circle (0.8);
+        \fill[white] (1.5,1.5) circle (0.8);
+        \draw[thick] (0.5,1.5) circle (0.8);
+        \draw[thick] (1.5,1.5) circle (0.8);
+        \node at (0,2.5) {$A^c$};
+        \node at (2,2.5) {$B^c$};
+        \node at (1,0.3) {$(A^c \cup B^c)^c$};
+    \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\begin{theorem}[有限和・積で閉じている]
+$\mathcal{F}$ が有限代数ならば：
+\begin{enumerate}
+    \item 任意の有限個の事象 $A_1, \ldots, A_n \in \mathcal{F}$ に対して、$\bigcup_{i=1}^n A_i \in \mathcal{F}$
+    \item 任意の有限個の事象 $A_1, \ldots, A_n \in \mathcal{F}$ に対して、$\bigcap_{i=1}^n A_i \in \mathcal{F}$
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+帰納法による。
+\end{proof}
+
+\section{具体例}\label{sec:examples}
+
+\subsection{自明な代数}
+
+\begin{definition}[自明な代数]
+\textbf{自明な代数}（trivial algebra）は：
+\[
+\mathcal{F}_{\text{trivial}} = \{\emptyset, \Omega\}
+\]
+
+これは最小の代数であり、「何も観測できない」状態を表す。
+\end{definition}
+
+\begin{example}[時刻 0 の情報]
+確率実験の開始前（時刻 0）では、まだ何も観測していない。この状態では：
+\begin{itemize}
+    \item $\Omega$ は「何が起こるか全く分からない」
+    \item $\emptyset$ は「絶対に起こらない」
+\end{itemize}
+のみが識別可能。
+\end{example}
+
+\subsection{全体の代数}
+
+\begin{definition}[全体の代数]
+\textbf{全体の代数}（power set algebra）は：
+\[
+\mathcal{F}_{\text{power}} = \mathcal{P}(\Omega)
+\]
+
+これは最大の代数であり、「すべてを観測できる」状態を表す。
+\end{definition}
+
+\begin{example}[完全な情報]
+すべての実験が終了した後では、すべての事象について「起こったか・起こらなかったか」が判定できる。
+\end{example}
+
+\subsection{偶奇代数（サイコロの例）}
+
+\begin{example}[偶奇で生成される代数]
+6面サイコロ $\Omega = \{0, 1, 2, 3, 4, 5\}$ に対して、偶数の目の事象：
+\[
+E = \{0, 2, 4\}
+\]
+
+から生成される代数は：
+\[
+\mathcal{F}_{\text{even-odd}} = \{\emptyset, E, E^c, \Omega\}
+\]
+
+ここで：
+\begin{itemize}
+    \item $\emptyset$ = 空事象
+    \item $E = \{0, 2, 4\}$ = 偶数の目
+    \item $E^c = \{1, 3, 5\}$ = 奇数の目
+    \item $\Omega = \{0, 1, 2, 3, 4, 5\}$ = 全体
+\end{itemize}
+\end{example}
+
+\begin{tcolorbox}[title=Lean コード（430--436 行目）]
+\begin{verbatim}
+def evenOddAlgebra : FiniteAlgebra diceSample.carrier where
+  events := {
+    Event.empty,
+    evenDice,
+    Event.complement evenDice,
+    Event.univ
+  }
+  -- 代数の公理を証明
+\end{verbatim}
+\end{tcolorbox}
+
+\subsubsection{偶奇代数の視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % サイコロの目
+    \foreach \i in {0,...,5} {
+        \pgfmathsetmacro{\x}{mod(\i,3)*2}
+        \pgfmathsetmacro{\y}{-int(\i/3)*2}
+        
+        \ifnum\i=0
+            \node[circle, draw, thick, fill=blue!20, minimum size=1cm] at (\x,\y) {\Large \i};
+        \fi
+        \ifnum\i=1
+            \node[circle, draw, thick, fill=red!20, minimum size=1cm] at (\x,\y) {\Large \i};
+        \fi
+        \ifnum\i=2
+            \node[circle, draw, thick, fill=blue!20, minimum size=1cm] at (\x,\y) {\Large \i};
+        \fi
+        \ifnum\i=3
+            \node[circle, draw, thick, fill=red!20, minimum size=1cm] at (\x,\y) {\Large \i};
+        \fi
+        \ifnum\i=4
+            \node[circle, draw, thick, fill=blue!20, minimum size=1cm] at (\x,\y) {\Large \i};
+        \fi
+        \ifnum\i=5
+            \node[circle, draw, thick, fill=red!20, minimum size=1cm] at (\x,\y) {\Large \i};
+        \fi
+    }
+    
+    \node[blue] at (-1.5,0) {偶数 $E$};
+    \node[red] at (-1.5,-2) {奇数 $E^c$};
+    
+    % 代数の要素
+    \node at (6,0) {$\mathcal{F}_{\text{even-odd}}$ の要素：};
+    \node[anchor=west] at (6,-0.8) {1. $\emptyset$};
+    \node[anchor=west] at (6,-1.4) {2. $E = \{0, 2, 4\}$};
+    \node[anchor=west] at (6,-2.0) {3. $E^c = \{1, 3, 5\}$};
+    \node[anchor=west] at (6,-2.6) {4. $\Omega = \{0, 1, 2, 3, 4, 5\}$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{代数の階層}
+
+\begin{theorem}[代数の包含関係]
+\[
+\mathcal{F}_{\text{trivial}} \subseteq \mathcal{F}_{\text{even-odd}} \subseteq \mathcal{F}_{\text{power}}
+\]
+
+すなわち：
+\begin{itemize}
+    \item $|\mathcal{F}_{\text{trivial}}| = 2$
+    \item $|\mathcal{F}_{\text{even-odd}}| = 4$
+    \item $|\mathcal{F}_{\text{power}}| = 2^6 = 64$
+\end{itemize}
+\end{theorem}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={rectangle, draw, thick, text width=3.5cm, align=center, rounded corners, minimum height=1cm}
+]
+    \node[box, fill=blue!10] (trivial) {自明な代数\\{\small $|\mathcal{F}| = 2$}};
+    \node[box, fill=green!10, right=of trivial] (evenodd) {偶奇代数\\{\small $|\mathcal{F}| = 4$}};
+    \node[box, fill=red!10, right=of evenodd] (power) {全体の代数\\{\small $|\mathcal{F}| = 64$}};
+    
+    \draw[->, very thick] (trivial) -- (evenodd) node[midway, above, font=\small] {$\subseteq$};
+    \draw[->, very thick] (evenodd) -- (power) node[midway, above, font=\small] {$\subseteq$};
+    
+    \node[below=0.5cm of trivial] {\small 最小};
+    \node[below=0.5cm of power] {\small 最大};
+\end{tikzpicture}
+\end{center}
+
+\section{可測関数}\label{sec:measurable}
+
+\subsection{可測関数の定義}
+
+代数間の「構造を保存する写像」が可測関数である。
+
+\begin{definition}[可測関数]
+可測空間 $(\Omega, \mathcal{F})$ から $(\Omega', \mathcal{G})$ への関数 $f : \Omega \to \Omega'$ が \textbf{$(\mathcal{F}, \mathcal{G})$-可測}（measurable）であるとは：
+\[
+\forall B \in \mathcal{G}, \quad f^{-1}(B) \in \mathcal{F}
+\]
+\end{definition}
+
+\begin{insight}
+\textbf{直感的理解}：
+
+「$\Omega'$ で観測可能な事象 $B$ の逆像 $f^{-1}(B)$ が、$\Omega$ で観測可能である」
+
+これは、「$f$ を通じて観測しても、情報が失われない」ことを意味する。
+\end{insight}
+
+\subsection{可測関数の図式}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    space/.style={rectangle, draw, thick, minimum width=2.5cm, minimum height=2cm, align=center}
+]
+    \node[space, fill=blue!10] (omega) {$\Omega$\\[0.3cm]{\small 可測空間}\\{\small $(\Omega, \mathcal{F})$}};
+    \node[space, fill=green!10, right=of omega] (omega2) {$\Omega'$\\[0.3cm]{\small 可測空間}\\{\small $(\Omega', \mathcal{G})$}};
+    
+    \draw[->, very thick] (omega) -- (omega2) node[midway, above] {$f$};
+    
+    % 逆像の図
+    \node[below=3cm of omega] (event1) {};
+    \node[below=3cm of omega2] (event2) {};
+    
+    \draw[thick] ($ (event1) + (-1.2,0) $) rectangle ($ (event1) + (1.2,2) $);
+    \draw[thick] ($ (event2) + (-1.2,0) $) rectangle ($ (event2) + (1.2,2) $);
+    
+    \fill[green!30] ($ (event2) + (0,0.8) $) ellipse (0.8 and 0.5);
+    \node at ($ (event2) + (0,0.8) $) {$B$};
+    \node at ($ (event2) + (0,1.8) $) {$\mathcal{G}$};
+    
+    \fill[blue!30] ($ (event1) + (0,0.8) $) ellipse (0.8 and 0.5);
+    \node at ($ (event1) + (0,0.8) $) {$f^{-1}(B)$};
+    \node at ($ (event1) + (0,1.8) $) {$\mathcal{F}$};
+    
+    \draw[<-, very thick, dashed] ($ (event1) + (0,0.8) $) -- ($ (event2) + (0,0.8) $) 
+        node[midway, below] {逆像};
+    
+    \node at ($ (event1) + (0,-0.5) $) {\small $B \in \mathcal{G}$};
+    \node at ($ (event2) + (0,-0.5) $) {\small $\Rightarrow f^{-1}(B) \in \mathcal{F}$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{可測関数の例}
+
+\begin{example}[恒等関数]
+恒等関数 $\mathrm{id} : \Omega \to \Omega$ は常に $(\mathcal{F}, \mathcal{F})$-可測である。
+
+\begin{proof}
+任意の $B \in \mathcal{F}$ に対して、
+\[
+\mathrm{id}^{-1}(B) = B \in \mathcal{F}
+\]
+\end{proof}
+\end{example}
+
+\begin{example}[定数関数]
+定数関数 $f : \Omega \to \Omega'$, $f(x) = c$ は常に可測である。
+
+\begin{proof}
+任意の $B \in \mathcal{G}$ に対して、
+\[
+f^{-1}(B) = \begin{cases}
+\Omega & \text{if } c \in B \\
+\emptyset & \text{if } c \notin B
+\end{cases}
+\]
+
+どちらも $\mathcal{F}$ に属する（$\Omega, \emptyset \in \mathcal{F}$）。
+\end{proof}
+\end{example}
+
+\begin{example}[サイコロの偶奇判定]
+関数 $f : \{0,1,2,3,4,5\} \to \{0,1\}$ を
+\[
+f(n) = \begin{cases}
+0 & \text{if } n \text{ は偶数} \\
+1 & \text{if } n \text{ は奇数}
+\end{cases}
+\]
+と定義する。
+
+このとき、$f$ は $(\mathcal{F}_{\text{even-odd}}, \mathcal{P}(\{0,1\}))$-可測である。
+\end{example}
+
+\subsection{可測関数の合成}
+
+\begin{theorem}[可測関数の合成]
+$f : \Omega \to \Omega'$ が $(\mathcal{F}, \mathcal{G})$-可測、$g : \Omega' \to \Omega''$ が $(\mathcal{G}, \mathcal{H})$-可測ならば、合成 $g \circ f : \Omega \to \Omega''$ は $(\mathcal{F}, \mathcal{H})$-可測である。
+\end{theorem}
+
+\begin{proof}
+任意の $C \in \mathcal{H}$ に対して、
+\begin{align*}
+(g \circ f)^{-1}(C) &= f^{-1}(g^{-1}(C)) \\
+&\in \mathcal{F} \quad (\because g^{-1}(C) \in \mathcal{G} \text{ かつ } f \text{ は可測})
+\end{align*}
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=2cm,
+    box/.style={rectangle, draw, thick, minimum width=1.8cm, minimum height=1.2cm, align=center}
+]
+    \node[box] (F) {$\mathcal{F}$};
+    \node[box, right=of F] (G) {$\mathcal{G}$};
+    \node[box, right=of G] (H) {$\mathcal{H}$};
+    
+    \draw[->, thick] (F) -- (G) node[midway, above] {$f$};
+    \draw[->, thick] (G) -- (H) node[midway, above] {$g$};
+    \draw[->, thick, bend right=30] (F) to node[below] {$g \circ f$} (H);
+    
+    \node[below=1cm of F] {\small 可測};
+    \node[below=1cm of G] {\small 可測};
+    \node[below=1cm of H] {\small $\Rightarrow$ 可測};
+\end{tikzpicture}
+\end{center}
+
+\section{構造塔との接続}\label{sec:connection}
+
+\subsection{フィルトレーションの概念}
+
+\begin{definition}[フィルトレーション]
+\textbf{フィルトレーション}（filtration）とは、単調増加する代数の系列：
+\[
+\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}_n
+\]
+
+各 $\mathcal{F}_t$ は時刻 $t$ で「可観測な事象の族」を表す。
+\end{definition}
+
+\begin{example}[コイン投げのフィルトレーション]
+3回コイン投げ $\Omega = \{H, T\}^3$ に対して：
+
+\begin{itemize}
+    \item $\mathcal{F}_0 = \{\emptyset, \Omega\}$ (何も観測していない)
+    \item $\mathcal{F}_1 = \sigma(\text{1回目の結果})$ (1回目まで観測)
+    \item $\mathcal{F}_2 = \sigma(\text{1,2回目の結果})$ (2回目まで観測)
+    \item $\mathcal{F}_3 = \mathcal{P}(\Omega)$ (すべて観測)
+\end{itemize}
+
+明らかに $\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \mathcal{F}_3$。
+\end{example}
+
+\subsection{構造塔としての定式化}
+
+\begin{connection}
+将来の \texttt{DecidableFiltration} は \texttt{StructureTowerWithMin} のインスタンスとなる：
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    box/.style={rectangle, draw, thick, text width=5cm, align=center, rounded corners, minimum height=1cm}
+]
+    \node[box, fill=blue!10] (carrier) {carrier = FiniteAlgebra $\Omega$\\{\small (代数全体)}};
+    \node[box, fill=green!10, below=of carrier] (index) {Index = $\mathbb{N}$\\{\small (時刻)}};
+    \node[box, fill=yellow!10, below=of index] (layer) {layer($t$) = observableAt($t$)\\{\small (時刻 $t$ の可観測代数)}};
+    \node[box, fill=red!10, below=of layer] (minlayer) {minLayer($\mathcal{F}$)\\{\small (代数 $\mathcal{F}$ が初めて現れる時刻)}};
+    
+    \draw[->, thick] (carrier) -- (index);
+    \draw[->, thick] (index) -- (layer);
+    \draw[->, thick] (layer) -- (minlayer);
+    
+    \node[right=0.3cm of carrier, text width=3.5cm, font=\small] {構造塔の基礎集合};
+    \node[right=0.3cm of index, text width=3.5cm, font=\small] {構造塔の添字集合};
+    \node[right=0.3cm of layer, text width=3.5cm, font=\small] {各層 = 各時刻の代数};
+    \node[right=0.3cm of minlayer, text width=3.5cm, font=\small] {\color{red}構造塔の鍵！};
+\end{tikzpicture}
+\end{center}
+\end{connection}
+
+\subsection{構造塔の対応表}
+
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{構造塔の概念} & \textbf{フィルトレーションの概念} \\
+\hline
+carrier & 代数の全体 \\
+Index & 時刻 $\mathbb{N}$ \\
+layer($t$) & 時刻 $t$ の可観測代数 $\mathcal{F}_t$ \\
+monotone\_level & 情報の単調増加 $\mathcal{F}_s \subseteq \mathcal{F}_t$ \\
+minLayer($\mathcal{F}$) & $\mathcal{F}$ が初めて観測可能になる時刻 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{停止時間との対応}
+
+\begin{definition}[停止時間（予告）]
+ランダム変数 $\tau : \Omega \to \mathbb{N}$ が\textbf{停止時間}（stopping time）であるとは：
+\[
+\forall t \in \mathbb{N}, \quad \{\tau \leq t\} \in \mathcal{F}_t
+\]
+\end{definition}
+
+\begin{connection}
+\textbf{構造塔の視点}：
+
+停止時間の条件「$\{\tau \leq t\} \in \mathcal{F}_t$」は、
+\[
+\mathrm{minLayer}(\{\tau \leq t\}) \leq t
+\]
+と書き直せる。
+
+すなわち、事象 $\{\tau \leq t\}$ が「時刻 $t$ までに初めて観測可能になる」。
+\end{connection}
+
+\begin{example}[初めて表が出る時刻]
+コイン投げで「初めて表が出る時刻」$\tau$ は停止時間である。
+
+なぜなら、時刻 $t$ までに「$\tau \leq t$ か？」（= $t$ 回目までに少なくとも1回表が出たか？）は、時刻 $t$ の情報 $\mathcal{F}_t$ だけで判定できるから。
+\end{example}
+
+\section{まとめと展望}\label{sec:conclusion}
+
+\subsection{本ファイルの成果}
+
+\texttt{DecidableAlgebra.lean} では、以下を達成した：
+
+\begin{enumerate}
+    \item \textbf{有限代数の定義}
+    \begin{itemize}
+        \item Boolean 演算で閉じた事象族
+        \item $\sigma$-代数の有限版
+    \end{itemize}
+    
+    \item \textbf{基本的な性質}
+    \begin{itemize}
+        \item 積・差で閉じている
+        \item 有限和・有限積で閉じている
+    \end{itemize}
+    
+    \item \textbf{具体例}
+    \begin{itemize}
+        \item 自明な代数（最小）
+        \item 全体の代数（最大）
+        \item 偶奇代数（サイコロの例）
+    \end{itemize}
+    
+    \item \textbf{可測関数}
+    \begin{itemize}
+        \item 代数間の構造を保存する写像
+        \item 恒等関数と合成
+    \end{itemize}
+    
+    \item \textbf{構造塔との接続}
+    \begin{itemize}
+        \item フィルトレーションの準備
+        \item minLayer による特徴づけの予告
+    \end{itemize}
+\end{enumerate}
+
+\subsection{階層構造の全体像}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    level/.style={rectangle, draw, thick, minimum width=6.5cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[level, fill=green!10] (level1) {DecidableEvents.lean\\{\small 事象の decidability}};
+    \node[level, fill=blue!10, below=of level1] (level2) {DecidableAlgebra.lean\\{\small Boolean 代数・可測性}};
+    \node[level, fill=yellow!10, below=of level2] (level3) {DecidableFiltration.lean\\{\small StructureTowerWithMin}};
+    \node[level, fill=orange!10, below=of level3] (level4) {ComputableStoppingTime.lean\\{\small 停止時間 = minLayer}};
+    \node[level, fill=red!10, below=of level4] (level5) {AlgorithmicMartingale.lean\\{\small Optional Stopping Theorem}};
+    
+    \draw[arrow] (level1) -- (level2) node[midway, right, font=\small] {構造化};
+    \draw[arrow] (level2) -- (level3) node[midway, right, font=\small] {時間構造};
+    \draw[arrow] (level3) -- (level4) node[midway, right, font=\small] {決定理論};
+    \draw[arrow] (level4) -- (level5) node[midway, right, font=\small] {マルチンゲール};
+    
+    \node[left=0.3cm of level2, text width=2cm, font=\small] {\color{blue}今回完了};
+\end{tikzpicture}
+\end{center}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+    \item \textbf{DecidableFiltration.lean}（次のファイル）
+    \begin{itemize}
+        \item StructureTowerWithMin のインスタンス化
+        \item 単調増加する代数の系列
+        \item minLayer = 初めて可観測になる時刻
+    \end{itemize}
+    
+    \item \textbf{ComputableStoppingTime.lean}
+    \begin{itemize}
+        \item 停止時間の定義
+        \item minLayer による特徴づけ
+        \item 具体的な停止時間の計算
+    \end{itemize}
+    
+    \item \textbf{AlgorithmicMartingale.lean}
+    \begin{itemize}
+        \item マルチンゲールの定義
+        \item Optional Stopping Theorem
+        \item 有限計算による証明
+    \end{itemize}
+\end{enumerate}
+
+\subsection{教育的価値}
+
+\begin{keypoint}
+本ファイルは、以下の重要な洞察を提供する：
+
+\begin{enumerate}
+    \item \textbf{代数的構造の重要性}：事象の族も代数的構造を持つ
+    \item \textbf{情報の段階的増加}：フィルトレーションの直感
+    \item \textbf{構造塔との自然な対応}：layer = 代数、minLayer = 初出時刻
+    \item \textbf{可測性の本質}：「観測可能性」の形式化
+\end{enumerate}
+\end{keypoint}
+
+\subsection{Lean 4 形式化の意義}
+
+\begin{insight}
+型システムによる保証：
+
+\begin{itemize}
+    \item \textbf{代数の公理}：補集合・和で閉じていることを型で保証
+    \item \textbf{可測性}：逆像が代数に属することを証明で保証
+    \item \textbf{合成の可測性}：可測関数の合成が自動的に可測
+\end{itemize}
+
+これにより、「可測だと思ったが実は違った」という状況を防ぐ。
+\end{insight}
+
+\section*{参考文献}
+
+\begin{enumerate}
+    \item Billingsley, Patrick. \textit{Probability and Measure}. 3rd ed. Wiley, 1995.
+    \item Williams, David. \textit{Probability with Martingales}. Cambridge University Press, 1991.
+    \item Kallenberg, Olav. \textit{Foundations of Modern Probability}. 2nd ed. Springer, 2002.
+    \item The mathlib Community. \textit{The Lean Mathematical Library}. \url{https://github.com/leanprover-community/mathlib4}
+    \item 本プロジェクト：\texttt{DecidableEvents.lean}, \texttt{Bourbaki\_Lean\_Guide.lean}, \texttt{CAT2\_complete.lean}
+\end{enumerate}
+
+\section*{付録 A：Lean コードへのリンク}
+
+\subsection*{主要定義}
+
+\begin{itemize}
+    \item \textbf{FiniteAlgebra}：170--179 行目
+    \item \textbf{has\_univ}（全事象の包含）：196--199 行目
+    \item \textbf{closed\_intersection}（積で閉じている）：206--217 行目
+    \item \textbf{closed\_finite\_union}（有限和で閉じている）：261--273 行目
+\end{itemize}
+
+\subsection*{具体例}
+
+\begin{itemize}
+    \item \textbf{trivial}（自明な代数）：330--348 行目
+    \item \textbf{powerSet}（全体の代数）：358--362 行目
+    \item \textbf{evenOddAlgebra}（偶奇代数）：430--464 行目
+\end{itemize}
+
+\subsection*{可測関数}
+
+\begin{itemize}
+    \item \textbf{MeasurableFunction}：518--524 行目
+    \item \textbf{id}（恒等可測関数）：534--539 行目
+    \item \textbf{comp}（可測関数の合成）：542--548 行目
+\end{itemize}
+
+\subsection*{構造塔との接続}
+
+\begin{itemize}
+    \item \textbf{フィルトレーションの説明}：562--622 行目
+\end{itemize}
+
+\end{document}

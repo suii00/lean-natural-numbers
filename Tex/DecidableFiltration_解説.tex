@@ -1,0 +1,783 @@
+%!TEX TS-program = lualatex
+%!TEX encoding = UTF-8
+
+\documentclass[12pt,a4paper,ja=standard]{bxjsarticle}
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図表パッケージ
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc,matrix,decorations.pathreplacing}
+
+% レイアウト
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+
+% ハイパーリンク
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% カスタムボックス
+\newtcolorbox{keypoint}[1][]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    fonttitle=\bfseries,
+    title=重要ポイント,
+    #1
+}
+
+\newtcolorbox{insight}[1][]{
+    colback=green!5!white,
+    colframe=green!75!black,
+    fonttitle=\bfseries,
+    title=数学的洞察,
+    #1
+}
+
+\newtcolorbox{connection}[1][]{
+    colback=orange!5!white,
+    colframe=orange!75!black,
+    fonttitle=\bfseries,
+    title=構造塔との接続,
+    #1
+}
+
+% タイトル情報
+\title{\Huge\bfseries 離散フィルトレーションと停止時間\\
+\Large DecidableFiltration.lean: 構造塔理論の実現}
+
+\author{
+    \large Lean 4 コード: Codex (OpenAI) \\
+    \large \TeX 解説: Claude Code \\
+    \vspace{0.3cm}
+    \normalsize プロジェクト: 構造塔理論と確率論
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、離散確率論における\textbf{フィルトレーション}（filtration）を Lean 4 で形式化した \texttt{DecidableFiltration.lean} について解説する。フィルトレーションは時間とともに増加する情報の流れを表し、構造塔理論における「単調増加する層の系列」の具体例である。さらに、\textbf{停止時間}（stopping time）を定義し、その代数的性質を証明する。本解説では、構造塔理論と確率論の直接的な接続を明示し、minLayer 概念が停止時間の本質をどう捉えるかを示す。学部 3--4 年生を対象とし、確率論と測度論の基礎知識を前提とする。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{序論：情報の流れとしてのフィルトレーション}
+
+\subsection{前回までのまとめ}
+
+これまでの階層構造：
+
+\begin{enumerate}
+    \item \textbf{DecidableEvents.lean}：有限標本空間と事象の decidability
+    \item \textbf{DecidableAlgebra.lean}：Boolean 演算で閉じた事象族（有限代数）
+    \item \textbf{今回}：時間とともに増加する代数の系列（フィルトレーション）
+\end{enumerate}
+
+\subsection{なぜフィルトレーションが必要か}
+
+\begin{example}[カード推理ゲーム]
+52枚のトランプから1枚を選ぶ。順次ヒントが与えられる：
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=2cm,
+    box/.style={rectangle, draw, thick, minimum width=3cm, minimum height=1cm, align=center}
+]
+    \node[box, fill=blue!10] (t0) {時刻 0\\何も知らない};
+    \node[box, fill=green!10, right=of t0] (t1) {時刻 1\\「赤い」};
+    \node[box, fill=yellow!10, right=of t1] (t2) {時刻 2\\「ハート」};
+    \node[box, fill=red!10, right=of t2] (t3) {時刻 3\\「K」};
+    
+    \draw[->, very thick] (t0) -- (t1);
+    \draw[->, very thick] (t1) -- (t2);
+    \draw[->, very thick] (t2) -- (t3);
+    
+    \node[below=0.3cm of t0, font=\small] {$|\mathcal{F}_0| = 2$};
+    \node[below=0.3cm of t1, font=\small] {$|\mathcal{F}_1| = 4$};
+    \node[below=0.3cm of t2, font=\small] {$|\mathcal{F}_2| = 8$};
+    \node[below=0.3cm of t3, font=\small] {$|\mathcal{F}_3| = 52$};
+\end{tikzpicture}
+\end{center}
+
+各時刻で観測可能な事象が増える：$\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \mathcal{F}_3$
+\end{example}
+
+\subsection{本稿の位置づけ}
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, thick, minimum width=5cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[box] (level1) at (0,0) {1. DecidableEvents.lean\\{\small 事象の基礎}};
+    \node[box, below=0.5cm of level1] (level2) {2. DecidableAlgebra.lean\\{\small 有限代数}};
+    \node[box, fill=blue!10, below=0.5cm of level2] (level3) {3. DecidableFiltration.lean\\{\small フィルトレーション・停止時間}};
+    \node[box, below=0.5cm of level3] (level4) {4. ComputableStoppingTime.lean\\{\small 停止時間の計算}};
+    \node[box, below=0.5cm of level4] (level5) {5. AlgorithmicMartingale.lean\\{\small マルチンゲール理論}};
+    
+    \draw[arrow] (level1) -- (level2);
+    \draw[arrow] (level2) -- (level3);
+    \draw[arrow] (level3) -- (level4);
+    \draw[arrow] (level4) -- (level5);
+    
+    \node[right=0.3cm of level3, text width=3cm, font=\small] {{\color{blue}$\leftarrow$ 今回}};
+    \node[right=0.3cm of level3, text width=3cm, font=\small, below=0.3cm] {{\color{red}構造塔の実現}};
+\end{tikzpicture}
+\end{center}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+    \item 第 \ref{sec:filtration} 節：フィルトレーションの定義
+    \item 第 \ref{sec:stopping-time} 節：停止時間の定義と性質
+    \item 第 \ref{sec:operations} 節：停止時間の演算（min, max）
+    \item 第 \ref{sec:structure-tower} 節：構造塔との接続
+    \item 第 \ref{sec:conclusion} 節：まとめと展望
+\end{enumerate}
+
+\section{フィルトレーションの定義}\label{sec:filtration}
+
+\subsection{数学的定義}
+
+\begin{definition}[離散フィルトレーション]
+有限標本空間 $\Omega$ 上の\textbf{離散フィルトレーション}（discrete filtration）とは、以下のデータの組である：
+
+\begin{enumerate}
+    \item \textbf{時間範囲}：$N \in \mathbb{N}$（終端時刻）
+    \item \textbf{可観測代数}：各時刻 $t \in \{0, 1, \ldots, N\}$ に対して、有限代数 $\mathcal{F}_t$
+    \item \textbf{単調性}：$s \leq t \Rightarrow \mathcal{F}_s \subseteq \mathcal{F}_t$
+\end{enumerate}
+\end{definition}
+
+\begin{tcolorbox}[title=Lean コード（7--13 行目）]
+\begin{verbatim}
+structure DecidableFiltration (Ω : Prob.FiniteSampleSpace) where
+  timeHorizon : ℕ
+  observableAt :
+    (t : ℕ) → (h : t ≤ timeHorizon) → 
+    Prob.FiniteAlgebra Ω.carrier
+  monotone :
+    ∀ (s t : ℕ) (hs : s ≤ timeHorizon) (ht : t ≤ timeHorizon),
+      s ≤ t → (observableAt s hs) ⊆ₐ (observableAt t ht)
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{フィルトレーションの直感}
+
+\begin{insight}
+フィルトレーション $(\mathcal{F}_t)_{t=0}^N$ は：
+
+\begin{itemize}
+    \item \textbf{時刻 $t$ の知識}：$\mathcal{F}_t$ = 時刻 $t$ までに得られた情報
+    \item \textbf{情報の蓄積}：時間が進むと知識が増える（減ることはない）
+    \item \textbf{可観測性}：$A \in \mathcal{F}_t \Leftrightarrow$ 事象 $A$ は時刻 $t$ で判定可能
+\end{itemize}
+\end{insight}
+
+\subsection{視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % 時刻軸
+    \draw[->, thick] (0,0) -- (9,0) node[right] {時刻};
+    \foreach \t in {0,1,2,3,4} {
+        \draw (\t*2,0.1) -- (\t*2,-0.1) node[below] {$\t$};
+    }
+    
+    % 代数の視覚化
+    \foreach \t in {0,1,2,3,4} {
+        \pgfmathsetmacro{\height}{0.5 + \t*0.5}
+        \fill[blue!20, opacity=0.7] (\t*2-0.3,0.2) rectangle (\t*2+0.3,\height+0.2);
+        \draw[thick, blue] (\t*2-0.3,0.2) rectangle (\t*2+0.3,\height+0.2);
+        \node at (\t*2,\height+0.5) {$\mathcal{F}_{\t}$};
+    }
+    
+    % 包含関係
+    \draw[->, dashed, thick, red] (0.3,1) -- (1.7,1) node[midway, above, font=\small] {$\subseteq$};
+    \draw[->, dashed, thick, red] (2.3,1.5) -- (3.7,1.5) node[midway, above, font=\small] {$\subseteq$};
+    \draw[->, dashed, thick, red] (4.3,2) -- (5.7,2) node[midway, above, font=\small] {$\subseteq$};
+    \draw[->, dashed, thick, red] (6.3,2.5) -- (7.7,2.5) node[midway, above, font=\small] {$\subseteq$};
+    
+    \node at (4,-1) {\textbf{単調増加}：$\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \mathcal{F}_3 \subseteq \mathcal{F}_4$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{具体例：定数フィルトレーション}
+
+\begin{example}[定数フィルトレーション]
+すべての時刻で同じ代数 $\mathcal{F}$ を返すフィルトレーション：
+\[
+\mathcal{F}_0 = \mathcal{F}_1 = \cdots = \mathcal{F}_N = \mathcal{F}
+\]
+
+これは「時間が経っても新しい情報が得られない」状況を表す。
+
+Lean コード（184--190 行目）：
+\begin{verbatim}
+def constFiltration (Ω : Prob.FiniteSampleSpace)
+    (F : Prob.FiniteAlgebra Ω.carrier) (N : ℕ) : 
+    DecidableFiltration Ω where
+  timeHorizon := N
+  observableAt := fun _ _ => F
+  monotone := by intro s t _ _ _; exact Set.Subset.refl _
+\end{verbatim}
+\end{example}
+
+\subsection{具体例：2段階フィルトレーション}
+
+\begin{example}[2段階フィルトレーション]
+最も単純な非自明例：時刻 0 と時刻 1 で異なる代数。
+
+与えられた $\mathcal{F}_0 \subseteq \mathcal{F}_1$ に対して：
+\[
+\begin{cases}
+\text{observableAt}(0) = \mathcal{F}_0 \\
+\text{observableAt}(1) = \mathcal{F}_1
+\end{cases}
+\]
+
+Lean コード（193--202 行目）：
+\begin{verbatim}
+def twoStepFiltration (Ω : Prob.FiniteSampleSpace)
+    (F0 F1 : Prob.FiniteAlgebra Ω.carrier) (h01 : F0 ⊆ₐ F1) :
+    DecidableFiltration Ω where
+  timeHorizon := 1
+  observableAt := fun t _ =>
+    match t with
+    | 0 => F0
+    | 1 => F1
+    | _ => F1
+\end{verbatim}
+\end{example}
+
+\section{停止時間の定義}\label{sec:stopping-time}
+
+\subsection{数学的定義}
+
+\begin{definition}[停止時間]
+フィルトレーション $(\mathcal{F}_t)_{t=0}^N$ に適合した\textbf{停止時間}（stopping time）とは、関数 $\tau : \Omega \to \mathbb{N}$ であって：
+\[
+\forall t \in \{0, 1, \ldots, N\}, \quad \{\omega \in \Omega \mid \tau(\omega) \leq t\} \in \mathcal{F}_t
+\]
+\end{definition}
+
+\begin{tcolorbox}[title=Lean コード（32--37 行目）]
+\begin{verbatim}
+structure StoppingTime {Ω : Prob.FiniteSampleSpace}
+    (ℱ : DecidableFiltration Ω) where
+  time : Ω.carrier → ℕ
+  adapted :
+    ∀ (t : ℕ) (ht : t ≤ ℱ.timeHorizon),
+      {ω : Ω.carrier | time ω ≤ t} ∈ 
+      (ℱ.observableAt t ht).events
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{停止時間の直感}
+
+\begin{insight}
+\textbf{「停止時間」とは何か？}
+
+停止時間 $\tau(\omega)$ は「$\omega$ という結果に対して、いつ実験を停止するか」を決める規則である。重要な制約：
+
+\begin{center}
+\textbf{時刻 $t$ の時点で、「$\tau \leq t$ か？」が判定できなければならない}
+\end{center}
+
+すなわち、「停止するかどうか」は、その時点で得られている情報だけで決められる。
+\end{insight}
+
+\subsection{停止時間の例と反例}
+
+\begin{example}[初めて表が出る時刻（停止時間）]
+コイン投げで、$\tau$ = 「初めて表が出る時刻」とする。
+
+\textbf{なぜ停止時間か？}
+
+時刻 $t$ で「$\tau \leq t$ か？」を判定するには：
+\begin{itemize}
+    \item 「$t$ 回目までに少なくとも1回表が出たか？」を調べる
+    \item これは時刻 $t$ までの結果 $(X_1, \ldots, X_t)$ だけで判定可能
+    \item したがって $\{\tau \leq t\} \in \mathcal{F}_t$
+\end{itemize}
+\end{example}
+
+\begin{example}[最後に表が出る時刻（停止時間でない）]
+$\tau$ = 「最後に表が出る時刻」とする。
+
+\textbf{なぜ停止時間でないか？}
+
+時刻 $t$ で「$\tau \leq t$ か？」を判定するには：
+\begin{itemize}
+    \item 「$t$ 回目までに表が出て、その後は裏しか出ない」かを調べる
+    \item これは\textbf{未来}の情報 $(X_{t+1}, X_{t+2}, \ldots)$ が必要
+    \item 時刻 $t$ では判定不可能
+\end{itemize}
+\end{example}
+
+\subsection{視覚化：停止時間の条件}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+    % タイムライン
+    \draw[->, thick] (0,0) -- (10,0) node[right] {時刻};
+    \foreach \t in {0,1,2,3,4} {
+        \draw (\t*2,0.1) -- (\t*2,-0.1) node[below] {$t = \t$};
+    }
+    
+    % 事象 {τ ≤ t} の可観測性
+    \foreach \t in {0,1,2,3,4} {
+        \node[circle, draw, thick, fill=blue!20, minimum size=0.8cm] at (\t*2,1.5) {};
+        \node at (\t*2,1.5) {\small $\mathcal{F}_{\t}$};
+    }
+    
+    % 事象の表示
+    \foreach \t in {0,1,2,3,4} {
+        \node[rectangle, draw, thick, fill=green!20, minimum width=1.2cm, minimum height=0.6cm] 
+            at (\t*2,3) {\small $\{\tau \leq \t\}$};
+        \draw[->, thick] (\t*2,2.7) -- (\t*2,1.9) node[midway, right, font=\tiny] {$\in$};
+    }
+    
+    \node at (5,-1.2) {\textbf{停止時間の条件}：すべての $t$ で $\{\tau \leq t\} \in \mathcal{F}_t$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{定数停止時間}
+
+\begin{example}[定数停止時間]
+固定された時刻 $c \in \{0, 1, \ldots, N\}$ に対して：
+\[
+\tau(\omega) = c \quad \text{for all } \omega \in \Omega
+\]
+
+これは常に停止時間である。
+
+\begin{proof}
+任意の時刻 $t$ に対して：
+\[
+\{\tau \leq t\} = \begin{cases}
+\Omega & \text{if } c \leq t \\
+\emptyset & \text{if } c > t
+\end{cases}
+\]
+
+どちらも $\mathcal{F}_t$ に属する（$\Omega, \emptyset \in \mathcal{F}_t$）。
+\end{proof}
+
+Lean コード（51--66 行目）で完全に形式化されている。
+\end{example}
+
+\section{停止時間の演算}\label{sec:operations}
+
+停止時間は代数的構造を持つ：min、max、点ごとの順序など。
+
+\subsection{停止時間の最小}
+
+\begin{definition}[停止時間の min]
+$\tau_1, \tau_2$ が停止時間ならば、
+\[
+(\tau_1 \wedge \tau_2)(\omega) := \min(\tau_1(\omega), \tau_2(\omega))
+\]
+も停止時間である。
+\end{definition}
+
+\begin{theorem}[min の停止時間性]
+$\tau_1, \tau_2$ が停止時間ならば、$\tau_1 \wedge \tau_2$ も停止時間である。
+\end{theorem}
+
+\begin{proof}
+任意の時刻 $t$ に対して：
+\begin{align*}
+\{\tau_1 \wedge \tau_2 \leq t\} 
+&= \{\omega \mid \min(\tau_1(\omega), \tau_2(\omega)) \leq t\} \\
+&= \{\omega \mid \tau_1(\omega) \leq t \text{ または } \tau_2(\omega) \leq t\} \\
+&= \{\tau_1 \leq t\} \cup \{\tau_2 \leq t\}
+\end{align*}
+
+$\{\tau_1 \leq t\}, \{\tau_2 \leq t\} \in \mathcal{F}_t$ かつ $\mathcal{F}_t$ は和で閉じているので、
+\[
+\{\tau_1 \leq t\} \cup \{\tau_2 \leq t\} \in \mathcal{F}_t
+\]
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % タイムライン
+    \draw[->, thick] (0,0) -- (8,0) node[right] {$\omega$};
+    
+    % τ₁ の値
+    \draw[blue, very thick] (1,0) -- (1,2) node[above] {$\tau_1(\omega_1)$};
+    \draw[blue, very thick] (4,0) -- (4,3) node[above] {$\tau_1(\omega_2)$};
+    
+    % τ₂ の値
+    \draw[red, very thick] (1.5,0) -- (1.5,1.5) node[above] {$\tau_2(\omega_1)$};
+    \draw[red, very thick] (4.5,0) -- (4.5,2) node[above] {$\tau_2(\omega_2)$};
+    
+    % min の値
+    \draw[green!70!black, ultra thick, dashed] (2.5,0) -- (2.5,1.5) node[above] {$\min$};
+    \draw[green!70!black, ultra thick, dashed] (5.5,0) -- (5.5,2) node[above] {$\min$};
+    
+    \node[blue] at (1,-0.5) {$\omega_1$};
+    \node[blue] at (4,-0.5) {$\omega_2$};
+    
+    \node at (4,-1.5) {$\tau_1 \wedge \tau_2 = \min(\tau_1, \tau_2)$};
+\end{tikzpicture}
+\end{center}
+
+Lean コード（79--116 行目）で完全に証明されている。
+
+\subsection{停止時間の最大}
+
+\begin{definition}[停止時間の max]
+$\tau_1, \tau_2$ が停止時間ならば、
+\[
+(\tau_1 \vee \tau_2)(\omega) := \max(\tau_1(\omega), \tau_2(\omega))
+\]
+も停止時間である。
+\end{definition}
+
+\begin{theorem}[max の停止時間性]
+$\tau_1, \tau_2$ が停止時間ならば、$\tau_1 \vee \tau_2$ も停止時間である。
+\end{theorem}
+
+\begin{proof}
+任意の時刻 $t$ に対して：
+\begin{align*}
+\{\tau_1 \vee \tau_2 \leq t\} 
+&= \{\omega \mid \max(\tau_1(\omega), \tau_2(\omega)) \leq t\} \\
+&= \{\omega \mid \tau_1(\omega) \leq t \text{ かつ } \tau_2(\omega) \leq t\} \\
+&= \{\tau_1 \leq t\} \cap \{\tau_2 \leq t\}
+\end{align*}
+
+$\{\tau_1 \leq t\}, \{\tau_2 \leq t\} \in \mathcal{F}_t$ かつ $\mathcal{F}_t$ は積で閉じているので、
+\[
+\{\tau_1 \leq t\} \cap \{\tau_2 \leq t\} \in \mathcal{F}_t
+\]
+\end{proof}
+
+Lean コード（119--142 行目）で完全に証明されている。
+
+\subsection{停止時間の順序と有界性}
+
+\begin{definition}[停止時間の順序]
+停止時間 $\tau_1 \leq \tau_2$ とは：
+\[
+\forall \omega \in \Omega, \quad \tau_1(\omega) \leq \tau_2(\omega)
+\]
+\end{definition}
+
+\begin{definition}[有界停止時間]
+停止時間 $\tau$ が $N$ で\textbf{有界}（bounded）であるとは：
+\[
+\forall \omega \in \Omega, \quad \tau(\omega) \leq N
+\]
+\end{definition}
+
+\begin{lemma}[min と max の有界性]
+\begin{enumerate}
+    \item $\tau_1$ が $N_1$ で有界、$\tau_2$ が $N_2$ で有界ならば、\\
+    $\tau_1 \wedge \tau_2$ は $\min(N_1, N_2)$ で有界
+    
+    \item $\tau_1$ が $N_1$ で有界、$\tau_2$ が $N_2$ で有界ならば、\\
+    $\tau_1 \vee \tau_2$ は $\max(N_1, N_2)$ で有界
+\end{enumerate}
+\end{lemma}
+
+これらは Lean で完全に証明されている（156--180 行目）。
+
+\section{構造塔との接続}\label{sec:structure-tower}
+
+\subsection{構造塔理論の復習}
+
+\texttt{CAT2\_complete.lean} で定義された \texttt{StructureTowerWithMin}：
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    box/.style={rectangle, draw, thick, text width=5cm, align=center, rounded corners, minimum height=1cm}
+]
+    \node[box, fill=blue!10] (carrier) {carrier\\{\small 基礎集合}};
+    \node[box, fill=green!10, below=of carrier] (index) {Index\\{\small 添字集合（半順序）}};
+    \node[box, fill=yellow!10, below=of index] (layer) {layer : Index $\to$ Set carrier\\{\small 各層の定義}};
+    \node[box, fill=orange!10, below=of layer] (monotone) {monotone\\{\small 単調性：$i \leq j \Rightarrow$ layer($i$) $\subseteq$ layer($j$)}};
+    \node[box, fill=red!10, below=of monotone] (minlayer) {minLayer : carrier $\to$ Index\\{\small 最小層を選ぶ関数}};
+    
+    \node[right=0.3cm of minlayer, text width=3cm, font=\small] {\color{red}構造塔の鍵！};
+\end{tikzpicture}
+\end{center}
+
+\subsection{フィルトレーションの構造塔化}
+
+\begin{connection}
+DecidableFiltration は StructureTowerWithMin の自然なインスタンスである：
+
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{構造塔の概念} & \textbf{フィルトレーションでの実現} \\
+\hline
+carrier & FiniteAlgebra $\Omega$ の全体 \\
+Index & $\mathbb{N}$ (時刻) \\
+layer($t$) & observableAt($t$) = $\mathcal{F}_t$ \\
+monotone & $s \leq t \Rightarrow \mathcal{F}_s \subseteq \mathcal{F}_t$ \\
+minLayer($\mathcal{F}$) & $\mathcal{F}$ が初めて観測可能になる時刻 \\
+\hline
+\end{tabular}
+\end{center}
+\end{connection}
+
+\subsection{停止時間と minLayer の対応}
+
+\begin{connection}
+\textbf{停止時間の本質的特徴づけ}
+
+停止時間 $\tau$ の条件：
+\[
+\forall t, \quad \{\tau \leq t\} \in \mathcal{F}_t
+\]
+
+構造塔の言葉では：
+\[
+\mathrm{minLayer}(\{\tau \leq t\}) \leq t
+\]
+
+すなわち、事象 $\{\tau \leq t\}$ が「時刻 $t$ までに初めて観測可能になる」。
+\end{connection}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % タイムライン
+    \draw[->, thick] (0,0) -- (10,0) node[right] {時刻};
+    \foreach \t in {0,1,2,3,4} {
+        \draw (\t*2,0.1) -- (\t*2,-0.1) node[below] {$\t$};
+    }
+    
+    % 事象 {τ ≤ t} の出現
+    \foreach \t in {0,1,2,3,4} {
+        \ifnum\t<2
+            % まだ現れない
+            \node at (\t*2,2) {\small $\times$};
+        \fi
+        \ifnum\t=2
+            % 初めて現れる（minLayer）
+            \node[circle, draw, very thick, red, fill=red!20, minimum size=1cm] at (\t*2,2) 
+                {\small minLayer};
+        \fi
+        \ifnum\t>2
+            % 引き続き可観測
+            \node[circle, draw, thick, fill=green!20, minimum size=0.8cm] at (\t*2,2) {\small $\checkmark$};
+        \fi
+    }
+    
+    \node at (5,3) {事象 $\{\tau \leq t\}$ が時刻 2 で初めて可観測になる};
+    \draw[->, thick, red] (5,2.7) -- (4,2.3);
+\end{tikzpicture}
+\end{center}
+
+\subsection{構造塔の視点での利点}
+
+\begin{keypoint}
+構造塔理論により、以下が可能になる：
+
+\begin{enumerate}
+    \item \textbf{統一的な視点}：確率論の概念を代数的に捉える
+    \item \textbf{圏論的構造}：フィルトレーション間の射、関手
+    \item \textbf{普遍性}：自由構造塔の普遍性から停止時間の性質を導出
+    \item \textbf{計算可能性}：minLayer の明示的な計算
+\end{enumerate}
+\end{keypoint}
+
+\section{まとめと展望}\label{sec:conclusion}
+
+\subsection{本ファイルの成果}
+
+\texttt{DecidableFiltration.lean} では、以下を達成した：
+
+\begin{enumerate}
+    \item \textbf{フィルトレーションの形式化}
+    \begin{itemize}
+        \item 時間とともに増加する代数の系列
+        \item 単調性の厳密な定義
+    \end{itemize}
+    
+    \item \textbf{停止時間の定義}
+    \begin{itemize}
+        \item 適合性（adapted）の条件
+        \item 「未来を見ない」という本質的性質の形式化
+    \end{itemize}
+    
+    \item \textbf{停止時間の演算}
+    \begin{itemize}
+        \item min、max の停止時間性
+        \item 有界性の保存
+        \item 点ごとの順序
+    \end{itemize}
+    
+    \item \textbf{構造塔との接続}
+    \begin{itemize}
+        \item フィルトレーション = 構造塔のインスタンス
+        \item 停止時間 = minLayer による特徴づけ
+    \end{itemize}
+\end{enumerate}
+
+\subsection{階層構造の全体像}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    level/.style={rectangle, draw, thick, minimum width=6.5cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[level, fill=green!10] (level1) {DecidableEvents.lean\\{\small 事象の decidability}};
+    \node[level, fill=green!10, below=of level1] (level2) {DecidableAlgebra.lean\\{\small Boolean 代数・可測性}};
+    \node[level, fill=blue!10, below=of level2] (level3) {DecidableFiltration.lean\\{\small フィルトレーション・停止時間}};
+    \node[level, fill=yellow!10, below=of level3] (level4) {ComputableStoppingTime.lean\\{\small 停止時間の計算}};
+    \node[level, fill=orange!10, below=of level4] (level5) {AlgorithmicMartingale.lean\\{\small Optional Stopping Theorem}};
+    
+    \draw[arrow] (level1) -- (level2);
+    \draw[arrow] (level2) -- (level3);
+    \draw[arrow] (level3) -- (level4);
+    \draw[arrow] (level4) -- (level5);
+    
+    \node[left=0.3cm of level3, text width=2cm, font=\small] {\color{blue}今回完了};
+    
+    % 構造塔との接続を示す
+    \draw[<->, very thick, red, dashed] (level3.east) -- ++(2,0) 
+        node[right, text width=3cm, align=left, font=\small] {
+            構造塔理論\\
+            {\tiny (CAT2\_complete.lean)}
+        };
+\end{tikzpicture}
+\end{center}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+    \item \textbf{ComputableStoppingTime.lean}（次のファイル）
+    \begin{itemize}
+        \item 具体的な停止時間の構成
+        \item 「初めて条件を満たす時刻」の計算
+        \item minLayer の明示的な計算アルゴリズム
+    \end{itemize}
+    
+    \item \textbf{AlgorithmicMartingale.lean}
+    \begin{itemize}
+        \item マルチンゲールの定義
+        \item Optional Stopping Theorem の形式化
+        \item 有限計算による証明
+    \end{itemize}
+    
+    \item \textbf{StructureTowerWithMin のインスタンス化}
+    \begin{itemize}
+        \item DecidableFiltration の圏論的構造
+        \item フィルトレーション間の射
+        \item 普遍性の応用
+    \end{itemize}
+\end{enumerate}
+
+\subsection{教育的価値}
+
+\begin{insight}
+本ファイルは、以下の重要な洞察を提供する：
+
+\begin{enumerate}
+    \item \textbf{時間と情報の数学的モデル}：フィルトレーションは情報の蓄積を形式化
+    \item \textbf{因果律の形式化}：停止時間は「未来を見ない」という制約を表現
+    \item \textbf{代数的構造}：min、max などの演算が停止時間を保存
+    \item \textbf{構造塔との自然な対応}：minLayer = 初出時刻
+    \item \textbf{計算可能性}：離散性により、すべてが decidable
+\end{enumerate}
+\end{insight}
+
+\subsection{Lean 4 形式化の意義}
+
+\begin{keypoint}
+型システムによる保証：
+
+\begin{itemize}
+    \item \textbf{単調性}：フィルトレーションの定義で保証
+    \item \textbf{適合性}：停止時間の定義で保証
+    \item \textbf{演算の正当性}：min、max が停止時間を保存することを証明
+    \item \textbf{有界性}：型レベルでの制約（$t \leq$ timeHorizon）
+\end{itemize}
+
+これにより、「停止時間だと思ったが実は違った」という状況を防ぐ。
+\end{keypoint}
+
+\subsection{実世界への応用}
+
+フィルトレーションと停止時間は、以下のような実問題に応用される：
+
+\begin{itemize}
+    \item \textbf{金融工学}：オプション価格、最適停止問題
+    \item \textbf{強化学習}：方策の評価、価値関数の計算
+    \item \textbf{統計的逐次解析}：逐次検定、変化点検出
+    \item \textbf{待ち行列理論}：システムの稼働率、待ち時間分析
+\end{itemize}
+
+\section*{参考文献}
+
+\begin{enumerate}
+    \item Williams, David. \textit{Probability with Martingales}. Cambridge University Press, 1991.
+    \item Kallenberg, Olav. \textit{Foundations of Modern Probability}. 2nd ed. Springer, 2002.
+    \item Shiryaev, Albert N. \textit{Optimal Stopping Rules}. Springer, 2007.
+    \item Peskir, Goran, and Albert Shiryaev. \textit{Optimal Stopping and Free-Boundary Problems}. Birkhäuser, 2006.
+    \item The mathlib Community. \textit{The Lean Mathematical Library}. \url{https://github.com/leanprover-community/mathlib4}
+    \item 本プロジェクト：\texttt{DecidableEvents.lean}, \texttt{DecidableAlgebra.lean}, \texttt{CAT2\_complete.lean}
+\end{enumerate}
+
+\section*{付録 A：Lean コードへのリンク}
+
+\subsection*{主要定義}
+
+\begin{itemize}
+    \item \textbf{DecidableFiltration}：7--13 行目
+    \item \textbf{StoppingTime}：32--37 行目
+    \item \textbf{const}（定数停止時間）：51--66 行目
+    \item \textbf{min}（停止時間の最小）：79--116 行目
+    \item \textbf{max}（停止時間の最大）：119--142 行目
+\end{itemize}
+
+\subsection*{停止時間の性質}
+
+\begin{itemize}
+    \item \textbf{点ごとの順序}：44--48 行目
+    \item \textbf{有界性}：69--70 行目
+    \item \textbf{min\_le\_left, min\_le\_right}：144--148 行目
+    \item \textbf{le\_max\_left, le\_max\_right}：150--154 行目
+    \item \textbf{min\_isBounded}：156--167 行目
+    \item \textbf{max\_isBounded}：169--180 行目
+\end{itemize}
+
+\subsection*{具体例}
+
+\begin{itemize}
+    \item \textbf{constFiltration}（定数フィルトレーション）：185--190 行目
+    \item \textbf{twoStepFiltration}（2段階フィルトレーション）：193--227 行目
+\end{itemize}
+
+\end{document}

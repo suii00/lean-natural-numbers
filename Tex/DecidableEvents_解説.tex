@@ -1,0 +1,767 @@
+%!TEX TS-program = lualatex
+%!TEX encoding = UTF-8
+
+\documentclass[12pt,a4paper,ja=standard]{bxjsarticle}
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図表パッケージ
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc}
+
+% レイアウト
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+
+% ハイパーリンク
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% カスタムボックス
+\newtcolorbox{keypoint}[1][]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    fonttitle=\bfseries,
+    title=重要ポイント,
+    #1
+}
+
+\newtcolorbox{insight}[1][]{
+    colback=green!5!white,
+    colframe=green!75!black,
+    fonttitle=\bfseries,
+    title=数学的洞察,
+    #1
+}
+
+% タイトル情報
+\title{\Huge\bfseries 離散確率論の基礎\\
+\Large DecidableEvents.lean: 計算可能な事象の形式化}
+
+\author{
+    \large Lean 4 コード: Codex (OpenAI) \\
+    \large \TeX 解説: Claude Code \\
+    \vspace{0.3cm}
+    \normalsize プロジェクト: 構造塔理論と確率論
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、有限確率空間における事象の decidability（決定可能性）を Lean 4 で形式化した \texttt{DecidableEvents.lean} について解説する。有限性は計算可能性をもたらし、すべての事象の membership 判定や演算が実際に計算可能となる。これは、構造塔理論の確率論への応用、特に離散版フィルトレーションへの第一歩である。本解説は学部 3--4 年生を対象とし、確率論の基礎と Lean 4 の基本構文を前提とする。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{序論：有限性と計算可能性}
+
+\subsection{離散確率論の意義}
+
+確率論には二つの顔がある：
+
+\begin{itemize}
+    \item \textbf{測度論的確率論}：無限集合、$\sigma$-代数、Lebesgue 積分を用いる一般理論
+    \item \textbf{離散確率論}：有限または可算無限の標本空間を扱う計算可能な理論
+\end{itemize}
+
+本ファイルは後者に焦点を当て、特に\textbf{有限標本空間}における確率論を扱う。
+
+\begin{keypoint}
+有限性がもたらす三つの恩恵：
+\begin{enumerate}
+    \item すべての事象の membership が決定可能（decidable）
+    \item 事象の演算（和・積・補集合）が実際に計算可能
+    \item 確率の計算が有理数演算で実行可能
+\end{enumerate}
+\end{keypoint}
+
+\subsection{本ファイルの位置づけ}
+
+\texttt{DecidableEvents.lean} は、以下の階層構造の\textbf{第一段階}（最も基礎的な層）である：
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, thick, minimum width=5cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[box] (level1) at (0,0) {1. DecidableEvents.lean\\{\small 有限標本空間と事象}};
+    \node[box, below=0.5cm of level1] (level2) {2. DecidableAlgebra.lean\\{\small $\sigma$-代数の離散版}};
+    \node[box, below=0.5cm of level2] (level3) {3. DecidableFiltration.lean\\{\small 構造塔のインスタンス}};
+    \node[box, below=0.5cm of level3] (level4) {4. ComputableStoppingTime.lean\\{\small 停止時間の計算}};
+    \node[box, below=0.5cm of level4] (level5) {5. AlgorithmicMartingale.lean\\{\small マルチンゲール理論}};
+    
+    \draw[arrow] (level1) -- (level2);
+    \draw[arrow] (level2) -- (level3);
+    \draw[arrow] (level3) -- (level4);
+    \draw[arrow] (level4) -- (level5);
+    
+    \node[right=0.3cm of level1, text width=3cm, font=\small] {{\color{blue}$\leftarrow$ 今回}};
+    \node[right=0.3cm of level3, text width=3cm, font=\small] {{\color{red}構造塔理論との接続}};
+\end{tikzpicture}
+\end{center}
+
+将来的には、\texttt{DecidableFiltration} が \texttt{StructureTowerWithMin} のインスタンスとなり：
+\begin{itemize}
+    \item $\mathrm{layer}(n)$ = 時刻 $n$ で可観測な事象族
+    \item $\mathrm{minLayer}(\mathrm{event})$ = その事象が初めて可観測になる時刻
+\end{itemize}
+という形で、確率論と構造塔理論が結びつく。
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+    \item 第 \ref{sec:finite-sample-space} 節：有限標本空間の定義
+    \item 第 \ref{sec:events} 節：事象と decidability
+    \item 第 \ref{sec:operations} 節：基本演算と性質
+    \item 第 \ref{sec:examples} 節：具体例（サイコロ、コイン投げ）
+    \item 第 \ref{sec:structure-tower} 節：構造塔との接続
+    \item 第 \ref{sec:conclusion} 節：まとめと展望
+\end{enumerate}
+
+\section{有限標本空間}\label{sec:finite-sample-space}
+
+\subsection{数学的定義}
+
+\begin{definition}[有限標本空間]
+\textbf{有限標本空間}（Finite Sample Space）$\Omega$ とは、以下の性質を持つ集合である：
+\begin{enumerate}
+    \item \textbf{有限性}：$|\Omega| < \infty$（有限個の要素からなる）
+    \item \textbf{識別可能性}：任意の $\omega_1, \omega_2 \in \Omega$ に対して、$\omega_1 = \omega_2$ かどうかが決定可能
+\end{enumerate}
+\end{definition}
+
+\subsection{Lean での実装}
+
+Lean 4 では、これを構造体として定義する：
+
+\begin{tcolorbox}[title=Lean コード（123--130 行目）]
+\begin{verbatim}
+structure FiniteSampleSpace where
+  /-- 標本空間の基礎型 -/
+  carrier : Type*
+  /-- 有限性：carrier が有限個の要素を持つ -/
+  [fintype : Fintype carrier]
+  /-- 識別可能性：任意の二つの要素の等号判定が可能 -/
+  [decidableEq : DecidableEq carrier]
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{有限性の意義}
+
+\begin{insight}
+\textbf{有限性 $\Rightarrow$ Decidability のメカニズム}
+
+有限標本空間では、「力ずく（brute force）」ですべての要素を調べることができる：
+
+\begin{enumerate}
+    \item $\Omega$ は Fintype なので、すべての要素 $\omega \in \Omega$ を列挙できる
+    \item 各 $\omega$ について「$\omega \in A$ か？」を調べる（DecidableEq を使用）
+    \item 有限回の判定で結果が得られる
+\end{enumerate}
+
+これが、無限集合との本質的な違いである。無限集合では、すべての要素を調べることができないため、decidability は自明ではない。
+\end{insight}
+
+\subsection{具体例}
+
+\begin{example}[典型的な有限標本空間]
+\begin{enumerate}
+    \item \textbf{サイコロ}：$\Omega = \{1, 2, 3, 4, 5, 6\}$ \\
+    Lean では \texttt{Fin 6} として実装（0-indexed）
+    
+    \item \textbf{コイン投げ}：$\Omega = \{\text{表}, \text{裏}\}$ \\
+    Lean では \texttt{Bool} として実装
+    
+    \item \textbf{2個のサイコロ}：$\Omega = \{1,\ldots,6\} \times \{1,\ldots,6\}$ \\
+    Lean では \texttt{Fin 6 × Fin 6} として実装（36 通り）
+    
+    \item \textbf{トランプカード}：$\Omega = \{1,\ldots,52\}$ \\
+    Lean では \texttt{Fin 52} として実装
+\end{enumerate}
+\end{example}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+    % サイコロの視覚化
+    \node at (0,2) {\textbf{サイコロ}};
+    \foreach \i in {0,...,5} {
+        \node[circle, draw, minimum size=0.6cm] at (\i*1.2,1) {\small \i};
+    }
+    \node at (3,-0.5) {\small Fin 6 = \{0, 1, 2, 3, 4, 5\}};
+    
+    % コイン投げの視覚化
+    \node at (10,2) {\textbf{コイン投げ}};
+    \node[circle, draw, minimum size=0.8cm] at (9,1) {\small H};
+    \node[circle, draw, minimum size=0.8cm] at (11,1) {\small T};
+    \node at (10,-0.5) {\small Bool = \{true, false\}};
+\end{tikzpicture}
+\end{center}
+
+\section{事象と Decidability}\label{sec:events}
+
+\subsection{事象の定義}
+
+\begin{definition}[事象]
+標本空間 $\Omega$ 上の\textbf{事象}（Event）とは、$\Omega$ の部分集合 $A \subseteq \Omega$ である。
+
+確率論的解釈：事象 $A$ は「標本空間のうち、ある性質を満たす結果の集まり」を表す。
+\end{definition}
+
+\subsection{Lean での実装}
+
+Lean 4 では、事象を型エイリアスとして定義：
+
+\begin{tcolorbox}[title=Lean コード（205 行目）]
+\begin{verbatim}
+abbrev Event (Ω : Type*) := Set Ω
+\end{verbatim}
+\end{tcolorbox}
+
+\textbf{設計選択}：\texttt{Set Ω} vs \texttt{Finset Ω}
+
+\begin{center}
+\begin{tabular}{|l|p{5cm}|p{5cm}|}
+\hline
+& \textbf{Set Ω + DecidablePred} & \textbf{Finset Ω} \\
+\hline
+利点 & mathlib の豊富な補題 & decidability が組み込み \\
+& 無限への拡張が容易 & 計算が容易 \\
+\hline
+欠点 & decidability を明示的に証明 & 無限集合への拡張が困難 \\
+\hline
+\end{tabular}
+\end{center}
+
+本実装では \textbf{Set Ω} を採用し、将来の拡張性を重視する。
+
+\subsection{DecidableEvent 型クラス}
+
+\begin{definition}[DecidableEvent]
+事象 $A \subseteq \Omega$ が \textbf{decidable} であるとは、任意の $\omega \in \Omega$ に対して「$\omega \in A$ か？」という問いが決定可能であることをいう。
+\end{definition}
+
+Lean での実装：
+
+\begin{tcolorbox}[title=Lean コード（223--225 行目）]
+\begin{verbatim}
+class DecidableEvent {Ω : Type*} (A : Event Ω) where
+  /-- 事象 A の membership が decidable -/
+  mem_decidable : DecidablePred (· ∈ A)
+\end{verbatim}
+\end{tcolorbox}
+
+これにより、\texttt{\#eval} で実際に計算可能であることが保証される。
+
+\subsection{有限性が Decidability をもたらす図式}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={rectangle, draw, thick, text width=3.5cm, align=center, rounded corners},
+    arrow/.style={->, thick}
+]
+    \node[box, fill=blue!10] (finite) {有限標本空間\\{\small Fintype $\Omega$}};
+    \node[box, fill=green!10, right=of finite] (enumerate) {要素の列挙\\{\small Finset.univ}};
+    \node[box, fill=yellow!10, right=of enumerate] (check) {各要素を調査\\{\small DecidableEq}};
+    \node[box, fill=red!10, below=1cm of check] (decidable) {Decidability\\{\small $\omega \in A$ が判定可能}};
+    
+    \draw[arrow] (finite) -- (enumerate);
+    \draw[arrow] (enumerate) -- (check);
+    \draw[arrow] (check) -- (decidable);
+    \draw[arrow, dashed] (finite) to[bend right=30] node[below, font=\small] {根本原理} (decidable);
+\end{tikzpicture}
+\end{center}
+
+\section{基本演算と性質}\label{sec:operations}
+
+\subsection{基本的な事象}
+
+有限標本空間 $\Omega$ 上で、以下の基本的な事象を定義する：
+
+\begin{definition}[基本事象]
+\begin{enumerate}
+    \item \textbf{空事象}：$\emptyset = \{\}$（起こり得ない事象）
+    \item \textbf{全事象}：$\Omega = \{\omega \mid \omega \in \Omega\}$（必ず起こる事象）
+\end{enumerate}
+\end{definition}
+
+\subsection{事象の演算}
+
+\begin{definition}[事象の演算]
+事象 $A, B \subseteq \Omega$ に対して：
+\begin{enumerate}
+    \item \textbf{補事象}：$A^c = \Omega \setminus A = \{\omega \in \Omega \mid \omega \notin A\}$
+    \item \textbf{和事象}：$A \cup B = \{\omega \in \Omega \mid \omega \in A \text{ または } \omega \in B\}$
+    \item \textbf{積事象}：$A \cap B = \{\omega \in \Omega \mid \omega \in A \text{ かつ } \omega \in B\}$
+    \item \textbf{差事象}：$A \setminus B = \{\omega \in \Omega \mid \omega \in A \text{ かつ } \omega \notin B\}$
+\end{enumerate}
+\end{definition}
+
+\subsection{Venn 図による視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+    % 補集合
+    \begin{scope}
+        \draw[thick] (0,0) rectangle (3,2);
+        \fill[blue!30] (0,0) rectangle (3,2);
+        \fill[white] (1.5,1) circle (0.6);
+        \draw[thick] (1.5,1) circle (0.6);
+        \node at (1.5,1) {$A$};
+        \node at (0.3,1.7) {$A^c$};
+        \node[below] at (1.5,-0.3) {補集合 $A^c$};
+    \end{scope}
+    
+    % 和集合
+    \begin{scope}[xshift=5cm]
+        \draw[thick] (0,0) rectangle (3,2);
+        \fill[blue!30] (1,1) circle (0.6);
+        \fill[blue!30] (2,1) circle (0.6);
+        \draw[thick] (1,1) circle (0.6);
+        \draw[thick] (2,1) circle (0.6);
+        \node at (0.7,1) {$A$};
+        \node at (2.3,1) {$B$};
+        \node[below] at (1.5,-0.3) {和集合 $A \cup B$};
+    \end{scope}
+    
+    % 積集合
+    \begin{scope}[xshift=10cm]
+        \draw[thick] (0,0) rectangle (3,2);
+        \begin{scope}
+            \clip (1,1) circle (0.6);
+            \fill[blue!30] (2,1) circle (0.6);
+        \end{scope}
+        \draw[thick] (1,1) circle (0.6);
+        \draw[thick] (2,1) circle (0.6);
+        \node at (0.7,1) {$A$};
+        \node at (2.3,1) {$B$};
+        \node[below] at (1.5,-0.3) {積集合 $A \cap B$};
+    \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\subsection{すべての演算が Decidable}
+
+\begin{keypoint}
+有限標本空間では、すべての事象演算が decidable である：
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{演算} & \textbf{定義} & \textbf{Decidability の根拠} \\
+\hline
+空事象 & $\omega \in \emptyset$ & 常に false（自明） \\
+全事象 & $\omega \in \Omega$ & 常に true（自明） \\
+補集合 & $\omega \in A^c \iff \omega \notin A$ & 否定は decidable \\
+和集合 & $\omega \in A \cup B \iff \omega \in A \lor \omega \in B$ & 論理和は decidable \\
+積集合 & $\omega \in A \cap B \iff \omega \in A \land \omega \in B$ & 論理積は decidable \\
+差集合 & $\omega \in A \setminus B \iff \omega \in A \land \omega \notin B$ & 論理積と否定 \\
+\hline
+\end{tabular}
+\end{center}
+\end{keypoint}
+
+\subsection{基本的な性質}
+
+\begin{theorem}[De Morgan の法則]
+任意の事象 $A, B \subseteq \Omega$ に対して：
+\begin{enumerate}
+    \item $(A \cup B)^c = A^c \cap B^c$
+    \item $(A \cap B)^c = A^c \cup B^c$
+\end{enumerate}
+\end{theorem}
+
+\begin{theorem}[交換法則と結合法則]
+\begin{enumerate}
+    \item \textbf{交換法則}：
+    \begin{itemize}
+        \item $A \cup B = B \cup A$
+        \item $A \cap B = B \cap A$
+    \end{itemize}
+    \item \textbf{結合法則}：
+    \begin{itemize}
+        \item $(A \cup B) \cup C = A \cup (B \cup C)$
+        \item $(A \cap B) \cap C = A \cap (B \cap C)$
+    \end{itemize}
+\end{enumerate}
+\end{theorem}
+
+\begin{theorem}[分配法則]
+\begin{enumerate}
+    \item $A \cap (B \cup C) = (A \cap B) \cup (A \cap C)$
+    \item $A \cup (B \cap C) = (A \cup B) \cap (A \cup C)$
+\end{enumerate}
+\end{theorem}
+
+\section{具体例}\label{sec:examples}
+
+\subsection{例 1：サイコロの標本空間}
+
+\subsubsection{定義}
+
+6 面サイコロの標本空間を $\Omega = \{0, 1, 2, 3, 4, 5\}$ = \texttt{Fin 6} として定義する。
+
+Lean コード：
+\begin{tcolorbox}[title=サイコロの標本空間（527--530 行目）]
+\begin{verbatim}
+def diceSample : FiniteSampleSpace where
+  carrier := Fin 6
+  fintype := inferInstance
+  decidableEq := inferInstance
+\end{verbatim}
+\end{tcolorbox}
+
+\subsubsection{事象の定義}
+
+\begin{example}[サイコロの事象]
+\begin{enumerate}
+    \item \textbf{偶数事象}：$E = \{0, 2, 4\}$
+    \begin{verbatim}
+def evenDiceEvent : Event diceSample.carrier :=
+  {n : Fin 6 | n.val % 2 = 0}
+    \end{verbatim}
+    
+    \item \textbf{奇数事象}：$O = \{1, 3, 5\} = E^c$
+    \begin{verbatim}
+def oddDiceEvent : Event diceSample.carrier :=
+  Event.complement evenDiceEvent
+    \end{verbatim}
+    
+    \item \textbf{大きい目事象}：$B = \{3, 4, 5\}$
+    \begin{verbatim}
+def bigDiceEvent : Event diceSample.carrier :=
+  {n : Fin 6 | n.val ≥ 3}
+    \end{verbatim}
+    
+    \item \textbf{偶数かつ大きい}：$E \cap B = \{4\}$
+    \begin{verbatim}
+def evenAndBigEvent : Event diceSample.carrier :=
+  Event.intersection evenDiceEvent bigDiceEvent
+    \end{verbatim}
+\end{enumerate}
+\end{example}
+
+\subsubsection{視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+    \foreach \i in {0,...,5} {
+        \pgfmathsetmacro{\x}{mod(\i,3)*2}
+        \pgfmathsetmacro{\y}{-int(\i/3)*1.5}
+        \node[circle, draw, thick, minimum size=1cm] (n\i) at (\x,\y) {\Large \i};
+    }
+    
+    % 偶数事象を青で囲む
+    \draw[blue, thick, rounded corners] (-0.5,0.5) rectangle (4.5,-0.5);
+    \node[blue, above] at (2,0.7) {偶数事象 $E = \{0, 2, 4\}$};
+    
+    % 大きい目事象を赤で囲む
+    \draw[red, thick, rounded corners] (3.5,-1) rectangle (5.5,-2.5);
+    \node[red, right] at (5.5,-1.75) {大 $B = \{3,4,5\}$};
+    
+    % 交わり
+    \node[purple, below] at (4,-3) {$E \cap B = \{4\}$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{例 2：コイン投げの標本空間}
+
+\begin{example}[コイン投げ]
+標本空間 $\Omega = \{\text{表}, \text{裏}\}$ = \texttt{Bool}
+
+\begin{enumerate}
+    \item \textbf{表事象}：$H = \{\text{true}\}$
+    \begin{verbatim}
+def headsEvent : Event coinFlipSample.carrier :=
+  {b : Bool | b = true}
+    \end{verbatim}
+    
+    \item \textbf{裏事象}：$T = \{\text{false}\} = H^c$
+    \begin{verbatim}
+def tailsEvent : Event coinFlipSample.carrier :=
+  Event.complement headsEvent
+    \end{verbatim}
+\end{enumerate}
+\end{example}
+
+\subsection{例 3：2個のサイコロ}
+
+\begin{example}[2個のサイコロ]
+標本空間 $\Omega = \texttt{Fin 6} \times \texttt{Fin 6}$（36 通り）
+
+\textbf{和が 7 になる事象}：
+\[
+S_7 = \{(i, j) \mid i + j = 7\}
+\]
+
+Lean コード：
+\begin{verbatim}
+def sumSevenEvent : Event twoDiceSample.carrier :=
+  {p : Fin 6 × Fin 6 | p.1.val + p.2.val = 7}
+\end{verbatim}
+
+具体的には：
+\[
+S_7 = \{(2,5), (3,4), (4,3), (5,2)\}
+\]
+（Fin 6 は 0-indexed なので、実際の目は +1 する）
+\end{example}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.6]
+    \draw[step=1,gray,thin] (0,0) grid (6,6);
+    \foreach \i in {0,...,5} {
+        \node at (\i+0.5,-0.5) {\small \i};
+        \node at (-0.5,\i+0.5) {\small \i};
+    }
+    
+    % 和が 7 のマスを赤で塗る
+    \fill[red!30] (2,5) rectangle (3,6);
+    \fill[red!30] (3,4) rectangle (4,5);
+    \fill[red!30] (4,3) rectangle (5,4);
+    \fill[red!30] (5,2) rectangle (6,3);
+    
+    \node at (2.5,5.5) {$(2,5)$};
+    \node at (3.5,4.5) {$(3,4)$};
+    \node at (4.5,3.5) {$(4,3)$};
+    \node at (5.5,2.5) {$(5,2)$};
+    
+    \node[below] at (3,-1) {第一サイコロ};
+    \node[left, rotate=90] at (-1,3) {第二サイコロ};
+    \node[above] at (3,7) {和が 7 になる事象};
+\end{tikzpicture}
+\end{center}
+
+\section{構造塔との接続}\label{sec:structure-tower}
+
+\subsection{フィルトレーションとしての確率論}
+
+\textbf{フィルトレーション}（Filtration）とは、時間とともに増加する情報の流れである：
+
+\[
+\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}_n
+\]
+
+各 $\mathcal{F}_t$ は時刻 $t$ で「可観測な」事象の族（$\sigma$-代数）。
+
+\begin{example}[カード推理ゲーム]
+52 枚のカードからランダムに 1 枚を選ぶ。順次ヒントが与えられる：
+
+\begin{itemize}
+    \item 時刻 0：何も知らない $\Rightarrow \mathcal{F}_0 = \{\emptyset, \Omega\}$
+    \item 時刻 1：「赤い」と判明 $\Rightarrow \mathcal{F}_1$ は赤/黒で分割
+    \item 時刻 2：「ハート」と判明 $\Rightarrow \mathcal{F}_2$ はスート別に分割
+    \item 時刻 3：「K」と判明 $\Rightarrow \mathcal{F}_3$ は各カード別に分割
+\end{itemize}
+
+情報が増えるほど、可観測な事象が増える（単調増加）。
+\end{example}
+
+\subsection{構造塔としての定式化}
+
+将来的に、\texttt{DecidableFiltration} は \texttt{StructureTowerWithMin} のインスタンスとなる：
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    box/.style={rectangle, draw, thick, text width=4cm, align=center, rounded corners, minimum height=1cm}
+]
+    \node[box, fill=blue!10] (carrier) {carrier = Event $\Omega$\\{\small (事象全体)}};
+    \node[box, fill=green!10, below=of carrier] (index) {Index = $\mathbb{N}$\\{\small (時刻)}};
+    \node[box, fill=yellow!10, below=of index] (layer) {layer($t$) = $\mathcal{F}_t$\\{\small (時刻 $t$ の可観測事象)}};
+    \node[box, fill=red!10, below=of layer] (minlayer) {minLayer($A$)\\{\small (事象 $A$ が初めて可観測になる時刻)}};
+    
+    \draw[->, thick] (carrier) -- (index);
+    \draw[->, thick] (index) -- (layer);
+    \draw[->, thick] (layer) -- (minlayer);
+    
+    \node[right=0.3cm of carrier, text width=4cm, font=\small] {構造塔の基礎集合};
+    \node[right=0.3cm of index, text width=4cm, font=\small] {構造塔の添字集合};
+    \node[right=0.3cm of layer, text width=4cm, font=\small] {各層の定義};
+    \node[right=0.3cm of minlayer, text width=4cm, font=\small] {\color{red}構造塔の鍵！};
+\end{tikzpicture}
+\end{center}
+
+\subsection{停止時間との対応}
+
+\textbf{停止時間}（Stopping Time）$\tau$ は、「$\{\tau \leq t\} \in \mathcal{F}_t$」を満たす確率変数である。
+
+\begin{insight}
+構造塔の視点では：
+\begin{itemize}
+    \item 事象 $\{\tau \leq t\}$ の $\mathrm{minLayer}$ が $\leq t$ である
+    \item これは、$\mathrm{minLayer}$ 関数による特徴づけそのもの
+\end{itemize}
+
+すなわち、停止時間は「適切な minLayer を持つ事象」として定義できる。
+\end{insight}
+
+\subsection{将来の発展}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.8cm,
+    level/.style={rectangle, draw, thick, minimum width=6cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[level, fill=blue!10] (level1) {DecidableEvents.lean\\{\small 事象の decidability}};
+    \node[level, fill=green!10, below=of level1] (level2) {DecidableAlgebra.lean\\{\small Boolean 代数}};
+    \node[level, fill=yellow!10, below=of level2] (level3) {DecidableFiltration.lean\\{\small StructureTowerWithMin}};
+    \node[level, fill=orange!10, below=of level3] (level4) {ComputableStoppingTime.lean\\{\small 停止時間 = minLayer}};
+    \node[level, fill=red!10, below=of level4] (level5) {AlgorithmicMartingale.lean\\{\small Optional Stopping Theorem}};
+    
+    \draw[arrow] (level1) -- (level2) node[midway, right, font=\small] {閉包};
+    \draw[arrow] (level2) -- (level3) node[midway, right, font=\small] {時間構造};
+    \draw[arrow] (level3) -- (level4) node[midway, right, font=\small] {決定論};
+    \draw[arrow] (level4) -- (level5) node[midway, right, font=\small] {マルチンゲール};
+\end{tikzpicture}
+\end{center}
+
+\section{まとめと展望}\label{sec:conclusion}
+
+\subsection{本ファイルの成果}
+
+\texttt{DecidableEvents.lean} は、以下を達成した：
+
+\begin{enumerate}
+    \item \textbf{有限性と計算可能性の理論的基盤}
+    \begin{itemize}
+        \item Fintype により、すべての事象が decidable になる
+        \item DecidableEq が membership 判定を可能にする
+    \end{itemize}
+    
+    \item \textbf{事象の表現}
+    \begin{itemize}
+        \item Set $\Omega$ を使用し、DecidablePred で計算可能性を保証
+        \item 将来の拡張性（無限集合、$\sigma$-代数）を確保
+    \end{itemize}
+    
+    \item \textbf{基本演算}
+    \begin{itemize}
+        \item 補集合、和、積がすべて decidable
+        \item De Morgan の法則、分配法則などの古典的性質
+    \end{itemize}
+    
+    \item \textbf{具体例}
+    \begin{itemize}
+        \item サイコロ、コイン投げで理論を実践
+        \item \texttt{\#eval} により実際に計算可能であることを確認
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Lean 4 形式化の意義}
+
+\begin{keypoint}
+型システムによる保証：
+\begin{itemize}
+    \item \textbf{Fintype}：有限性を型レベルで保証
+    \item \textbf{DecidableEq}：等号判定可能性を保証
+    \item \textbf{DecidablePred}：述語の計算可能性を保証
+\end{itemize}
+
+これにより、「理論上は decidable だが実装が間違っている」という状況を防ぐ。
+\end{keypoint}
+
+\subsection{構造塔理論への橋渡し}
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, thick, text width=4cm, align=center, rounded corners, minimum height=1.2cm}
+]
+    \node[box, fill=blue!10] (events) at (0,0) {DecidableEvents\\{\small 事象の基礎理論}};
+    \node[box, fill=green!10] (filtration) at (6,0) {DecidableFiltration\\{\small 構造塔のインスタンス}};
+    \node[box, fill=red!10] (stopping) at (6,-2.5) {StoppingTime\\{\small minLayer の応用}};
+    \node[box, fill=yellow!10] (martingale) at (0,-2.5) {Martingale\\{\small 確率過程の理論}};
+    
+    \draw[->, thick, blue] (events) -- (filtration) node[midway, above, font=\small] {時間構造の導入};
+    \draw[->, thick, red] (filtration) -- (stopping) node[midway, right, font=\small] {決定理論};
+    \draw[->, thick, orange] (stopping) -- (martingale) node[midway, below, font=\small] {マルチンゲール};
+    \draw[->, thick, green] (events) -- (martingale) node[midway, left, font=\small] {確率的性質};
+    
+    \node[above=0.5cm of events, text width=8cm, align=center, font=\footnotesize] {
+        {\color{blue}今回の位置：最も基礎的な層}
+    };
+\end{tikzpicture}
+\end{center}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+    \item \textbf{DecidableAlgebra.lean}：Boolean 演算で閉じた事象族
+    \item \textbf{確率測度の定義}：Event $\to \mathbb{Q}_{\geq 0}$ の写像
+    \item \textbf{DecidableFiltration.lean}：構造塔のインスタンス
+    \item \textbf{一般論への接続}：離散測度から一般測度への埋め込み
+\end{enumerate}
+
+\subsection{教育的価値}
+
+本ファイルは、以下を示している：
+
+\begin{itemize}
+    \item \textbf{型システムの力}：計算可能性を型で保証
+    \item \textbf{有限性の意義}：理論と計算の橋渡し
+    \item \textbf{段階的構築}：最も単純な場合から始める重要性
+    \item \textbf{形式数学の洞察}：非形式的に「自明」なことも形式的には注意が必要
+\end{itemize}
+
+\section*{参考文献}
+
+\begin{enumerate}
+    \item Williams, David. \textit{Probability with Martingales}. Cambridge University Press, 1991.
+    \item Grimmett, Geoffrey R., and David Stirzaker. \textit{Probability and Random Processes}. Oxford University Press, 2001.
+    \item The mathlib Community. \textit{The Lean Mathematical Library}. \url{https://github.com/leanprover-community/mathlib4}
+    \item Avigad, Jeremy, Leonardo de Moura, and Soonho Kong. \textit{Theorem Proving in Lean 4}. 2024.
+    \item 本プロジェクト：\texttt{Bourbaki\_Lean\_Guide.lean}, \texttt{CAT2\_complete.lean}
+\end{enumerate}
+
+\section*{付録 A：Lean コードへのリンク}
+
+\subsection*{主要定義}
+
+\begin{itemize}
+    \item \textbf{FiniteSampleSpace}：123--130 行目
+    \item \textbf{Event}：205 行目
+    \item \textbf{DecidableEvent}：223--225 行目
+    \item \textbf{基本演算}：265--319 行目
+    \item \textbf{De Morgan の法則}：424--445 行目
+\end{itemize}
+
+\subsection*{具体例}
+
+\begin{itemize}
+    \item \textbf{サイコロ}：527--626 行目
+    \item \textbf{コイン投げ}：638--668 行目
+    \item \textbf{2個のサイコロ}：679--723 行目
+\end{itemize}
+
+\subsection*{構造塔との接続}
+
+\begin{itemize}
+    \item \textbf{将来の展望}：729--789 行目
+\end{itemize}
+
+\end{document}
