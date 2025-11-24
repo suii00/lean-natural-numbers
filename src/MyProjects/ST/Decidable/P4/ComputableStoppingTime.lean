@@ -2,7 +2,7 @@ import MyProjects.ST.Decidable.P1.DecidableEvents
 import MyProjects.ST.Decidable.P2.DecidableAlgebra
 import MyProjects.ST.Decidable.P3.DecidableFiltration
 
-open Classical Prob
+open Prob
 
 /-!
 # Computable Stopping Times on Discrete Filtrations
@@ -151,13 +151,15 @@ def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
       τ₂.adapted t ht
     -- 右辺 {τ₁ ≤ t} ∪ {τ₂ ≤ t} が代数で閉じていることを使う
     have hUnion := (ℱ.observableAt t ht).closed_union h1 h2
-    classical
+
     -- 集合レベルの等式：
     -- {min(τ₁, τ₂) ≤ t} = {τ₁ ≤ t} ∪ {τ₂ ≤ t}
     have hset :
         {ω : Ω.carrier | Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t} =
-          ({ω | τ₁.time ω ≤ t} ∪ {ω | τ₂.time ω ≤ t}) := by
-      ext ω; constructor
+          ({ω : Ω.carrier | τ₁.time ω ≤ t} ∪ {ω : Ω.carrier | τ₂.time ω ≤ t}) := by
+      apply Set.ext
+      intro ω
+      constructor
       · intro hmin_le_t
         -- min ≤ t ならどちらか一方が t 以下
         have hle : τ₁.time ω ≤ τ₂.time ω ∨ τ₂.time ω ≤ τ₁.time ω :=
@@ -167,8 +169,8 @@ def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
             have hmin : Nat.min (τ₁.time ω) (τ₂.time ω) = τ₁.time ω :=
               Nat.min_eq_left hle
             have hineq : τ₁.time ω ≤ t := by
+              -- `hmin_le_t : min ≤ t` を `τ₁.time ω ≤ t` に書き換える
               have h' : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t := hmin_le_t
-              -- min の具体的な場合分けを書き換えで吸収する
               simpa [hmin] using h'
             exact Or.inl hineq
         | inr hle =>
@@ -182,7 +184,9 @@ def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
         rcases hdisj with h₁ | h₂
         · exact le_trans (Nat.min_le_left _ _) h₁
         · exact le_trans (Nat.min_le_right _ _) h₂
+
     simpa [hset, Prob.Event.union] using hUnion
+
 
 /-- 2 つの停止時間の `max`。 -/
 def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
@@ -200,24 +204,30 @@ def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     have hInter :=
       Prob.FiniteAlgebra.closed_intersection
         (ℱ := ℱ.observableAt t ht) h1 h2
-    classical
+
     -- {max(τ₁, τ₂) ≤ t} = {τ₁ ≤ t ∧ τ₂ ≤ t}
     have hset :
         {ω : Ω.carrier | Nat.max (τ₁.time ω) (τ₂.time ω) ≤ t} =
           {ω : Ω.carrier | τ₁.time ω ≤ t ∧ τ₂.time ω ≤ t} := by
-      ext ω; constructor
+      apply Set.ext
+      intro ω
+      constructor
       · intro h
         exact
           ⟨le_trans (Nat.le_max_left _ _) h,
            le_trans (Nat.le_max_right _ _) h⟩
-      · intro h; rcases h with ⟨h1ω, h2ω⟩
+      · intro h
+        rcases h with ⟨h1ω, h2ω⟩
         exact (max_le_iff).2 ⟨h1ω, h2ω⟩
-    -- {τ₁ ≤ t ∧ τ₂ ≤ t} = {τ₁ ≤ t} ∩ {τ₂ ≤ t}
+
+    -- {τ₁ ≤ t ∧ τ₂ ≤ t} = {τ₁ ≤ t} ∩ {τ₂ ≤ t} は定義的に同じ
     have hset' :
         {ω : Ω.carrier | τ₁.time ω ≤ t ∧ τ₂.time ω ≤ t} =
-          ({ω | τ₁.time ω ≤ t} ∩ {ω | τ₂.time ω ≤ t}) := by
-      ext ω; simp
+          ({ω : Ω.carrier | τ₁.time ω ≤ t} ∩ {ω : Ω.carrier | τ₂.time ω ≤ t}) := by
+      rfl
+
     simpa [hset, hset', Prob.Event.intersection] using hInter
+
 
 /-- `min` はそれぞれの停止時間以下。 -/
 lemma min_le_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
@@ -324,17 +334,12 @@ def coinConst1 : ComputableStoppingTime coinFullFiltration :=
 どの事象も可観測であることを使って停止時間条件を証明する。
 -/
 def coinHeadTail : ComputableStoppingTime coinFullFiltration where
-  time := fun b => if b then 0 else 1
+  time := fun b => match b with | true => 0 | false => 1
   adapted := by
     intro t ht
-    -- {ω | τ(ω) ≤ t} は Bool 上の任意の部分集合なので，
-    -- powerSet の events（= 全集合）に自動的に属する。
-    have :
-        {ω : coinSpace.carrier | (if ω then 0 else 1) ≤ t} ∈
-          (Prob.FiniteAlgebra.powerSet :
-            Prob.FiniteAlgebra coinSpace.carrier).events := by
-      simp [Prob.FiniteAlgebra.powerSet]
-    simpa [coinFullFiltration, coinFullAlgebra, constFiltration] using this
+    -- powerSet 上では任意の部分集合が可観測
+    simp [coinFullFiltration, coinFullAlgebra, constFiltration,
+      Prob.FiniteAlgebra.powerSet]
 
 /-- `min` と `max` を使った合成停止時間。 -/
 def coinMin : ComputableStoppingTime coinFullFiltration :=
@@ -365,4 +370,3 @@ Lean の `#eval` は有限標本空間上の停止時間を「関数」として
 #eval coinMax.time false   -- 1
 
 end Examples
-
