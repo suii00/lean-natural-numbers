@@ -1,0 +1,6 @@
+- **修正内容**：
+  - `Mathlib.Algebra.Polynomial.Degree.Domain` を追加 import。
+  - 非零スカラー倍の自己同型 `polySmulHom : ℚˣ → Hom polyDegreeTower polyDegreeTower` を実装し、`natDegree_smul` を用いて minLayer の一致を証明。
+- **修正が正しい理由**：`ℚˣ` は群であり、`natDegree_smul` が適用できるため minLayer が保持される。import 追加後 `lake build` が成功。
+- **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
+- **どういう意図でこの実装に至ったかメモ**：非零スカラー倍が塔の自己同型になる典型例を示し、Hom/HomLe の境界整理を具体化するため。***

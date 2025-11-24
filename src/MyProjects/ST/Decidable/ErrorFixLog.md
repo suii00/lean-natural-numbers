@@ -180,3 +180,17 @@
 - **修正が正しい理由**：`ℚˣ` は群であり、`natDegree_smul` が適用できるため minLayer が保持される。import 追加後 `lake build` が成功。
 - **動作確認**：`lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples` 成功（2025-11-23）。
 - **どういう意図でこの実装に至ったかメモ**：非零スカラー倍が塔の自己同型になる典型例を示し、Hom/HomLe の境界整理を具体化するため。***
+
+### エラー修正ログ（polySmulHom 群作用補題追加時の未解決ゴール）
+
+- **エラー概要**：polySmulHom_comp / polySmulHom_one 追加時に Hom.comp / Hom.id が解決されず、xt も未登録のためゴールが残った。
+- **原因**：Hom に ext 補題が無く、合成・恒等を展開せずに simp で済ませようとしたため。
+- **修正内容**：
+  - @[ext] theorem Hom.ext を追加し、Hom の等式を map と indexMap の一致に還元可能にした。
+  - 群作用補題では Hom.comp / Hom.id を明示し、unext で成分を分離した上で smul_smul と fl で証明。
+- **修正が正しい理由**：Hom の構造に沿って成分等式を示せば群作用の公理（積・単位）がそのまま従う。lake build 成功で確認。
+- **動作確認**：lake build MyProjects.ST.Decidable.DecidableStructureTower_Examples 成功（2025-11-24）。
+- **どういう意図でこの実装に至ったかメモ**：多項式塔を Units ℚ の作用として整理し、将来 HomLe で 0 倍などを扱う際の基盤を固めるため。***
+
+---
+

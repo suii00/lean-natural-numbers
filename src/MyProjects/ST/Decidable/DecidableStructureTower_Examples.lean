@@ -11,9 +11,11 @@ import Mathlib.Data.String.Basic
 /-
 # Computable structure towers
 
-This file gives Bourbaki-flavoured, fully computable examples of
-`StructureTowerWithMin`.  All definitions are executable (`#eval`) and free of
-`sorry`.
+This file gives Bourbaki-flavoured, mostly computable examples of
+`StructureTowerWithMin`.  The integer / list / finset / string sections are
+executable (`#eval`) and free of `sorry`; the polynomial section uses
+`natDegree` and therefore lives in a `noncomputable` context, but remains
+fully checked by Lean.
 
 ## Contents
 * Integer tower stratified by absolute value.
@@ -87,6 +89,11 @@ structure Hom (T T' : StructureTowerWithMin) where
   minLayer_preserving :
     ∀ x, indexMap (T.minLayer x) = T'.minLayer (map x)
 
+/-- Extensionality for tower homomorphisms. -/
+@[ext] theorem Hom.ext {T T'} (f g : Hom T T')
+    (hmap : f.map = g.map) (hidx : f.indexMap = g.indexMap) : f = g := by
+  cases f; cases g; cases hmap; cases hidx; rfl
+
 /-- Identity homomorphism of a structure tower. -/
 def Hom.id (T : StructureTowerWithMin) : Hom T T where
   map := fun x => x
@@ -141,7 +148,23 @@ lemma Hom.map_minLayer {T T' : StructureTowerWithMin}
     h.indexMap (T.minLayer x) = T'.minLayer (h.map x) :=
   h.minLayer_preserving x
 
-/-- Homomorphisms that only bound the minimal layer from above. -/
+/--
+`HomLe` は `StructureTowerWithMin` 間の「上限保存射」を表す。
+
+ふつうの `Hom` は
+  T'.minLayer (map x) = indexMap (T.minLayer x)
+という等式を要求するのに対し，
+`HomLe` は
+  T'.minLayer (map x) ≤ indexMap (T.minLayer x)
+という不等式だけを要求する。
+
+これにより，次のような「層を潰す／拡げる」射を一つの枠組みで扱える：
+* 整数塔の平行移動 `k ↦ k + a` （`|k + a| ≤ |k| + |a|`）
+* 多項式塔の加法 `p + q` （`deg (p + q) ≤ max (deg p) (deg q)`）
+* 多項式塔の 0 倍 `p ↦ 0` （minLayer が下がるが，上界は 0 で与えられる）
+
+`Hom` は「すべての像で minLayer が等式になる HomLe」と見なせるので，HomLe は構造塔に現れる射の自然な一般化になっている。
+-/
 structure HomLe (T T' : StructureTowerWithMin) where
   map : T.carrier → T'.carrier
   indexMap : T.Index → T'.Index
@@ -622,6 +645,10 @@ lemma polyDegreeTower_X_pow (n : ℕ) :
     polyDegreeTower.minLayer ((Polynomial.X : Polynomial ℚ) ^ n) = n := by
   simp [polyDegreeTower]
 
+-- From here down, the polynomial tower relies on `natDegree`, so we stay in a
+-- `noncomputable` context to keep notation light.
+noncomputable section
+
 /-! Degree bounds for sums/products (Bool checks) -/
 
 /-- Addition respects a supplied degree bound (noncomputable). -/
@@ -696,6 +723,22 @@ noncomputable def polySmulHom (c : Units ℚ) :
     have hdeg : ((c : ℚ) • p).natDegree = p.natDegree :=
       Polynomial.natDegree_smul (p := p) (ha := hc)
     simp [polyDegreeTower, hdeg] }
+
+@[simp] lemma polySmulHom_comp (c d : Units ℚ) :
+    polySmulHom (c * d) =
+      StructureTowerWithMin.Hom.comp (polySmulHom c) (polySmulHom d) := by
+  apply StructureTowerWithMin.Hom.ext
+  · funext p
+    change ((c : ℚ) * (d : ℚ)) • p = (c : ℚ) • ((d : ℚ) • p)
+    simpa [polySmulHom, StructureTowerWithMin.Hom.comp, smul_smul] using
+      (smul_smul (c : ℚ) (d : ℚ) p).symm
+  · funext n; rfl
+
+@[simp] lemma polySmulHom_one :
+    polySmulHom (1 : Units ℚ) = StructureTowerWithMin.Hom.id polyDegreeTower := by
+  apply StructureTowerWithMin.Hom.ext
+  · funext p; simp [polySmulHom, StructureTowerWithMin.Hom.id]
+  · funext n; rfl
 
 -- sanity checks (types)
 #check polySmulHom (1 : Units ℚ)
@@ -787,9 +830,15 @@ the minimal layer for any nonzero `p`.
 Once we introduce a weaker notion `HomLe` with only an upper bound
   T'.minLayer (map x) ≤ indexMap (T.minLayer x),
 the zero-scalar map will become a canonical example.
+Future `HomLe` candidates to collect:
+- integer translation on `intAbsTower` (already as `intAddHomLe`),
+- zero scalar on `polyDegreeTower` (cf. `polyZeroHomLe`),
+- constant-zero lists/strings where size strictly decreases.
+These will be bundled once the HomLe API is stabilized.
 -/
 
 -- note: 0 倍は `polyZeroHomLe` に含めており、Hom ではなく HomLe として扱う
+end
 
 /-
 ## Example 5: strings stratified by length
@@ -871,3 +920,4 @@ noncomputable def polyZeroHomLe :
 6. Construct an isomorphism of towers and prove its computability.
 7. Analyse the computational cost of `minLayer` in these examples.
 -/
+

@@ -1,0 +1,759 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{CJKutf8}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{positioning,arrows,calc}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% TikZ styles
+\tikzset{
+  tower/.style={rectangle, draw=blue!60, fill=blue!5, very thick, minimum height=1cm, minimum width=3cm},
+  layer/.style={rectangle, draw=green!60, fill=green!5, thick, minimum height=0.6cm, minimum width=2.5cm},
+  morphism/.style={->, >=stealth, thick},
+  index/.style={circle, draw=red!60, fill=red!5, thick, minimum size=0.6cm}
+}
+
+% Theorem environments
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\newtheorem{exercise}[theorem]{演習問題}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{注意}
+
+% Custom commands
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\DeclareMathOperator{\minLayer}{minLayer}
+\DeclareMathOperator{\Hom}{Hom}
+
+% Title information
+\title{\textbf{構造塔の計算可能な実例} \\
+\large DecidableStructureTower\_Examples.lean: \\
+ブルバキの構造理論と構成的数学}
+\author{
+  \textbf{学部生向け数学解説} \\[0.5em]
+  \small Lean 4 コード: CODEX (OpenAI) \\
+  \small \TeX 解説: Claude Code
+}
+\date{2025年11月24日}
+
+\begin{document}
+\begin{CJK}{UTF8}{min}
+
+\maketitle
+
+\begin{abstract}
+本稿では、ブルバキの構造理論に基づく構造塔（Structure Tower）の計算可能な具体例について解説する。DecidableStructureTower\_Examples.lean は、整数・リスト・有限集合・多項式・文字列という5つの計算可能な構造塔を提供し、それぞれが \texttt{\#eval} で実行可能な形式で実装されている。本解説は学部2-4年生を対象とし、抽象的な構造塔理論が具体的にどのように実現されるかを示す。各例を通じて、構造塔の射（Hom）と弱い射（HomLe）の違い、計算可能性の重要性、そしてブルバキの階層的思考法の実践的応用を学ぶ。
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\section{序論：計算可能な構造塔}
+
+\subsection{構造塔理論の復習}
+
+本稿は、CAT2\_complete.lean で定義された構造塔理論の具体例集である。まず、構造塔の定義を復習しよう。
+
+\begin{definition}[最小層を持つ構造塔]
+最小層を持つ構造塔（StructureTowerWithMin）とは、以下のデータの組である：
+\begin{enumerate}
+\item $X$：基礎集合（carrier）
+\item $I$：添字集合で、半順序 $\leq$ を持つ
+\item $(X_i)_{i \in I}$：各 $i \in I$ に対する $X$ の部分集合の族（層）
+\item \textbf{被覆性}：$\bigcup_{i \in I} X_i = X$
+\item \textbf{単調性}：$i \leq j \Rightarrow X_i \subseteq X_j$
+\item $\minLayer : X \to I$：各 $x \in X$ に対して、$x$ を含む最小の層を選ぶ関数
+\item \textbf{最小性の条件}：
+  \begin{itemize}
+  \item $x \in X_{\minLayer(x)}$（$\minLayer(x)$ は実際に $x$ を含む）
+  \item $x \in X_i \Rightarrow \minLayer(x) \leq i$（最小であることの保証）
+  \end{itemize}
+\end{enumerate}
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  % Index set
+  \node[index] (i0) at (0,0) {$i_0$};
+  \node[index] (i1) at (0,1.5) {$i_1$};
+  \node[index] (i2) at (0,3) {$i_2$};
+  \node[index] (i3) at (0,4.5) {$i_3$};
+  
+  \draw[->] (i0) -- (i1);
+  \draw[->] (i1) -- (i2);
+  \draw[->] (i2) -- (i3);
+  
+  \node at (0,5.5) {\small 添字集合 $I$};
+  
+  % Layers
+  \draw[fill=blue!10, draw=blue!50] (3,0) ellipse (2cm and 0.5cm);
+  \node at (3,0) {$X_{i_0}$};
+  
+  \draw[fill=blue!10, draw=blue!50] (3,1.5) ellipse (2.5cm and 0.5cm);
+  \node at (3,1.5) {$X_{i_1}$};
+  
+  \draw[fill=blue!10, draw=blue!50] (3,3) ellipse (3cm and 0.5cm);
+  \node at (3,3) {$X_{i_2}$};
+  
+  \draw[fill=blue!10, draw=blue!50] (3,4.5) ellipse (3.5cm and 0.5cm);
+  \node at (3,4.5) {$X_{i_3}$};
+  
+  % Elements
+  \filldraw[red] (3.5,0) circle (2pt) node[right] {$x_1$};
+  \filldraw[red] (4,1.5) circle (2pt) node[right] {$x_2$};
+  \filldraw[red] (4.5,3) circle (2pt) node[right] {$x_3$};
+  
+  % minLayer arrows
+  \draw[->, dashed, thick, red] (3.5,0) -- (i0) node[midway, above, sloped] {\tiny $\minLayer$};
+  \draw[->, dashed, thick, red] (4,1.5) -- (i1);
+  \draw[->, dashed, thick, red] (4.5,3) -- (i2);
+  
+  \node at (3,5.5) {\small 基礎集合 $X$ と層};
+  
+  % Monotonicity indication
+  \draw[->, thick, gray] (2.5,0.5) -- (2.5,1) node[midway, left] {\tiny 単調性};
+\end{tikzpicture}
+\end{center}
+
+\subsection{本稿の目的と構成}
+
+本稿の目的は以下の通りである：
+\begin{itemize}
+\item \textbf{具体例の提示}：5つの計算可能な構造塔を詳細に解説
+\item \textbf{計算可能性の強調}：\texttt{\#eval} で実行可能な実装の意義
+\item \textbf{射の理論}：Hom（厳密な射）と HomLe（弱い射）の違い
+\item \textbf{教育的価値}：抽象理論の具体的理解
+\end{itemize}
+
+\textbf{本稿の構成}：
+\begin{enumerate}
+\item 第2節：整数の構造塔（絶対値による階層化）
+\item 第3節：リストの構造塔（長さによる階層化）
+\item 第4節：有限集合の構造塔（濃度による階層化）
+\item 第5節：多項式の構造塔（次数による階層化）
+\item 第6節：文字列の構造塔（長さによる階層化）
+\item 第7節：射の理論（Hom と HomLe）
+\item 第8節：計算可能性の意義
+\end{enumerate}
+
+\section{整数の構造塔}
+
+\subsection{定義と直感}
+
+\begin{definition}[整数の絶対値による構造塔]
+整数の構造塔 \texttt{intAbsTower} を次のように定義する：
+\begin{itemize}
+\item 基礎集合：$X = \Z$（整数全体）
+\item 添字集合：$I = \N$（自然数）
+\item 層の定義：$X_n = \{z \in \Z \mid |z| \leq n\}$
+\item 最小層関数：$\minLayer(z) = |z|$
+\end{itemize}
+\end{definition}
+
+\textbf{直感的理解}：各層 $X_n$ は「原点から距離 $n$ 以内の整数」である。
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+  % Layer 0
+  \draw[fill=red!20, draw=red!60, thick] (-0.5,-0.5) rectangle (0.5,0.5);
+  \node at (0,0) {$0$};
+  \node at (-1.5,0) {$X_0$:};
+  
+  % Layer 1
+  \draw[fill=orange!20, draw=orange!60, thick] (-1.5,-1.5) rectangle (1.5,1.5);
+  \node at (-1,0.5) {$-1$};
+  \node at (1,0.5) {$+1$};
+  \node at (-2.5,0.5) {$X_1$:};
+  
+  % Layer 2
+  \draw[fill=yellow!20, draw=yellow!60, thick] (-2.5,-2.5) rectangle (2.5,2.5);
+  \node at (-2,1) {$-2$};
+  \node at (2,1) {$+2$};
+  \node at (-3.5,1) {$X_2$:};
+  
+  % Layer 3
+  \draw[fill=green!20, draw=green!60, thick] (-3.5,-3.5) rectangle (3.5,3.5);
+  \node at (-3,1.5) {$-3$};
+  \node at (3,1.5) {$+3$};
+  \node at (-4.5,1.5) {$X_3$:};
+  
+  \node at (0,-4.5) {整数の構造塔：絶対値で階層化};
+\end{tikzpicture}
+\end{center}
+
+\subsection{性質の検証}
+
+\begin{proposition}[被覆性]
+すべての整数 $z \in \Z$ に対して、ある $n \in \N$ が存在して $z \in X_n$ である。
+\end{proposition}
+
+\begin{proof}
+任意の $z \in \Z$ に対して、$n = |z|$ とおけば、定義より $z \in X_n$。
+\end{proof}
+
+\begin{proposition}[単調性]
+$m \leq n$ ならば、$X_m \subseteq X_n$ が成り立つ。
+\end{proposition}
+
+\begin{proof}
+$z \in X_m$ とすると、$|z| \leq m$ である。$m \leq n$ より、$|z| \leq n$ となり、$z \in X_n$。
+\end{proof}
+
+\begin{proposition}[最小性]
+任意の $z \in \Z$ に対して：
+\begin{enumerate}
+\item $z \in X_{\minLayer(z)} = X_{|z|}$（実際に含まれる）
+\item $z \in X_i \Rightarrow |z| \leq i$（最小である）
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+\begin{enumerate}
+\item $\minLayer(z) = |z|$ より、$z \in X_{|z|}$ は定義より明らか。
+\item $z \in X_i$ とすると、定義より $|z| \leq i$。したがって、$\minLayer(z) = |z| \leq i$。
+\end{enumerate}
+\end{proof}
+
+\subsection{計算可能性}
+
+この構造塔は完全に計算可能である：
+
+\begin{tcolorbox}[title=Lean での実装例]
+\begin{verbatim}
+#eval intAbsTower.minLayer 5        -- 5
+#eval intAbsTower.minLayer (-3)    -- 3
+#eval checkIntLayer 7 10           -- true
+#eval checkIntLayer (-15) 10       -- false
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{加法の射としての性質}
+
+整数の加法 $+: \Z \times \Z \to \Z$ は、構造塔の \textbf{HomLe}（弱い射）を定義する。
+
+\begin{proposition}[整数加法の HomLe 性]
+写像 $(z_1, z_2) \mapsto z_1 + z_2$ は、積構造塔 $\texttt{intAbsTower} \times \texttt{intAbsTower}$ から $\texttt{intAbsTower}$ への HomLe を定義する。すなわち：
+$$|z_1 + z_2| \leq \max(|z_1|, |z_2|) \cdot 2$$
+が成り立つ。
+\end{proposition}
+
+\begin{proof}
+三角不等式より、
+$$|z_1 + z_2| \leq |z_1| + |z_2| \leq 2 \cdot \max(|z_1|, |z_2|).$$
+\end{proof}
+
+\begin{remark}
+加法は \textbf{Hom ではない}。なぜなら、$\minLayer(z_1 + z_2) = |z_1 + z_2|$ は一般に $\max(|z_1|, |z_2|)$ より小さくなりうるからである。
+
+例：$z_1 = 5, z_2 = -5$ のとき、$|z_1 + z_2| = 0 < \max(5, 5) = 5$。
+\end{remark}
+
+\section{リストの構造塔}
+
+\subsection{定義}
+
+\begin{definition}[リストの長さによる構造塔]
+型 $\alpha$ 上のリストの構造塔 \texttt{listLengthTower} を次のように定義する：
+\begin{itemize}
+\item 基礎集合：$X = \texttt{List}\ \alpha$（$\alpha$ 型のリスト全体）
+\item 添字集合：$I = \N$
+\item 層の定義：$X_n = \{\ell \in \texttt{List}\ \alpha \mid \texttt{length}(\ell) \leq n\}$
+\item 最小層関数：$\minLayer(\ell) = \texttt{length}(\ell)$
+\end{itemize}
+\end{definition}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  % Layer 0: empty list
+  \node[layer] (L0) at (0,0) {$[\,]$};
+  \node at (-2,0) {$X_0$:};
+  
+  % Layer 1
+  \node[layer] (L1) at (0,1.5) {$[\,], [a]$};
+  \node at (-2,1.5) {$X_1$:};
+  
+  % Layer 2
+  \node[layer, minimum width=4cm] (L2) at (0,3) {$[\,], [a], [a,b], [b,a], \ldots$};
+  \node at (-2,3) {$X_2$:};
+  
+  % Layer 3
+  \node[layer, minimum width=5cm] (L3) at (0,4.5) {$[\,], [a], [a,b], [a,b,c], \ldots$};
+  \node at (-2,4.5) {$X_3$:};
+  
+  \draw[->, thick] (L0) -- (L1);
+  \draw[->, thick] (L1) -- (L2);
+  \draw[->, thick] (L2) -- (L3);
+  
+  \node at (0,-1) {リストの構造塔：長さで階層化};
+\end{tikzpicture}
+\end{center}
+
+\subsection{リスト連結の射}
+
+リストの連結 $++: \texttt{List}\ \alpha \times \texttt{List}\ \alpha \to \texttt{List}\ \alpha$ は、構造塔の \textbf{Hom}（厳密な射）を定義する！
+
+\begin{theorem}[リスト連結の Hom 性]
+リスト連結は、積構造塔から元の構造塔への Hom を定義する。すなわち、
+$$\minLayer(\ell_1 ++ \ell_2) = \texttt{length}(\ell_1 ++ \ell_2) = \texttt{length}(\ell_1) + \texttt{length}(\ell_2).$$
+\end{theorem}
+
+\begin{proof}
+リスト連結の定義より、$\texttt{length}(\ell_1 ++ \ell_2) = \texttt{length}(\ell_1) + \texttt{length}(\ell_2)$ が成り立つ。したがって、
+\begin{align*}
+\minLayer(\ell_1 ++ \ell_2) &= \texttt{length}(\ell_1 ++ \ell_2) \\
+&= \texttt{length}(\ell_1) + \texttt{length}(\ell_2) \\
+&= \minLayer(\ell_1) + \minLayer(\ell_2).
+\end{align*}
+これは添字写像 $(i, j) \mapsto i + j$ と完全に一致する。
+\end{proof}
+
+\begin{remark}[Hom と HomLe の違い]
+リスト連結が Hom である一方、整数加法は HomLe にすぎない。この違いは：
+\begin{itemize}
+\item \textbf{リスト}：長さは常に加法的 $\Rightarrow$ Hom
+\item \textbf{整数}：絶対値は劣加法的（三角不等式） $\Rightarrow$ HomLe
+\end{itemize}
+\end{remark}
+
+\subsection{計算例}
+
+\begin{tcolorbox}[title=Lean での実装例]
+\begin{verbatim}
+#eval listLengthTower.minLayer [1,2,3]     -- 3
+#eval listLengthTower.minLayer ([] : List Nat)  -- 0
+#eval checkListLayer [1,2] 5               -- true
+#eval checkListLayer [1,2,3,4,5] 3         -- false
+\end{verbatim}
+\end{tcolorbox}
+
+\section{有限集合の構造塔}
+
+\subsection{定義}
+
+\begin{definition}[有限集合の濃度による構造塔]
+自然数の有限集合の構造塔 \texttt{finsetCardTower} を次のように定義する：
+\begin{itemize}
+\item 基礎集合：$X = \texttt{Finset}\ \N$（自然数の有限集合）
+\item 添字集合：$I = \N$
+\item 層の定義：$X_n = \{F \in \texttt{Finset}\ \N \mid |F| \leq n\}$
+\item 最小層関数：$\minLayer(F) = |F|$（濃度）
+\end{itemize}
+\end{definition}
+
+\begin{example}[具体例]
+\begin{itemize}
+\item $X_0 = \{\emptyset\}$（空集合のみ）
+\item $X_1 = \{\emptyset, \{0\}, \{1\}, \{2\}, \ldots\}$（単元集合まで）
+\item $X_2 = \{\emptyset, \{0\}, \{0,1\}, \{1,2\}, \ldots\}$（2元集合まで）
+\end{itemize}
+\end{example}
+
+\subsection{和集合と共通部分}
+
+有限集合の和集合 $\cup$ と共通部分 $\cap$ は、それぞれ異なる性質を持つ。
+
+\begin{proposition}[和集合の HomLe 性]
+有限集合の和集合 $\cup: \texttt{Finset}\ \N \times \texttt{Finset}\ \N \to \texttt{Finset}\ \N$ は HomLe を定義する：
+$$|F_1 \cup F_2| \leq |F_1| + |F_2|.$$
+\end{proposition}
+
+\begin{proof}
+包除原理より、
+$$|F_1 \cup F_2| = |F_1| + |F_2| - |F_1 \cap F_2| \leq |F_1| + |F_2|.$$
+\end{proof}
+
+\begin{remark}
+和集合は一般に Hom ではない。なぜなら、$F_1 \cap F_2 \neq \emptyset$ のとき、$|F_1 \cup F_2| < |F_1| + |F_2|$ となるからである。
+
+例：$F_1 = \{1, 2\}, F_2 = \{2, 3\}$ のとき、$|F_1 \cup F_2| = 3 < 4 = |F_1| + |F_2|$。
+\end{remark}
+
+\subsection{計算例}
+
+\begin{tcolorbox}[title=Lean での実装例]
+\begin{verbatim}
+#eval finsetCardTower.minLayer {1,2,3}        -- 3
+#eval finsetCardTower.minLayer (∅ : Finset Nat)  -- 0
+#eval checkFinsetLayer {1,2} 5                -- true
+#eval checkFinsetLayer {1,2,3,4,5} 3          -- false
+\end{verbatim}
+\end{tcolorbox}
+
+\section{多項式の構造塔}
+
+\subsection{定義}
+
+\begin{definition}[多項式の次数による構造塔]
+有理数係数多項式の構造塔 \texttt{polyDegreeTower} を次のように定義する：
+\begin{itemize}
+\item 基礎集合：$X = \Q[x]$（有理数係数多項式）
+\item 添字集合：$I = \N$
+\item 層の定義：$X_n = \{p \in \Q[x] \mid \deg(p) \leq n\}$
+\item 最小層関数：$\minLayer(p) = \deg(p)$（次数）
+\end{itemize}
+\end{definition}
+
+\begin{example}[具体例]
+\begin{itemize}
+\item $X_0 = \{c \in \Q \mid c \neq 0\} \cup \{0\}$（定数多項式）
+\item $X_1 = \{ax + b \mid a, b \in \Q, a \neq 0\} \cup X_0$（1次以下）
+\item $X_2 = \{ax^2 + bx + c \mid a, b, c \in \Q, a \neq 0\} \cup X_1$（2次以下）
+\end{itemize}
+\end{example}
+
+\subsection{多項式の演算と射}
+
+\subsubsection{スカラー倍（非零）：Hom}
+
+\begin{theorem}[非零スカラー倍の Hom 性]
+$c \in \Q^*$（非零有理数）に対して、スカラー倍 $p \mapsto c \cdot p$ は構造塔の自己同型（Hom）を定義する：
+$$\deg(c \cdot p) = \deg(p).$$
+\end{theorem}
+
+\begin{proof}
+$c \neq 0$ より、最高次の係数は $c$ 倍されるが消えない。したがって、$\deg(c \cdot p) = \deg(p)$。
+\end{proof}
+
+\subsubsection{加法：HomLe}
+
+\begin{proposition}[多項式加法の HomLe 性]
+多項式加法 $+: \Q[x] \times \Q[x] \to \Q[x]$ は HomLe を定義する：
+$$\deg(p + q) \leq \max(\deg(p), \deg(q)).$$
+\end{proposition}
+
+\begin{proof}
+多項式加法の性質より明らか。最高次の項が打ち消し合う場合、不等式は真に小さくなる。
+\end{proof}
+
+\subsubsection{乗法：HomLe}
+
+\begin{proposition}[多項式乗法の HomLe 性]
+多項式乗法 $\cdot: \Q[x] \times \Q[x] \to \Q[x]$ は HomLe を定義する：
+$$\deg(p \cdot q) \leq \deg(p) + \deg(q).$$
+\end{proposition}
+
+\begin{proof}
+多項式の次数の性質より、$\deg(p \cdot q) = \deg(p) + \deg(q)$（ただし $p, q \neq 0$）。
+\end{proof}
+
+\begin{remark}
+多項式の場合、乗法は実際には \textbf{等号が成り立つ}ため、実質的に Hom に近い。しかし、零多項式の扱いにより、形式的には HomLe として定義される。
+\end{remark}
+
+\subsubsection{零倍：HomLe（Hom ではない）}
+
+\begin{proposition}[零倍の HomLe 性]
+零倍 $p \mapsto 0 \cdot p = 0$ は HomLe を定義するが、Hom ではない。
+\end{proposition}
+
+\begin{proof}
+任意の $p \in \Q[x]$ に対して、$0 \cdot p = 0$ より、
+$$\deg(0 \cdot p) = 0 \leq \deg(p).$$
+しかし、$p \neq 0$ のとき、$\deg(0 \cdot p) = 0 < \deg(p)$ となるため、等号が成り立たない。したがって、Hom ではない。
+\end{proof}
+
+\subsection{計算可能性の注意}
+
+多項式の構造塔は \texttt{noncomputable} として定義される。これは、Lean において多項式の次数 \texttt{natDegree} が計算不可能な定義を含むためである。しかし、理論的には完全に証明されている。
+
+\section{文字列の構造塔}
+
+\subsection{定義}
+
+\begin{definition}[文字列の長さによる構造塔]
+文字列の構造塔 \texttt{stringLengthTower} を次のように定義する：
+\begin{itemize}
+\item 基礎集合：$X = \texttt{String}$（文字列全体）
+\item 添字集合：$I = \N$
+\item 層の定義：$X_n = \{s \in \texttt{String} \mid \texttt{length}(s) \leq n\}$
+\item 最小層関数：$\minLayer(s) = \texttt{length}(s)$
+\end{itemize}
+\end{definition}
+
+\subsection{文字列連結の Hom 性}
+
+リストの場合と同様に、文字列連結は Hom を定義する。
+
+\begin{theorem}[文字列連結の Hom 性]
+文字列連結 $++: \texttt{String} \times \texttt{String} \to \texttt{String}$ は Hom を定義する：
+$$\texttt{length}(s_1 ++ s_2) = \texttt{length}(s_1) + \texttt{length}(s_2).$$
+\end{theorem}
+
+\subsection{計算例}
+
+\begin{tcolorbox}[title=Lean での実装例]
+\begin{verbatim}
+#eval stringLengthTower.minLayer "hello"     -- 5
+#eval stringLengthTower.minLayer ""          -- 0
+#eval checkStringLayer "lean" 3              -- false
+#eval checkStringLayer "lean" 4              -- true
+\end{verbatim}
+\end{tcolorbox}
+
+\section{射の理論：Hom と HomLe}
+
+\subsection{射の定義}
+
+構造塔の射には2種類ある：
+
+\begin{definition}[構造塔の Hom]
+構造塔 $T$ から $T'$ への \textbf{Hom} は、対 $(f, \varphi)$ であって：
+\begin{enumerate}
+\item $f: X \to X'$（基礎集合の写像）
+\item $\varphi: I \to I'$（添字集合の順序保存写像）
+\item \textbf{層構造の保存}：$x \in X_i \Rightarrow f(x) \in X'_{\varphi(i)}$
+\item \textbf{最小層の保存}：$\varphi(\minLayer_T(x)) = \minLayer_{T'}(f(x))$
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[構造塔の HomLe]
+構造塔 $T$ から $T'$ への \textbf{HomLe} は、対 $(f, \varphi)$ であって：
+\begin{enumerate}
+\item $f: X \to X'$（基礎集合の写像）
+\item $\varphi: I \to I'$（添字集合の順序保存写像）
+\item \textbf{層構造の保存}：$x \in X_i \Rightarrow f(x) \in X'_{\varphi(i)}$
+\item \textbf{最小層の上界}：$\minLayer_{T'}(f(x)) \leq \varphi(\minLayer_T(x))$
+\end{enumerate}
+\end{definition}
+
+\subsection{Hom と HomLe の比較}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{演算} & \textbf{構造塔} & \textbf{Hom?} & \textbf{HomLe?} \\
+\hline
+リスト連結 & List & ○ & ○ \\
+文字列連結 & String & ○ & ○ \\
+整数加法 & Int (絶対値) & × & ○ \\
+有限集合和 & Finset (濃度) & × & ○ \\
+多項式加法 & Poly (次数) & × & ○ \\
+多項式乗法 & Poly (次数) & ○ & ○ \\
+非零スカラー倍 & Poly (次数) & ○ & ○ \\
+零倍 & Poly (次数) & × & ○ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Hom と HomLe の圏論的性質}
+
+\begin{theorem}[Hom の圏構造]
+構造塔と Hom は圏をなす：
+\begin{itemize}
+\item 対象：StructureTowerWithMin
+\item 射：Hom
+\item 恒等射：$\text{id}_T = (\text{id}_X, \text{id}_I)$
+\item 合成：$(g, \psi) \circ (f, \varphi) = (g \circ f, \psi \circ \varphi)$
+\end{itemize}
+結合律と単位律が成り立つ。
+\end{theorem}
+
+\begin{proof}
+結合律：
+\begin{align*}
+((h, \chi) \circ (g, \psi)) \circ (f, \varphi) &= (h \circ g \circ f, \chi \circ \psi \circ \varphi) \\
+&= (h, \chi) \circ ((g, \psi) \circ (f, \varphi))
+\end{align*}
+単位律は明らか。最小層の保存は、各 Hom の最小層保存性から従う。
+\end{proof}
+
+\begin{proposition}[HomLe の合成]
+HomLe も合成を持つが、圏構造は Hom ほど自然ではない。
+\end{proposition}
+
+\subsection{Hom から HomLe への忘却}
+
+\begin{proposition}[忘却写像]
+任意の Hom は HomLe とみなせる：
+$$\text{Hom}(T, T') \hookrightarrow \text{HomLe}(T, T').$$
+\end{proposition}
+
+\begin{proof}
+Hom $(f, \varphi)$ に対して、$\varphi(\minLayer_T(x)) = \minLayer_{T'}(f(x))$ より、
+$$\minLayer_{T'}(f(x)) \leq \varphi(\minLayer_T(x))$$
+は自明に成り立つ（等号より弱い条件）。
+\end{proof}
+
+\section{計算可能性の意義}
+
+\subsection{なぜ計算可能性が重要か}
+
+構造塔の理論において、計算可能性は以下の理由で重要である：
+
+\begin{enumerate}
+\item \textbf{構成的内容}：存在証明が具体的なコードで裏付けられる
+\item \textbf{検証可能性}：\texttt{\#eval} により層の割り当てを具体的に確認できる
+\item \textbf{教育的価値}：抽象的な公理を具体例で理解できる
+\item \textbf{実用性}：実際のプログラムで構造塔を利用可能
+\end{enumerate}
+
+\subsection{計算可能な例と非計算的な例}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{構造塔} & \textbf{計算可能?} & \textbf{理由} \\
+\hline
+整数（絶対値） & ○ & 絶対値は計算可能 \\
+リスト（長さ） & ○ & 長さは計算可能 \\
+有限集合（濃度） & ○ & 濃度は計算可能 \\
+文字列（長さ） & ○ & 長さは計算可能 \\
+多項式（次数） & △ & natDegree は非計算的定義を含む \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{形式数学における計算可能性}
+
+Lean 4 では、計算可能性と証明可能性は異なる概念である：
+
+\begin{itemize}
+\item \textbf{証明可能}：Lean の型システムで検証できる
+\item \textbf{計算可能}：\texttt{\#eval} で実行できる
+\end{itemize}
+
+多項式の構造塔は証明可能だが、\texttt{\#eval} では実行できない。これは、Lean の \texttt{natDegree} 定義が非計算的な部分を含むためである。
+
+\section{まとめ}
+
+\subsection{本稿の成果}
+
+本稿では、5つの計算可能な構造塔を詳細に解説した：
+
+\begin{enumerate}
+\item \textbf{整数}：絶対値による階層化、加法は HomLe
+\item \textbf{リスト}：長さによる階層化、連結は Hom
+\item \textbf{有限集合}：濃度による階層化、和集合は HomLe
+\item \textbf{多項式}：次数による階層化、非零スカラー倍は Hom
+\item \textbf{文字列}：長さによる階層化、連結は Hom
+\end{enumerate}
+
+\subsection{Hom と HomLe の違い}
+
+\begin{center}
+\begin{tikzcd}[column sep=large]
+\text{Hom} \arrow[r, hook] & \text{HomLe} \\
+\text{厳密な最小層保存} \arrow[u, phantom, "\text{例: リスト連結}"] & \text{上界のみ保存} \arrow[u, phantom, "\text{例: 整数加法}"]
+\end{tikzcd}
+\end{center}
+
+\subsection{構造塔理論の階層}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  \node[tower] (L0) at (0,0) {原点版（Bourbaki\_Lean\_Guide）};
+  \node[tower] (L1) at (0,2) {圏論的形式化（CAT2\_complete）};
+  \node[tower] (L2) at (0,4) {計算可能な例（本稿）};
+  
+  \draw[->, very thick] (L0) -- (L1) node[midway, right] {minLayer 導入};
+  \draw[->, very thick] (L1) -- (L2) node[midway, right] {具体例と実装};
+  
+  \node at (6,0) {単調な集合族};
+  \node at (6,2) {普遍性と圏構造};
+  \node at (6,4) {計算可能性};
+\end{tikzpicture}
+\end{center}
+
+\subsection{今後の展望}
+
+構造塔理論のさらなる発展方向：
+
+\begin{enumerate}
+\item \textbf{より多くの例}：グラフ、木構造、トポロジカルソート
+\item \textbf{高次の構造}：2-圏、$\infty$-圏への拡張
+\item \textbf{応用}：確率論（フィルトレーション）、計算複雑性理論
+\item \textbf{計算可能性理論}：構造塔における計算量解析
+\end{enumerate}
+
+\section{演習問題}
+
+\begin{exercise}[最小層の一意性]
+$x \in X_i$ かつ $x \in X_j$ であり、どちらも最小ならば、$i = j$ を示せ。
+\end{exercise}
+
+\begin{exercise}[最小層の特徴づけ]
+単調性より、$\minLayer(x) \leq i \Leftrightarrow x \in X_i$ を示せ。
+\end{exercise}
+
+\begin{exercise}[整数の2倍写像]
+整数の構造塔上で、写像 $z \mapsto 2z$ が Hom を定義するか検証せよ。
+\end{exercise}
+
+\begin{exercise}[リストの reverse]
+リストの reverse 操作 $\ell \mapsto \text{reverse}(\ell)$ は Hom か？ HomLe か？
+\end{exercise}
+
+\begin{exercise}[新しい構造塔]
+自分で新しい計算可能な構造塔を設計し、Lean で実装せよ。例：
+\begin{itemize}
+\item 2分木の深さによる構造塔
+\item グラフの頂点数による構造塔
+\end{itemize}
+\end{exercise}
+
+\begin{exercise}[構造塔の同型]
+2つの構造塔の間の同型を構成し、その計算可能性を検証せよ。
+\end{exercise}
+
+\begin{exercise}[計算量解析]
+各例における $\minLayer$ の計算量を解析せよ。
+\end{exercise}
+
+\appendix
+
+\section{Lean コードへのリンク}
+
+\subsection{本稿の対象ファイル}
+
+\texttt{DecidableStructureTower\_Examples.lean}
+
+\subsection{主要定義の行番号}
+
+\begin{itemize}
+\item \texttt{StructureTowerWithMin}：39-57行目
+\item \texttt{intAbsTower}：ファイル内で定義
+\item \texttt{listLengthTower}：ファイル内で定義
+\item \texttt{finsetCardTower}：ファイル内で定義
+\item \texttt{polyDegreeTower}：ファイル内で定義（noncomputable）
+\item \texttt{stringLengthTower}：840-851行目
+\item \texttt{Hom}：83-91行目
+\item \texttt{HomLe}：152-160行目
+\end{itemize}
+
+\subsection{関連ファイル}
+
+\begin{itemize}
+\item \textbf{原点版}：\texttt{Bourbaki\_Lean\_Guide.lean}
+\item \textbf{圏論的形式化}：\texttt{CAT2\_complete.lean}
+\item \textbf{解説PDF}：
+  \begin{itemize}
+  \item \texttt{Bourbaki\_StructureTower\_原点.pdf}
+  \item \texttt{CAT2\_StructureTower\_解説.pdf}
+  \end{itemize}
+\end{itemize}
+
+\section{参考文献}
+
+\begin{enumerate}
+\item Nicolas Bourbaki, \textit{Éléments de mathématique: Théorie des ensembles}
+\item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://github.com/leanprover-community/mathlib4}
+\item Avigad, J., et al., \textit{Theorem Proving in Lean 4}, \url{https://leanprover.github.io/theorem_proving_in_lean4/}
+\item Constable, R. L., et al., \textit{Implementing Mathematics with the Nuprl Proof Development System}, Prentice Hall (1986)
+\item Martin-Löf, P., \textit{Intuitionistic Type Theory}, Bibliopolis (1984)
+\end{enumerate}
+
+\end{CJK}
+\end{document}
