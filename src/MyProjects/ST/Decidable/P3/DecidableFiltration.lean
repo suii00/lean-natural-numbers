@@ -229,16 +229,27 @@ def twoStepFiltration (Ω : Prob.FiniteSampleSpace)
 section Examples
 
 variable (Ω : Prob.FiniteSampleSpace) (F : Prob.FiniteAlgebra Ω.carrier)
+variable (F0 F1 : Prob.FiniteAlgebra Ω.carrier) (h01 : F0 ⊆ₐ F1)
 
 /-- const filtration を使った簡単な sanity check。 -/
 def exampleFiltration : DecidableFiltration Ω :=
   constFiltration Ω F 3
 
-#check StoppingTime.const (exampleFiltration Ω F) 1 (by decide)
-#check StoppingTime.min
-  (StoppingTime.const (exampleFiltration Ω F) 1 (by decide))
-  (StoppingTime.const (exampleFiltration Ω F) 2 (by decide))
+-- 証明引数は渡さない：型だけ確認する
+#check StoppingTime.const (exampleFiltration Ω F) 1
+-- ⟹ 1 ≤ (exampleFiltration Ω F).timeHorizon → StoppingTime (exampleFiltration Ω F)
+
+#check StoppingTime.const (exampleFiltration Ω F) 2
+-- ⟹ 2 ≤ (exampleFiltration Ω F).timeHorizon → StoppingTime (exampleFiltration Ω F)
+
+/-- twoStepFiltration の簡単な sanity check。 -/
+
+def exampleTwoStep : DecidableFiltration Ω :=
+  twoStepFiltration Ω F0 F1 h01
+
+#check exampleTwoStep Ω F0 F1 h01
+#check StoppingTime.const (exampleTwoStep Ω F0 F1 h01) 0
+#check StoppingTime.const (exampleTwoStep Ω F0 F1 h01) 1
+
 
 end Examples
-
-
