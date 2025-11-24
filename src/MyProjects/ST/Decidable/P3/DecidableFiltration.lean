@@ -40,6 +40,13 @@ namespace StoppingTime
 
 variable {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
 
+/-- 停止時間の点ごとの順序。 -/
+instance : LE (StoppingTime ℱ) where
+  le τ₁ τ₂ := ∀ ω, τ₁.time ω ≤ τ₂.time ω
+
+lemma le_def {τ₁ τ₂ : StoppingTime ℱ} :
+    τ₁ ≤ τ₂ ↔ ∀ ω, τ₁.time ω ≤ τ₂.time ω := Iff.rfl
+
 /-- 定数停止時間 c（c が終端時刻以下）。 -/
 def const (ℱ : DecidableFiltration Ω) (c : ℕ) (hc : c ≤ ℱ.timeHorizon) :
     StoppingTime ℱ where
@@ -134,6 +141,44 @@ def max (τ₁ τ₂ : StoppingTime ℱ) : StoppingTime ℱ where
       ext ω; simp
     simpa [hset, hset', Prob.Event.intersection] using hInter
 
+lemma min_le_left (τ₁ τ₂ : StoppingTime ℱ) : min τ₁ τ₂ ≤ τ₁ := by
+  intro ω; simp [StoppingTime.min, Nat.min_le_left]
+
+lemma min_le_right (τ₁ τ₂ : StoppingTime ℱ) : min τ₁ τ₂ ≤ τ₂ := by
+  intro ω; simp [StoppingTime.min, Nat.min_le_right]
+
+lemma le_max_left (τ₁ τ₂ : StoppingTime ℱ) : τ₁ ≤ max τ₁ τ₂ := by
+  intro ω; simp [StoppingTime.max, Nat.le_max_left]
+
+lemma le_max_right (τ₁ τ₂ : StoppingTime ℱ) : τ₂ ≤ max τ₁ τ₂ := by
+  intro ω; simp [StoppingTime.max, Nat.le_max_right]
+
+lemma min_isBounded
+    (τ₁ τ₂ : StoppingTime ℱ) (N₁ N₂ : ℕ)
+    (h1 : isBounded τ₁ N₁) (h2 : isBounded τ₂ N₂) :
+    isBounded (min τ₁ τ₂) (Nat.min N₁ N₂) := by
+  intro ω
+  have h1ω := h1 ω
+  have h2ω := h2 ω
+  have h_le1 : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ N₁ :=
+    le_trans (Nat.min_le_left _ _) h1ω
+  have h_le2 : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ N₂ :=
+    le_trans (Nat.min_le_right _ _) h2ω
+  exact le_min h_le1 h_le2
+
+lemma max_isBounded
+    (τ₁ τ₂ : StoppingTime ℱ) (N₁ N₂ : ℕ)
+    (h1 : isBounded τ₁ N₁) (h2 : isBounded τ₂ N₂) :
+    isBounded (max τ₁ τ₂) (Nat.max N₁ N₂) := by
+  intro ω
+  have h1ω := h1 ω
+  have h2ω := h2 ω
+  have h1bound : τ₁.time ω ≤ Nat.max N₁ N₂ :=
+    le_trans h1ω (Nat.le_max_left _ _)
+  have h2bound : τ₂.time ω ≤ Nat.max N₁ N₂ :=
+    le_trans h2ω (Nat.le_max_right _ _)
+  exact max_le_iff.mpr ⟨h1bound, h2bound⟩
+
 end StoppingTime
 
 /-- 全時刻で同じ代数を返す「定数フィルトレーション」。 -/
@@ -180,5 +225,20 @@ def twoStepFiltration (Ω : Prob.FiniteSampleSpace)
         subst ht1
         simpa using
           (Prob.FiniteAlgebra.subalgebra_refl (Ω := Ω.carrier) (ℱ := F1))
+
+section Examples
+
+variable (Ω : Prob.FiniteSampleSpace) (F : Prob.FiniteAlgebra Ω.carrier)
+
+/-- const filtration を使った簡単な sanity check。 -/
+def exampleFiltration : DecidableFiltration Ω :=
+  constFiltration Ω F 3
+
+#check StoppingTime.const (exampleFiltration Ω F) 1 (by decide)
+#check StoppingTime.min
+  (StoppingTime.const (exampleFiltration Ω F) 1 (by decide))
+  (StoppingTime.const (exampleFiltration Ω F) 2 (by decide))
+
+end Examples
 
 
