@@ -480,6 +480,15 @@ theorem evenOdd_nontrivial :
     intro A hA
     simp [powerSet]
 
+/-- 簡単な計算例（偶奇代数の membership を Bool で確認） -/
+def checkEvenDie (n : Fin 6) : Bool := n.val % 2 == 0
+def checkOddDie  (n : Fin 6) : Bool := !(checkEvenDie n)
+
+#eval checkEvenDie 0   -- true  (偶数)
+#eval checkEvenDie 3   -- false (奇数)
+#eval checkOddDie 0    -- false (偶数の補集合)
+#eval checkOddDie 3    -- true  (奇数)
+
 end DiceExample
 
 /-!
