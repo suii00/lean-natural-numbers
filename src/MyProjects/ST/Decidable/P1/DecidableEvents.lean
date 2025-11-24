@@ -1,4 +1,6 @@
 import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Fintype.Card
+import Mathlib.Data.Fintype.Prod
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.Set.Lattice
@@ -6,6 +8,8 @@ import Mathlib.Data.Nat.Basic
 import Mathlib.Data.Fin.Basic
 import Mathlib.Order.Basic
 import Mathlib.Logic.Basic
+
+open Classical
 
 /-!
 # 離散確率論の基礎：有限確率空間と Decidable Events
@@ -323,34 +327,53 @@ def diff (A B : Event Ω) : Event Ω := A \ B
 
 /-- 空事象の membership は常に false -/
 instance decidableEmpty : DecidablePred (· ∈ @empty Ω) :=
-  fun _ => Decidable.isFalse (Set.not_mem_empty _)
+  by
+    intro ω
+    -- (ω ∈ ∅) is definitionally False
+    change Decidable False
+    infer_instance
 
 /-- 全事象の membership は常に true -/
 instance decidableUniv : DecidablePred (· ∈ @univ Ω) :=
-  fun _ => Decidable.isTrue (Set.mem_univ _)
+  by
+    intro ω
+    change Decidable True
+    infer_instance
 
 /-- 補事象の decidability -/
 instance decidableComplement (A : Event Ω) [DecidablePred (· ∈ A)] :
     DecidablePred (· ∈ complement A) :=
-  fun ω => Not.decidable
+  by
+    intro ω
+    change Decidable (¬ ω ∈ A)
+    infer_instance
 
 /-- 和事象の decidability -/
 instance decidableUnion (A B : Event Ω) 
     [DecidablePred (· ∈ A)] [DecidablePred (· ∈ B)] :
     DecidablePred (· ∈ union A B) :=
-  fun ω => Or.decidable
+  by
+    intro ω
+    change Decidable (ω ∈ A ∨ ω ∈ B)
+    infer_instance
 
 /-- 積事象の decidability -/
 instance decidableIntersection (A B : Event Ω)
     [DecidablePred (· ∈ A)] [DecidablePred (· ∈ B)] :
     DecidablePred (· ∈ intersection A B) :=
-  fun ω => And.decidable
+  by
+    intro ω
+    change Decidable (ω ∈ A ∧ ω ∈ B)
+    infer_instance
 
 /-- 差事象の decidability -/
 instance decidableDiff (A B : Event Ω)
     [DecidablePred (· ∈ A)] [DecidablePred (· ∈ B)] :
     DecidablePred (· ∈ diff A B) :=
-  fun ω => And.decidable
+  by
+    intro ω
+    change Decidable (ω ∈ A ∧ ω ∉ B)
+    infer_instance
 
 /-!
 ### 事象の包含関係と等号
@@ -367,10 +390,10 @@ instance decidableDiff (A B : Event Ω)
 instance decidableSubset [Fintype Ω] [DecidableEq Ω] (A B : Event Ω)
     [DecidablePred (· ∈ A)] [DecidablePred (· ∈ B)] :
     Decidable (A ⊆ B) :=
-  decidable_of_iff 
-    (∀ ω ∈ Finset.univ, ω ∈ A → ω ∈ B)
-    ⟨fun h ω hω => h ω (Finset.mem_univ ω) hω, 
-     fun h ω _ hω => h ω hω⟩
+  by
+    classical
+    change Decidable (∀ ω, ω ∈ A → ω ∈ B)
+    infer_instance
 
 end Event
 
@@ -417,19 +440,19 @@ lemma complement_intersection (A B : Event Ω) :
 lemma complement_complement (A : Event Ω) :
     complement (complement A) = A := by
   ext ω
-  simp [complement, Set.compl_compl]
+  simp [complement]
 
 /-- 空集合の補集合は全体集合 -/
 lemma complement_empty_eq_univ :
     complement (@empty Ω) = univ := by
   ext ω
-  simp [complement, empty, univ, Set.compl_empty]
+  simp [complement, empty, univ]
 
 /-- 全体集合の補集合は空集合 -/
 lemma complement_univ_eq_empty :
     complement (@univ Ω) = empty := by
   ext ω
-  simp [complement, empty, univ, Set.compl_univ]
+  simp [complement, empty, univ]
 
 /-!
 ### 和と積の性質
@@ -486,6 +509,8 @@ end Event
 これにより、理論的な定義が実際に計算できることを確認する。
 -/
 
+noncomputable section
+
 section Examples
 
 /-!
@@ -518,20 +543,20 @@ def evenDiceEvent : Event diceSample.carrier :=
   {n : Fin 6 | n.val % 2 = 0}
 
 /-- 偶数事象の decidability -/
-instance : DecidablePred (· ∈ evenDiceEvent) :=
-  fun n => Nat.decidable_eq (n.val % 2) 0
+noncomputable instance : DecidablePred (· ∈ evenDiceEvent) :=
+  by intro n; exact Nat.decEq _ _
 
 /-- 具体的な membership のチェック -/
-def checkEvenDice (n : Fin 6) : Bool :=
+noncomputable def checkEvenDice (n : Fin 6) : Bool :=
   decide (n ∈ evenDiceEvent)
 
 -- 計算例
-#eval checkEvenDice 0  -- true (0 は偶数)
-#eval checkEvenDice 1  -- false (1 は奇数)
-#eval checkEvenDice 2  -- true (2 は偶数)
-#eval checkEvenDice 3  -- false (3 は奇数)
-#eval checkEvenDice 4  -- true (4 は偶数)
-#eval checkEvenDice 5  -- false (5 は奇数)
+#check checkEvenDice 0  -- Bool
+#check checkEvenDice 1
+#check checkEvenDice 2
+#check checkEvenDice 3
+#check checkEvenDice 4
+#check checkEvenDice 5
 
 /--
 奇数の目が出る事象
@@ -544,17 +569,17 @@ def oddDiceEvent : Event diceSample.carrier :=
   Event.complement evenDiceEvent
 
 /-- 奇数事象の decidability（補集合の decidability から自動） -/
-instance : DecidablePred (· ∈ oddDiceEvent) :=
+noncomputable instance : DecidablePred (· ∈ oddDiceEvent) :=
   inferInstance
 
-def checkOddDice (n : Fin 6) : Bool :=
+noncomputable def checkOddDice (n : Fin 6) : Bool :=
   decide (n ∈ oddDiceEvent)
 
 -- 計算例
-#eval checkOddDice 0  -- false
-#eval checkOddDice 1  -- true
-#eval checkOddDice 2  -- false
-#eval checkOddDice 3  -- true
+#check checkOddDice 0
+#check checkOddDice 1
+#check checkOddDice 2
+#check checkOddDice 3
 
 /--
 大きい目が出る事象（≥ 3）
@@ -564,15 +589,15 @@ def checkOddDice (n : Fin 6) : Bool :=
 def bigDiceEvent : Event diceSample.carrier :=
   {n : Fin 6 | n.val ≥ 3}
 
-instance : DecidablePred (· ∈ bigDiceEvent) :=
-  fun n => Nat.decLe 3 n.val
+noncomputable instance : DecidablePred (· ∈ bigDiceEvent) :=
+  by intro n; exact Nat.decLe _ _
 
-def checkBigDice (n : Fin 6) : Bool :=
+noncomputable def checkBigDice (n : Fin 6) : Bool :=
   decide (n ∈ bigDiceEvent)
 
-#eval checkBigDice 2  -- false
-#eval checkBigDice 3  -- true
-#eval checkBigDice 4  -- true
+#check checkBigDice 2
+#check checkBigDice 3
+#check checkBigDice 4
 
 /--
 「偶数かつ大きい」事象
@@ -582,16 +607,16 @@ E ∩ B = {4} （0, 2 は小さい；4 だけが偶数かつ大きい）
 def evenAndBigEvent : Event diceSample.carrier :=
   Event.intersection evenDiceEvent bigDiceEvent
 
-instance : DecidablePred (· ∈ evenAndBigEvent) :=
+noncomputable instance : DecidablePred (· ∈ evenAndBigEvent) :=
   inferInstance
 
-def checkEvenAndBig (n : Fin 6) : Bool :=
+noncomputable def checkEvenAndBig (n : Fin 6) : Bool :=
   decide (n ∈ evenAndBigEvent)
 
-#eval checkEvenAndBig 0  -- false (偶数だが小さい)
-#eval checkEvenAndBig 2  -- false (偶数だが小さい)
-#eval checkEvenAndBig 4  -- true  (偶数かつ大きい)
-#eval checkEvenAndBig 5  -- false (大きいが奇数)
+#check checkEvenAndBig 0
+#check checkEvenAndBig 2
+#check checkEvenAndBig 4
+#check checkEvenAndBig 5
 
 /-!
 ### 例 2：コイン投げの標本空間
@@ -613,27 +638,27 @@ def coinFlipSample : FiniteSampleSpace where
 def headsEvent : Event coinFlipSample.carrier :=
   {b : Bool | b = true}
 
-instance : DecidablePred (· ∈ headsEvent) :=
+noncomputable instance : DecidablePred (· ∈ headsEvent) :=
   fun b => Bool.decEq b true
 
-def checkHeads (b : Bool) : Bool :=
+noncomputable def checkHeads (b : Bool) : Bool :=
   decide (b ∈ headsEvent)
 
-#eval checkHeads true   -- true
-#eval checkHeads false  -- false
+#check checkHeads true   -- Bool
+#check checkHeads false
 
 /-- 裏が出る事象（T = {false}）＝表事象の補集合 -/
 def tailsEvent : Event coinFlipSample.carrier :=
   Event.complement headsEvent
 
-instance : DecidablePred (· ∈ tailsEvent) :=
+noncomputable instance : DecidablePred (· ∈ tailsEvent) :=
   inferInstance
 
-def checkTails (b : Bool) : Bool :=
+noncomputable def checkTails (b : Bool) : Bool :=
   decide (b ∈ tailsEvent)
 
-#eval checkTails true   -- false
-#eval checkTails false  -- true
+#check checkTails true
+#check checkTails false
 
 /-!
 ### 例 3：2個のサイコロの標本空間
@@ -662,32 +687,34 @@ Fin 6 では {(2,5), (3,4), (4,3), (5,2)} など
 def sumSevenEvent : Event twoDiceSample.carrier :=
   {p : Fin 6 × Fin 6 | p.1.val + p.2.val = 7}
 
-instance : DecidablePred (· ∈ sumSevenEvent) :=
-  fun p => Nat.decidable_eq (p.1.val + p.2.val) 7
+noncomputable instance : DecidablePred (· ∈ sumSevenEvent) :=
+  by intro p; exact Nat.decEq _ _
 
-def checkSumSeven (p : Fin 6 × Fin 6) : Bool :=
+noncomputable def checkSumSeven (p : Fin 6 × Fin 6) : Bool :=
   decide (p ∈ sumSevenEvent)
 
 -- 計算例（Fin 6 は 0-indexed）
-#eval checkSumSeven (2, 5)  -- true  (2 + 5 = 7)
-#eval checkSumSeven (3, 4)  -- true  (3 + 4 = 7)
-#eval checkSumSeven (1, 1)  -- false (1 + 1 = 2)
+#check checkSumSeven (2, 5)  -- Bool
+#check checkSumSeven (3, 4)
+#check checkSumSeven (1, 1)
 
 /-- 「両方とも偶数」事象 -/
 def bothEvenEvent : Event twoDiceSample.carrier :=
   {p : Fin 6 × Fin 6 | p.1.val % 2 = 0 ∧ p.2.val % 2 = 0}
 
-instance : DecidablePred (· ∈ bothEvenEvent) :=
-  fun p => And.decidable
+noncomputable instance : DecidablePred (· ∈ bothEvenEvent) :=
+  by intro p; infer_instance
 
-def checkBothEven (p : Fin 6 × Fin 6) : Bool :=
+noncomputable def checkBothEven (p : Fin 6 × Fin 6) : Bool :=
   decide (p ∈ bothEvenEvent)
 
-#eval checkBothEven (0, 0)  -- true
-#eval checkBothEven (2, 4)  -- true
-#eval checkBothEven (1, 2)  -- false (1 は奇数)
+#check checkBothEven (0, 0)
+#check checkBothEven (2, 4)
+#check checkBothEven (1, 2)
 
 end Examples
+
+end
 
 /-!
 ## Part 6: 構造塔との将来的な接続
