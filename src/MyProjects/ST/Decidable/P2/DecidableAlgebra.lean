@@ -235,13 +235,44 @@ theorem closed_diff (ℱ : FiniteAlgebra Ω)
 帰納法により、任意の有限個の事象 A₁, ..., Aₙ ∈ ℱ に対して、
 ⋃ᵢ Aᵢ ∈ ℱ
 -/
+-- 有限集合上の和で閉じている（Finset 版）
+-- Finite union over a finset is closed.
+lemma closed_finset_union (ℱ : FiniteAlgebra Ω)
+    {ι : Type*} [DecidableEq ι] (s : Finset ι) (A : ι → Event Ω)
+    (hA : ∀ i ∈ s, A i ∈ ℱ.events) :
+    (⋃ i ∈ s, A i) ∈ ℱ.events := by
+  classical
+  revert hA
+  refine Finset.induction_on s ?base ?step
+  · intro _; simpa [Event.empty] using ℱ.has_empty
+  · intro a s ha_not ih hA
+    have hA_a : A a ∈ ℱ.events := hA a (by simp)
+    have hA_s : (⋃ i ∈ s, A i) ∈ ℱ.events :=
+      ih (by intro i hi; exact hA i (by simp [hi]))
+    have hUnion := ℱ.closed_union hA_a hA_s
+    -- ⋃_{i ∈ insert a s} A i = A a ∪ ⋃_{i ∈ s} A i
+    have hrewrite :
+        (⋃ i ∈ insert a s, A i) =
+          Event.union (A a) (⋃ i ∈ s, A i) := by
+      ext ω; simp [Event.union, Finset.mem_insert]
+    simpa [hrewrite] using hUnion
+
+/-- 有限個の事象の和で閉じている（Fintype 版） -/
 theorem closed_finite_union (ℱ : FiniteAlgebra Ω)
-    {ι : Type*} [Fintype ι] {A : ι → Event Ω}
+    {ι : Type*} [Fintype ι] [DecidableEq ι] {A : ι → Event Ω}
     (hA : ∀ i, A i ∈ ℱ.events) :
     (⋃ i, A i) ∈ ℱ.events := by
   classical
-  -- Finset.univ を使った帰納法
-  sorry  -- 証明の詳細は後で
+  -- 全域の union を finset 版に書き換える
+  have hrewrite :
+      (⋃ i, A i) = ⋃ i ∈ (Finset.univ : Finset ι), A i := by
+    ext ω; simp
+  have hA' : ∀ i ∈ (Finset.univ : Finset ι), A i ∈ ℱ.events := by
+    intro i _; exact hA i
+  have hfin := closed_finset_union (ℱ := ℱ) (s := Finset.univ) (A := A) hA'
+  simpa [hrewrite] using hfin
+
+
 
 /--
 有限個の事象の積で閉じている
@@ -251,7 +282,15 @@ theorem closed_finite_intersection (ℱ : FiniteAlgebra Ω)
     (hA : ∀ i, A i ∈ ℱ.events) :
     (⋂ i, A i) ∈ ℱ.events := by
   -- De Morgan: ⋂ᵢ Aᵢ = (⋃ᵢ Aᵢᶜ)ᶜ
-  sorry
+  classical
+  have hUnion : (⋃ i, Event.complement (A i)) ∈ ℱ.events := by
+    apply ℱ.closed_finite_union
+    intro i; exact ℱ.closed_complement (hA i)
+  have hComp := ℱ.closed_complement hUnion
+  have hrewrite :
+      (⋂ i, A i) = Event.complement (⋃ i, Event.complement (A i)) := by
+    ext ω; simp [Event.complement]
+  simpa [hrewrite] using hComp
 
 /-!
 ### 代数の包含関係（部分代数）
@@ -398,19 +437,31 @@ def evenOddAlgebra : FiniteAlgebra diceSample.carrier where
   has_empty := by simp [Event.empty]
   closed_complement := by
     intro A hA
-    simp [Event.complement] at hA ⊢
-    cases hA with
-    | inl h => sorry  -- ∅ᶜ = Ω
-    | inr h =>
-      cases h with
-      | inl h' => sorry  -- (偶数)ᶜ = 奇数
-      | inr h' =>
-        cases h' with
-        | inl h'' => sorry  -- (奇数)ᶜ = 偶数
-        | inr h'' => sorry  -- Ωᶜ = ∅
+    classical
+    have hA' :
+        A = Event.empty ∨ A = evenDice ∨
+        A = Event.complement evenDice ∨ A = Event.univ := by
+      simpa using hA
+    rcases hA' with hA | hA | hA | hA <;> subst hA <;>
+      simp [Event.complement, Event.empty, Event.univ, evenDice]
   closed_union := by
     intro A B hA hB
-    sorry  -- 4 × 4 = 16 通りのケース分析
+    classical
+    -- メンバーシップを具体的な 4 つの場合分けに展開
+    have hA' :
+        A = Event.empty ∨ A = evenDice ∨
+        A = Event.complement evenDice ∨ A = Event.univ := by
+      simpa using hA
+    have hB' :
+        B = Event.empty ∨ B = evenDice ∨
+        B = Event.complement evenDice ∨ B = Event.univ := by
+      simpa using hB
+    rcases hA' with hA | hA | hA | hA <;>
+    rcases hB' with hB | hB | hB | hB <;>
+    all_goals
+      (subst hA; subst hB;
+       simp [Event.union, Event.complement, Event.empty, Event.univ, evenDice,
+         Set.union_comm])
 
 /--
 偶奇代数は自明な代数より大きく、全体の代数より小さい
