@@ -1,0 +1,813 @@
+%!TEX TS-program = lualatex
+%!TEX encoding = UTF-8
+
+\documentclass[12pt,a4paper,ja=standard]{bxjsarticle}
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図表パッケージ
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc,matrix,decorations.pathreplacing}
+
+% レイアウト
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable,listings}
+
+% ハイパーリンク
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% カスタムボックス
+\newtcolorbox{keypoint}[1][]{
+    colback=blue!5!white,
+    colframe=blue!75!black,
+    fonttitle=\bfseries,
+    title=重要ポイント,
+    #1
+}
+
+\newtcolorbox{insight}[1][]{
+    colback=green!5!white,
+    colframe=green!75!black,
+    fonttitle=\bfseries,
+    title=数学的洞察,
+    #1
+}
+
+\newtcolorbox{computation}[1][]{
+    colback=purple!5!white,
+    colframe=purple!75!black,
+    fonttitle=\bfseries,
+    title=計算例,
+    #1
+}
+
+% タイトル情報
+\title{\Huge\bfseries 計算可能な停止時間\\
+\Large ComputableStoppingTime.lean: 理論から実装へ}
+
+\author{
+    \large Lean 4 コード: Codex (OpenAI) \\
+    \large \TeX 解説: Claude Code \\
+    \vspace{0.3cm}
+    \normalsize プロジェクト: 構造塔理論と確率論
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、離散フィルトレーション上の\textbf{計算可能な停止時間}（computable stopping time）を Lean 4 で実装した \texttt{ComputableStoppingTime.lean} について解説する。前章の DecidableFiltration で定義した停止時間の概念を、具体的な計算可能な形で実装し、\texttt{\#eval} による実行可能なコードとして提供する。有限標本空間の decidability により、すべての停止時間が実際に計算可能であることを示し、min/max などの演算、有界性の保存、コイン投げの具体例を通じて、理論と計算の架け橋を示す。学部 3--4 年生を対象とし、形式数学の実用的側面に焦点を当てる。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{序論：理論から計算へ}
+
+\subsection{前回までのまとめ}
+
+これまでの階層構造：
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1cm,
+    box/.style={rectangle, draw, thick, minimum width=5cm, minimum height=0.8cm, align=center, font=\small}
+]
+    \node[box, fill=green!10] (level1) {DecidableEvents.lean\\事象の decidability};
+    \node[box, fill=green!10, below=of level1] (level2) {DecidableAlgebra.lean\\有限代数};
+    \node[box, fill=green!10, below=of level2] (level3) {DecidableFiltration.lean\\フィルトレーション・停止時間};
+    \node[box, fill=blue!20, below=of level3] (level4) {ComputableStoppingTime.lean\\計算可能な停止時間};
+    \node[box, fill=yellow!10, below=of level4] (level5) {AlgorithmicMartingale.lean\\マルチンゲール理論};
+    
+    \draw[->, thick] (level1) -- (level2);
+    \draw[->, thick] (level2) -- (level3);
+    \draw[->, thick] (level3) -- (level4);
+    \draw[->, thick] (level4) -- (level5);
+    
+    \node[right=0.3cm of level4, text width=2.5cm, font=\small] {\color{blue}$\leftarrow$ 今回};
+\end{tikzpicture}
+\end{center}
+
+\subsection{なぜ「計算可能」が重要か}
+
+\begin{insight}
+\textbf{理論 vs 実装の違い}
+
+前章の \texttt{DecidableFiltration.lean} では、停止時間を\textbf{数学的に定義}した：
+\[
+\forall t, \quad \{\omega \mid \tau(\omega) \leq t\} \in \mathcal{F}_t
+\]
+
+しかし、これだけでは：
+\begin{itemize}
+    \item 「具体的な停止時間をどう構成するか？」が不明
+    \item 「実際に計算できるか？」が保証されない
+    \item 「コンピュータで実行できるか？」がわからない
+\end{itemize}
+
+本章では、これらを解決する。
+\end{insight}
+
+\subsection{計算可能性の鍵}
+
+\begin{keypoint}
+\textbf{有限性による計算可能性}
+
+本プロジェクトの戦略：
+\begin{enumerate}
+    \item \textbf{有限標本空間}：$|\Omega| < \infty$
+    \item \textbf{DecidableEq}：標本点の同一性が判定可能
+    \item \textbf{Fintype}：すべての標本点を列挙可能
+    \item \textbf{離散時間}：時間も $\mathbb{N}$ で離散
+\end{enumerate}
+
+$\Rightarrow$ すべての停止時間が\textbf{計算可能}
+\end{keypoint}
+
+\subsection{本稿の構成}
+
+\begin{enumerate}
+    \item 第 \ref{sec:definition} 節：ComputableStoppingTime の定義
+    \item 第 \ref{sec:const} 節：定数停止時間
+    \item 第 \ref{sec:operations} 節：min/max 演算
+    \item 第 \ref{sec:examples} 節：コイン投げの具体例
+    \item 第 \ref{sec:conclusion} 節：まとめと展望
+\end{enumerate}
+
+\section{ComputableStoppingTime の定義}\label{sec:definition}
+
+\subsection{数学的定義の復習}
+
+DecidableFiltration.lean での定義：
+
+\begin{tcolorbox}[title=StoppingTime（前章）]
+\begin{verbatim}
+structure StoppingTime {Ω : Prob.FiniteSampleSpace}
+    (ℱ : DecidableFiltration Ω) where
+  time : Ω.carrier → ℕ
+  adapted : ∀ (t : ℕ) (ht : t ≤ ℱ.timeHorizon),
+    {ω : Ω.carrier | time ω ≤ t} ∈ 
+    (ℱ.observableAt t ht).events
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{ComputableStoppingTime の定義}
+
+本章では、同じ構造を \texttt{ComputableStoppingTime} として再定義する：
+
+\begin{tcolorbox}[title=Lean コード（55--62 行目）]
+\begin{verbatim}
+structure ComputableStoppingTime {Ω : Prob.FiniteSampleSpace}
+    (ℱ : DecidableFiltration Ω) where
+  /-- 停止時間としてのランダム時刻 τ(ω) -/
+  time : Ω.carrier → ℕ
+  /-- 停止時間条件 -/
+  adapted : ∀ (t : ℕ) (ht : t ≤ ℱ.timeHorizon),
+    {ω : Ω.carrier | time ω ≤ t} ∈ 
+    (ℱ.observableAt t ht).events
+\end{verbatim}
+\end{tcolorbox}
+
+\begin{remark}
+定義は前章と同一である。違いは、本章では\textbf{計算可能な実装}に焦点を当て、\texttt{\#eval} で実行可能な具体例を提供することである。
+\end{remark}
+
+\subsection{計算可能性の保証}
+
+\begin{theorem}[計算可能性]
+有限標本空間 $\Omega$ と離散フィルトレーション $\mathcal{F}$ に対して、任意の停止時間 $\tau : \Omega \to \mathbb{N}$ は計算可能である。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+\begin{enumerate}
+    \item $\Omega$ が有限 $\Rightarrow$ すべての $\omega \in \Omega$ を列挙可能
+    \item 各 $\omega$ に対して $\tau(\omega)$ を計算可能（$\mathbb{N}$ の演算）
+    \item したがって、$\tau$ は表として計算可能
+\end{enumerate}
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+    % 標本空間
+    \node[rectangle, draw, thick, minimum width=3cm, minimum height=3cm] (omega) at (0,0) {};
+    \node at (0,1.8) {標本空間 $\Omega$};
+    
+    % 標本点
+    \foreach \i in {1,2,3,4} {
+        \node[circle, draw, fill=blue!20, minimum size=0.4cm] (w\i) at ({-0.8+0.5*\i},-0.5) {$\omega_{\i}$};
+    }
+    
+    % 時刻の値
+    \node[rectangle, draw, thick, minimum width=3cm, minimum height=3cm] (time) at (5,0) {};
+    \node at (5,1.8) {時刻 $\mathbb{N}$};
+    
+    \foreach \i/\t in {1/0, 2/1, 3/1, 4/2} {
+        \node[circle, draw, fill=red!20, minimum size=0.4cm] (t\i) at ({3.2+0.5*\i},-0.5) {$\t$};
+    }
+    
+    % 写像
+    \draw[->, thick] (w1) to[bend left=20] (t1);
+    \draw[->, thick] (w2) to[bend left=10] (t2);
+    \draw[->, thick] (w3) to[bend right=10] (t3);
+    \draw[->, thick] (w4) to[bend right=20] (t4);
+    
+    \node at (2.5,0) {\Large $\tau$};
+    
+    \node[below=1cm of omega] {\small 有限 $\Rightarrow$ 列挙可能};
+    \node[below=1cm of time] {\small 各値は計算可能};
+\end{tikzpicture}
+\end{center}
+
+\subsection{点ごとの順序}
+
+\begin{definition}[停止時間の順序]
+停止時間 $\tau_1, \tau_2$ に対して：
+\[
+\tau_1 \leq \tau_2 \quad \Leftrightarrow \quad \forall \omega \in \Omega, \quad \tau_1(\omega) \leq \tau_2(\omega)
+\]
+\end{definition}
+
+Lean コード（75--79 行目）：
+\begin{verbatim}
+instance : LE (ComputableStoppingTime ℱ) where
+  le τ₁ τ₂ := ∀ ω, τ₁.time ω ≤ τ₂.time ω
+\end{verbatim}
+
+\section{定数停止時間}\label{sec:const}
+
+\subsection{定義と性質}
+
+\begin{definition}[定数停止時間]
+固定された時刻 $c \in \{0, 1, \ldots, N\}$ に対して、
+\[
+\tau_c(\omega) := c \quad \text{for all } \omega \in \Omega
+\]
+
+を\textbf{定数停止時間}（constant stopping time）と呼ぶ。
+\end{definition}
+
+\begin{theorem}[定数停止時間の停止時間性]
+$c \leq N$ ならば、$\tau_c$ は停止時間である。
+\end{theorem}
+
+\begin{proof}
+任意の時刻 $t \in \{0, 1, \ldots, N\}$ に対して：
+\[
+\{\omega \mid \tau_c(\omega) \leq t\} = \{\omega \mid c \leq t\} = 
+\begin{cases}
+\Omega & \text{if } c \leq t \\
+\emptyset & \text{if } c > t
+\end{cases}
+\]
+
+どちらも $\mathcal{F}_t$ に属する（$\Omega, \emptyset \in \mathcal{F}_t$）。
+\end{proof}
+
+\subsection{視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % タイムライン
+    \draw[->, thick] (0,0) -- (9,0) node[right] {時刻};
+    \foreach \t in {0,1,2,3,4} {
+        \draw (\t*2,0.1) -- (\t*2,-0.1) node[below] {$t = \t$};
+    }
+    
+    % 定数停止時間 c = 2
+    \draw[red, ultra thick, dashed] (4,-0.5) -- (4,3) node[above] {$\tau_c = 2$};
+    
+    % 事象 {τ_c ≤ t}
+    \foreach \t in {0,1,2,3,4} {
+        \ifnum\t<2
+            \node[rectangle, draw, thick, fill=white, minimum width=1cm, minimum height=0.6cm] 
+                at (\t*2,2) {\small $\emptyset$};
+        \fi
+        \ifnum\t>1
+            \node[rectangle, draw, thick, fill=green!20, minimum width=1cm, minimum height=0.6cm] 
+                at (\t*2,2) {\small $\Omega$};
+        \fi
+    }
+    
+    \node at (4.5,-1.5) {定数停止時間：すべての $\omega$ で同じ時刻 $c = 2$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Lean 実装}
+
+\begin{tcolorbox}[title=Lean コード（93--108 行目）]
+\begin{verbatim}
+def const (ℱ : DecidableFiltration Ω) (c : ℕ) 
+    (hc : c ≤ ℱ.timeHorizon) :
+    ComputableStoppingTime ℱ where
+  time := fun _ => c
+  adapted := by
+    intro t ht
+    by_cases hct : c ≤ t
+    · -- c ≤ t の場合：{τ_c ≤ t} = Ω
+      have hset : {ω : Ω.carrier | c ≤ t} = Set.univ := ...
+      have h := FiniteAlgebra.has_univ (ℱ.observableAt t ht)
+      simpa [hset] using h
+    · -- c > t の場合：{τ_c ≤ t} = ∅
+      have hset : {ω : Ω.carrier | c ≤ t} = ∅ := ...
+      have h := (ℱ.observableAt t ht).has_empty
+      simpa [hset] using h
+\end{verbatim}
+\end{tcolorbox}
+
+\subsection{有界性}
+
+\begin{definition}[有界停止時間]
+停止時間 $\tau$ が $N$ で\textbf{有界}（bounded）であるとは：
+\[
+\forall \omega \in \Omega, \quad \tau(\omega) \leq N
+\]
+\end{definition}
+
+\begin{lemma}[定数停止時間の有界性]
+定数停止時間 $\tau_c$ は $c$ で有界である。
+\end{lemma}
+
+\begin{proof}
+任意の $\omega$ に対して、$\tau_c(\omega) = c \leq c$。
+\end{proof}
+
+\section{min/max 演算}\label{sec:operations}
+
+\subsection{停止時間の最小}
+
+\begin{definition}[停止時間の min]
+$\tau_1, \tau_2$ が停止時間のとき、
+\[
+(\tau_1 \wedge \tau_2)(\omega) := \min(\tau_1(\omega), \tau_2(\omega))
+\]
+\end{definition}
+
+\begin{theorem}[min の停止時間性]
+$\tau_1, \tau_2$ が停止時間ならば、$\tau_1 \wedge \tau_2$ も停止時間である。
+\end{theorem}
+
+\begin{proof}
+任意の時刻 $t$ に対して：
+\begin{align*}
+\{\tau_1 \wedge \tau_2 \leq t\} 
+&= \{\omega \mid \min(\tau_1(\omega), \tau_2(\omega)) \leq t\} \\
+&= \{\omega \mid \tau_1(\omega) \leq t \text{ または } \tau_2(\omega) \leq t\} \\
+&= \{\tau_1 \leq t\} \cup \{\tau_2 \leq t\}
+\end{align*}
+
+$\{\tau_1 \leq t\}, \{\tau_2 \leq t\} \in \mathcal{F}_t$ かつ $\mathcal{F}_t$ は和で閉じているので、
+\[
+\{\tau_1 \leq t\} \cup \{\tau_2 \leq t\} \in \mathcal{F}_t
+\]
+\end{proof}
+
+\subsection{視覚化}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+    % 標本点
+    \node at (0,3) {$\omega_1$};
+    \node at (0,1.5) {$\omega_2$};
+    \node at (0,0) {$\omega_3$};
+    
+    % タイムライン
+    \draw[->, thick] (1,3) -- (8,3);
+    \draw[->, thick] (1,1.5) -- (8,1.5);
+    \draw[->, thick] (1,0) -- (8,0);
+    
+    % τ₁ の値
+    \draw[blue, very thick] (3,2.8) -- (3,3.2);
+    \node[blue, above] at (3,3.2) {\small $\tau_1$};
+    \draw[blue, very thick] (5,1.3) -- (5,1.7);
+    \node[blue, above] at (5,1.7) {\small $\tau_1$};
+    \draw[blue, very thick] (4,-0.2) -- (4,0.2);
+    \node[blue, above] at (4,0.2) {\small $\tau_1$};
+    
+    % τ₂ の値
+    \draw[red, very thick] (5,2.8) -- (5,3.2);
+    \node[red, below] at (5,2.8) {\small $\tau_2$};
+    \draw[red, very thick] (3,1.3) -- (3,1.7);
+    \node[red, below] at (3,1.3) {\small $\tau_2$};
+    \draw[red, very thick] (6,-0.2) -- (6,0.2);
+    \node[red, below] at (6,-0.2) {\small $\tau_2$};
+    
+    % min の値
+    \draw[green!70!black, ultra thick, dashed] (3,2.6) -- (3,3.4);
+    \node[green!70!black, right] at (3.2,3) {\small $\min$};
+    \draw[green!70!black, ultra thick, dashed] (3,1.1) -- (3,1.9);
+    \node[green!70!black, right] at (3.2,1.5) {\small $\min$};
+    \draw[green!70!black, ultra thick, dashed] (4,-0.4) -- (4,0.4);
+    \node[green!70!black, right] at (4.2,0) {\small $\min$};
+    
+    \node at (4.5,-1.2) {$\tau_1 \wedge \tau_2 = \min(\tau_1, \tau_2)$：各 $\omega$ で小さい方};
+\end{tikzpicture}
+\end{center}
+
+\subsection{停止時間の最大}
+
+\begin{definition}[停止時間の max]
+$\tau_1, \tau_2$ が停止時間のとき、
+\[
+(\tau_1 \vee \tau_2)(\omega) := \max(\tau_1(\omega), \tau_2(\omega))
+\]
+\end{definition}
+
+\begin{theorem}[max の停止時間性]
+$\tau_1, \tau_2$ が停止時間ならば、$\tau_1 \vee \tau_2$ も停止時間である。
+\end{theorem}
+
+\begin{proof}
+任意の時刻 $t$ に対して：
+\begin{align*}
+\{\tau_1 \vee \tau_2 \leq t\} 
+&= \{\omega \mid \max(\tau_1(\omega), \tau_2(\omega)) \leq t\} \\
+&= \{\omega \mid \tau_1(\omega) \leq t \text{ かつ } \tau_2(\omega) \leq t\} \\
+&= \{\tau_1 \leq t\} \cap \{\tau_2 \leq t\}
+\end{align*}
+
+$\{\tau_1 \leq t\}, \{\tau_2 \leq t\} \in \mathcal{F}_t$ かつ $\mathcal{F}_t$ は積で閉じているので、
+\[
+\{\tau_1 \leq t\} \cap \{\tau_2 \leq t\} \in \mathcal{F}_t
+\]
+\end{proof}
+
+\subsection{基本的な性質}
+
+\begin{lemma}[min/max の順序性質]
+\begin{align*}
+\tau_1 \wedge \tau_2 &\leq \tau_1 \\
+\tau_1 \wedge \tau_2 &\leq \tau_2 \\
+\tau_1 &\leq \tau_1 \vee \tau_2 \\
+\tau_2 &\leq \tau_1 \vee \tau_2
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[有界性の保存]
+\begin{enumerate}
+    \item $\tau_1$ が $N_1$ で有界、$\tau_2$ が $N_2$ で有界ならば、\\
+    $\tau_1 \wedge \tau_2$ は $\min(N_1, N_2)$ で有界
+    
+    \item $\tau_1$ が $N_1$ で有界、$\tau_2$ が $N_2$ で有界ならば、\\
+    $\tau_1 \vee \tau_2$ は $\max(N_1, N_2)$ で有界
+\end{enumerate}
+\end{lemma}
+
+これらは Lean で完全に証明されている（199--253 行目）。
+
+\section{コイン投げの具体例}\label{sec:examples}
+
+\subsection{標本空間の定義}
+
+\begin{example}[1回のコイン投げ]
+標本空間を $\Omega = \{\text{表}, \text{裏}\} = \{\text{true}, \text{false}\} = \mathtt{Bool}$ とする。
+
+Lean コード（267--270 行目）：
+\begin{verbatim}
+def coinSpace : Prob.FiniteSampleSpace where
+  carrier := Bool
+  fintype := inferInstance
+  decidableEq := inferInstance
+\end{verbatim}
+\end{example}
+
+\subsection{フィルトレーションの定義}
+
+\begin{example}[完全情報フィルトレーション]
+すべての時刻で完全な情報（すべての事象が観測可能）：
+
+Lean コード（273--283 行目）：
+\begin{verbatim}
+def coinFullAlgebra : Prob.FiniteAlgebra coinSpace.carrier :=
+  Prob.FiniteAlgebra.powerSet
+
+def coinFullFiltration : DecidableFiltration coinSpace :=
+  constFiltration coinSpace coinFullAlgebra 3
+\end{verbatim}
+
+これは time horizon = 3 の定数フィルトレーション。
+\end{example}
+
+\subsection{定数停止時間の例}
+
+\begin{example}[定数停止時間 $\tau \equiv 1$]
+すべての標本点で時刻 1 に停止：
+
+Lean コード（286--287 行目）：
+\begin{verbatim}
+def coinConst1 : ComputableStoppingTime coinFullFiltration :=
+  const coinFullFiltration 1 (by decide)
+\end{verbatim}
+
+\textbf{計算結果}：
+\begin{verbatim}
+#eval coinConst1.time true   -- 1
+#eval coinConst1.time false  -- 1
+\end{verbatim}
+\end{example}
+
+\subsection{非自明な停止時間}
+
+\begin{example}[表裏依存停止時間]
+表なら時刻 0、裏なら時刻 1 で停止：
+\[
+\tau(\omega) = \begin{cases}
+0 & \text{if } \omega = \text{表} \\
+1 & \text{if } \omega = \text{裏}
+\end{cases}
+\]
+
+Lean コード（298--304 行目）：
+\begin{verbatim}
+def coinHeadTail : ComputableStoppingTime coinFullFiltration where
+  time := fun b => match b with | true => 0 | false => 1
+  adapted := by
+    intro t ht
+    -- powerSet 上では任意の部分集合が可観測
+    simp [coinFullFiltration, coinFullAlgebra, constFiltration,
+      Prob.FiniteAlgebra.powerSet]
+\end{verbatim}
+
+\textbf{計算結果}：
+\begin{verbatim}
+#eval coinHeadTail.time true   -- 0
+#eval coinHeadTail.time false  -- 1
+\end{verbatim}
+\end{example}
+
+\subsection{min/max の計算}
+
+\begin{computation}
+\textbf{min の計算}（307--308 行目）：
+\begin{verbatim}
+def coinMin : ComputableStoppingTime coinFullFiltration :=
+  min coinConst1 coinHeadTail
+\end{verbatim}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$\omega$ & $\tau_1(\omega)$ & $\tau_2(\omega)$ & $\min(\tau_1, \tau_2)(\omega)$ \\
+\hline
+表 (true) & 1 & 0 & 0 \\
+裏 (false) & 1 & 1 & 1 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{計算結果}：
+\begin{verbatim}
+#eval coinMin.time true    -- 0
+#eval coinMin.time false   -- 1
+\end{verbatim}
+\end{computation}
+
+\begin{computation}
+\textbf{max の計算}（310--311 行目）：
+\begin{verbatim}
+def coinMax : ComputableStoppingTime coinFullFiltration :=
+  max coinConst1 coinHeadTail
+\end{verbatim}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$\omega$ & $\tau_1(\omega)$ & $\tau_2(\omega)$ & $\max(\tau_1, \tau_2)(\omega)$ \\
+\hline
+表 (true) & 1 & 0 & 1 \\
+裏 (false) & 1 & 1 & 1 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{計算結果}：
+\begin{verbatim}
+#eval coinMax.time true    -- 1
+#eval coinMax.time false   -- 1
+\end{verbatim}
+\end{computation}
+
+\subsection{計算可能性の実証}
+
+\begin{keypoint}
+\textbf{\texttt{\#eval} による実行可能性}
+
+Lean の \texttt{\#eval} コマンドにより、停止時間を実際に計算できる：
+
+\begin{itemize}
+    \item \textbf{定数停止時間}：すべての $\omega$ で同じ値
+    \item \textbf{条件付き停止時間}：$\omega$ に依存した値
+    \item \textbf{min/max}：複数の停止時間の組み合わせ
+\end{itemize}
+
+これは、理論的定義が実際に\textbf{計算可能}であることを実証している。
+\end{keypoint}
+
+\section{まとめと展望}\label{sec:conclusion}
+
+\subsection{本ファイルの成果}
+
+\texttt{ComputableStoppingTime.lean} では、以下を達成した：
+
+\begin{enumerate}
+    \item \textbf{計算可能な実装}
+    \begin{itemize}
+        \item 前章の理論的定義を計算可能な形で実装
+        \item \texttt{\#eval} による実行可能性の実証
+    \end{itemize}
+    
+    \item \textbf{定数停止時間}
+    \begin{itemize}
+        \item 最も単純な停止時間の構成
+        \item 有界性の自明な証明
+    \end{itemize}
+    
+    \item \textbf{min/max 演算}
+    \begin{itemize}
+        \item 停止時間の代数的構造
+        \item 有界性の保存
+        \item 順序性質の証明
+    \end{itemize}
+    
+    \item \textbf{具体例}
+    \begin{itemize}
+        \item コイン投げでの実装
+        \item 計算結果の視覚化
+        \item 理論と実装の架け橋
+    \end{itemize}
+\end{enumerate}
+
+\subsection{階層構造の全体像}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    level/.style={rectangle, draw, thick, minimum width=6.5cm, minimum height=1cm, align=center},
+    arrow/.style={->, thick}
+]
+    \node[level, fill=green!10] (level1) {DecidableEvents.lean\\{\small 事象の decidability}};
+    \node[level, fill=green!10, below=of level1] (level2) {DecidableAlgebra.lean\\{\small Boolean 代数・可測性}};
+    \node[level, fill=green!10, below=of level2] (level3) {DecidableFiltration.lean\\{\small フィルトレーション・停止時間}};
+    \node[level, fill=blue!10, below=of level3] (level4) {ComputableStoppingTime.lean\\{\small 計算可能な停止時間}};
+    \node[level, fill=yellow!10, below=of level4] (level5) {AlgorithmicMartingale.lean\\{\small Optional Stopping Theorem}};
+    
+    \draw[arrow] (level1) -- (level2);
+    \draw[arrow] (level2) -- (level3);
+    \draw[arrow] (level3) -- (level4);
+    \draw[arrow] (level4) -- (level5);
+    
+    \node[left=0.3cm of level4, text width=2cm, font=\small] {\color{blue}今回完了};
+\end{tikzpicture}
+\end{center}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+    \item \textbf{AlgorithmicMartingale.lean}（次のファイル）
+    \begin{itemize}
+        \item 確率測度の導入
+        \item 期待値の定義（有限和）
+        \item マルチンゲールの定義
+        \item Optional Stopping Theorem の証明
+    \end{itemize}
+    
+    \item \textbf{より複雑な停止時間}
+    \begin{itemize}
+        \item 「初めて条件を満たす時刻」
+        \item 「$n$ 回目に条件を満たす時刻」
+        \item 条件判定関数との組み合わせ
+    \end{itemize}
+    
+    \item \textbf{構造塔のインスタンス化}
+    \begin{itemize}
+        \item フィルトレーションを StructureTowerWithMin として実装
+        \item minLayer = 初出時刻の明示的計算
+        \item 圏論的性質の利用
+    \end{itemize}
+\end{enumerate}
+
+\subsection{教育的価値}
+
+\begin{insight}
+本ファイルは、以下の重要な洞察を提供する：
+
+\begin{enumerate}
+    \item \textbf{理論と実装の統一}：数学的定義がそのまま計算可能
+    \item \textbf{有限性の力}：有限標本空間により decidability が保証
+    \item \textbf{代数的構造}：min/max などの演算が自然に定義可能
+    \item \textbf{実行可能性}：\texttt{\#eval} による検証
+    \item \textbf{型による保証}：停止時間の性質が型レベルで保証
+\end{enumerate}
+\end{insight}
+
+\subsection{計算可能性の本質}
+
+\begin{keypoint}
+\textbf{有限性による計算可能性の階層}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={rectangle, draw, thick, minimum width=5cm, minimum height=1cm, align=center, rounded corners}
+]
+    \node[box, fill=blue!10] (finite) {有限標本空間\\$|\Omega| < \infty$};
+    \node[box, fill=green!10, below=of finite] (decidable) {DecidableEq + Fintype\\列挙可能 + 判定可能};
+    \node[box, fill=yellow!10, below=of decidable] (computable) {計算可能な停止時間\\すべての演算が実行可能};
+    \node[box, fill=red!10, below=of computable] (eval) {\texttt{\#eval}\\実際にコンピュータで実行};
+    
+    \draw[->, very thick] (finite) -- (decidable);
+    \draw[->, very thick] (decidable) -- (computable);
+    \draw[->, very thick] (computable) -- (eval);
+\end{tikzpicture}
+\end{center}
+\end{keypoint}
+
+\subsection{Lean 4 形式化の意義}
+
+\begin{keypoint}
+型システムと計算可能性：
+
+\begin{itemize}
+    \item \textbf{停止時間条件}：adapted が型レベルで保証
+    \item \textbf{min/max の正当性}：停止時間を保存することを証明
+    \item \textbf{有界性}：型制約（$t \leq$ timeHorizon）で保証
+    \item \textbf{計算可能性}：\texttt{\#eval} で実行時に検証
+\end{itemize}
+
+これにより、「理論的には正しいが実装が間違っている」という状況を防ぐ。
+\end{keypoint}
+
+\section*{参考文献}
+
+\begin{enumerate}
+    \item Williams, David. \textit{Probability with Martingales}. Cambridge University Press, 1991.
+    \item Kallenberg, Olav. \textit{Foundations of Modern Probability}. 2nd ed. Springer, 2002.
+    \item Shiryaev, Albert N. \textit{Optimal Stopping Rules}. Springer, 2007.
+    \item Pierce, Benjamin C. \textit{Types and Programming Languages}. MIT Press, 2002.
+    \item The mathlib Community. \textit{The Lean Mathematical Library}. \url{https://github.com/leanprover-community/mathlib4}
+    \item Avigad, Jeremy, et al. \textit{Theorem Proving in Lean 4}. 2024.
+    \item 本プロジェクト：\texttt{DecidableEvents.lean}, \texttt{DecidableAlgebra.lean}, \texttt{DecidableFiltration.lean}
+\end{enumerate}
+
+\section*{付録 A：Lean コードへのリンク}
+
+\subsection*{主要定義}
+
+\begin{itemize}
+    \item \textbf{ComputableStoppingTime}：55--62 行目
+    \item \textbf{点ごとの順序}：75--79 行目
+    \item \textbf{const}（定数停止時間）：93--108 行目
+    \item \textbf{isBounded}（有界性）：111--112 行目
+\end{itemize}
+
+\subsection*{min/max 演算}
+
+\begin{itemize}
+    \item \textbf{min}：126--166 行目
+    \item \textbf{max}：169--197 行目
+    \item \textbf{min\_le\_left, min\_le\_right}：199--207 行目
+    \item \textbf{le\_max\_left, le\_max\_right}：209--217 行目
+\end{itemize}
+
+\subsection*{有界性の性質}
+
+\begin{itemize}
+    \item \textbf{isBounded\_of\_le}：220--225 行目
+    \item \textbf{min\_isBounded}：228--239 行目
+    \item \textbf{max\_isBounded}：242--253 行目
+\end{itemize}
+
+\subsection*{計算例}
+
+\begin{itemize}
+    \item \textbf{coinSpace}（標本空間）：267--270 行目
+    \item \textbf{coinFullFiltration}：282--283 行目
+    \item \textbf{coinConst1}（定数停止時間）：286--287 行目
+    \item \textbf{coinHeadTail}（非自明な例）：298--304 行目
+    \item \textbf{coinMin, coinMax}：307--311 行目
+    \item \textbf{\#eval による計算}：319--332 行目
+\end{itemize}
+
+\end{document}
