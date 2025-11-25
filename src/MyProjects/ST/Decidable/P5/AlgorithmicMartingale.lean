@@ -1,6 +1,9 @@
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Rat.Defs
-import Mathlib.Algebra.BigOperators.Fin
+import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Fintype.BigOperators
+import Mathlib.Algebra.BigOperators.Ring.Finset
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import MyProjects.ST.Decidable.P1.DecidableEvents
 import MyProjects.ST.Decidable.P2.DecidableAlgebra
 import MyProjects.ST.Decidable.P3.DecidableFiltration
