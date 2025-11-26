@@ -182,12 +182,10 @@ namespace SimpleProcess
 
 variable {Ω : Prob.FiniteSampleSpace}
 
-/-- 時刻 `n` でのランダム変数 `Ω → ℚ` を取り出す補助関数。 -/
-def at (M : SimpleProcess Ω) (n : ℕ) : Ω.carrier → ℚ :=
-  M n
+/-- 時刻 `n` のランダム変数を取り出す補助関数（予約語 `at` 回避のため `atTime`）。 -/
+def atTime (M : SimpleProcess Ω) (n : ℕ) : Ω.carrier → ℚ := M n
 
-@[simp] lemma at_def (M : SimpleProcess Ω) (n : ℕ) :
-    M.at n = M n := rfl
+@[simp] lemma atTime_def (M : SimpleProcess Ω) (n : ℕ) : M.atTime n = M n := rfl
 
 end SimpleProcess
 
