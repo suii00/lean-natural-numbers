@@ -255,7 +255,7 @@ structure IsMartingale
       Prob.ProbabilityMassFunction.expected P (M (n + 1)) =
       Prob.ProbabilityMassFunction.expected P (M n)
 
-/-!
+/-
 ## 3. 停止時間で打ち切った過程（stopped process）
 
 停止時間 `τ` による打ち切り過程
@@ -288,7 +288,7 @@ def stopped (M : SimpleProcess Ω) (τ : ComputableStoppingTime ℱ) :
 
 end SimpleProcess
 
-/-!
+/-
 ## 4. 有界停止時間に対する Optional Stopping Theorem（ステートメント）
 
 ここでは、有限標本空間 + 有界停止時間という強い仮定の下での
@@ -297,7 +297,7 @@ end SimpleProcess
 **重要**: 本バージョンでは証明は `sorry` として残し、将来の拡張に委ねる。
 -/
 
-/--
+/-
 有界停止時間に対する離散 Optional Stopping Theorem（簡略版）のステートメント。
 
 有限標本空間 `Ω` 上で：
@@ -387,11 +387,13 @@ noncomputable def unitPMF : Prob.ProbabilityMassFunction unitSpace :=
 { pmf := fun _ => (1 : ℚ)
 , nonneg := by
     intro _
-    norm_num
+    -- 0 ≤ (1 : ℚ)
+    simp
 , sum_one := by
     classical
     -- `Unit` には 1 点しかないので、和は 1 になる
-    simp [FiniteSampleSpace.instFintype, unitSpace, Finset.sum_const, Finset.card_univ] }
+    simp [FiniteSampleSpace.instFintype, unitSpace]
+}
 
 /--
 `Unit` 上の単純過程の例。
