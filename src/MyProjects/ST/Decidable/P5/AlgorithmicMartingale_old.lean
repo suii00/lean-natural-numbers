@@ -143,7 +143,7 @@ lemma expected_const (P : ProbabilityMassFunction Ω) (c : ℚ) :
 指示関数 `1_A` の期待値は `P(A)` と一致する。
 ここでは「`P(A)`」を有限和として書き下ろした形で表現する。
 -/
-def probOfEvent (P : ProbabilityMassFunction Ω) (A : Event Ω.carrier) : ℚ :=
+noncomputable def probOfEvent (P : ProbabilityMassFunction Ω) (A : Event Ω.carrier) : ℚ :=
   ∑ ω, if ω ∈ A then P.pmf ω else 0
 
 lemma expected_indicator (P : ProbabilityMassFunction Ω) (A : Event Ω.carrier) :
