@@ -316,6 +316,7 @@ end SimpleProcess
 
 ここで右辺の期待値は、「`τ(ω)` 時刻で評価した `M`」を有限和で平均したものである。
 -/
+/-
 theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
@@ -418,8 +419,11 @@ def unitProcess_E1 : ℚ :=
 * `E[M_1] = 1`
 
 になるはずであることを #eval で確認できる。
--/
+
+
 #eval unitProcess_E0   -- 0
 #eval unitProcess_E1   -- 1
 
 end Examples
+-/
+-/
