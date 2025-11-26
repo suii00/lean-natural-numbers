@@ -1,5 +1,6 @@
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Rat.Defs
+import Mathlib.Algebra.Field.Rat   -- brings the `Semiring` / `Field` instances for ℚ
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Algebra.BigOperators.Ring.Finset
@@ -13,6 +14,9 @@ open Classical
 open scoped BigOperators
 
 open Prob
+
+-- 明示的に与えておくと、後続の `Finset.mul_sum` などが型クラス解決に失敗しなくなる。
+instance : NonUnitalNonAssocSemiring ℚ := inferInstance
 
 /-!
 # Algorithmic Martingale on Discrete Finite Sample Spaces
@@ -120,11 +124,20 @@ lemma expected_const (P : ProbabilityMassFunction Ω) (c : ℚ) :
     expected P (fun _ => c) = c := by
   classical
   -- E[c] = (∑ω P(ω)) * c = 1 * c = c
-  have h :
-      expected P (fun _ => c)
-        = (∑ ω, P.pmf ω) * c := by
-    simp [expected, mul_comm, mul_left_comm, mul_assoc, Finset.mul_sum]
-  simpa [h, P.sum_one]
+  have hmul :
+      ∑ ω, c * P.pmf ω = c * ∑ ω, P.pmf ω := by
+    -- `Finset.mul_sum` gives the reverse direction; use `symm` to flip.
+    have := (Finset.mul_sum (a := c) (s := Finset.univ) (f := fun ω => P.pmf ω))
+    -- this : c * ∑ ω, P.pmf ω = ∑ ω, c * P.pmf ω
+    simpa [mul_comm, mul_left_comm, mul_assoc] using this.symm
+  calc
+    expected P (fun _ => c) = ∑ ω, P.pmf ω * c := by
+      simp [expected]
+    _ = ∑ ω, c * P.pmf ω := by
+      refine Finset.sum_congr rfl ?_
+      intro ω _; simp [mul_comm]
+    _ = c * ∑ ω, P.pmf ω := hmul
+    _ = c := by simpa [P.sum_one, mul_comm]
 
 /--
 指示関数 `1_A` の期待値は `P(A)` と一致する。
