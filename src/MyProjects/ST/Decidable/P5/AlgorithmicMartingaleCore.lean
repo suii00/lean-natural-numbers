@@ -98,6 +98,29 @@ structure IsMartingale {Ω : Prob.FiniteSampleSpace}
       Prob.ProbabilityMassFunction.expected P (M (n + 1)) =
       Prob.ProbabilityMassFunction.expected P (M n)
 
+/-! ### 定数過程はマルチンゲール -/
+
+/-- 定数値 `c` をとる単純過程。 -/
+def constProcess {Ω : Prob.FiniteSampleSpace} (c : ℚ) : SimpleProcess Ω :=
+  fun _ _ => c
+
+/-- 定数過程は（期待値保存の意味で）マルチンゲール。 -/
+lemma constProcess_isMartingale
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω) (ℱ : DecidableFiltration Ω) (c : ℚ) :
+    IsMartingale P ℱ (constProcess c) := by
+  refine ⟨?_, ?_⟩
+  · trivial   -- IsAdapted はダミーで常に成立
+  · intro n hn
+    -- 期待値が時刻に依らず一定
+    have hconst : Prob.ProbabilityMassFunction.expected P (fun _ => c) = c :=
+      Prob.ProbabilityMassFunction.expected_const (P := P) (c := c)
+    calc
+      Prob.ProbabilityMassFunction.expected P ((constProcess c) (n + 1)) = c := by
+        simpa [constProcess] using hconst
+      _ = Prob.ProbabilityMassFunction.expected P ((constProcess c) n) := by
+        simpa [constProcess] using hconst.symm
+
 namespace SimpleProcess
 
 variable {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
