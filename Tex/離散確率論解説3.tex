@@ -1,0 +1,212 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% --- 数学パッケージ ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+
+% --- グラフィックス・図式 ---
+\usepackage{tikz}
+\usetikzlibrary{shapes, backgrounds, positioning, patterns, calc, arrows.meta, fit, shadows, trees}
+\usepackage{graphicx}
+
+% --- デザイン・枠 ---
+\usepackage[most]{tcolorbox}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% --- ハイパーリンク ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}{補題}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{remark}{注釈}[section]
+
+% --- カスタムコマンド ---
+\newcommand{\LeanCode}[1]{\texttt{#1}}
+\newcommand{\Filtration}{\mathbb{F}}
+\newcommand{\Algebra}[1]{\mathcal{F}_{#1}}
+\newcommand{\StopT}{\tau}
+
+% --- タイトル情報 ---
+\title{\textbf{離散確率論の時系列構造：フィルトレーションと停止時間}\\
+\large --- Lean 4 による形式化と情報の流れ ---}
+
+\author{
+    \textbf{TeX構成・解説}: Gemini (Google) \\
+    \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、`DecidableFiltration.lean` で定義された「離散フィルトレーション（Decidable Filtration）」と「停止時間（Stopping Time）」について解説する。これらは確率過程論において「時間の経過に伴う情報の蓄積」と「未来の情報をカンニングせずに決断を下す戦略」を数学的に定式化したものである。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+確率論に「時間」の概念を導入するには、単一の代数ではなく、時間の経過とともに変化する代数の族を考える必要がある。時間が進むにつれて、私たちはより多くの情報を手に入れ、より細かい事象を区別できるようになる。
+
+\section{離散フィルトレーション (Decidable Filtration)}
+
+\subsection{定義}
+フィルトレーションとは、単調増加する代数の列である。
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=定義 1: 離散フィルトレーション]
+有限標本空間 $\Omega$ 上のフィルトレーション $\Filtration = (\mathcal{F}_t)_{t=0}^N$ とは、以下の条件を満たす有限代数の列である：
+\begin{enumerate}
+    \item \textbf{時間枠 (Time Horizon)}: 有限の最終時刻 $N$ を持つ。
+    \item \textbf{単調性 (Monotonicity)}: 任意の時刻 $s \le t$ に対して、
+    \[ \mathcal{F}_s \subseteq_a \mathcal{F}_t \]
+    すなわち、過去に観測可能だった事象は、現在も観測可能である（情報は失われない）。
+\end{enumerate}
+\end{tcolorbox}
+
+\subsection{視覚的解釈：情報の細分化}
+代数の包含関係 $\mathcal{F}_s \subseteq \mathcal{F}_t$ は、空間の分割が「細分化（Refinement）」されていくことに対応する。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Time t=0
+        \begin{scope}[xshift=0cm]
+            \draw[thick, fill=gray!10] (-2,-2) rectangle (2,2);
+            \node at (0, 2.3) {$t=0$ ($\mathcal{F}_0$)};
+            \node at (0,0) {Unknown};
+        \end{scope}
+        
+        % Arrow
+        \draw[->, thick] (2.5, 0) -- (3.5, 0);
+
+        % Time t=1
+        \begin{scope}[xshift=6cm]
+            \draw[thick, fill=gray!10] (-2,-2) rectangle (2,2);
+            \draw[thick] (0,-2) -- (0,2); % Split
+            \node at (0, 2.3) {$t=1$ ($\mathcal{F}_1$)};
+            \node at (-1,0) {Case A};
+            \node at (1,0) {Case B};
+        \end{scope}
+
+        % Arrow
+        \draw[->, thick] (8.5, 0) -- (9.5, 0);
+
+        % Time t=2
+        \begin{scope}[xshift=12cm]
+            \draw[thick, fill=gray!10] (-2,-2) rectangle (2,2);
+            \draw[thick] (0,-2) -- (0,2); % Previous Split
+            \draw[thick] (-2,0) -- (0,0); % New Split left
+            \draw[thick] (0,1) -- (2,1);  % New Split right
+            \node at (0, 2.3) {$t=2$ ($\mathcal{F}_2$)};
+            \node at (-1,1) {A1};
+            \node at (-1,-1) {A2};
+            \node at (1,1.5) {B1};
+            \node at (1,-0.5) {B2};
+        \end{scope}
+    \end{tikzpicture}
+    \caption{フィルトレーションのイメージ。時間が経つにつれて、世界（$\Omega$）の区別が細かくなっていく。}
+\end{figure}
+
+\section{停止時間 (Stopping Time)}
+
+\subsection{定義}
+停止時間とは、いつプロセスを停止するか（あるいは行動を起こすか）を決める確率変数 $\tau: \Omega \to \mathbb{N}$ である。ただし、「未来の情報をカンニングしてはならない」という制約がある。
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!75!black, title=定義 2: 停止時間]
+確率変数 $\tau: \Omega \to \mathbb{N}$ がフィルトレーション $\Filtration$ に関する停止時間であるとは、任意の時刻 $t$ において、
+\[ \{ \omega \in \Omega \mid \tau(\omega) \le t \} \in \mathcal{F}_t \]
+が成り立つことをいう。
+\end{tcolorbox}
+
+これは、「時刻 $t$ 時点で、『もう停止したかどうか』はその時点の情報 $\mathcal{F}_t$ だけで判定できなければならない」ことを意味する。
+
+\subsection{視覚的解釈：決定木}
+停止時間は、シナリオ（$\omega$）ごとの停止するタイミングを表す。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[level distance=1.5cm,
+      level 1/.style={sibling distance=3cm},
+      level 2/.style={sibling distance=1.5cm}]
+      
+      \node[circle, draw] (root) {Start}
+        child {node[circle, draw] (n1) {H}
+            child {node[circle, draw] (n11) {HH}}
+            child {node[circle, draw, double, fill=green!20] (n12) {HT} node[below=0.2cm, text=red] {$\tau=2$}}
+        }
+        child {node[circle, draw, double, fill=green!20] (n2) {T} node[below=0.2cm, text=red] {$\tau=1$}
+            child {node[circle, draw, dashed] (n21) {TH}}
+            child {node[circle, draw, dashed] (n22) {TT}}
+        };
+        
+      \node[right=4cm of root, align=left, draw, drop shadow, fill=white] {
+        \textbf{Example: Stop on first Tail}\\
+        - If T appears at $t=1$, stop ($\tau=1$).\\
+        - If H appears, continue.\\
+        - If HT appears at $t=2$, stop ($\tau=2$).\\
+        \\
+        Decision is \textit{adapted} to the tree structure.
+      };
+    \end{tikzpicture}
+    \caption{コイン投げにおける停止時間の例。「初めて裏が出たら停止」という戦略。破線部分は停止後の仮想的な世界線。}
+\end{figure}
+
+\section{停止時間の性質}
+
+`DecidableFiltration.lean` では、停止時間に関する以下の代数的性質が証明されている。
+
+\subsection{順序と有界性}
+停止時間 $\tau_1, \tau_2$ に対して、点ごとの順序 $\tau_1 \le \tau_2$ を定義できる。
+また、すべての $\omega$ に対して $\tau(\omega) \le N$ であるとき、$\tau$ は有界であるという。
+定数停止時間（常に時刻 $c$ で止まる）は有界な停止時間の最も単純な例である。
+
+\subsection{最小値・最大値}
+2つの停止時間 $\tau_1, \tau_2$ が与えられたとき、それらの最小値と最大値もまた停止時間となる。
+\begin{theorem}[停止時間の閉性]
+$\tau_1, \tau_2$ が停止時間ならば、以下も停止時間である：
+\begin{itemize}
+    \item $\min(\tau_1, \tau_2)$：「早い方のタイミングで止まる」
+    \item $\max(\tau_1, \tau_2)$：「遅い方のタイミングで止まる」
+\end{itemize}
+\end{theorem}
+
+\textbf{証明の直感（minの場合）}:
+$\{\min(\tau_1, \tau_2) \le t\} = \{\tau_1 \le t\} \cup \{\tau_2 \le t\}$ であり、右辺の事象はどちらも $\mathcal{F}_t$ に含まれるため、その和集合も $\mathcal{F}_t$ に含まれる（代数の性質）。
+
+\section{実装された具体例}
+
+\subsection{定数フィルトレーション}
+情報が全く増えない状況。$\mathcal{F}_t = \mathcal{F}_0$（一定）。
+この場合、停止時間は「最初から決まっている定数」のようなものしか許容されにくくなる（より正確には、$\mathcal{F}_0$-可測な定数関数）。
+
+\subsection{2ステップ・フィルトレーション}
+時刻 0 と 1 だけを考える最小の非自明な例。
+\begin{itemize}
+    \item $t=0$: $\mathcal{F}_0$
+    \item $t=1$: $\mathcal{F}_1$ （ただし $\mathcal{F}_0 \subseteq \mathcal{F}_1$）
+\end{itemize}
+これは条件付き確率や、1期間モデル（ファイナンス等）の基礎となる。
+
+\section{まとめと展望}
+本稿では、情報の流れを表すフィルトレーションと、その情報に基づいて行動を決定する停止時間を定義した。
+これらは、次のステップである\textbf{マルチンゲール（Martingale）}の理論---「公平な賭け」の数学的定式化---において不可欠な土台となる。特に、Optional Stopping Theorem（停止時刻定理）の計算可能な証明への道が開かれたことになる。
+
+\end{document}

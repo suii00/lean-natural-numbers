@@ -1,0 +1,202 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% --- 数学パッケージ ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+
+% --- グラフィックス・図式 ---
+\usepackage{tikz}
+\usetikzlibrary{shapes, backgrounds, positioning, patterns, calc, arrows.meta, fit, shadows, trees}
+\usepackage{graphicx}
+
+% --- デザイン・枠 ---
+\usepackage[most]{tcolorbox}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% --- ハイパーリンク ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}{補題}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{remark}{注釈}[section]
+
+% --- カスタムコマンド ---
+\newcommand{\LeanCode}[1]{\texttt{#1}}
+\newcommand{\Filtration}{\mathbb{F}}
+\newcommand{\Algebra}[1]{\mathcal{F}_{#1}}
+\newcommand{\StopT}{\tau}
+\newcommand{\Nat}{\mathbb{N}}
+
+% --- タイトル情報 ---
+\title{\textbf{計算可能な停止時間 (Computable Stopping Time)}\\
+\large --- 離散フィルトレーション上の決定戦略 ---}
+
+\author{
+    \textbf{TeX構成・解説}: Gemini (Google) \\
+    \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、`ComputableStoppingTime.lean` で定義された「計算可能な停止時間」について解説する。これは、有限標本空間と離散フィルトレーションの上で定義された確率変数であり、各時刻における情報のみに基づいて停止の判断を行う（未来をカンニングしない）アルゴリズム的な性質を持つ。本稿ではその定義、順序構造、および `min` / `max` 演算について詳述する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+確率論における停止時間（Stopping Time）は、「ギャンブラーがいつ賭けを降りるか」や「オプションをいつ行使するか」といった問題をモデル化するための重要な概念である。計算機科学的な文脈では、これは「観測されたデータに基づいて終了判定を行うアルゴリズム」と見なすことができる。
+
+\section{定義と直観}
+
+\subsection{計算可能な停止時間}
+有限標本空間 $\Omega$ とフィルトレーション $\Filtration = (\mathcal{F}_t)_t$ が与えられたとき、関数 $\tau: \Omega \to \Nat$ が停止時間であるための条件は以下のように定義される。
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=定義 1: 計算可能な停止時間]
+写像 $\tau: \Omega \to \Nat$ がフィルトレーション $\Filtration$ に関する停止時間であるとは、任意の時刻 $t$ において、事象 $\{ \omega \in \Omega \mid \tau(\omega) \le t \}$ が時刻 $t$ の代数 $\mathcal{F}_t$ に含まれることをいう。
+\end{tcolorbox}
+
+この条件は、「時刻 $t$ までに停止したかどうか」という情報は、時刻 $t$ までの観測情報だけで完全に決定できなければならない（Adaptedである）ことを意味する。
+
+\subsection{視覚的解釈：決定木上のカット}
+停止時間は、確率過程の決定木（Decision Tree）において、各パスをどこで切るか（Cut）を指定することに相当する。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[level distance=1.5cm,
+      level 1/.style={sibling distance=4cm},
+      level 2/.style={sibling distance=2cm}]
+      
+      \node[circle, draw] (root) {Start}
+        child {node[circle, draw] (n1) {H} edge from parent node[left] {H}
+            child {node[circle, draw] (n11) {HH}}
+            child {node[circle, draw] (n12) {HT}}
+        }
+        child {node[circle, draw] (n2) {T} edge from parent node[right] {T}
+            child {node[circle, draw] (n21) {TH}}
+            child {node[circle, draw] (n22) {TT}}
+        };
+
+      % Stopping Time Visuals
+      \node[draw=red, thick, ellipse, fit=(n1), label=left:\textcolor{red}{$\tau=1$}] {};
+      \node[draw=red, thick, ellipse, fit=(n21), label=below:\textcolor{red}{$\tau=2$}] {};
+      \node[draw=red, thick, ellipse, fit=(n22), label=below:\textcolor{red}{$\tau=2$}] {};
+
+      \node[right=5cm of root, align=left, draw, drop shadow, fill=white] {
+        \textbf{停止時間の例 $\tau$}\\
+        - 表(H)が出たら即座に停止 ($t=1$)\\
+        - 裏(T)が出たらもう1回投げて停止 ($t=2$)\\
+        \\
+        この $\tau$ は適格(Adapted)である。\\
+        なぜなら、$\{\tau \le 1\} = \{H\} \in \mathcal{F}_1$ だから。
+      };
+    \end{tikzpicture}
+    \caption{停止時間の決定木表現。パスごとに停止する深さが定まる。}
+\end{figure}
+
+\section{基本的な構造と性質}
+
+\subsection{順序構造}
+停止時間の間には自然な半順序が存在する。
+\[ \tau_1 \le \tau_2 \iff \forall \omega \in \Omega, \ \tau_1(\omega) \le \tau_2(\omega) \]
+これは「戦略 $\tau_1$ は戦略 $\tau_2$ よりも常に早く（あるいは同時に）停止する」ことを意味する。
+
+\subsection{定数停止時間}
+最も単純な停止時間は、どんな結果が出ても必ず時刻 $c$ で停止するものである。
+\[ \tau(\omega) \equiv c \]
+これは常に停止時間となる（自明な情報だけで決定できるため）。
+
+\subsection{有界性 (Boundedness)}
+計算機科学的文脈では無限ループを防ぐために有界性が重要である。
+\begin{definition}
+停止時間 $\tau$ が $N$ で有界であるとは、$\forall \omega, \tau(\omega) \le N$ であることをいう。
+\end{definition}
+定数停止時間 $c$ は明らかに $c$ で有界である。
+
+\section{演算：最小値と最大値}
+
+2つの停止時間 $\tau_1, \tau_2$ があるとき、それらを組み合わせた新しい停止時間を作ることができる。これらは Lean 内で `min`, `max` として実装されている。
+
+\subsection{最小値 (min)}
+\[ \tau_{\min}(\omega) = \min(\tau_1(\omega), \tau_2(\omega)) \]
+意味：2つの戦略のうち、\textbf{先に停止条件を満たした方}に従う。
+例：「利益確定ライン」と「損切りライン」のどちらかに達したら停止する。
+
+\subsection{最大値 (max)}
+\[ \tau_{\max}(\omega) = \max(\tau_1(\omega), \tau_2(\omega)) \]
+意味：2つの戦略の\textbf{両方が停止条件を満たすまで}待つ。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Timeline
+        \draw[->, thick] (0,0) -- (8,0) node[right] {$t$};
+        \foreach \x in {0,1,2,3,4,5,6,7} \draw (\x,0.1) -- (\x,-0.1) node[below] {\x};
+
+        % Tau 1
+        \draw[blue, thick, |-|] (0,1) -- (3,1) node[right] {Strategy $\tau_1$ stops at 3};
+        
+        % Tau 2
+        \draw[orange, thick, |-|] (0,2) -- (5,2) node[right] {Strategy $\tau_2$ stops at 5};
+
+        % Min
+        \draw[red, ultra thick, ->] (3, 3.5) -- (3, 0.2);
+        \node[red] at (3, 3.7) {$\min(\tau_1, \tau_2) = 3$};
+
+        % Max
+        \draw[green!50!black, ultra thick, ->] (5, 3.5) -- (5, 0.2);
+        \node[green!50!black] at (5.5, 3.7) {$\max(\tau_1, \tau_2) = 5$};
+
+        \node[align=left, draw, drop shadow, fill=white] at (4, -2) {
+            \textbf{Theorem (Closure)}:\\
+            If $\tau_1, \tau_2$ are stopping times,\\
+            then $\min(\tau_1, \tau_2)$ and $\max(\tau_1, \tau_2)$\\
+            are also stopping times.
+        };
+    \end{tikzpicture}
+    \caption{停止時間の $\min$ と $\max$ の関係。}
+\end{figure}
+
+\section{Lean 実装における具体例}
+
+`ComputableStoppingTime.md` では、コイントス（`coinSpace`）を用いた具体例が実装されている。
+
+\begin{itemize}
+    \item \textbf{標本空間}: $\Omega = \{ \text{true (表)}, \text{false (裏)} \}$
+    \item \textbf{フィルトレーション}: 完全情報（常に全ての事象が観測可能）
+    \item \textbf{停止時間 $\tau_{HT}$}:
+    \[ \tau_{HT}(b) = \begin{cases} 0 & (b = \text{true}) \\ 1 & (b = \text{false}) \end{cases} \]
+    表なら即座に停止、裏なら1ステップ待つ。
+\end{itemize}
+
+Lean の \texttt{\#eval} コマンドを用いることで、これらの停止時間が関数として実際に計算可能であることが確認されている。
+\begin{verbatim}
+#eval coinHeadTail.time true   -- 0
+#eval coinHeadTail.time false  -- 1
+\end{verbatim}
+
+\section{まとめ}
+本稿では、離散フィルトレーション上の「計算可能な停止時間」を定義し、その基本的な性質である順序、有界性、および $\min/\max$ 演算について解説した。
+これは次なるステップである「マルチンゲール」および「Optional Stopping Theorem（停止時刻定理）」の定式化において、積分範囲（時間区間）を動的に決定する役割を果たす。
+
+\end{document}

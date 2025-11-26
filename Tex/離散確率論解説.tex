@@ -1,0 +1,247 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% --- 数学パッケージ ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+
+% --- グラフィックス・図式 ---
+\usepackage{tikz}
+\usetikzlibrary{shapes, backgrounds, positioning, patterns, calc, arrows.meta}
+\usepackage{graphicx}
+
+% --- デザイン・枠 ---
+\usepackage[most]{tcolorbox}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% --- ハイパーリンク ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{remark}{注釈}[section]
+
+% --- カスタムコマンド ---
+\newcommand{\LeanCode}[1]{\texttt{#1}}
+\newcommand{\Event}{\text{Event}}
+
+% --- タイトル情報 ---
+\title{\textbf{離散確率論の基礎：有限確率空間と決定可能事象}\\
+\large --- Lean 4 による形式化と数学的構造 ---}
+
+\author{
+    \textbf{TeX構成・解説}: Gemini (Google) \\
+    \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、離散確率論の基礎となる「有限標本空間」および「決定可能事象（Decidable Events）」の数学的定義とそのLean 4における実装について解説する。特に、有限性がもたらす計算可能性（Decidability）に焦点を当て、将来的な「構造塔（Structure Tower）」理論への応用を見据えた基礎付けを行う。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+確率論において、事象（event）とは標本空間の部分集合であり、確率とは事象から $[0, 1]$ への写像である。古典的な確率論（コルモゴロフ公理系）では無限集合や $\sigma$-加法族を扱うが、計算機科学的な観点、特に型理論においては「計算可能性」が重要となる。
+
+本稿で扱う\textbf{有限標本空間}は以下の特徴を持つ：
+\begin{itemize}
+    \item すべての事象の帰属関係（Membership）が決定可能（Decidable）である。
+    \item 事象の演算（和・積・補集合）がアルゴリズム的に実行可能である。
+    \item 確率は有理数演算として厳密に計算可能である。
+\end{itemize}
+
+\section{有限標本空間 (Finite Sample Space)}
+
+\subsection{定義}
+数学的に、有限標本空間 $\Omega$ は以下の性質を持つ集合（型）として定義される。
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=定義 1: 有限標本空間]
+型 $\Omega$ が有限標本空間であるとは、以下の条件を満たすことをいう：
+\begin{enumerate}
+    \item \textbf{有限性 (Fintype)}: $\Omega$ は有限個の要素からなる。
+    \item \textbf{識別可能性 (DecidableEq)}: 任意の $\omega_1, \omega_2 \in \Omega$ について、$\omega_1 = \omega_2$ か否かが決定可能である。
+\end{enumerate}
+\end{tcolorbox}
+
+Leanにおいては、これは型クラス `Fintype` と `DecidableEq` を持つ構造体として表現される。
+
+\subsection{視覚的解釈}
+有限標本空間は、離散的な点の集まりとして表現できる。無限集合とは異なり、全ての点を「数え上げる」ことが可能である。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Draw Sample Space Omega
+        \draw[thick, fill=gray!10, rounded corners] (-3,-2) rectangle (3,2);
+        \node[anchor=north west] at (-3,2) {$\Omega$ (Sample Space)};
+        
+        % Draw points
+        \foreach \x in {-2,-1,0,1,2} {
+            \foreach \y in {-1,0,1} {
+                \filldraw[black] (\x + \y*0.2, \y + \x*0.1) circle (1.5pt);
+            }
+        }
+        
+        \node[blue] at (0, -1.5) {Finite \& Enumerable};
+        
+        % Interaction example
+        \draw[->, red, thick] (0.2, 0.1) -- (1.5, 1.5) node[midway, right, scale=0.8] {$\omega = \omega'?$ Decidable};
+        \filldraw[red] (1.5, 1.5) circle (1.5pt) node[right] {$\omega'$};
+        \filldraw[red] (0.2, 0.1) circle (1.5pt) node[below] {$\omega$};
+    \end{tikzpicture}
+    \caption{有限標本空間のイメージ。要素は離散的で有限であり、任意の2点の等価性が判定できる。}
+\end{figure}
+
+\section{事象と決定可能性}
+
+\subsection{事象の定義}
+標本空間 $\Omega$ 上の事象 $A$ は、$\Omega$ の部分集合として定義される。
+\[ A \subseteq \Omega \]
+Leanの実装においては、`Finset`（有限集合）ではなく `Set`（述語としての集合）を採用している。これは将来的な一般化（無限集合への拡張）を見据えた設計である。
+
+\subsection{決定可能事象 (Decidable Event)}
+部分集合として定義された事象が「計算可能」であるためには、ある要素 $\omega$ が事象 $A$ に含まれるかどうかが判定できなければならない。
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!75!black, title=定義 2: 決定可能事象]
+事象 $A \subseteq \Omega$ が決定可能であるとは、任意の $\omega \in \Omega$ に対して命題 $\omega \in A$ が決定可能（Decidable）であることをいう。
+すなわち、以下の関数が存在する：
+\[ \chi_A : \Omega \to \{\text{True}, \text{False}\} \]
+\end{tcolorbox}
+
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}
+        % Universe
+        \draw[thick] (-3,-2) rectangle (3,2);
+        \node at (-2.5,1.7) {$\Omega$};
+        
+        % Set A
+        \draw[fill=blue!20, thick] (0,0) ellipse (1.5cm and 1cm);
+        \node at (0,0) {$A$};
+        
+        % Points inside and outside
+        \filldraw[blue] (0.5, 0.3) circle (2pt) node[right] {$\omega_{in}$};
+        \node[blue, scale=0.8] at (0.5, -0.5) {Returns \textbf{True}};
+        
+        \filldraw[red] (2, 1) circle (2pt) node[right] {$\omega_{out}$};
+        \node[red, scale=0.8] at (2, 0.7) {Returns \textbf{False}};
+        
+        \node[align=center, fill=white, draw] at (0, -2.5) {
+            Membership Test $\omega \in A$\\
+            is a \textbf{Computable Function}
+        };
+    \end{tikzpicture}
+    \caption{決定可能事象の概念図。境界が明確で、コンピュータが内外を判定できる。}
+\end{figure}
+
+\section{基本演算と代数構造}
+
+有限標本空間上の決定可能事象全体は、ブール代数（Boolean Algebra）の構造を持つ。以下の演算は全て計算可能（Decidable）である。
+
+\subsection{演算一覧}
+\begin{itemize}
+    \item \textbf{補事象 (Complement)}: $A^c = \{ \omega \in \Omega \mid \omega \notin A \}$
+    \item \textbf{和事象 (Union)}: $A \cup B = \{ \omega \in \Omega \mid \omega \in A \lor \omega \in B \}$
+    \item \textbf{積事象 (Intersection)}: $A \cap B = \{ \omega \in \Omega \mid \omega \in A \land \omega \in B \}$
+\end{itemize}
+
+\subsection{ド・モルガンの法則}
+これらの演算に対して、以下の法則が成立する（Leanファイル内で証明済み）。
+\begin{align*}
+    (A \cup B)^c &= A^c \cap B^c \\
+    (A \cap B)^c &= A^c \cup B^c
+\end{align*}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        \begin{scope}
+            \draw[fill=gray!10] (-2,-2) rectangle (2,2);
+            \begin{scope}
+                \clip (0.5,0) circle (1.2);
+                \fill[blue!30] (-0.5,0) circle (1.2);
+            \end{scope}
+            \draw (-0.5,0) circle (1.2) node[left] {$A$};
+            \draw (0.5,0) circle (1.2) node[right] {$B$};
+            \node at (0, -2.3) {$A \cap B$};
+        \end{scope}
+        
+        \begin{scope}[xshift=5cm]
+            \draw[fill=blue!30] (-2,-2) rectangle (2,2);
+            \begin{scope}
+                \fill[white] (-0.5,0) circle (1.2);
+                \fill[white] (0.5,0) circle (1.2);
+            \end{scope}
+            \draw (-0.5,0) circle (1.2) node[left] {$A$};
+            \draw (0.5,0) circle (1.2) node[right] {$B$};
+            \node at (0, -2.3) {$(A \cup B)^c = A^c \cap B^c$};
+        \end{scope}
+    \end{tikzpicture}
+    \caption{積事象（左）とド・モルガンの法則（右）の視覚化。}
+\end{figure}
+
+\section{具体例: サイコロとコイン}
+
+\subsection{サイコロ (Dice)}
+標本空間 $\Omega = \{1, 2, 3, 4, 5, 6\}$（Leanでは `Fin 6` $\cong \{0, \dots, 5\}$）。
+\begin{itemize}
+    \item 事象 $E$ (偶数): $\{2, 4, 6\}$
+    \item 事象 $B$ (大きい): $\{4, 5, 6\}$
+    \item $E \cap B = \{4, 6\}$ (偶数かつ大きい)
+\end{itemize}
+
+\subsection{構造塔 (Structure Tower) への展望}
+本稿の理論は、将来的に「構造塔」およびフィルトレーション（情報流）の定式化へと接続される。
+時間が進むにつれて、観測可能な事象（情報）が増大していく様子をモデル化する。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[scale=0.8]
+        % Base
+        \draw[thick, fill=gray!5] (-4,-3) rectangle (4, -2.5);
+        \node at (0, -2.75) {$\mathcal{F}_0 = \{\emptyset, \Omega\}$ (No Info)};
+
+        % Layer 1
+        \draw[thick, fill=blue!10] (-3.5, -2) rectangle (3.5, -1);
+        \node at (0, -1.5) {$\mathcal{F}_1$ (Partial Info)};
+        \draw[dashed] (0, -1) -- (0, -2); % Partition
+
+        % Layer 2
+        \draw[thick, fill=blue!20] (-3, -0.5) rectangle (3, 0.5);
+        \node at (0, 0) {$\mathcal{F}_2$ (More Info)};
+        \draw[dashed] (-1.5, 0.5) -- (-1.5, -0.5);
+        \draw[dashed] (1.5, 0.5) -- (1.5, -0.5);
+        
+        % Arrow up
+        \draw[->, very thick] (4.5, -2.5) -- (4.5, 0.5) node[midway, right] {Time / Information};
+        
+        \node[align=center, draw, dashed] at (0, 1.5) {
+            Target:\\
+            \texttt{DecidableFiltration}
+        };
+    \end{tikzpicture}
+    \caption{構造塔の概念図。時間の経過と共に識別可能な事象（情報）の解像度が上がっていく。}
+\end{figure}
+
+\section{まとめ}
+有限標本空間とDecidable Predicateを組み合わせることで、数学的に厳密でありながら、計算機上で実行可能な確率論の基礎を構築できる。これは、確率的アルゴリズムの検証や、数理ファイナンスにおける離散モデルの形式化において強力な道具となる。
+
+\end{document}

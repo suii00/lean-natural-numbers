@@ -1,0 +1,221 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% --- 数学パッケージ ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+
+% --- グラフィックス・図式 ---
+\usepackage{tikz}
+% shadows ライブラリを追加しました
+\usetikzlibrary{shapes, backgrounds, positioning, patterns, calc, arrows.meta, fit, shadows}
+\usepackage{graphicx}
+
+% --- デザイン・枠 ---
+\usepackage[most]{tcolorbox}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% --- ハイパーリンク ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{remark}{注釈}[section]
+
+% --- カスタムコマンド ---
+\newcommand{\LeanCode}[1]{\texttt{#1}}
+\newcommand{\Event}{\text{Event}}
+\newcommand{\Algebra}{\mathcal{F}}
+\newcommand{\Pow}[1]{\mathcal{P}(#1)}
+
+% --- タイトル情報 ---
+\title{\textbf{離散確率論の代数的構造：有限代数と可測性}\\
+\large --- Lean 4 による形式化と構造塔への接続 ---}
+
+\author{
+    \textbf{TeX構成・解説}: Gemini (Google) \\
+    \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、`DecidableEvents.lean` の自然な拡張として、有限標本空間上の「有限代数（Finite Algebra）」および「可測関数（Measurable Function）」について解説する。これらは測度論における $\sigma$-代数と可測写像の離散版であり、将来的な「構造塔（Structure Tower）」やフィルトレーションの定義において中心的な役割を果たす。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+確率論において、私たちは標本空間 $\Omega$ のすべての部分集合に関心があるわけではない。しばしば、観測可能な事象（情報）は制限されている。この「観測可能な事象の族」を数学的に定式化したものが\textbf{代数（Algebra）}である。
+
+\section{有限代数 (Finite Algebra)}
+
+\subsection{定義}
+測度論における $\sigma$-代数は可算和で閉じている必要があるが、有限標本空間においては有限和で閉じていれば十分である。
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=定義 1: 有限代数]
+標本空間 $\Omega$ 上の有限代数 $\mathcal{F}$ とは、以下の条件を満たす事象の族（$\mathcal{F} \subseteq \mathcal{P}(\Omega)$）である：
+\begin{enumerate}
+    \item \textbf{全事象を含む}: $\Omega \in \mathcal{F}$
+    \item \textbf{補集合で閉じている}: $A \in \mathcal{F} \implies A^c \in \mathcal{F}$
+    \item \textbf{和で閉じている}: $A, B \in \mathcal{F} \implies A \cup B \in \mathcal{F}$
+\end{enumerate}
+\end{tcolorbox}
+
+\subsection{視覚的解釈：代数と分割}
+有限集合上の代数は、空間 $\Omega$ の\textbf{分割（Partition）}と1対1に対応する。代数の要素は、分割のアトム（最小単位）の和集合として表現できる。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Draw Omega
+        \draw[thick, fill=gray!5] (-4,-2) rectangle (4,2);
+        \node[anchor=north west] at (-4,2) {$\Omega$};
+        
+        % Partition lines (Atomic Events)
+        \draw[thick] (-1.5, -2) -- (-1.5, 2);
+        \draw[thick] (1.5, -2) -- (1.5, 2);
+        \draw[thick] (-4, 0.5) -- (-1.5, 0.5);
+        \draw[thick] (1.5, -0.5) -- (4, -0.5);
+
+        % Label Atoms
+        \node at (-2.75, 1.25) {Atom 1};
+        \node at (-2.75, -0.75) {Atom 2};
+        \node at (0, 0) {Atom 3};
+        \node at (2.75, 0.75) {Atom 4};
+        \node at (2.75, -1.25) {Atom 5};
+        
+        % Algebraic Structure explanation
+        \node[align=center, fill=white, draw=black, drop shadow] at (0, -2.8) {
+            Any event $A \in \mathcal{F}$ is a union of these Atoms.\\
+            If you know which atom occurred,\\ you know the status of every $A \in \mathcal{F}$.
+        };
+    \end{tikzpicture}
+    \caption{有限代数の直観。空間が「識別不可能な領域（アトム）」に分割されている。観測者は、現在どのアトムにいるかは分かるが、アトム内部の区別はつかない。}
+\end{figure}
+
+\section{生成された代数と具体例}
+
+\subsection{生成された代数 $\sigma(\mathcal{S})$}
+任意の事象族 $\mathcal{S}$ に対して、それを含む最小の代数を $\sigma(\mathcal{S})$ と書き、「$\mathcal{S}$ から生成された代数」と呼ぶ。これは $\mathcal{S}$ の情報から論理的に導出できるすべての事象を表す。
+
+\subsection{例：サイコロの偶奇代数}
+サイコロの標本空間 $\Omega = \{1, 2, 3, 4, 5, 6\}$ において、偶数事象 $E = \{2, 4, 6\}$ のみを観測できるとする。
+このとき生成される代数は以下の4要素である：
+\[ \sigma(\{E\}) = \{ \emptyset, E, E^c, \Omega \} = \{ \emptyset, \{2,4,6\}, \{1,3,5\}, \{1..6\} \} \]
+これは「自明な代数（Trivial）」と「全体の代数（Power Set）」の中間に位置する。
+
+\section{可測関数 (Measurable Functions)}
+
+\subsection{定義}
+関数 $f: \Omega \to \Omega'$ が、代数 $\mathcal{F}$（定義域側）と $\mathcal{G}$（値域側）に関して可測であるとは、観測可能な構造が保存されることを意味する。
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!75!black, title=定義 2: 可測関数]
+関数 $f: \Omega \to \Omega'$ が $(\mathcal{F}, \mathcal{G})$-可測であるとは、任意の $B \in \mathcal{G}$ に対して
+\[ f^{-1}(B) \in \mathcal{F} \]
+が成り立つことをいう。すなわち、出力側で観測可能な事象の逆像は、入力側でも観測可能でなければならない。
+\end{tcolorbox}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[scale=0.9]
+        % Domain Omega
+        \draw[thick, fill=blue!5] (-4,-2) rectangle (-1,2);
+        \node at (-3.5, 1.7) {$\Omega$ ($\mathcal{F}$)};
+        
+        % Codomain Omega'
+        \draw[thick, fill=red!5] (1,-2) rectangle (4,2);
+        \node at (1.5, 1.7) {$\Omega'$ ($\mathcal{G}$)};
+        
+        % Event B in G
+        \draw[fill=red!20] (2.5, 0) circle (1.2);
+        \node at (2.5, 0) {$B \in \mathcal{G}$};
+        
+        % Preimage f^-1(B) in F
+        \draw[fill=blue!20] (-2.5, 0.5) ellipse (1cm and 0.8cm);
+        \draw[fill=blue!20] (-2.5, -1.2) circle (0.4);
+        \node at (-2.5, 0.5) {$f^{-1}(B)$};
+        
+        % Arrow
+        \draw[->, thick, shorten >= 2pt] (-0.8, 1) to[bend left] node[midway, above] {$f$} (0.8, 1);
+        
+        % Logic
+        \draw[->, dashed, thick] (2.5, -1.3) -- (2.5, -2.5) -- (-2.5, -2.5) -- (-2.5, -1.7);
+        \node[fill=white] at (0, -2.5) {Pullback must be in $\mathcal{F}$};
+        
+    \end{tikzpicture}
+    \caption{可測関数の概念図。値域の「粗い」情報は、定義域の「細かい」情報で記述できなければならない。}
+\end{figure}
+
+\section{構造塔とフィルトレーション}
+
+\subsection{情報の増大}
+時間が経過するにつれて、観測できる事象が増えていく状況を考える。これは代数の単調増加列（フィルトレーション）として定式化される。
+\[ \mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \dots \]
+
+\subsection{構造塔 (Structure Tower) への接続}
+`DecidableFiltration` においては、各時刻 $t$ に代数 $\mathcal{F}_t$ が割り当てられる。
+\begin{itemize}
+    \item $\mathcal{F}_t$: 時刻 $t$ までに得られる情報の総体。
+    \item \textbf{停止時間} $\tau$: 事象 $\{\tau \le t\}$ が $\mathcal{F}_t$ に含まれるような確率変数。
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Time axis
+        \draw[->, thick] (0,0) -- (8,0) node[right] {Time $t$};
+        
+        % Algebra F0 (Coarse)
+        \draw[thick] (1, 1) circle (0.8);
+        \node at (1, 1) {$\mathcal{F}_0$};
+        \node[scale=0.7] at (1, 0.5) {No info};
+        \draw (1, 0.1) -- (1, -0.1) node[below] {$0$};
+        
+        % Algebra F1 (Finer)
+        \draw[thick] (4, 1.5) ellipse (1.2 and 1.2);
+        \node at (4, 2) {$\mathcal{F}_1$};
+        \draw (4, 0.1) -- (4, -0.1) node[below] {$1$};
+        
+        % Algebra F2 (Finest)
+        \draw[thick] (7, 2) ellipse (1.5 and 1.5);
+        \node at (7, 3) {$\mathcal{F}_2$};
+        \draw (7, 0.1) -- (7, -0.1) node[below] {$2$};
+        
+        % Inclusions
+        \node at (2.5, 1) {$\subseteq$};
+        \node at (5.5, 1) {$\subseteq$};
+        
+        % Explanation
+        \node[align=left, anchor=west] at (0.5, -1.5) {
+            \textbf{Structure Tower View}:\\
+            Layer $n$ corresponds to Algebra $\mathcal{F}_n$.\\
+            $\min\text{Layer}(A)$ is the first time $A$ becomes measurable.
+        };
+    \end{tikzpicture}
+    \caption{フィルトレーションと包含関係。時間が進むにつれて代数（＝識別能力）が大きくなる。}
+\end{figure}
+
+\section{まとめ}
+有限代数は、離散確率論における「情報の構造」を決定する。`DecidableAlgebra.lean` で定義された構造は、単なる集合の集まりではなく、ブール演算で閉じた強固な数学的基盤を提供する。
+これにより、次なるステップである「マルチンゲール」や「停止時間」のアルゴリズム的な取り扱いが可能となる。
+
+\end{document}
