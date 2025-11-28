@@ -300,7 +300,13 @@ example
     (P : Prob.ProbabilityMassFunction Ω) (c : ℚ) :
     Prob.ProbabilityMassFunction.expected P ((constProcess c) 0) =
     Prob.ProbabilityMassFunction.expected P ((constProcess c) 1) := by
-  simp [constProcess, Prob.ProbabilityMassFunction.expected_const]
+  have h0 : Prob.ProbabilityMassFunction.expected P ((constProcess c) 0) = c := by
+    simpa [constProcess] using Prob.ProbabilityMassFunction.expected_const (P := P) (c := c)
+  have h1 : Prob.ProbabilityMassFunction.expected P ((constProcess c) 1) = c := by
+    simpa [constProcess] using Prob.ProbabilityMassFunction.expected_const (P := P) (c := c)
+  calc
+    Prob.ProbabilityMassFunction.expected P ((constProcess c) 0) = c := h0
+    _ = Prob.ProbabilityMassFunction.expected P ((constProcess c) 1) := h1.symm
 
 /-! ### マルチンゲールなら期待値は時刻に依らない（ステートメント） -/
 lemma martingale_expectation_const
