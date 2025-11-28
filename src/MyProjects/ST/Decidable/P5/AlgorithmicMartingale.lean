@@ -294,6 +294,14 @@ lemma constProcess_isMartingale
       _ = Prob.ProbabilityMassFunction.expected P ((constProcess c) n) := by
         simpa [constProcess] using hconst.symm
 
+-- 簡単なセルフチェック：定数過程では時刻 0 と 1 の期待値が一致する。
+example
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω) (c : ℚ) :
+    Prob.ProbabilityMassFunction.expected P ((constProcess c) 0) =
+    Prob.ProbabilityMassFunction.expected P ((constProcess c) 1) := by
+  simp [constProcess, Prob.ProbabilityMassFunction.expected_const]
+
 /-! ### マルチンゲールなら期待値は時刻に依らない（ステートメント） -/
 lemma martingale_expectation_const
     {Ω : Prob.FiniteSampleSpace}
@@ -362,11 +370,11 @@ example
     (P : Prob.ProbabilityMassFunction Ω)
     (ℱ : DecidableFiltration Ω)
     (c : ℚ) (hH : 1 ≤ ℱ.timeHorizon) :
-    Prob.ProbabilityMassFunction.expected P ((SimpleProcess.constProcess c) 0) =
-    Prob.ProbabilityMassFunction.expected P ((SimpleProcess.constProcess c) 1) := by
-  have hMart := SimpleProcess.constProcess_isMartingale (P := P) (ℱ := ℱ) (c := c)
+    Prob.ProbabilityMassFunction.expected P ((constProcess c) 0) =
+    Prob.ProbabilityMassFunction.expected P ((constProcess c) 1) := by
+  have hMart := constProcess_isMartingale (P := P) (ℱ := ℱ) (c := c)
   have h := martingale_expectation_const (P := P) (ℱ := ℱ)
-      (M := SimpleProcess.constProcess c) (hMart := hMart)
+      (M := constProcess c) (hMart := hMart)
       (n := 0) (m := 1) (hn := Nat.zero_le _) (hm := hH)
   simpa using h
 
