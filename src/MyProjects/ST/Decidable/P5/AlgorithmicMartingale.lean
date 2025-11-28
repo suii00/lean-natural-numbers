@@ -1,10 +1,10 @@
-import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Rat.Defs
 import Mathlib.Algebra.Field.Rat   -- brings the `Semiring` / `Field` instances for ℚ
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Fintype.BigOperators
+import Mathlib.Data.Finset.Basic
+import Mathlib.Algebra.BigOperators.Finprod
 import Mathlib.Algebra.BigOperators.Ring.Finset
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import MyProjects.ST.Decidable.P1.DecidableEvents
 import MyProjects.ST.Decidable.P2.DecidableAlgebra
 import MyProjects.ST.Decidable.P3.DecidableFiltration
@@ -14,6 +14,7 @@ open Classical
 open scoped BigOperators
 
 open Prob
+open Finset
 
 -- 明示的に与えておくと、後続の `Finset.mul_sum` などが型クラス解決に失敗しなくなる。
 instance : NonUnitalNonAssocSemiring ℚ := inferInstance
@@ -165,6 +166,24 @@ lemma expected_mul_const (P : ProbabilityMassFunction Ω)
     expected P (fun ω => c * X ω) = c * expected P X := by
   classical
   simp [expected, Finset.mul_sum, mul_comm, mul_left_comm, mul_assoc]
+
+/-- 期待値と有限和の交換（有限指標 `s` 上の総和）。 -/
+lemma expected_finset_sum (P : ProbabilityMassFunction Ω)
+    {ι : Type*} (s : Finset ι) (X : ι → Ω.carrier → ℚ) :
+    expected P (fun ω => s.sum (fun i => X i ω)) =
+      s.sum (fun i => expected P (X i)) := by
+  classical
+  -- 期待値の定義に展開
+  unfold expected
+  -- 右辺を目標に揃えるように二重和を組み替える
+  calc
+    ∑ ω, P.pmf ω * s.sum (fun i => X i ω)
+        = ∑ ω, ∑ i ∈ s, P.pmf ω * X i ω := by
+          simp [Finset.mul_sum, mul_comm, mul_left_comm, mul_assoc]
+    _ = ∑ i ∈ s, ∑ ω, P.pmf ω * X i ω := by
+          -- 有限和なので順序交換がそのまま使える
+          exact Finset.sum_comm
+    _ = ∑ i ∈ s, expected P (X i) := by rfl
 
 end ProbabilityMassFunction
 
