@@ -305,8 +305,70 @@ lemma martingale_expectation_const
     (hn : n ≤ ℱ.timeHorizon) (hm : m ≤ ℱ.timeHorizon) :
     Prob.ProbabilityMassFunction.expected P (M n) =
     Prob.ProbabilityMassFunction.expected P (M m) := by
-  -- TODO: prove by simple induction using `hMart.fair`.
-  sorry
+  classical
+  -- 記号短縮
+  set E : ℕ → ℚ := fun k => Prob.ProbabilityMassFunction.expected P (M k)
+  -- 隣接時刻の期待値一致（`fair` の向きを揃える）。
+  have hstep : ∀ {k}, k + 1 ≤ ℱ.timeHorizon → E k = E (k + 1) := by
+    intro k hk
+    simpa [E, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
+      (hMart.fair (n := k) hk).symm
+  -- 任意の基点 `a` から `a+k` まで期待値が一定。
+  have hchain : ∀ a k, a + k ≤ ℱ.timeHorizon → E a = E (a + k) := by
+    intro a k
+    induction k with
+    | zero =>
+        intro _; simp [E]
+    | succ k ih =>
+        intro hk
+        have hk_prev : a + k ≤ ℱ.timeHorizon :=
+          Nat.le_trans (Nat.le_succ (a + k)) hk
+        have hfair : E (a + k) = E (a + k + 1) := by
+          have hk' : (a + k) + 1 ≤ ℱ.timeHorizon := by
+            -- `a + k + 1 = a + (Nat.succ k)` なので `hk` がそのまま使える
+            simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hk
+          exact hstep hk'
+        calc
+          E a = E (a + k) := ih hk_prev
+          _ = E (a + k + 1) := hfair
+  -- `n` と `m` の大小で場合分けして鎖をたどる。
+  cases Nat.le_total n m with
+  | inl hnm =>
+      have hsum : n + (m - n) = m := by
+        have := Nat.sub_add_cancel hnm
+        simpa [Nat.add_comm] using this
+      have hleH : n + (m - n) ≤ ℱ.timeHorizon := by
+        simpa [hsum] using hm
+      calc
+        E n = E (n + (m - n)) := hchain n (m - n) hleH
+        _ = E m := by simpa [E, hsum]
+  | inr hmn =>
+      have hsum : m + (n - m) = n := by
+        have := Nat.sub_add_cancel hmn
+        simpa [Nat.add_comm] using this
+      have hleH : m + (n - m) ≤ ℱ.timeHorizon := by
+        simpa [hsum] using hn
+      calc
+        E n = E m := by
+          -- `m ≤ n` のとき、`m` から先にたどる。
+          have hmn' : E m = E (m + (n - m)) := hchain m (n - m) hleH
+          have hm_eq : E m = E n := by simpa [E, hsum] using hmn'
+          exact hm_eq.symm
+        _ = E m := rfl
+
+-- シンプルなチェック用例：定数過程では任意の 0/1 時刻で期待値が一致。
+example
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (c : ℚ) (hH : 1 ≤ ℱ.timeHorizon) :
+    Prob.ProbabilityMassFunction.expected P ((SimpleProcess.constProcess c) 0) =
+    Prob.ProbabilityMassFunction.expected P ((SimpleProcess.constProcess c) 1) := by
+  have hMart := SimpleProcess.constProcess_isMartingale (P := P) (ℱ := ℱ) (c := c)
+  have h := martingale_expectation_const (P := P) (ℱ := ℱ)
+      (M := SimpleProcess.constProcess c) (hMart := hMart)
+      (n := 0) (m := 1) (hn := Nat.zero_le _) (hm := hH)
+  simpa using h
 
 /-
 ## 3. 停止時間で打ち切った過程（stopped process）
