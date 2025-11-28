@@ -151,6 +151,21 @@ lemma expected_indicator (P : ProbabilityMassFunction Ω) (A : Event Ω.carrier)
   classical
   simp [expected, probOfEvent, Finset.mul_sum, mul_boole]
 
+/-! ### 期待値の線形性（基本形だけ追加） -/
+
+lemma expected_add (P : ProbabilityMassFunction Ω)
+    (X Y : Ω.carrier → ℚ) :
+    expected P (fun ω => X ω + Y ω) =
+      expected P X + expected P Y := by
+  classical
+  simp [expected, Finset.sum_add_distrib, mul_add, add_comm, add_left_comm, add_assoc]
+
+lemma expected_mul_const (P : ProbabilityMassFunction Ω)
+    (X : Ω.carrier → ℚ) (c : ℚ) :
+    expected P (fun ω => c * X ω) = c * expected P X := by
+  classical
+  simp [expected, Finset.mul_sum, mul_comm, mul_left_comm, mul_assoc]
+
 end ProbabilityMassFunction
 
 end Prob
@@ -324,6 +339,18 @@ def stopped (M : SimpleProcess Ω) (τ : ComputableStoppingTime ℱ) :
     (n : ℕ) (ω : Ω.carrier) :
     stopped M τ n ω = M (Nat.min n (τ.time ω)) ω := rfl
 
+lemma stopped_before
+    (M : SimpleProcess Ω) (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) (ω : Ω.carrier) (h : n ≤ τ.time ω) :
+    stopped M τ n ω = M n ω := by
+  simp [stopped, Nat.min_eq_left h]
+
+lemma stopped_after
+    (M : SimpleProcess Ω) (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) (ω : Ω.carrier) (h : τ.time ω ≤ n) :
+    stopped M τ n ω = M (τ.time ω) ω := by
+  simp [stopped, Nat.min_eq_right h]
+
 end SimpleProcess
 
 /-
@@ -355,19 +382,20 @@ end SimpleProcess
 ここで右辺の期待値は、「`τ(ω)` 時刻で評価した `M`」を有限和で平均したものである。
 -/
 /-
-theorem optionalStopping_theorem
-    {Ω : Prob.FiniteSampleSpace}
-    (P : Prob.ProbabilityMassFunction Ω)
-    (ℱ : DecidableFiltration Ω)
-    (M : SimpleProcess Ω)
-    (hMart : IsMartingale P ℱ M)
-    (τ : ComputableStoppingTime ℱ)
-    (N : ℕ)
-    (hBound : ComputableStoppingTime.isBounded τ N) :
-    Prob.ProbabilityMassFunction.expected P (M 0) =
-    Prob.ProbabilityMassFunction.expected P
-      (fun ω => M (τ.time ω) ω) := by
-  /-!
+-- Optional Stopping Theorem（証明は未実装、将来拡張）。
+-- 上界はフィルトレーションの timeHorizon に合わせる。
+-- theorem optionalStopping_theorem
+--     {Ω : Prob.FiniteSampleSpace}
+--     (P : Prob.ProbabilityMassFunction Ω)
+--     (ℱ : DecidableFiltration Ω)
+--     (M : SimpleProcess Ω)
+--     (hMart : IsMartingale P ℱ M)
+--     (τ : ComputableStoppingTime ℱ)
+--     (hBound : ComputableStoppingTime.isBounded τ ℱ.timeHorizon) :
+--     Prob.ProbabilityMassFunction.expected P (M 0) =
+--     Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
+--   sorry
+
   証明の方針（スケッチ）:
 
   1. 有限標本空間なので、すべての和は有限和に落ちる。
@@ -390,7 +418,6 @@ theorem optionalStopping_theorem
   本ファイルの現バージョンでは、ステートメントのみを提供し、
   証明は将来の課題として `sorry` に残す。
   -/
-  sorry
 
 /-!
 ## 5. 計算例（#eval）
@@ -450,18 +477,15 @@ def unitProcess_E0 : ℚ :=
 def unitProcess_E1 : ℚ :=
   expected unitPMF (unitProcess 1)
 
-/--
+/-
 `Unit` 空間では、`M_n(()) = n` なので
 
 * `E[M_0] = 0`
 * `E[M_1] = 1`
 
 になるはずであることを #eval で確認できる。
-
-
+-/
 #eval unitProcess_E0   -- 0
 #eval unitProcess_E1   -- 1
 
 end Examples
--/
--/
