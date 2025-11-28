@@ -1,0 +1,155 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% 明示的なフォント指定を削除しました。
+% 環境のデフォルトフォント（原ノ味フォントなど）が使用されます。
+
+% リスト環境の調整
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+% --- 数学・図式用パッケージ ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{tikz-cd}  % 可換図式用
+\usepackage{listings} % コード掲載用
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+% --- メタデータ ---
+\title{最小層を持つ構造塔の圏論的形式化\\
+\large \textit{Bourbakiの構造理論に基づく形式化の試み}}
+
+\author{
+  \textbf{Gemini (Google)} \\
+  \small \textit{TeXファイル生成・文書構成}
+  \and
+  \textbf{CODEX (OpenAI)} \\
+  \small \textit{Leanコード生成・形式化原案}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Bourbakiの構造理論に基づく「構造塔 (Structure Tower)」の概念、特に各要素に対して最小の層が一意に定まる「最小層を持つ構造塔 (StructureTowerWithMin)」について解説する。
+OpenAIのCODEXにより生成されたLean 4コードを基に、その圏論的な定義、射の性質、および普遍性を明示化する。
+特に、最小層保存条件がいかにして射の一意性を保証し、自由構造塔の普遍性を成立させるかについて、可換図式を用いて視覚的に説明する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+構造塔（Structure Tower）は、集合 $X$ とその上の階層構造 $(X_i)_{i \in I}$ を組にした概念である。
+本稿で扱う \texttt{StructureTowerWithMin} は、任意の要素 $x \in X$ に対して、それが属する「最小の層」を指定する写像 $\mathrm{minLayer}: X \to I$ を備えている点が特徴である。
+この追加構造により、圏としての振る舞いが良くなり、随伴関手や極限の議論がスムーズに行えるようになる。
+
+\section{定義}
+
+\subsection{最小層を持つ構造塔}
+
+\begin{definition}[StructureTowerWithMin]
+最小層を持つ構造塔 $T$ は、以下の組 $(X, I, \le, \mathrm{layer}, \mathrm{minLayer})$ からなる。
+\begin{itemize}
+    \item $X$: 基礎集合 (carrier)
+    \item $(I, \le)$: 添字となる半順序集合 (Index)
+    \item $\mathrm{layer}: I \to \mathcal{P}(X)$: 各添字に対応する層（部分集合）
+    \item $\mathrm{minLayer}: X \to I$: 各要素の最小層を与える写像
+\end{itemize}
+これらは以下の公理を満たす必要がある。
+\begin{enumerate}
+    \item \textbf{被覆性}: $\forall x \in X, \exists i \in I, x \in \mathrm{layer}(i)$
+    \item \textbf{単調性}: $i \le j \implies \mathrm{layer}(i) \subseteq \mathrm{layer}(j)$
+    \item \textbf{最小層の所属}: $\forall x \in X, x \in \mathrm{layer}(\mathrm{minLayer}(x))$
+    \item \textbf{最小性}: $x \in \mathrm{layer}(i) \implies \mathrm{minLayer}(x) \le i$
+\end{enumerate}
+\end{definition}
+
+\subsection{構造塔の射}
+
+構造塔の間の射（Morphism）は、基礎集合の写像と添字集合の写像の対であり、構造を保つ必要がある。
+
+\begin{definition}[Hom]
+二つの構造塔 $T = (X, I, \dots)$ と $T' = (X', I', \dots)$ の間の射 $F: T \to T'$ は、対 $(f, \phi)$ で定義される。
+ここで $f: X \to X'$ および $\phi: I \to I'$ は以下の条件を満たす。
+\begin{enumerate}
+    \item $\phi$ は順序を保存する（単調写像）。
+    \item $f$ は層構造を保存する：$x \in \mathrm{layer}(i) \implies f(x) \in \mathrm{layer}'(\phi(i))$
+    \item \textbf{$f$ は最小層構造を保存する}: $\mathrm{minLayer}'(f(x)) = \phi(\mathrm{minLayer}(x))$
+\end{enumerate}
+\end{definition}
+
+特に3つ目の条件「最小層の保存」が、この形式化における核心部分である。これにより、基礎写像 $f$ が決まれば添字写像 $\phi$ が（像の上で）制約を受けることになり、普遍性の証明において一意性が導かれる。
+
+\section{圏論的構造と図式}
+
+\subsection{射の可換図式}
+
+射の条件3（最小層の保存）は、以下の図式が可換になることと同値である。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzcd}[row sep=large, column sep=large]
+X \arrow[r, "f"] \arrow[d, "\mathrm{minLayer}"'] & X' \arrow[d, "\mathrm{minLayer}'"] \\
+I \arrow[r, "\phi"] & I'
+\end{tikzcd}
+\caption{最小層保存条件の可換図式}
+\end{figure}
+
+この図式の可換性が、単なる「階層付き集合」以上の剛性を圏に与えている。
+
+\subsection{自由構造塔の普遍性}
+
+半順序集合 $P$ から生成される自由構造塔 $F(P)$ を考える。
+$F(P)$ のキャリアは $P$ 自身であり、層は単項イデアル $\downarrow p = \{q \in P \mid q \le p\}$ で与えられる。
+
+\begin{theorem}[普遍性]
+任意の半順序集合 $P$ と構造塔 $T$、および単調写像 $f: P \to \mathrm{carrier}(T)$ が与えられ、
+かつ $f$ が $T$ の最小層構造と整合的（$\mathrm{minLayer}(f(x))$ が単調）であるならば、
+構造塔の射 $\Phi: F(P) \to T$ が一意に存在する。
+\end{theorem}
+
+この普遍性は、以下の図式における破線矢印の一意存在として表現される。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzcd}[row sep=large, column sep=large]
+P \arrow[r, "f"] \arrow[d, "\mathrm{id}"'] & \mathrm{carrier}(T) \\
+\mathrm{carrier}(F(P)) \arrow[ru, dashed, "\exists ! \Phi_{\mathrm{map}}"'] &
+\end{tikzcd}
+\caption{自由構造塔の普遍性}
+\end{figure}
+
+\section{Leanによる実装について}
+
+CODEXによって生成されたLeanコードでは、これらの構造が `structure` と `instance` を用いて簡潔に実装されている。
+特に、`Hom.ext` レムラにより、射の等価性が構成要素の等価性に帰着されることが証明されており、これが圏論的な取り扱いを容易にしている。
+
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\small, frame=single, caption=Leanコードの抜粋]
+structure Hom (T T' : StructureTowerWithMin.{u, v}) where
+  map : T.carrier -> T'.carrier
+  indexMap : T.Index -> T'.Index
+  -- (中略)
+  minLayer_preserving : 
+    forall x, T'.minLayer (map x) = indexMap (T.minLayer x)
+\end{lstlisting}
+
+\section{結論}
+本稿では、GeminiとCODEXの協働により、Bourbakiスタイルの構造塔を現代的なLean 4の文脈で再構成し、その数学的仕様をTeX文書化した。
+最小層という補助構造を導入することで、数学的に扱いやすい圏が得られることが確認できた。
+
+\end{document}

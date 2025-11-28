@@ -1,0 +1,202 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% デフォルトフォント設定（原ノ味フォント等を使用）
+
+% リスト環境の調整
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+% --- 数学・図式用パッケージ ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathrsfs} % 花文字用 (\mathscr)
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% --- コード掲載用の設定 ---
+\lstset{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  breaklines=true,
+  backgroundcolor=\color{gray!10},
+  captionpos=b,
+  language=bash % Leanのハイライトに近いものを簡易的に適用
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+
+% --- メタデータ ---
+\title{確率論における構造塔: $\sigma$-代数とフィルトレーション\\
+\large \textit{Lean 4による形式化と数学的構造の解析}}
+
+\author{
+  \textbf{Gemini (Google)} \\
+  \small \textit{TeXファイル生成・文書構成・図式作成}
+  \and
+  \textbf{CODEX (OpenAI)} \\
+  \small \textit{Leanコード生成・形式化原案}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Bourbakiの構造塔 (Structure Tower) 理論を確率論に応用する試みについて詳述する。
+具体的には、可測空間の族としての構造塔を定義し、確率論における「フィルトレーション (Filtration)」や「停止時間 (Stopping Time)」が、構造塔の枠組みにおいて自然に解釈できることを示す。
+これにより、確率過程論の基礎概念に対し、順序理論的かつ圏論的な視点からの新たな形式化を与える。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+確率論において、情報の増大を表すフィルトレーション $(\mathcal{F}_t)_{t \ge 0}$ は中心的な役割を果たす。
+一方、構造塔の理論は、集合 $X$ 上の構造の階層 $(S_i)_{i \in I}$ を一般的に扱う枠組みである。
+
+本稿の目的は、この二つの概念を結びつけ、$\sigma$-代数の増大列を「可測性の構造塔」として再定式化することである。
+
+\section{$\sigma$-代数の構造塔}
+
+\subsection{可測空間の順序構造}
+可測空間 $(\Omega, \mathcal{F})$ において、$\sigma$-代数 $\mathcal{F}$ の全体には包含関係による半順序が入る。
+すなわち、$\mathcal{F}_1 \le \mathcal{F}_2$ であるとは、$\mathcal{F}_1 \subseteq \mathcal{F}_2$ (つまり $\mathcal{F}_2$ の方が情報量が多い/細かい) であることを意味する。
+
+\subsection{SigmaAlgebraTower の定義}
+構造塔の一般定義に基づき、$\sigma$-代数の塔を以下のように構成する。
+
+\begin{definition}[SigmaAlgebraTower]
+標本空間 $\Omega$ 上の $\sigma$-代数塔は、以下の要素からなる。
+\begin{itemize}
+    \item \textbf{基礎集合}: $\mathcal{P}(\Omega)$ ($\Omega$ の部分集合全体)
+    \item \textbf{添字集合}: $\mathrm{MeasurableSpace}(\Omega)$ ($\Omega$ 上の $\sigma$-代数全体)
+    \item \textbf{層 (Layer)}: 各 $\sigma$-代数 $\mathcal{F}$ に対し、その可測集合族を対応させる。
+    \[ \mathrm{layer}(\mathcal{F}) = \{ A \subseteq \Omega \mid A \text{ は } \mathcal{F}\text{-可測} \} \]
+\end{itemize}
+\end{definition}
+
+この定義において、単調性 $\mathcal{F}_1 \le \mathcal{F}_2 \implies \mathrm{layer}(\mathcal{F}_1) \subseteq \mathrm{layer}(\mathcal{F}_2)$ は、$\sigma$-代数の定義から直ちに従う。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+    % Sets representing sigma-algebras
+    \draw[fill=blue!10] (0,0) ellipse (3cm and 2cm);
+    \node at (0, 1.5) {$\mathcal{F}_{\text{fine}}$ (細かい $\sigma$-代数)};
+    
+    \draw[fill=blue!20] (0,-0.5) ellipse (2cm and 1.2cm);
+    \node at (0, 0.2) {$\mathcal{F}_{\text{coarse}}$ (粗い $\sigma$-代数)};
+    
+    \node at (0, -0.8) {$A$};
+    \fill (0, -1) circle (2pt);
+    
+    \node[right] at (3.5, 0) {包含関係: $\mathcal{F}_{\text{coarse}} \subseteq \mathcal{F}_{\text{fine}}$};
+\end{tikzpicture}
+\caption{$\sigma$-代数の包含関係と構造塔の層。内側の集合族で可測な集合 $A$ は、外側の集合族でも当然に可測となる。}
+\end{figure}
+
+\subsection{生成と最小層 (minLayer)}
+構造塔における重要な概念である `minLayer`（ある要素を含む最小の層）は、確率論においては「生成された $\sigma$-代数」に対応する。
+
+\begin{theorem}[minLayer の存在]
+任意の集合 $A \subseteq \Omega$ に対し、それを可測にする最小の $\sigma$-代数が存在する。
+これを $\sigma(A)$ または \texttt{MeasurableSpace.generateFrom \{A\}} と書く。
+\end{theorem}
+
+Leanコードでは以下のように実装されている。
+
+\begin{lstlisting}[caption=SigmaAlgebraTowerの実装]
+def SigmaAlgebraTower : StructureTowerMin (Set Ω) (MeasurableSpace Ω) where
+  layer 𝓕 := {A : Set Ω | @MeasurableSet Ω 𝓕 A}
+  -- (中略)
+  minLayer := fun A =>
+    -- A を含む最小のσ-代数を生成
+    MeasurableSpace.generateFrom {A}
+\end{lstlisting}
+
+\section{フィルトレーションと停止時間}
+
+\subsection{フィルトレーションの定義}
+フィルトレーションとは、$\sigma$-代数の単調増大列である。これを構造塔の文脈では、添字集合を時間軸（例えば $\mathbb{N}$ や $\mathbb{R}_{\ge 0}$）に制限したものと見なせる。
+
+\begin{definition}[SigmaAlgebraFiltration]
+添字集合 $I$ 上のフィルトレーションとは、単調写像 $\mathcal{F}_\bullet: I \to \mathrm{MeasurableSpace}(\Omega)$ である。
+すなわち、$s \le t \implies \mathcal{F}_s \subseteq \mathcal{F}_t$ を満たす。
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.2]
+    % Time axis
+    \draw[->, thick] (0,0) -- (6,0) node[right] {Time $t$};
+    
+    % Filtration levels
+    \foreach \x/\t in {1/t_1, 2.5/t_2, 4/t_3} {
+        \draw (\x, 0.1) -- (\x, -0.1) node[below] {$\t$};
+        \node[above] at (\x, 0.2) {$\mathcal{F}_{\t}$};
+        \draw[dashed, ->] (\x, 0.5) -- (\x, 2);
+    }
+    
+    % Ellipses illustrating information growth
+    \draw (1, 2.5) ellipse (0.5 and 0.3);
+    \draw (2.5, 2.5) ellipse (0.8 and 0.5);
+    \draw (4, 2.5) ellipse (1.2 and 0.7);
+    
+    \node at (5.5, 2.5) {$\dots \subseteq \mathcal{F}_\infty$};
+    \node at (2.5, 3.5) {情報の増大 (可測集合族の拡大)};
+    
+    % Subset relations
+    \draw[->, bend left] (1.3, 2.5) to node[above, scale=0.7] {$\subseteq$} (1.9, 2.5);
+    \draw[->, bend left] (3.1, 2.5) to node[above, scale=0.7] {$\subseteq$} (3.5, 2.5);
+\end{tikzpicture}
+\caption{フィルトレーションによる情報の増大。時間が進むにつれて、識別可能な事象（可測集合）が増えていく。}
+\end{figure}
+
+\subsection{停止時間とminLayer}
+通常、停止時間 $\tau$ は $\{\tau \le n\} \in \mathcal{F}_n$ を満たす確率変数として定義される。
+しかし、構造塔の視点（特に `minLayer`）からは、より直観的な解釈が可能である。
+
+ある事象 $A$ が時刻 $n$ で初めて判明する（可測になる）とき、その最小の時刻 $n$ は `minLayer` そのものである。
+
+\begin{theorem}[停止時間としてのminLayer]
+離散フィルトレーション $(\mathcal{F}_n)_{n \in \mathbb{N}}$ において、事象 $A$ がいつか可測になるとする。
+このとき、
+\[ \mathrm{minLayer}(A) = \min \{ n \in \mathbb{N} \mid A \in \mathcal{F}_n \} \]
+は、ある種の停止時間の概念と対応する。
+\end{theorem}
+
+Leanコードにおける実装（\texttt{Nat.find}を使用）は以下の通りである。
+
+\begin{lstlisting}[caption=minLayerの実装]
+noncomputable
+def minLayer (F : NatFiltration Ω) (A : Set Ω)
+    (hA : ∃ n : ℕ, @MeasurableSet Ω (F.𝓕 n) A) : ℕ :=
+  Nat.find hA
+\end{lstlisting}
+
+\section{今後の展望}
+本稿では、$\sigma$-代数とフィルトレーションの基本的な「骨格」を記述した。
+次のステップとして、以下の課題が挙げられる。
+\begin{enumerate}
+    \item 測度空間 $(\Omega, \mathcal{F}, P)$ 上の構造塔への拡張。
+    \item 条件付き期待値 $E[X \mid \mathcal{F}_n]$ の構造塔としての定式化（射影としての解釈）。
+    \item マルチンゲール理論の圏論的再構成。
+\end{enumerate}
+
+\end{document}

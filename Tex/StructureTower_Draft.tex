@@ -1,0 +1,164 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{fontspec}
+
+\usepackage[japanese, bidi=basic, provide=*]{babel}
+
+\babelprovide[import, onchar=ids fonts]{japanese}
+\babelprovide[import, onchar=ids fonts]{english}
+
+% Set default/Latin font to Sans Serif in the main (rm) slot
+\babelfont{rm}{Noto Sans}
+% Assign a specific font for Japanese text
+\babelfont[japanese]{rm}{Noto Sans CJK JP}
+
+% Set Monospace/Typewriter font for code blocks
+\babelfont{tt}{Noto Sans Mono}
+\babelfont[japanese]{tt}{Noto Sans CJK JP}
+
+% Add because main language is not English
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+% --- PACKAGES FOR MATH & DIAGRAMS ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz-cd}  % For commutative diagrams
+\usepackage{listings} % For code listing
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% --- LEAN CODE STYLING ---
+\definecolor{keywordcolor}{rgb}{0.7, 0.1, 0.1}   % Red
+\definecolor{tacticcolor}{rgb}{0.0, 0.1, 0.6}    % Blue
+\definecolor{commentcolor}{rgb}{0.4, 0.4, 0.4}   % Grey
+\definecolor{symbolcolor}{rgb}{0.0, 0.1, 0.6}    % Blue
+\definecolor{sortcolor}{rgb}{0.1, 0.5, 0.1}      % Green
+
+\lstdefinelanguage{lean}{
+  keywords={def, theorem, lemma, structure, class, instance, where, open, namespace, end, section, variable, universe, import, example},
+  keywordstyle=\color{keywordcolor}\bfseries,
+  morekeywords=[2]{Type, Set, Prop},
+  keywordstyle=[2]\color{sortcolor},
+  morekeywords=[3]{intro, exact, rfl, simp, rw, apply, cases, induction, use, refine, have, calc, obtain},
+  keywordstyle=[3]\color{tacticcolor},
+  comment=[l]{--},
+  morecomment=[s]{/-}{-/},
+  commentstyle=\color{commentcolor}\itshape,
+  literate={∀}{$\forall$}1 {∃}{$\exists$}1 {→}{$\to$}1 {↔}{$\leftrightarrow$}1 {∧}{$\land$}1 {∨}{$\lor$}1 {¬}{$\neg$}1 {≠}{$\neq$}1 {≤}{$\le$}1 {≥}{$\ge$}1 {∈}{$\in$}1 {∉}{$\notin$}1 {⊆}{$\subseteq$}1 {∩}{$\cap$}1 {∪}{$\cup$}1 {×}{$\times$}1 {∅}{$\emptyset$}1 {α}{$\alpha$}1 {β}{$\beta$}1 {γ}{$\gamma$}1 {δ}{$\delta$}1 {ε}{$\epsilon$}1 {ζ}{$\zeta$}1 {η}{$\eta$}1 {θ}{$\theta$}1 {ι}{$\iota$}1 {κ}{$\kappa$}1 {λ}{$\lambda$}1 {μ}{$\mu$}1 {ν}{$\nu$}1 {ξ}{$\xi$}1 {ο}{o}1 {π}{$\pi$}1 {ρ}{$\rho$}1 {σ}{$\sigma$}1 {τ}{$\tau$}1 {υ}{$\upsilon$}1 {φ}{$\phi$}1 {χ}{$\chi$}1 {ψ}{$\psi$}1 {ω}{$\omega$}1 {Γ}{$\Gamma$}1 {Δ}{$\Delta$}1 {Θ}{$\Theta$}1 {Λ}{$\Lambda$}1 {Ξ}{$\Xi$}1 {Π}{$\Pi$}1 {Σ}{$\Sigma$}1 {Φ}{$\Phi$}1 {Ψ}{$\Psi$}1 {Ω}{$\Omega$}1 {⇒}{$\Rightarrow$}1 {⇐}{$\Leftarrow$}1 {⇔}{$\Leftrightarrow$}1 {↦}{$\mapsto$}1 {⟨}{$\langle$}1 {⟩}{$\rangle$}1 {∣}{|}1 {∘}{$\circ$}1 {∙}{$\bullet$}1 {≃}{$\simeq$}1 {≡}{$\equiv$}1 {≈}{$\approx$}1 {:=}{$\coloneqq$}1,
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  showstringspaces=false,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray}
+}
+
+% --- THEOREM ENVIRONMENTS ---
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{proposition}{命題}[section]
+\newtheorem{remark}{注釈}[section]
+
+% --- TITLE INFO ---
+\title{最小層を持つ構造塔の圏論的形式化\\ \large Categorical Formalization of Structure Towers with Minimal Layers}
+\author{Gemini (Google) \and CODEX (OpenAI)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Bourbakiの構造理論に基づく「構造塔（Structure Tower）」の概念に対し、各要素の「最小層（minLayer）」を導入した形式化について述べる。この追加構造により、射の定義が一意となり、圏論的な普遍性がLean Prover上で証明可能となることを示す。なお、本研究におけるLeanコードの実装はCODEX (OpenAI) によって生成され、本稿の執筆およびTeX組版はGemini (Google) によって行われた。
+\end{abstract}
+
+\section{はじめに}
+数学的構造の階層性を形式化する試みは、Bourbakiの『数学原論』以来の課題である。特に、集合 $X$ とその部分集合族（層）$(X_i)_{i \in I}$ の組として定義される「構造塔」は、代数的および位相的構造を統一的に扱う枠組みを提供する。
+
+しかし、単なる包含関係のみを持つ層構造では、圏論的な取り扱い、特に普遍性の証明において技術的な困難が生じる。本稿では、各要素 $x \in X$ に対してそれが属する最小の層を指定する写像 $\mathrm{minLayer}: X \to I$ を導入することで、これらの困難を解決する \texttt{StructureTowerWithMin} を提案する。
+
+\section{最小層を持つ構造塔の定義}
+
+本節では、Lean 4による \texttt{StructureTowerWithMin} の定義を示す。この定義は、順序集合 $I$ と、単調かつ被覆性を持つ層の族に加え、最小性の公理を満たす \texttt{minLayer} を要求する。
+
+\begin{remark}
+以下のLeanコードは、ユーザーの自然言語による指示に基づき、CODEX (OpenAI) が生成したものである。
+\end{remark}
+
+\begin{lstlisting}[language=lean, caption=StructureTowerWithMinの定義]
+structure StructureTowerWithMin where
+  /-- 基礎集合 -/
+  carrier : Type u
+  /-- 添字集合 -/
+  Index : Type v
+  /-- 添字集合上の半順序 -/
+  [indexPreorder : Preorder Index]
+  /-- 各層の定義: Index -> Set carrier -/
+  layer : Index -> Set carrier
+  /-- 被覆性: すべての層の和集合が全体を覆う -/
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  /-- 単調性: 順序を保存 -/
+  monotone : ∀ {i j : Index}, i ≤ j -> layer i ⊆ layer j
+  /-- 各要素の最小層を選ぶ関数 -/
+  minLayer : carrier -> Index
+  /-- minLayer x は実際に x を含む -/
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  /-- minLayer x は最小 -/
+  minLayer_minimal : ∀ x i, x ∈ layer i -> minLayer x ≤ i
+\end{lstlisting}
+
+この \texttt{minLayer\_minimal} の公理が、構造の剛性を保証する鍵となる。
+
+\section{圏論的性質と図式}
+
+\texttt{StructureTowerWithMin} を対象とし、適切な構造保存写像を射とする圏を構成することができる。
+
+\subsection{射の定義と図式}
+
+2つの構造塔 $T, T'$ 間の射 $(f, \phi)$ は、基礎集合間の写像 $f: T.\mathrm{carrier} \to T'.\mathrm{carrier}$ と、添字集合間の順序保存写像 $\phi: T.\mathrm{Index} \to T'.\mathrm{Index}$ の対であり、以下の条件を満たす必要がある。
+
+\begin{enumerate}
+    \item 層の保存: $x \in T.\mathrm{layer}(i) \implies f(x) \in T'.\mathrm{layer}(\phi(i))$
+    \item \textbf{最小層の保存}: $T'.\mathrm{minLayer}(f(x)) = \phi(T.\mathrm{minLayer}(x))$
+\end{enumerate}
+
+特に2つ目の条件は、以下の図式が可換であることを意味する。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzcd}[row sep=large, column sep=large]
+        T.\mathrm{carrier} \arrow[r, "f"] \arrow[d, "T.\mathrm{minLayer}"'] & T'.\mathrm{carrier} \arrow[d, "T'.\mathrm{minLayer}"] \\
+        T.\mathrm{Index} \arrow[r, "\phi"'] & T'.\mathrm{Index}
+    \end{tikzcd}
+    \caption{最小層保存条件の可換図式}
+    \label{fig:minlayer_comm}
+\end{figure}
+
+この可換性により、射 $\phi$ は $f$ から一意に定まる場合が多く、これが自由構造塔（Free Structure Tower）の普遍性の証明において決定的な役割を果たす。
+
+\subsection{普遍性の帰結}
+
+CODEXによって生成された証明コードにより、以下の定理が形式化された。
+
+\begin{theorem}[自由構造塔の普遍性]
+任意の半順序集合 $X$ に対し、自由構造塔 $F(X)$ が存在し、任意の構造塔 $T$ への単調写像 $f: X \to T.\mathrm{carrier}$ は、一意的な射 $\tilde{f}: F(X) \to T$ に拡張される。
+\end{theorem}
+
+証明の詳細は添付のLeanファイル \texttt{CAT2\_complete.md} を参照されたい。
+
+\section{結論とAI貢献に関する声明}
+
+本稿では、最小層を持つ構造塔の定義とその圏論的性質について概説した。
+
+\subsection*{AIモデルの貢献について}
+本研究は、人間と複数のAIモデルとの協働によって行われた。
+\begin{itemize}
+    \item \textbf{Leanコード生成}: CODEX (OpenAI) は、自然言語による仕様記述から、Mathlibに準拠した定理証明コード（\texttt{StructureTowerWithMin} およびその普遍性）を生成した。
+    \item \textbf{論文構成・執筆}: Gemini (Google) は、生成されたコードと背景資料に基づき、本稿の文章を作成し、LaTeXファイルへの組版を行った。
+\end{itemize}
+
+このプロセスは、形式化数学におけるAIアシスタントの有効性を示唆するものである。
+
+\end{document}

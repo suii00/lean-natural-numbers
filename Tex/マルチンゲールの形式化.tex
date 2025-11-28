@@ -1,0 +1,176 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+
+% --- 言語・フォント設定 (LuaLaTeX標準) ---
+\usepackage{luatexja}
+% 環境のデフォルトフォントを使用
+
+% --- パッケージ ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathrsfs}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% --- TikZ設定 ---
+\usetikzlibrary{arrows.meta, positioning, calc, shapes, patterns}
+
+% --- コード掲載設定 ---
+\lstset{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  breaklines=true,
+  backgroundcolor=\color{gray!5},
+  captionpos=b,
+  language=bash, 
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{purple},
+  morekeywords={structure, where, noncomputable, def, lemma, theorem, example, abbrev, namespace, end, open, scoped, variable, instance}
+}
+
+% --- 定理環境 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+
+% --- メタデータ ---
+\title{構造塔上のマルチンゲール: 離散時間確率過程の形式化\\
+\large \textit{条件付き期待値と停止過程の統合}}
+
+\author{
+  \textbf{Gemini (Google)} \\
+  \small \textit{TeXファイル生成・図式作成・解説執筆}
+  \and
+  \textbf{CODEX (OpenAI)} \\
+  \small \textit{Leanコード生成・形式化原案}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、離散時間実数値マルチンゲールをLean 4で形式化する手法について述べる。
+特に、先行する「構造塔 (Structure Tower)」および「停止時間 (Stopping Time)」のAPIを基盤として、マルチンゲールの定義、基本的な演算（和・スカラー倍）、および有界停止時間による停止保存性 (Optional Stopping) の証明を実装する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+マルチンゲールは「公平な賭け」を数学的にモデル化したものであり、条件付き期待値 $E[X_{n+1} \mid \mathcal{F}_n] = X_n$ によって定義される。
+本形式化プロジェクト (\texttt{Martingale\_StructureTower}) の目的は、mathlibの測度論ライブラリと独自の構造塔APIを接続し、扱いやすいマルチンゲールの定義を提供することである。
+
+\section{マルチンゲールの定義}
+
+\subsection{構成要素}
+マルチンゲールを定義するには、確率空間 $(\Omega, \mathcal{F}, P)$ 上に以下の要素が必要である。
+\begin{enumerate}
+    \item \textbf{フィルトレーション}: $(\mathcal{F}_n)_{n \in \mathbb{N}}$
+    \item \textbf{確率過程}: $X : \mathbb{N} \to \Omega \to \mathbb{R}$
+    \item \textbf{適合性}: 各 $X_n$ が $\mathcal{F}_n$-可測であること。
+    \item \textbf{可積分性}: 各 $X_n$ が $L^1(P)$ に属すること。
+    \item \textbf{マルチンゲール性}: 概収束の意味での等式。
+\end{enumerate}
+
+Leanコードでは、これらを一つの構造体 \texttt{Martingale} としてパッケージ化している。
+
+\begin{lstlisting}[caption=マルチンゲールの構造体定義]
+structure Martingale (μ : Measure Ω) [IsFiniteMeasure μ] where
+  filtration : MLFiltration Ω
+  process : Process Ω
+  adapted : MeasureTheory.Adapted filtration process
+  integrable : ∀ n, Integrable (process n) μ
+  martingale : ∀ n, condExp μ filtration n (process (n + 1)) =ᵐ[μ] process n
+\end{lstlisting}
+
+\subsection{条件付き期待値}
+ここで \texttt{condExp} は、mathlibの \texttt{MeasureTheory.condExp} を、構造塔の文脈に合わせてラップしたものである。
+\[ \texttt{condExp} \; \mu \; \mathcal{F} \; n \; f := E[f \mid \mathcal{F}_n] \]
+
+\section{停止マルチンゲール (Stopped Martingale)}
+
+\subsection{停止過程の定義}
+停止時間 $\tau$ に対して、過程 $X$ を $\tau$ で止めた過程 $X^\tau$ は以下で定義される。
+\[ X^\tau_n(\omega) = X_{n \land \tau(\omega)}(\omega) \]
+これは「時刻 $\tau$ までは $X$ と同じ動きをし、それ以降は $X_\tau$ の値で固定される」過程である。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.2]
+    % Axes
+    \draw[->] (-0.2,0) -- (6.5,0) node[right] {時刻 $n$};
+    \draw[->] (0,-2) -- (0,2.5) node[above] {値};
+
+    % Definitions
+    \def\pathX{{0, 0.5, 1.2, 0.8, -0.5, -1.2, -0.8}} % Original path
+    \def\tauval{3} % Stopping time value
+
+    % Draw Grid/Ticks
+    \foreach \x in {0,1,...,6} \draw (\x, 0.1) -- (\x, -0.1) node[below] {\small \x};
+
+    % Draw Original Process X (Faint dashed)
+    \draw[gray, dashed, thin] plot[mark=x] coordinates 
+        {(0,0) (1,0.5) (2,1.2) (3,0.8) (4,-0.5) (5,-1.2) (6,-0.8)};
+    \node[gray, right] at (6,-0.8) {$X_n$};
+
+    % Draw Stopped Process X^tau (Blue thick)
+    % Up to tau=3, it follows X
+    \draw[blue, thick] (0,0) -- (1,0.5) -- (2,1.2) -- (3,0.8);
+    % After tau=3, it stays constant at X_3 = 0.8
+    \draw[blue, thick] (3,0.8) -- (4,0.8) -- (5,0.8) -- (6,0.8);
+    
+    % Marks for Stopped Process
+    \foreach \x/\y in {0/0, 1/0.5, 2/1.2, 3/0.8, 4/0.8, 5/0.8, 6/0.8}
+        \draw[blue, fill=white] (\x, \y) circle (2pt);
+
+    % Stopping Time Line
+    \draw[red, thick, dashed] (\tauval, -2) -- (\tauval, 2.5);
+    \node[red, above] at (\tauval, 2.5) {$\tau(\omega) = 3$};
+    \node[blue, right] at (6, 0.8) {$X^\tau_n$ (固定)};
+
+    % Annotation
+    \node[align=left, draw, fill=white] at (1.5, -1.5) {
+        $\tau$ 以前: $X^\tau_n = X_n$\\
+        $\tau$ 以後: $X^\tau_n = X_\tau$
+    };
+\end{tikzpicture}
+\caption{マルチンゲール $X$ と停止時間 $\tau=3$ による停止過程 $X^\tau$ の挙動}
+\end{figure}
+
+\subsection{有界停止時間による保存性}
+本ファイルの主要な成果は、「有界な停止時間で止められたマルチンゲールは、再びマルチンゲールになる」という定理の証明である。
+
+\begin{theorem}[Bounded Optional Stopping]
+$M$ をマルチンゲール、$\tau$ を有界な停止時間（ある定数 $K$ が存在して $\forall \omega, \tau(\omega) \le K$）とする。
+このとき、停止過程 $M^\tau$ もまた同じフィルトレーションに関するマルチンゲールとなる。
+\end{theorem}
+
+Leanでの証明の鍵となるのは、停止過程の増分分解である。
+\[ M^\tau_{n+1} - M^\tau_n = (M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}} \]
+この式により、条件付き期待値の計算を指示関数の可測性と元のマルチンゲール性に帰着させている。
+
+\begin{lstlisting}[caption=停止マルチンゲール定理の実装]
+noncomputable def stoppedProcess_martingale_of_bdd
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+  Martingale μ :=
+  -- (証明略: 構成には adapted, integrable, martingale の証明が含まれる)
+\end{lstlisting}
+
+\section{結論}
+本稿では、構造塔の概念を取り入れた確率論APIの上に、離散マルチンゲールを定義し、その基本的な性質を形式化した。
+特に停止過程に関するAPI (\texttt{stoppedProcess}) は、直観的な「パスの固定」という操作と、測度論的な「可測性の保持」という性質を綺麗に結びつけている。
+今後は、この基盤を用いてドゥーブの停止定理やマルチンゲール収束定理への拡張が期待される。
+
+\end{document}

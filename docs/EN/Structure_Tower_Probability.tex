@@ -1,0 +1,203 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- PACKAGES ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{top=3cm, bottom=3cm, left=2.5cm, right=2.5cm}
+
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd} % For commutative diagrams
+\usepackage{hyperref} % For hyperlinks
+\usepackage{listings} % For code snippets
+\usepackage{xcolor}
+
+% --- SETTINGS ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\lstset{
+    language=haskell, % Lean is not standard, Haskell is close enough for highlighting
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{purple},
+    frame=single,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true
+}
+
+% --- THEOREMS ---
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{example}[definition]{Example}
+\newtheorem{remark}[definition]{Remark}
+
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{Theorem}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{proposition}[definition]{Proposition}
+\newtheorem{corollary}[definition]{Corollary}
+
+% --- MACROS ---
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\minLayer}{\mathrm{minLayer}}
+\newcommand{\Tower}{\mathfrak{T}}
+
+% --- TITLE INFO ---
+\title{Formalization of Probability Theory via Structure Towers \\
+\large A Category-Theoretic Approach to Filtrations and Stopping Times}
+
+\author{Your Name \\ \texttt{your.email@example.com}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper introduces the concept of a "Structure Tower," an algebraic abstraction of hierarchical structures, and applies it to the formalization of probability theory. By extending Bourbaki's structure species with a $\minLayer$ mapping---which assigns to each element the minimal layer where it first appears---we obtain a categorical framework that naturally captures filtrations and stopping times. We demonstrate that a filtration is an instance of a Structure Tower, and a stopping time can be reinterpreted through the lens of $\minLayer$. Furthermore, we outline the formalization of discrete-time martingales and the Optional Stopping Theorem within this framework using the Lean 4 theorem prover. 
+\end{abstract}
+
+% --- SECTION 1 ---
+\section{Background and Purpose}
+
+In modern probability theory, a filtration $\F = (\F_n)_{n \in \N}$ is essential for modeling the flow of information over time. In many formalization libraries (such as Mathlib for Lean), a filtration is typically defined simply as a monotone sequence of sub-$\sigma$-algebras. While mathematically correct, this definition can sometimes obscure the structural essence of "time" and "emergence" of information.
+
+The purpose of this paper is threefold:
+\begin{enumerate}
+    \item To define the \textbf{Structure Tower}, a generic algebraic structure capturing layered sets equipped with a minimal layer function.
+    \item To reinterpret filtrations and stopping times using the Structure Tower and its $\minLayer$ map.
+    \item To formalize discrete martingales and the foundations of the Optional Stopping Theorem (OST) using this new abstraction in Lean 4.
+\end{enumerate}
+
+% --- SECTION 2 ---
+\section{Definition of Structure Tower}
+
+Based on the formalization in \texttt{StructureTowerWithMin} (from \textit{CAT2\_complete.lean}), we define the core structure.
+
+\subsection{Structure Tower with Minimal Layer}
+
+A Structure Tower is not just a filtration; it is equipped with a mechanism to identify the "birth time" of an element.
+
+\begin{definition}[Structure Tower with Min]
+A Structure Tower is a tuple $T = (X, I, \le, \mathrm{layer}, \minLayer)$ consisting of:
+\begin{itemize}
+    \item A carrier set $X$.
+    \item An index set $I$ with a preorder $\le$.
+    \item A family of layers $\mathrm{layer}: I \to \mathcal{P}(X)$.
+    \item A mapping $\minLayer: X \to I$.
+\end{itemize}
+Subject to the following axioms:
+\begin{enumerate}
+    \item \textbf{Covering:} $\forall x \in X, \exists i \in I, x \in \mathrm{layer}(i)$.
+    \item \textbf{Monotonicity:} $i \le j \implies \mathrm{layer}(i) \subseteq \mathrm{layer}(j)$.
+    \item \textbf{Min-Layer Property:} For all $x \in X$, $x \in \mathrm{layer}(\minLayer(x))$, and if $x \in \mathrm{layer}(i)$, then $\minLayer(x) \le i$.
+\end{enumerate}
+\end{definition}
+
+This $\minLayer$ function is crucial. It guarantees that the "time" an element becomes available is well-defined and unique.
+
+\subsection{Universal Property and Free Structure Tower}
+
+One of the main advantages of this definition is that it constitutes a category where morphisms preserve the $\minLayer$ structure. We can construct a \textbf{Free Structure Tower} from any preorder $P$.
+
+\begin{theorem}[Universal Property]
+For any preorder $X$, there exists a Free Structure Tower $\mathcal{F}(X)$ such that for any Structure Tower $T$ and any monotone map $f: X \to T_{\mathrm{carrier}}$ compatible with min-layers, there exists a unique morphism $\phi: \mathcal{F}(X) \to T$.
+\end{theorem}
+
+This can be visualized by the following commutative diagram:
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzcd}
+        X \arrow[r, "f"] \arrow[d, "i_X"'] & T_{\mathrm{carrier}} \\
+        \mathcal{F}(X)_{\mathrm{carrier}} \arrow[ru, dashed, "\exists! \phi"'] &
+    \end{tikzcd}
+    \caption{The universal property of the Free Structure Tower. The uniqueness of $\phi$ is guaranteed by the preservation of $\minLayer$.}
+    \label{fig:universal_property}
+\end{figure}
+
+% --- SECTION 3 ---
+\section{Reinterpretation of Filtration and Stopping Times}
+
+We now map these abstract concepts to probability theory, based on \textit{SigmaAlgebraTower\_Skeleton.lean} and \textit{StoppingTime\_MinLayer.lean}.
+
+\subsection{Filtration as a Structure Tower}
+
+Let $(\Omega, \F, \P)$ be a probability space. A filtration $(\F_n)_{n \in \N}$ can be viewed as a Structure Tower where the carrier is the set of all events (or potentially measurable sets).
+\[
+\mathrm{layer}(n) = \{ A \subseteq \Omega \mid A \in \F_n \}
+\]
+In this context, $\minLayer(A)$ corresponds to the \textbf{first time} the event $A$ becomes measurable (observable).
+
+\subsection{Stopping Times and $\minLayer$}
+
+Classically, a stopping time is a random variable $\tau: \Omega \to \N \cup \{\infty\}$ such that $\{ \tau \le n \} \in \F_n$.
+In our framework, we can relate $\tau$ to the $\minLayer$ of singleton sets (atoms) of the sample space, formally or conceptually:
+\[
+\tau(\omega) \approx \minLayer(\{ \omega \})
+\]
+This implies that $\tau(\omega)$ is the time at which the outcome $\omega$ becomes distinguishable from others in the filtration.
+
+% --- SECTION 4 ---
+\section{Martingales and Optional Stopping}
+
+Using the definitions from \textit{Martingale\_StructureTower.lean}, we formalize discrete martingales.
+
+\subsection{Definition}
+A process $M = (M_n)_{n \in \N}$ is a martingale with respect to a filtration (Structure Tower) if:
+\begin{enumerate}
+    \item It is \textbf{adapted}: $M_n$ is measurable with respect to $\mathrm{layer}(n)$.
+    \item It is \textbf{integrable}: $M_n \in L^1(\P)$.
+    \item It satisfies the \textbf{martingale property}: $\E[M_{n+1} \mid \F_n] = M_n$ almost surely.
+\end{enumerate}
+
+\subsection{Stopped Process and OST}
+Given a stopping time $\tau$, the stopped process $M^\tau$ is defined by $M^\tau_n(\omega) = M_{\min(n, \tau(\omega))}(\omega)$.
+The formalization includes the proof that if $\tau$ is bounded, the stopped process preserves the martingale property.
+
+\begin{theorem}[Martingale Property of Stopped Process]
+If $M$ is a martingale and $\tau$ is a bounded stopping time, then $M^\tau$ is also a martingale.
+\[
+\E[M^\tau_{n+1} \mid \F_n] = M^\tau_n \quad \text{a.s.}
+\]
+\end{theorem}
+
+% --- SECTION 5 ---
+\section{Lean Formalization}
+
+The implementation was carried out in Lean 4. The key modules are:
+
+\begin{itemize}
+    \item \texttt{StructureTowerWithMin}: Defines the categorical structure.
+    \item \texttt{SigmaAlgebraTower}: Implements the probability theory instance.
+    \item \texttt{Martingale\_StructureTower}: Contains the definition of \texttt{condExp} and the proof of \texttt{stoppedProcess\_martingale\_of\_bdd}.
+\end{itemize}
+
+The code leverages Lean's `MeasureTheory` library while wrapping the filtration logic into the Structure Tower interface.
+
+% --- CONCLUSION ---
+\section{Conclusion and Future Work}
+
+We have presented a novel formalization of filtrations using Structure Towers. This approach clarifies the algebraic properties of information flow. Future work includes extending this to continuous time and formally proving the general Optional Stopping Theorem and Doob's Convergence Theorems.
+
+% --- ACKNOWLEDGMENTS ---
+\section*{Acknowledgments}
+
+\textbf{Generation Disclaimer:} 
+The LaTeX source code for this document was generated by \textbf{Google's Gemini} model. 
+The Lean 4 formalization code discussed herein was generated by \textbf{OpenAI's CODEX} model. 
+These AI tools were used to accelerate the translation of abstract mathematical concepts into formal definitions and typeset manuscripts.
+
+\end{document}

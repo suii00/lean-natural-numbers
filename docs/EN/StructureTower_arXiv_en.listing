@@ -1,0 +1,3 @@
+noncomputable def minLayer (F : NatFiltration Omega) (A : Set Omega)
+    (hA : exists n, @MeasurableSet Omega (F.F n) A) : Nat :=
+  Nat.find hA
