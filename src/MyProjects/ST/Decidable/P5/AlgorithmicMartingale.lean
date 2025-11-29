@@ -484,8 +484,81 @@ lemma expected_atStopping_as_sum
         Prob.ProbabilityMassFunction.expected P
           (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
   classical
-  -- TODO: 将来の OST 証明で埋める
-  sorry
+  -- 1. 各 ω について、M_{τ(ω)}(ω) を有限和に書き換える補題（上で定義した expand）
+  have expand :
+      ∀ ω : Ω.carrier,
+        M (τ.time ω) ω =
+          (Finset.range (N + 1)).sum
+            (fun n => M n ω * (if τ.time ω = n then 1 else 0)) := by
+    intro ω
+    classical
+    -- まず「関数 f」を明示的に束縛
+    let f : ℕ → ℚ :=
+      fun n => M n ω * (if τ.time ω = n then 1 else 0)
+
+    have hmem : τ.time ω ∈ Finset.range (N + 1) := by
+      have h := hBound ω
+      exact Finset.mem_range.mpr (Nat.lt_succ_of_le h)
+
+    have hsum :
+        (Finset.range (N + 1)).sum f
+          =
+        f (τ.time ω) := by
+      -- ここで `sum_eq_single_of_mem` を使う
+      refine
+        Finset.sum_eq_single_of_mem
+          (a := τ.time ω) hmem ?hzero
+      · -- 「a 以外の項」は 0 になることを示す
+        intro n hn hne
+        -- hne : n ≠ τ.time ω を `τ.time ω ≠ n` に向きをそろえる
+        have hne' : τ.time ω ≠ n := by simpa [eq_comm] using hne
+        -- その上で `if τ.time ω = n then 1 else 0 = 0` と落とす
+        simp [f, hne']   -- ← ここで `f n = ... = 0` になる
+    -- 右辺 `f (τ.time ω)` を展開すると `M (τ.time ω) ω * 1` なのでただの `M (τ.time ω) ω`
+    have : (Finset.range (N + 1)).sum
+              (fun n => M n ω * (if τ.time ω = n then 1 else 0))
+          = M (τ.time ω) ω := by
+      simpa [f] using hsum
+    -- 目標はこの等式の左右をひっくり返したもの
+    exact this.symm    -- または `exact this.symm` でもよい
+
+
+  -- 2. ランダム変数としての等式にする
+  have hfun :
+      (fun ω => M (τ.time ω) ω)
+        =
+      (fun ω =>
+        (Finset.range (N + 1)).sum
+          (fun n => M n ω * (if τ.time ω = n then 1 else 0))) := by
+    funext ω
+    exact expand ω
+
+  -- 3. 期待値に対してこの等式を適用
+  calc
+    Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω)
+        =
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω =>
+          (Finset.range (N + 1)).sum
+            (fun n => M n ω * (if τ.time ω = n then 1 else 0))) := by
+        -- hfun を使って引数を書き換えるだけ
+        simp [hfun]
+    _ =
+      ∑ n ∈ Finset.range (N + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+        -- 期待値と有限和の交換：expected_finset_sum をそのまま使う
+        -- ここでは Finset.sum 版の補題を適用し、∑ n ∈ s を sugar として使う
+        have := Prob.ProbabilityMassFunction.expected_finset_sum
+          (P := P)
+          (s := Finset.range (N + 1))
+          (X := fun n ω => M n ω * (if τ.time ω = n then 1 else 0))
+        -- `expected_finset_sum` の結論は
+        --   expected P (fun ω => (range (N+1)).sum ...) =
+        --     (range (N+1)).sum (fun n => expected P ...)
+        -- なので、notation を合わせれば `simpa` でゴールに一致するはずです。
+        simpa using this
+
 
 /--
 離散有限標本空間上の有界停止時間に対する Optional Stopping Theorem（型だけ）。

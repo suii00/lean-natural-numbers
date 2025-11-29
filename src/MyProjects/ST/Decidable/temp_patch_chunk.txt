@@ -1,0 +1,30 @@
+    intro ω
+    classical
+    have hmem : τ.time ω ∈ Finset.range (N + 1) := by
+      have h := hBound ω
+      exact Finset.mem_range.mpr (Nat.lt_succ_of_le h)
+    -- `if n = τ.time ω` で書き直してから一意の項だけ残す
+    have hs : ∑ n ∈ Finset.range (N + 1),
+        (if n = τ.time ω then M n ω else 0) = M (τ.time ω) ω := by
+      refine Finset.sum_eq_single (τ.time ω) ?hmain ?hrest
+      · intro n hn hne; simp [hne]
+      · intro hnot
+        have : False := hnot hmem
+        contradiction
+    -- 目標の形に変形
+    calc
+      M (τ.time ω) ω
+          = ∑ n ∈ Finset.range (N + 1),
+              (if n = τ.time ω then M n ω else 0) := by simpa using hs.symm
+      _ = ∑ n ∈ Finset.range (N + 1),
+              M n ω * (if τ.time ω = n then 1 else 0) := by
+              refine Finset.sum_congr rfl ?_
+              intro n hn; by_cases h : n = τ.time ω <;> simp [h, mul_comm, mul_left_comm, mul_assoc]
+  -- 期待値の定義に戻して二重和を交換する
+  unfold Prob.ProbabilityMassFunction.expected
+  calc
+    ∑ ω, P.pmf ω * M (τ.time ω) ω
+        = ∑ ω, P.pmf ω *
+            (∑ n ∈ Finset.range (N + 1),
+              M n ω * (if τ.time ω = n then 1 else 0)) := by
+            apply Finset.sum_congr rfl
