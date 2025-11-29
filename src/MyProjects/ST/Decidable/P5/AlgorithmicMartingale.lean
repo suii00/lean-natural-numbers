@@ -468,6 +468,43 @@ lemma stopped_after
 end SimpleProcess
 
 /-
+停止時間で評価した値の期待値を、各時刻への分割和で書き下ろす型だけ用意しておく。
+証明は将来の OST 章で埋める。
+-/
+lemma expected_atStopping_as_sum
+    {Ω : Prob.FiniteSampleSpace}
+    {ℱ : DecidableFiltration Ω}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ)
+    (N : ℕ)
+    (hBound : ∀ ω, τ.time ω ≤ N) :
+    Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) =
+      ∑ n ∈ Finset.range (N + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+  classical
+  -- TODO: 将来の OST 証明で埋める
+  sorry
+
+/--
+離散有限標本空間上の有界停止時間に対する Optional Stopping Theorem（型だけ）。
+証明は将来の拡張で埋める。
+-/
+theorem optionalStopping_theorem
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingale P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
+    Prob.ProbabilityMassFunction.expected P (M 0) =
+      Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
+  -- 将来の OST 証明で置き換える
+  sorry
+
+/-
 ## 4. 有界停止時間に対する Optional Stopping Theorem（ステートメント）
 
 ここでは、有限標本空間 + 有界停止時間という強い仮定の下での
