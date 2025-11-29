@@ -422,6 +422,36 @@ example
       (n := 0) (m := 1) (hn := Nat.zero_le _) (hm := hH)
   simpa using h
 
+/-!
+定数停止時間の特別ケース：`τ(ω) ≡ k` のとき、`E[M_τ] = E[M_0]`。
+-/
+lemma optionalStopping_constTime
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingale P ℱ M)
+    (k : ℕ) (hk : k ≤ ℱ.timeHorizon)
+    (τ : ComputableStoppingTime ℱ)
+    (hτ : ∀ ω, τ.time ω = k) :
+    Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) =
+      Prob.ProbabilityMassFunction.expected P (M 0) := by
+  -- `τ` が定数なので、左辺を `M k` に書き換える
+  have hrewrite :
+      Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) =
+        Prob.ProbabilityMassFunction.expected P (M k) := by
+    have hfun : (fun ω => M (τ.time ω) ω) = fun ω => M k ω := by
+      funext ω; simp [hτ ω]
+    simpa [hfun]
+  -- マルチンゲールの性質で `E[M k] = E[M 0]`
+  have hmart := martingale_expectation_const
+      (P := P) (ℱ := ℱ) (M := M) (hMart := hMart)
+      (n := 0) (m := k) (hn := Nat.zero_le _) (hm := hk)
+  calc
+    Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω)
+        = Prob.ProbabilityMassFunction.expected P (M k) := hrewrite
+    _ = Prob.ProbabilityMassFunction.expected P (M 0) := hmart.symm
+
 /-
 ## 3. 停止時間で打ち切った過程（stopped process）
 
