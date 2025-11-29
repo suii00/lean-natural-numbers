@@ -607,6 +607,17 @@ theorem optionalStopping_theorem
   -- 将来の OST 証明で置き換える
   sorry
 
+  /-
+  証明スケッチ（今は `sorry` のまま）:
+  1. `expected_atStopping_as_sum` を使って
+       `E[M_τ] = ∑_{n=0}^{N} E[M_n · 1_{τ=n}]`
+     に分解する。ここで `N = ℱ.timeHorizon`。
+  2. マルチンゲール性から `E[M_n]` は n に依らず一定。
+     定数 `E[M_0]` を取り出し、指示関数の期待値は確率 `P(τ=n)` に置き換える。
+  3. 全確率の和が 1 であることを使って
+       `E[M_τ] = E[M_0] * ∑_{n=0}^{N} P(τ=n) = E[M_0]`.
+  -/
+
 /-
 ## 4. 有界停止時間に対する Optional Stopping Theorem（ステートメント）
 
