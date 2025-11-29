@@ -735,6 +735,66 @@ lemma optionalStopping_sum_terms
   -- termwise 等式を各項に適用
   exact optionalStopping_termwise P ℱ M hMart τ n
 
+/-- `M 0` を全時刻でコピーした定数過程。 -/
+def timeConstProcess
+    {Ω : Prob.FiniteSampleSpace} (M : SimpleProcess Ω) : SimpleProcess Ω :=
+  fun _ ω => M 0 ω
+
+/-- `M 0` の期待値を `{τ = n}` で分割した有限和に書き下ろす補題。 -/
+lemma expected_M0_as_sum_over_tau
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
+    Prob.ProbabilityMassFunction.expected P (M 0) =
+      ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+  classical
+  -- expected_atStopping_as_sum を時間方向に定数な過程に適用
+  have h :=
+    expected_atStopping_as_sum
+      (P := P)
+      (M := timeConstProcess M)
+      (τ := τ)
+      (N := ℱ.timeHorizon)
+      (hBound := hBound)
+  -- `eventTauEq` を `τ.time ω = n` に書き戻した形
+  have h' :
+      Prob.ProbabilityMassFunction.expected P (fun ω => timeConstProcess M (τ.time ω) ω) =
+        ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+          Prob.ProbabilityMassFunction.expected P
+            (fun ω => timeConstProcess M n ω * (if τ.time ω = n then 1 else 0)) := by
+    -- `expected_atStopping_as_sum` の右辺は `if ω ∈ eventTauEq τ n` なので書き換える
+    simpa [indicator_eventTauEq] using h
+  -- 左辺を書き換え
+  have hfun :
+      (fun ω => timeConstProcess M (τ.time ω) ω) =
+        (fun ω => M 0 ω) := by
+    funext ω; simp [timeConstProcess]
+  -- 右辺の各項を書き換え
+  have hsum :
+      ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => timeConstProcess M n ω * (if τ.time ω = n then 1 else 0)) =
+      ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+    refine Finset.sum_congr rfl ?_
+    intro n hn; simp [timeConstProcess]
+  calc
+    Prob.ProbabilityMassFunction.expected P (M 0)
+        = Prob.ProbabilityMassFunction.expected P (fun ω => timeConstProcess M (τ.time ω) ω) := by
+            simpa [hfun]
+    _ = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+          Prob.ProbabilityMassFunction.expected P
+            (fun ω => timeConstProcess M n ω * (if τ.time ω = n then 1 else 0)) := h'
+    _ = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+          Prob.ProbabilityMassFunction.expected P
+            (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := hsum
+
 theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
