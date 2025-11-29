@@ -805,8 +805,30 @@ theorem optionalStopping_theorem
     (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
     Prob.ProbabilityMassFunction.expected P (M 0) =
       Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
-  -- 将来の OST 証明で置き換える
-  sorry
+  classical
+  -- Step 1: E[M_τ] を有限和に分解
+  have hsplit :=
+    optionalStopping_theorem_split P ℱ M τ hBound
+  -- Step 2: 和の各項で M_n を M_0 に置き換える
+  have hsum :=
+    optionalStopping_sum_terms P ℱ M hMart τ
+  -- Step 3: M_0 側の有限和は E[M_0] に戻る
+  have hM0 :=
+    expected_M0_as_sum_over_tau P ℱ M τ hBound
+
+  -- 3 つの等式をつないで結論を得る
+  calc
+    Prob.ProbabilityMassFunction.expected P (M 0)
+        = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+            Prob.ProbabilityMassFunction.expected P
+              (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+          exact hM0
+    _ = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+            Prob.ProbabilityMassFunction.expected P
+              (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+          exact hsum.symm
+    _ = Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
+          exact hsplit.symm
 
   /-
   証明スケッチ（今は `sorry` のまま）:
