@@ -169,21 +169,40 @@ lemma expected_mul_const (P : ProbabilityMassFunction Ω)
 
 /-- 期待値と有限和の交換（有限指標 `s` 上の総和）。 -/
 lemma expected_finset_sum (P : ProbabilityMassFunction Ω)
-    {ι : Type*} (s : Finset ι) (X : ι → Ω.carrier → ℚ) :
-    expected P (fun ω => s.sum (fun i => X i ω)) =
-      s.sum (fun i => expected P (X i)) := by
+    {ι : Type*} [DecidableEq ι]
+    (s : Finset ι) (X : ι → Ω.carrier → ℚ) :
+    expected P (fun ω => ∑ i ∈ s, X i ω) =
+      ∑ i ∈ s, expected P (X i) := by
   classical
-  -- 期待値の定義に展開
+  revert X
+  refine Finset.induction_on s ?base ?step
+  · intro X; simp [expected]
+  · intro a s ha ih X
+    calc
+      expected P (fun ω => ∑ i ∈ insert a s, X i ω)
+          = expected P (fun ω => X a ω + ∑ i ∈ s, X i ω) := by
+              simp [Finset.sum_insert, ha]
+      _ = expected P (fun ω => X a ω) +
+            expected P (fun ω => ∑ i ∈ s, X i ω) := by
+              simpa [expected_add]
+      _ = expected P (X a) + ∑ i ∈ s, expected P (X i) := by
+              simpa [ih]
+      _ = ∑ i ∈ insert a s, expected P (X i) := by
+              simp [Finset.sum_insert, ha, add_comm, add_left_comm, add_assoc]
+
+/-- 指示関数を掛けた期待値を if でゼロ埋めした形に書き換える。 -/
+lemma expected_indicator_mul (P : ProbabilityMassFunction Ω)
+    (A : Event Ω.carrier) (X : Ω.carrier → ℚ) :
+    expected P (fun ω => X ω * (if ω ∈ A then 1 else 0)) =
+      expected P (fun ω => if ω ∈ A then X ω else 0) := by
+  classical
+  -- 各項で場合分けして一致
   unfold expected
-  -- 右辺を目標に揃えるように二重和を組み替える
-  calc
-    ∑ ω, P.pmf ω * s.sum (fun i => X i ω)
-        = ∑ ω, ∑ i ∈ s, P.pmf ω * X i ω := by
-          simp [Finset.mul_sum, mul_comm, mul_left_comm, mul_assoc]
-    _ = ∑ i ∈ s, ∑ ω, P.pmf ω * X i ω := by
-          -- 有限和なので順序交換がそのまま使える
-          exact Finset.sum_comm
-    _ = ∑ i ∈ s, expected P (X i) := by rfl
+  apply Finset.sum_congr rfl
+  intro ω hω
+  by_cases hA : ω ∈ A
+  · simp [hA, mul_comm, mul_left_comm, mul_assoc]
+  · simp [hA, mul_comm, mul_left_comm, mul_assoc]
 
 end ProbabilityMassFunction
 
