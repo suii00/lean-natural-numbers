@@ -508,6 +508,21 @@ def eventTauEq
     (τ : ComputableStoppingTime ℱ) (n : ℕ) (ω : Ω.carrier) :
     ω ∈ eventTauEq (ℱ := ℱ) τ n ↔ τ.time ω = n := Iff.rfl
 
+@[simp] lemma indicator_eventTauEq
+    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
+    (τ : ComputableStoppingTime ℱ) (n : ℕ) (ω : Ω.carrier) :
+    (if τ.time ω = n then (1 : ℚ) else 0) =
+    (if ω ∈ eventTauEq (ℱ := ℱ) τ n then 1 else 0) := by
+  -- 条件 `τ.time ω = n` で場合分け
+  by_cases h : τ.time ω = n
+  · -- ケース1: τ.time ω = n
+    -- 左右とも 1 になる
+    simp [eventTauEq, h]
+  · -- ケース2: τ.time ω ≠ n
+    -- 左右とも 0 になる
+    simp [eventTauEq, h]
+
+
 /-! `τ = n` の指示関数を書き換える小補題。 -/
 lemma expected_atStopping_term_rewrite
     {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
@@ -522,6 +537,28 @@ lemma expected_atStopping_term_rewrite
     Prob.ProbabilityMassFunction.expected_indicator_mul
       (P := P) (A := eventTauEq (ℱ := ℱ) τ n) (X := fun ω => M n ω)
   simpa [eventTauEq] using h
+
+/-- `τ = n` の指示を eventTauEq で書き換えた期待値版。 -/
+lemma expected_at_tau_eq_as_event
+    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) :
+  Prob.ProbabilityMassFunction.expected P
+      (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
+    =
+  Prob.ProbabilityMassFunction.expected P
+      (fun ω => M n ω * (if ω ∈ eventTauEq (ℱ := ℱ) τ n then 1 else 0)) := by
+  classical
+  have hfun :
+      (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
+        =
+      (fun ω => M n ω * (if ω ∈ eventTauEq (ℱ := ℱ) τ n then 1 else 0)) := by
+    funext ω
+    simp [indicator_eventTauEq]   -- if の中身を書き換えるだけ
+  simp [Prob.ProbabilityMassFunction.expected, hfun]
+
 
 /-
 停止時間で評価した値の期待値を、各時刻への分割和で書き下ろす型だけ用意しておく。
@@ -538,19 +575,19 @@ lemma expected_atStopping_as_sum
     Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) =
       ∑ n ∈ Finset.range (N + 1),
         Prob.ProbabilityMassFunction.expected P
-          (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+          (fun ω => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0)) := by
   classical
   -- 1. 各 ω について、M_{τ(ω)}(ω) を有限和に書き換える補題（上で定義した expand）
   have expand :
       ∀ ω : Ω.carrier,
         M (τ.time ω) ω =
           (Finset.range (N + 1)).sum
-            (fun n => M n ω * (if τ.time ω = n then 1 else 0)) := by
+            (fun n => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0)) := by
     intro ω
     classical
     -- まず「関数 f」を明示的に束縛
     let f : ℕ → ℚ :=
-      fun n => M n ω * (if τ.time ω = n then 1 else 0)
+      fun n => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0)
 
     have hmem : τ.time ω ∈ Finset.range (N + 1) := by
       have h := hBound ω
@@ -572,7 +609,7 @@ lemma expected_atStopping_as_sum
         simp [f, hne']   -- ← ここで `f n = ... = 0` になる
     -- 右辺 `f (τ.time ω)` を展開すると `M (τ.time ω) ω * 1` なのでただの `M (τ.time ω) ω`
     have : (Finset.range (N + 1)).sum
-              (fun n => M n ω * (if τ.time ω = n then 1 else 0))
+              (fun n => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0))
           = M (τ.time ω) ω := by
       simpa [f] using hsum
     -- 目標はこの等式の左右をひっくり返したもの
@@ -585,7 +622,7 @@ lemma expected_atStopping_as_sum
         =
       (fun ω =>
         (Finset.range (N + 1)).sum
-          (fun n => M n ω * (if τ.time ω = n then 1 else 0))) := by
+          (fun n => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0))) := by
     funext ω
     exact expand ω
 
@@ -596,19 +633,19 @@ lemma expected_atStopping_as_sum
       Prob.ProbabilityMassFunction.expected P
         (fun ω =>
           (Finset.range (N + 1)).sum
-            (fun n => M n ω * (if τ.time ω = n then 1 else 0))) := by
+            (fun n => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0))) := by
         -- hfun を使って引数を書き換えるだけ
         simp [hfun]
     _ =
       ∑ n ∈ Finset.range (N + 1),
         Prob.ProbabilityMassFunction.expected P
-          (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+          (fun ω => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0)) := by
         -- 期待値と有限和の交換：expected_finset_sum をそのまま使う
         -- ここでは Finset.sum 版の補題を適用し、∑ n ∈ s を sugar として使う
         have := Prob.ProbabilityMassFunction.expected_finset_sum
           (P := P)
           (s := Finset.range (N + 1))
-          (X := fun n ω => M n ω * (if τ.time ω = n then 1 else 0))
+          (X := fun n ω => M n ω * (if ω ∈ eventTauEq τ n then 1 else 0))
         -- `expected_finset_sum` の結論は
         --   expected P (fun ω => (range (N+1)).sum ...) =
         --     (range (N+1)).sum (fun n => expected P ...)
