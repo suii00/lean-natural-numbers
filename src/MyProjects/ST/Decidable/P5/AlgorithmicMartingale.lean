@@ -559,6 +559,24 @@ lemma expected_at_tau_eq_as_event
     simp [indicator_eventTauEq]   -- if の中身を書き換えるだけ
   simp [Prob.ProbabilityMassFunction.expected, hfun]
 
+/-- 中間ステップ：`E[M_n · 1_{τ=n}]` を `E[M_0]` と `P(τ=n)` に寄せる型だけ。 -/
+lemma expected_at_tau_eq_to_probOfEvent
+    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) :
+  Prob.ProbabilityMassFunction.expected P
+      (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
+    Prob.ProbabilityMassFunction.expected P (M 0) *
+      Prob.ProbabilityMassFunction.probOfEvent P (eventTauEq (ℱ := ℱ) τ n) := by
+  -- TODO: 将来の OST 証明で埋める
+  -- ヒント:
+  -- 1) `expected_at_tau_eq_as_event` で eventTauEq 版に書き換え
+  -- 2) `martingale_expectation_const` から `E[M_n] = E[M_0]` を得る
+  -- 3) `expected_indicator` / `expected_indicator_mul` を使い、M を E[M_0] に分離
+  sorry
+
 
 /-
 停止時間で評価した値の期待値を、各時刻への分割和で書き下ろす型だけ用意しておく。
@@ -657,6 +675,23 @@ lemma expected_atStopping_as_sum
 離散有限標本空間上の有界停止時間に対する Optional Stopping Theorem（型だけ）。
 証明は将来の拡張で埋める。
 -/
+lemma optionalStopping_theorem_split
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
+    Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) =
+      ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+  classical
+  -- 既存の expected_atStopping_as_sum を N = ℱ.timeHorizon で使うだけ
+  simpa using
+    (expected_atStopping_as_sum
+      (P := P) (M := M) (τ := τ) (N := ℱ.timeHorizon) (hBound := hBound))
+
 theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
