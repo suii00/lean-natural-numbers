@@ -692,6 +692,26 @@ lemma optionalStopping_theorem_split
     (expected_atStopping_as_sum
       (P := P) (M := M) (τ := τ) (N := ℱ.timeHorizon) (hBound := hBound))
 
+/--
+OST のコア部分：「各 n ごとに `M_n · 1_{τ=n}` の期待値は `M_0 · 1_{τ=n}` と等しい」。
+現行の `IsMartingale`（全期待値一定のみ）では証明できないため、型だけ確定し証明は将来の拡張に委ねる。
+-/
+lemma optionalStopping_termwise
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingale P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) :
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+  -- ★ 本物の離散 OST ならここで条件付き期待値や適合性を使う。
+  -- 現状の簡略版マルチンゲール定義では不足するため、将来の強化で証明する。
+  sorry
+
 theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
