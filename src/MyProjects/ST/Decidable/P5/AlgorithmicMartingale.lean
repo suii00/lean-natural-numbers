@@ -559,23 +559,10 @@ lemma expected_at_tau_eq_as_event
     simp [indicator_eventTauEq]   -- if の中身を書き換えるだけ
   simp [Prob.ProbabilityMassFunction.expected, hfun]
 
-/-- 中間ステップ：`E[M_n · 1_{τ=n}]` を `E[M_0]` と `P(τ=n)` に寄せる型だけ。 -/
-lemma expected_at_tau_eq_to_probOfEvent
-    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
-    (P : Prob.ProbabilityMassFunction Ω)
-    (M : SimpleProcess Ω)
-    (τ : ComputableStoppingTime ℱ)
-    (n : ℕ) :
-  Prob.ProbabilityMassFunction.expected P
-      (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
-    Prob.ProbabilityMassFunction.expected P (M 0) *
-      Prob.ProbabilityMassFunction.probOfEvent P (eventTauEq (ℱ := ℱ) τ n) := by
-  -- TODO: 将来の OST 証明で埋める
-  -- ヒント:
-  -- 1) `expected_at_tau_eq_as_event` で eventTauEq 版に書き換え
-  -- 2) `martingale_expectation_const` から `E[M_n] = E[M_0]` を得る
-  -- 3) `expected_indicator` / `expected_indicator_mul` を使い、M を E[M_0] に分離
-  sorry
+-- Note: `expected_at_tau_eq_to_probOfEvent` で
+-- `E[M_n · 1_{τ=n}] = E[M_0] * P(τ=n)` を主張するのは、現状の前提では誤りになりうる。
+--（`IsMartingale` が全期待値一定のみだから。）
+-- 将来、条件付き期待値を導入し定理を強化したときに再検討する。
 
 
 /-
@@ -708,11 +695,14 @@ lemma optionalStopping_termwise
       (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
     Prob.ProbabilityMassFunction.expected P
       (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
-  -- ★ 本物の離散 OST ならここで条件付き期待値や適合性を使う。
-  -- 現状の簡略版マルチンゲール定義では不足するため、将来の強化で証明する。
+  /-
+  ★ ここが離散 OST の本質部分（唯一の核心 TODO）。
+  現状の `IsMartingale` は「全期待値一定」しか仮定しないため証明は保留。
+  将来、条件付き期待値や適合性を含む強い定義を導入した際にここを埋める。
+  -/
   sorry
 
-/- 
+/-
 Step 2（有限和への持ち上げ）: termwise 等式が全 n で成立すると仮定し、和全体を書き換える。
 -/
 lemma optionalStopping_sum_terms
@@ -937,7 +927,7 @@ def unitSpace : Prob.FiniteSampleSpace where
 
 ただ一つの標本点 `()` に確率 1 を割り当てる。
 -/
-noncomputable def unitPMF : Prob.ProbabilityMassFunction unitSpace :=
+def unitPMF : Prob.ProbabilityMassFunction unitSpace :=
 { pmf := fun _ => (1 : ℚ)
 , nonneg := by
     intro _
