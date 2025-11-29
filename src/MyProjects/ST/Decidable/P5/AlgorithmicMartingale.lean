@@ -712,6 +712,29 @@ lemma optionalStopping_termwise
   -- 現状の簡略版マルチンゲール定義では不足するため、将来の強化で証明する。
   sorry
 
+/- 
+Step 2（有限和への持ち上げ）: termwise 等式が全 n で成立すると仮定し、和全体を書き換える。
+-/
+lemma optionalStopping_sum_terms
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingale P ℱ M)
+    (τ : ComputableStoppingTime ℱ) :
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
+    =
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+  classical
+  refine Finset.sum_congr rfl ?h
+  intro n hn
+  -- termwise 等式を各項に適用
+  exact optionalStopping_termwise P ℱ M hMart τ n
+
 theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
