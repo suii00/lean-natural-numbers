@@ -497,6 +497,32 @@ lemma stopped_after
 
 end SimpleProcess
 
+/-- 事象 `{τ = n}` を表す補助定義。 -/
+def eventTauEq
+    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
+    (τ : ComputableStoppingTime ℱ) (n : ℕ) : Prob.Event Ω.carrier :=
+  {ω | τ.time ω = n}
+
+@[simp] lemma mem_eventTauEq
+    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
+    (τ : ComputableStoppingTime ℱ) (n : ℕ) (ω : Ω.carrier) :
+    ω ∈ eventTauEq (ℱ := ℱ) τ n ↔ τ.time ω = n := Iff.rfl
+
+/-! `τ = n` の指示関数を書き換える小補題。 -/
+lemma expected_atStopping_term_rewrite
+    {Ω : Prob.FiniteSampleSpace} {ℱ : DecidableFiltration Ω}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (M : SimpleProcess Ω) (τ : ComputableStoppingTime ℱ) (n : ℕ) :
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => if ω ∈ eventTauEq (ℱ := ℱ) τ n then M n ω else 0) := by
+  classical
+  have h :=
+    Prob.ProbabilityMassFunction.expected_indicator_mul
+      (P := P) (A := eventTauEq (ℱ := ℱ) τ n) (X := fun ω => M n ω)
+  simpa [eventTauEq] using h
+
 /-
 停止時間で評価した値の期待値を、各時刻への分割和で書き下ろす型だけ用意しておく。
 証明は将来の OST 章で埋める。
