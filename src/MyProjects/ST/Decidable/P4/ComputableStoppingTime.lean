@@ -56,10 +56,12 @@ structure ComputableStoppingTime {Ω : Prob.FiniteSampleSpace}
     (ℱ : DecidableFiltration Ω) where
   /-- 停止時間としてのランダム時刻 `τ(ω)`。 -/
   time : Ω.carrier → ℕ
-  /-- 停止時間条件：各時刻 `t` で `{ω | τ ω ≤ t}` が `ℱ` の時刻 `t` の代数に属する。 -/
-  adapted :
+  /-- 停止時間条件：各時刻 `t`（終端時刻以下）で `{ω | τ ω ≤ t}` が `ℱ` の時刻 `t` の代数に属する。 -/
+  isStopping :
     ∀ (t : ℕ) (ht : t ≤ ℱ.timeHorizon),
       {ω : Ω.carrier | time ω ≤ t} ∈ (ℱ.observableAt t ht).events
+  /-- 上界性：`τ(ω)` は常に `timeHorizon` 以下。 -/
+  time_le_horizon : ∀ ω, time ω ≤ ℱ.timeHorizon
 
 namespace ComputableStoppingTime
 
@@ -93,7 +95,7 @@ lemma le_def {τ₁ τ₂ : ComputableStoppingTime ℱ} :
 def const (ℱ : DecidableFiltration Ω) (c : ℕ) (hc : c ≤ ℱ.timeHorizon) :
     ComputableStoppingTime ℱ where
   time := fun _ => c
-  adapted := by
+  isStopping := by
     intro t ht
     by_cases hct : c ≤ t
     · have hset : {ω : Ω.carrier | c ≤ t} = (Set.univ : Set Ω.carrier) := by
@@ -106,6 +108,8 @@ def const (ℱ : DecidableFiltration Ω) (c : ℕ) (hc : c ≤ ℱ.timeHorizon) 
       have h' : (∅ : Set Ω.carrier) ∈ (ℱ.observableAt t ht).events := by
         simpa [Prob.Event.empty] using h
       simpa [hset] using h'
+  time_le_horizon := by
+    intro ω; simpa using hc
 
 /-- 停止時間が上から `N` で抑えられること。 -/
 def isBounded (τ : ComputableStoppingTime ℱ) (N : ℕ) : Prop :=
@@ -126,57 +130,57 @@ lemma const_isBounded (ℱ : DecidableFiltration Ω) (c : ℕ)
 def min (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     ComputableStoppingTime ℱ where
   time := fun ω => Nat.min (τ₁.time ω) (τ₂.time ω)
-  adapted := by
+  isStopping := by
     intro t ht
     have h1 :
         {ω : Ω.carrier | τ₁.time ω ≤ t} ∈ (ℱ.observableAt t ht).events :=
-      τ₁.adapted t ht
+      τ₁.isStopping t ht
     have h2 :
         {ω : Ω.carrier | τ₂.time ω ≤ t} ∈ (ℱ.observableAt t ht).events :=
-      τ₂.adapted t ht
+      τ₂.isStopping t ht
+    -- 和でも閉じているので利用する
     have hUnion := (ℱ.observableAt t ht).closed_union h1 h2
     classical
     have hset :
         {ω : Ω.carrier | Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t} =
           ({ω : Ω.carrier | τ₁.time ω ≤ t} ∪ {ω : Ω.carrier | τ₂.time ω ≤ t}) := by
-      ext ω
-      constructor
-      · intro hmin_le_t
-        have hle : τ₁.time ω ≤ τ₂.time ω ∨ τ₂.time ω ≤ τ₁.time ω :=
-          le_total _ _
+      ext ω; constructor
+      · intro hmin
+        have hmin' : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t := hmin
+        have hle : τ₁.time ω ≤ τ₂.time ω ∨ τ₂.time ω ≤ τ₁.time ω := le_total _ _
         cases hle with
-        | inl hle =>
-            have hmin : Nat.min (τ₁.time ω) (τ₂.time ω) = τ₁.time ω :=
-              Nat.min_eq_left hle
-            have hineq : τ₁.time ω ≤ t := by
-              have h' : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t := hmin_le_t
-              simpa [hmin] using h'
+        | inl hle' =>
+            have hminEq : Nat.min (τ₁.time ω) (τ₂.time ω) = τ₁.time ω :=
+              Nat.min_eq_left hle'
+            have hineq : τ₁.time ω ≤ t := by simpa [hminEq] using hmin'
             exact Or.inl hineq
-        | inr hle =>
-            have hmin : Nat.min (τ₁.time ω) (τ₂.time ω) = τ₂.time ω :=
-              Nat.min_eq_right hle
-            have hineq : τ₂.time ω ≤ t := by
-              have h' : Nat.min (τ₁.time ω) (τ₂.time ω) ≤ t := hmin_le_t
-              simpa [hmin] using h'
+        | inr hle' =>
+            have hminEq : Nat.min (τ₁.time ω) (τ₂.time ω) = τ₂.time ω :=
+              Nat.min_eq_right hle'
+            have hineq : τ₂.time ω ≤ t := by simpa [hminEq] using hmin'
             exact Or.inr hineq
       · intro hdisj
         rcases hdisj with h₁ | h₂
         · exact le_trans (Nat.min_le_left _ _) h₁
         · exact le_trans (Nat.min_le_right _ _) h₂
     simpa [hset, Prob.Event.union] using hUnion
+  time_le_horizon := by
+    intro ω
+    -- min ≤ τ₁.time ω ≤ timeHorizon
+    exact le_trans (Nat.min_le_left _ _) (τ₁.time_le_horizon ω)
 
 /-- 2 つの停止時間の `max`。 -/
 def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     ComputableStoppingTime ℱ where
   time := fun ω => Nat.max (τ₁.time ω) (τ₂.time ω)
-  adapted := by
+  isStopping := by
     intro t ht
     have h1 :
         {ω : Ω.carrier | τ₁.time ω ≤ t} ∈ (ℱ.observableAt t ht).events :=
-      τ₁.adapted t ht
+      τ₁.isStopping t ht
     have h2 :
         {ω : Ω.carrier | τ₂.time ω ≤ t} ∈ (ℱ.observableAt t ht).events :=
-      τ₂.adapted t ht
+      τ₂.isStopping t ht
     have hInter :=
       Prob.FiniteAlgebra.closed_intersection
         (ℱ := ℱ.observableAt t ht) h1 h2
@@ -195,6 +199,11 @@ def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
           ({ω : Ω.carrier | τ₁.time ω ≤ t} ∩ {ω : Ω.carrier | τ₂.time ω ≤ t}) := by
       rfl
     simpa [hset, hset', Prob.Event.intersection] using hInter
+  time_le_horizon := by
+    intro ω
+    have h1 := τ₁.time_le_horizon ω
+    have h2 := τ₂.time_le_horizon ω
+    exact Nat.max_le_iff.mpr ⟨h1, h2⟩
 
 @[simp] lemma min_le_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     min τ₁ τ₂ ≤ τ₁ := by
@@ -297,11 +306,13 @@ def coinConst1 : ComputableStoppingTime coinFullFiltration :=
 -/
 def coinHeadTail : ComputableStoppingTime coinFullFiltration where
   time := fun b => match b with | true => 0 | false => 1
-  adapted := by
+  isStopping := by
     intro t ht
     -- powerSet 上では任意の部分集合が可観測
     simp [coinFullFiltration, coinFullAlgebra, constFiltration,
       Prob.FiniteAlgebra.powerSet]
+  time_le_horizon := by
+    intro b; cases b <;> decide
 
 /-- `min` と `max` を使った合成停止時間。 -/
 def coinMin : ComputableStoppingTime coinFullFiltration :=
