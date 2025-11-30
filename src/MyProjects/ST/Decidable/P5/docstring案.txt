@@ -1,0 +1,28 @@
+docstringを現状と一致させるとして、何かアイデアはありますか
+
+
+以下の点を docstring に追記・更新すると、現状の実装とズレなくなります。
+
+強いマルチンゲール定義を導入した旨と、optionalStopping_global で利用していることを明記
+
+例：「本ファイルでは IsMartingaleStrong（局所条件付き期待値版）を定義し、OST にはこちらを用いる。」
+optionalStopping_global / optionalStopping_sum_terms が証明付きで成立すること、optionalStopping_termwise は削除済みであることを記述
+
+例：「optionalStopping_global と、その和バージョン optionalStopping_sum_terms を証明済み。以前の termwise lemma は廃止。」
+有界停止時間の仮定を明示（∀ ω, τ.time ω ≤ timeHorizon）
+
+例：「全ての停止時間は timeHorizon で有界であることを前提とする。」
+期待値補題のラインナップをリストアップ
+
+expected_add, expected_mul_const, expected_sub, expected_finset_sum
+increment_zero（局所増分期待値 0）
+stopped_difference_as_sum（pathwise 分解）
+expected_M0_as_sum_over_tau（M₀ の分割）
+optionalStopping_theorem_split（E[M_τ] の有限和展開）
+optionalStopping_global / optionalStopping_sum_terms
+将来予定の TODO を短く列挙
+
+条件付き期待値を導入して弱いマルチンゲール定義と統合すること
+deprecated Finset.range_succ の置き換えなど警告解消
+sorry が残っていればその場所（現状は無し）
+こうした箇条書きを docstring 冒頭に入れておくと、現在のコードベースとの整合が取りやすくなります。

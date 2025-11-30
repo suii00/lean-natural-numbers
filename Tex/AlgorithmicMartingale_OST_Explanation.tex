@@ -1,0 +1,811 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,decorations.pathmorphing}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems,skins,breakable}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+% 定理環境の設定
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{corollary}[definition]{系}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% tcolorboxスタイル
+\newtcolorbox{maintheorem}[1][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{keyidea}[1][]{
+  colback=green!5!white,
+  colframe=green!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\newtcolorbox{computation}[1][]{
+  colback=orange!5!white,
+  colframe=orange!75!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+% タイトル設定
+\title{計算可能マルチンゲール理論と\\Optional Stopping Theorem}
+\author{%
+  Lean 4 形式化：CODEX (OpenAI) 生成コード\\[0.5em]
+  \LaTeX 解説：Claude Code 生成ドキュメント%
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、離散有限標本空間上で完全に計算可能なマルチンゲール理論と、
+その核心定理である Optional Stopping Theorem (OST) の形式化について解説する。
+Lean 4 による実装は CODEX (OpenAI) により生成され、本 \LaTeX 解説文書は Claude Code により生成された。
+有限性という制約の下で、確率論の本質的な構造を構造塔（Structure Tower）理論との対応において明らかにする。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+\subsection{背景と動機}
+
+マルチンゲール理論は現代確率論の中核をなす分野であり、
+金融数学、統計力学、情報理論など幅広い応用を持つ。
+その中心的な定理の一つが \textbf{Optional Stopping Theorem (OST)} である：
+
+\begin{maintheorem}[Optional Stopping Theorem（古典版）]
+$(M_n)_{n \geq 0}$ をマルチンゲールとし、$\tau$ を有界停止時間とする。
+このとき
+\[
+  \mathbb{E}[M_\tau] = \mathbb{E}[M_0].
+\]
+\end{maintheorem}
+
+本稿では、この定理を\textbf{離散有限標本空間}という制限された設定で完全に形式化する。
+この制約により：
+\begin{itemize}
+  \item すべての演算が\textbf{計算可能}（有理数演算で実行可能）
+  \item 測度論的な技術的困難を回避
+  \item 本質的な構造が明確化
+  \item 教育的価値が向上
+\end{itemize}
+
+\subsection{構造塔理論との接続}
+
+本実装は、5層からなる理論構築の最終段階である：
+
+\begin{center}
+\begin{tikzcd}[row sep=large]
+  \text{DecidableEvents.lean} \arrow[d] \\
+  \text{DecidableAlgebra.lean} \arrow[d] \\
+  \text{DecidableFiltration.lean} \arrow[d] \\
+  \text{ComputableStoppingTime.lean} \arrow[d] \\
+  \text{\textbf{AlgorithmicMartingale.lean}}
+\end{tikzcd}
+\end{center}
+
+\begin{table}[h]
+\centering
+\caption{構造塔と確率論の対応}
+\begin{tabular}{ll}
+\hline
+構造塔の概念 & 確率論の概念 \\
+\hline
+carrier & 事象の全体 \\
+Index $= \mathbb{N}$ & 時刻 \\
+layer $n$ & 時刻 $n$ の可観測事象族 $\mathcal{F}_n$ \\
+monotone & 情報の単調増加 $\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \cdots$ \\
+minLayer($A$) & 事象 $A$ が初めて可観測になる時刻 \\
+停止時間 $\tau$ & $\{\tau \leq t\}$ の minLayer $\leq t$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{確率質量関数と期待値}
+
+\subsection{有限標本空間}
+
+\begin{definition}[有限標本空間]
+有限標本空間 $\Omega$ は、以下を備えた型：
+\begin{itemize}
+  \item $\Omega$.carrier : 標本点の集合
+  \item Fintype インスタンス（有限性）
+  \item DecidableEq インスタンス（等号判定可能性）
+\end{itemize}
+\end{definition}
+
+\subsection{確率質量関数}
+
+\begin{definition}[確率質量関数]
+有限標本空間 $\Omega$ 上の\textbf{確率質量関数} (Probability Mass Function) は、
+以下を満たす関数 $p : \Omega \to \mathbb{Q}$：
+\begin{enumerate}
+  \item \textbf{非負性}：$\forall \omega \in \Omega,\ 0 \leq p(\omega)$
+  \item \textbf{正規化}：$\sum_{\omega \in \Omega} p(\omega) = 1$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}[なぜ有理数か？]
+有理数 $\mathbb{Q}$ を用いる理由：
+\begin{itemize}
+  \item \textbf{計算可能性}：exact な算術演算が可能
+  \item \textbf{決定可能性}：等号判定、大小比較が decidable
+  \item \textbf{形式化の容易性}：実数の完備性に依存しない
+  \item \textbf{実用性}：有限標本空間では十分
+\end{itemize}
+実数への拡張は自然な埋め込み $\mathbb{Q} \hookrightarrow \mathbb{R}$ により可能。
+\end{remark}
+
+\subsection{期待値}
+
+\begin{definition}[期待値]
+確率質量関数 $P$ と可測関数 $X : \Omega \to \mathbb{Q}$ に対し、
+$X$ の\textbf{期待値}は：
+\[
+  \mathbb{E}_P[X] := \sum_{\omega \in \Omega} P(\omega) \cdot X(\omega).
+\]
+\end{definition}
+
+\begin{proposition}[期待値の基本性質]
+期待値は以下の性質を満たす：
+\begin{enumerate}
+  \item \textbf{定数関数}：$X(\omega) \equiv c$ ならば $\mathbb{E}[X] = c$
+  \item \textbf{線形性（加法性）}：$\mathbb{E}[X + Y] = \mathbb{E}[X] + \mathbb{E}[Y]$
+  \item \textbf{線形性（斉次性）}：$\mathbb{E}[cX] = c \cdot \mathbb{E}[X]$
+  \item \textbf{有限和との交換}：$\mathbb{E}\left[\sum_{i \in I} X_i\right] = \sum_{i \in I} \mathbb{E}[X_i]$ \quad ($I$ 有限)
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}[証明のスケッチ]
+(1) 定数関数の場合：
+\begin{align*}
+  \mathbb{E}[c] &= \sum_{\omega} P(\omega) \cdot c \\
+  &= c \sum_{\omega} P(\omega) \\
+  &= c \cdot 1 = c.
+\end{align*}
+(2)-(4) は和の性質と Fubini の定理（有限版）から従う。
+Lean 4 実装では、これらを \texttt{expected\_const}, \texttt{expected\_add},
+\texttt{expected\_mul\_const}, \texttt{expected\_finset\_sum} として証明している。
+\end{proof}
+
+\subsection{指示関数と確率}
+
+\begin{definition}[指示関数]
+事象 $A \subseteq \Omega$ の\textbf{指示関数} $\mathbf{1}_A : \Omega \to \mathbb{Q}$ は：
+\[
+  \mathbf{1}_A(\omega) := \begin{cases}
+    1 & \text{if } \omega \in A, \\
+    0 & \text{if } \omega \notin A.
+  \end{cases}
+\]
+\end{definition}
+
+\begin{proposition}[指示関数の期待値]
+$\mathbb{E}[\mathbf{1}_A] = P(A)$。
+\end{proposition}
+
+\begin{proof}
+\begin{align*}
+  \mathbb{E}[\mathbf{1}_A] &= \sum_{\omega \in \Omega} P(\omega) \cdot \mathbf{1}_A(\omega) \\
+  &= \sum_{\omega \in A} P(\omega) \cdot 1 + \sum_{\omega \notin A} P(\omega) \cdot 0 \\
+  &= \sum_{\omega \in A} P(\omega) = P(A).
+\end{align*}
+\end{proof}
+
+\section{離散時間過程とマルチンゲール}
+
+\subsection{単純過程}
+
+\begin{definition}[単純過程]
+離散時間の\textbf{単純過程} (simple process) は関数：
+\[
+  M : \mathbb{N} \times \Omega \to \mathbb{Q},
+\]
+すなわち $M = (M_n)_{n \geq 0}$ で、各 $M_n : \Omega \to \mathbb{Q}$ はランダム変数。
+\end{definition}
+
+\begin{example}[定数過程]
+$M_n(\omega) \equiv c$ （すべての $n, \omega$ で一定）なる過程を\textbf{定数過程}という。
+\end{example}
+
+\subsection{適合性}
+
+本実装では、適合性（adaptedness）を簡略化している：
+
+\begin{definition}[適合性（簡略版）]
+過程 $M$ がフィルトレーション $(\mathcal{F}_n)$ に\textbf{適合している}とは、
+（現バージョンでは常に真）。
+\end{definition}
+
+\begin{remark}
+完全な定義では「$M_n$ が $\mathcal{F}_n$-可測」という条件が必要。
+将来の拡張として、値域側の有限代数を用いた本格的な可測性を導入予定。
+\end{remark}
+
+\subsection{マルチンゲール条件}
+
+\begin{definition}[マルチンゲール（簡略版）]
+過程 $M$ が\textbf{マルチンゲール}であるとは：
+\begin{enumerate}
+  \item $M$ は $(\mathcal{F}_n)$ に適合
+  \item \textbf{期待値保存}：すべての $n$ で
+  \[
+    \mathbb{E}[M_{n+1}] = \mathbb{E}[M_n]
+  \]
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+古典的には条件付き期待値を用いて：
+\[
+  \mathbb{E}[M_{n+1} \mid \mathcal{F}_n] = M_n \quad \text{(a.s.)}
+\]
+と定義される。本実装は全期待値のレベルでの条件（より弱い）を採用。
+\end{remark}
+
+\begin{definition}[強マルチンゲール条件]
+より強い条件として、すべての $\mathcal{F}_n$-可測事象 $A$ に対し：
+\[
+  \mathbb{E}[M_{n+1} \cdot \mathbf{1}_A] = \mathbb{E}[M_n \cdot \mathbf{1}_A].
+\]
+これは局所的な期待値保存を意味し、OST の証明に必要。
+\end{definition}
+
+\subsection{具体例：定数過程}
+
+\begin{theorem}[定数過程はマルチンゲール]
+定数過程 $M_n(\omega) \equiv c$ はマルチンゲールである。
+\end{theorem}
+
+\begin{proof}
+任意の $n$ に対し：
+\[
+  \mathbb{E}[M_{n+1}] = \mathbb{E}[c] = c = \mathbb{E}[M_n].
+\]
+\end{proof}
+
+\begin{proposition}[マルチンゲールの期待値は一定]
+$M$ がマルチンゲールならば、すべての $n, m \leq T$ (time horizon) に対し：
+\[
+  \mathbb{E}[M_n] = \mathbb{E}[M_m] = \mathbb{E}[M_0].
+\]
+\end{proposition}
+
+\begin{proof}
+隣接時刻での等式 $\mathbb{E}[M_n] = \mathbb{E}[M_{n+1}]$ を
+帰納的につなぐことで得られる。
+Lean 4 実装では \texttt{martingale\_expectation\_const} として証明。
+\end{proof}
+
+\section{停止時間と停止過程}
+
+\subsection{停止時間}
+
+\begin{definition}[停止時間]
+$\tau : \Omega \to \mathbb{N}$ が\textbf{停止時間}であるとは、
+すべての $t$ に対し事象 $\{\tau \leq t\}$ が $\mathcal{F}_t$-可測。
+\end{definition}
+
+\begin{remark}[直感的解釈]
+「時刻 $t$ において、$\tau \leq t$ かどうかを判定できる」＝
+停止するかどうかは現在までの情報のみで決定可能（未来を見ない）。
+\end{remark}
+
+\begin{example}[停止時間の例]
+\begin{itemize}
+  \item \textbf{定数停止時間}：$\tau(\omega) \equiv k$ （すべての $\omega$ で同じ時刻）
+  \item \textbf{初到達時刻}：$\tau = \inf\{n : M_n \in A\}$ （集合 $A$ への初到達）
+  \item \textbf{有界停止時間}：$\tau(\omega) \leq N$ for all $\omega$
+\end{itemize}
+\end{example}
+
+\subsection{停止過程}
+
+\begin{definition}[停止過程]
+停止時間 $\tau$ による\textbf{停止過程} (stopped process) は：
+\[
+  M^\tau_n(\omega) := M_{\min(n, \tau(\omega))}(\omega).
+\]
+\end{definition}
+
+\begin{remark}[直感的意味]
+$M^\tau$ は「時刻 $\tau$ で過程を凍結したもの」：
+\[
+  M^\tau_n = \begin{cases}
+    M_n & \text{if } n < \tau, \\
+    M_\tau & \text{if } n \geq \tau.
+  \end{cases}
+\]
+\end{remark}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.8]
+  % 時間軸
+  \draw[->] (0,0) -- (10,0) node[right] {$n$};
+  \draw[->] (0,0) -- (0,4) node[above] {$M_n$};
+
+  % マルチンゲールのパス
+  \draw[thick,blue] plot[smooth] coordinates {(0,1) (1,1.5) (2,2) (3,2.3) (4,2.5) (5,2.2) (6,2.4) (7,2.6) (8,2.3) (9,2.5)};
+
+  % 停止時刻
+  \draw[red,thick,dashed] (5,0) -- (5,2.2);
+  \node[below] at (5,0) {$\tau$};
+
+  % 停止過程
+  \draw[thick,orange,->] plot[smooth] coordinates {(0,1) (1,1.5) (2,2) (3,2.3) (4,2.5) (5,2.2)};
+  \draw[thick,orange,dashed] (5,2.2) -- (9,2.2);
+
+  % ラベル
+  \node[blue,above] at (7,2.6) {$M_n$};
+  \node[orange,above] at (7,2.2) {$M^\tau_n$};
+\end{tikzpicture}
+\caption{停止過程の概念図}
+\end{figure}
+
+\subsection{事象 $\{\tau = n\}$ の分割}
+
+OST の証明において重要な役割を果たすのが、標本空間の分割：
+
+\begin{equation}
+  \Omega = \bigsqcup_{n=0}^{N} \{\tau = n\},
+\end{equation}
+ここで $N$ は time horizon または $\tau$ の上界。
+
+\begin{lemma}[期待値の分割]
+有界停止時間 $\tau \leq N$ に対し：
+\[
+  \mathbb{E}[M_\tau] = \sum_{n=0}^{N} \mathbb{E}[M_n \cdot \mathbf{1}_{\{\tau = n\}}].
+\]
+\end{lemma}
+
+\begin{proof}
+点ごとに：
+\[
+  M_\tau(\omega) = \sum_{n=0}^{N} M_n(\omega) \cdot \mathbf{1}_{\{\tau = n\}}(\omega)
+  \quad (\text{ただ1項のみ非零})
+\]
+であるから、期待値の線形性により従う。
+Lean 4 では \texttt{expected\_atStopping\_as\_sum} として証明。
+\end{proof}
+
+\section{Optional Stopping Theorem}
+
+\subsection{主定理}
+
+\begin{maintheorem}[Optional Stopping Theorem]
+$M$ を強マルチンゲールとし、$\tau$ を有界停止時間 $(\tau \leq T)$ とする。
+このとき：
+\[
+  \mathbb{E}[M_\tau] = \mathbb{E}[M_0].
+\]
+\end{maintheorem}
+
+\subsection{証明の構造}
+
+証明は以下の4ステップからなる：
+
+\begin{keyidea}[証明の方針]
+\begin{enumerate}
+  \item \textbf{テレスコーピング分解}：$M_\tau - M_0$ を増分の和に展開
+  \item \textbf{期待値への持ち上げ}：点ごとの等式を期待値レベルに
+  \item \textbf{各項の消去}：強マルチンゲール条件により各増分の寄与が 0
+  \item \textbf{結論}：$\mathbb{E}[M_\tau - M_0] = 0$ より $\mathbb{E}[M_\tau] = \mathbb{E}[M_0]$
+\end{enumerate}
+\end{keyidea}
+
+\subsection{Step 1: テレスコーピング分解}
+
+\begin{lemma}[増分分解]
+任意の $\omega$ に対し：
+\[
+  M_\tau(\omega) - M_0(\omega) =
+  \sum_{n=0}^{T-1} \bigl(M_{n+1}(\omega) - M_n(\omega)\bigr) \cdot \mathbf{1}_{\{\tau > n\}}(\omega).
+\]
+\end{lemma}
+
+\begin{proof}[証明のアイデア]
+右辺の和は、$\tau(\omega) = k$ のとき：
+\begin{align*}
+  &\sum_{n=0}^{T-1} (M_{n+1} - M_n) \cdot \mathbf{1}_{\{k > n\}} \\
+  &= \sum_{n=0}^{k-1} (M_{n+1} - M_n) \quad (\text{$n \geq k$ で指示関数は 0})\\
+  &= (M_1 - M_0) + (M_2 - M_1) + \cdots + (M_k - M_{k-1}) \\
+  &= M_k - M_0 = M_\tau - M_0. \quad \text{(telescoping)}
+\end{align*}
+Lean 4 実装：\texttt{pathwise\_increment\_decomp}, \texttt{stopped\_difference\_as\_sum}。
+\end{proof}
+
+\subsection{Step 2: 期待値への持ち上げ}
+
+\begin{lemma}[期待値への適用]
+\begin{align*}
+  \mathbb{E}[M_\tau - M_0]
+  &= \mathbb{E}\left[\sum_{n=0}^{T-1} (M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}\right] \\
+  &= \sum_{n=0}^{T-1} \mathbb{E}[(M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}].
+\end{align*}
+\end{lemma}
+
+\begin{proof}
+期待値の線形性と有限和との交換により従う。
+\end{proof}
+
+\subsection{Step 3: 各項の消去（核心部分）}
+
+\begin{lemma}[増分の期待値が 0]
+強マルチンゲール条件の下、各 $n < T$ に対し：
+\[
+  \mathbb{E}[(M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}] = 0.
+\]
+\end{lemma}
+
+\begin{proof}[証明の概略]
+$A := \{\tau > n\} = \{\tau \leq n\}^c$ とおく。
+停止時間の定義より $\{\tau \leq n\} \in \mathcal{F}_n$ であるから、
+その補集合 $A$ も $\mathcal{F}_n$-可測。
+
+強マルチンゲール条件により：
+\[
+  \mathbb{E}[M_{n+1} \cdot \mathbf{1}_A] = \mathbb{E}[M_n \cdot \mathbf{1}_A].
+\]
+
+したがって：
+\begin{align*}
+  &\mathbb{E}[(M_{n+1} - M_n) \cdot \mathbf{1}_A] \\
+  &= \mathbb{E}[M_{n+1} \cdot \mathbf{1}_A] - \mathbb{E}[M_n \cdot \mathbf{1}_A] \\
+  &= 0.
+\end{align*}
+
+Lean 4 実装：\texttt{increment\_zero}（約120行の詳細な証明）。
+\end{proof}
+
+\subsection{Step 4: 結論}
+
+以上より：
+\begin{align*}
+  \mathbb{E}[M_\tau] - \mathbb{E}[M_0]
+  &= \mathbb{E}[M_\tau - M_0] \\
+  &= \sum_{n=0}^{T-1} \mathbb{E}[(M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}] \\
+  &= \sum_{n=0}^{T-1} 0 = 0.
+\end{align*}
+
+ゆえに $\mathbb{E}[M_\tau] = \mathbb{E}[M_0]$。\qed
+
+\subsection{証明のフロー図}
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[row sep=large, column sep=large]
+  M_\tau - M_0 \arrow[d, "\text{テレスコーピング}"] \\
+  \sum_{n=0}^{T-1} (M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}
+    \arrow[d, "\mathbb{E}[\cdot]"] \\
+  \sum_{n=0}^{T-1} \mathbb{E}[(M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}]
+    \arrow[d, "\text{各項} = 0"] \\
+  0 \arrow[d, Rightarrow] \\
+  \mathbb{E}[M_\tau] = \mathbb{E}[M_0]
+\end{tikzcd}
+\caption{OST 証明の論理的流れ}
+\end{figure}
+
+\section{形式化の詳細}
+
+\subsection{Lean 4 実装の構成}
+
+\begin{computation}[実装の階層構造]
+\begin{verbatim}
+AlgorithmicMartingale.lean (約1460行)
+  ├─ Part 1: ProbabilityMassFunction (94行)
+  │   ├─ expected (期待値の定義)
+  │   ├─ expected_const (定数関数)
+  │   ├─ expected_add (線形性)
+  │   └─ expected_finset_sum (有限和との交換)
+  │
+  ├─ Part 2: Martingale (390行)
+  │   ├─ IsMartingale (簡略版)
+  │   ├─ IsMartingaleStrong (完全版)
+  │   └─ constProcess_isMartingale (具体例)
+  │
+  ├─ Part 3: Stopped Process (150行)
+  │   ├─ stopped (定義)
+  │   ├─ eventTauEq (事象 {τ = n})
+  │   └─ expected_atStopping_as_sum (分割公式)
+  │
+  └─ Part 4: Optional Stopping Theorem (800行)
+      ├─ pathwise_increment_decomp (テレスコーピング)
+      ├─ increment_zero (核心補題)
+      ├─ optionalStopping_global (主定理)
+      └─ optionalStopping_theorem (最終形)
+\end{verbatim}
+\end{computation}
+
+\subsection{核心補題の証明統計}
+
+\begin{table}[h]
+\centering
+\caption{主要補題の複雑度}
+\begin{tabular}{lcc}
+\hline
+補題名 & 行数 & 主な技法 \\
+\hline
+\texttt{expected\_finset\_sum} & 23 & Finset帰納法 \\
+\texttt{pathwise\_increment\_decomp} & 76 & telescoping, 自然数帰納法 \\
+\texttt{increment\_zero} & 129 & 補集合の可観測性, 期待値の線形性 \\
+\texttt{stopped\_difference\_as\_sum} & 97 & filter, 場合分け \\
+\texttt{optionalStopping\_global} & 137 & 上記の統合 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{計算可能性の実現}
+
+\begin{computation}[実行可能な例]
+Unit 空間（1点のみ）での例：
+\begin{verbatim}
+def unitSpace : FiniteSampleSpace := ...
+def unitPMF : ProbabilityMassFunction unitSpace :=
+  { pmf := fun _ => 1, ... }
+
+def unitProcess : SimpleProcess unitSpace :=
+  fun n _ => (n : ℚ)  -- 時刻に等しい値
+
+#eval expected unitPMF (unitProcess 0)  -- 結果: 0
+#eval expected unitPMF (unitProcess 1)  -- 結果: 1
+\end{verbatim}
+\end{computation}
+
+\section{数学的意義と展望}
+
+\subsection{本形式化の意義}
+
+\begin{enumerate}
+\item \textbf{計算可能性の保証}
+  \begin{itemize}
+    \item すべての演算が \texttt{\#eval} で実行可能
+    \item 抽象的な測度論を回避
+    \item 具体例での検証が可能
+  \end{itemize}
+
+\item \textbf{構造塔理論との統合}
+  \begin{itemize}
+    \item フィルトレーション $\leftrightarrow$ 構造塔の層
+    \item 停止時間 $\leftrightarrow$ minLayer による特徴づけ
+    \item 異なる数学分野の統一的理解
+  \end{itemize}
+
+\item \textbf{教育的価値}
+  \begin{itemize}
+    \item 有限性により本質が明確化
+    \item 測度論的技術困難の回避
+    \item 学部生レベルでの理解が可能
+  \end{itemize}
+
+\item \textbf{形式化の完全性}
+  \begin{itemize}
+    \item \texttt{sorry} なし（すべて証明済み）
+    \item 型レベルでの安全性保証
+    \item 自動検証による正しさの保証
+  \end{itemize}
+\end{enumerate}
+
+\subsection{今後の拡張方向}
+
+\begin{enumerate}
+\item \textbf{条件付き期待値の完全実装}
+  \begin{itemize}
+    \item $\mathcal{F}_n$ の atom の明示的構成
+    \item $\mathbb{E}[\cdot \mid \mathcal{F}_n]$ の計算可能な定義
+    \item 局所マルチンゲール条件の完全版
+  \end{itemize}
+
+\item \textbf{他のマルチンゲール定理}
+  \begin{itemize}
+    \item Doob の最大不等式
+    \item マルチンゲール収束定理（離散版）
+    \item Azuma-Hoeffding の不等式
+  \end{itemize}
+
+\item \textbf{応用例の充実}
+  \begin{itemize}
+    \item 対称ランダムウォーク
+    \item 賭博戦略の解析
+    \item 最適停止問題
+  \end{itemize}
+
+\item \textbf{実数への拡張}
+  \begin{itemize}
+    \item $\mathbb{Q} \hookrightarrow \mathbb{R}$ の埋め込み
+    \item 測度論的 OST への接続
+    \item 連続時間への一般化の準備
+  \end{itemize}
+\end{enumerate}
+
+\subsection{関連研究との比較}
+
+\begin{table}[h]
+\centering
+\caption{マルチンゲール理論の形式化の比較}
+\begin{tabular}{lccc}
+\hline
+特徴 & 本実装 & 測度論版 & 古典的教科書 \\
+\hline
+標本空間 & 有限 & 任意 & 通常は無限 \\
+確率値 & $\mathbb{Q}$ & $\mathbb{R}$ & $\mathbb{R}$ \\
+計算可能性 & \texttt{\#eval} 可能 & 不可 & N/A \\
+形式化 & Lean 4 & Lean 4/Isabelle & 非形式的 \\
+教育的価値 & 高 & 中 & 高 \\
+一般性 & 低 & 高 & 高 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{結論}
+
+本稿では、離散有限標本空間上での計算可能マルチンゲール理論と
+Optional Stopping Theorem の完全な形式化を解説した。
+
+\subsection{主な成果}
+
+\begin{itemize}
+\item 確率論の核心定理（OST）の完全な形式的証明（\texttt{sorry} なし）
+\item 構造塔理論との明示的な対応関係の確立
+\item すべての演算が計算可能（有理数ベース）
+\item 約1460行の Lean 4 コードによる実装
+\end{itemize}
+
+\subsection{形式化の教訓}
+
+\begin{enumerate}
+\item \textbf{制約は明確化をもたらす}
+  \begin{itemize}
+    \item 有限性により本質的構造が明らかに
+    \item 測度論的困難を回避しつつ核心を捉える
+  \end{itemize}
+
+\item \textbf{計算可能性の価値}
+  \begin{itemize}
+    \item 抽象論と具体例の往復が容易
+    \item 検証可能な形での理解
+  \end{itemize}
+
+\item \textbf{段階的構築の重要性}
+  \begin{itemize}
+    \item 5層構造による理論の積み上げ
+    \item 各層での概念の明確な役割
+  \end{itemize}
+\end{enumerate}
+
+\subsection{最後に}
+
+本形式化は、Bourbaki の構造主義と現代的な計算可能性理論を統合した一例である。
+離散/有限という制約の中で、確率論の美しい構造が明瞭に浮かび上がることを示した。
+
+この成果が、形式数学と教育、理論と実装の架け橋となることを期待する。
+
+\vspace{1em}
+
+\begin{center}
+\fbox{%
+\begin{minipage}{0.9\textwidth}
+\textbf{生成情報}
+\begin{itemize}
+\item Lean 4 実装：CODEX (OpenAI) により生成
+\item \LaTeX 解説文書：Claude Code により生成
+\item 生成日時：\today
+\item ソースコード：\texttt{AlgorithmicMartingale.lean} (1460行)
+\end{itemize}
+\end{minipage}%
+}
+\end{center}
+
+\begin{thebibliography}{99}
+
+\bibitem{williams1991}
+Williams, D. (1991).
+\textit{Probability with Martingales}.
+Cambridge University Press.
+
+\bibitem{durrett2019}
+Durrett, R. (2019).
+\textit{Probability: Theory and Examples} (5th ed.).
+Cambridge University Press.
+
+\bibitem{kallenberg2002}
+Kallenberg, O. (2002).
+\textit{Foundations of Modern Probability} (2nd ed.).
+Springer.
+
+\bibitem{bourbaki1968}
+Bourbaki, N. (1968).
+\textit{Éléments de mathématique: Théorie des ensembles}.
+Hermann.
+
+\bibitem{lean4}
+de Moura, L., \& Ullrich, S. (2021).
+\textit{The Lean 4 Theorem Prover and Programming Language}.
+In CADE 28.
+
+\bibitem{mathlib}
+The mathlib Community (2020).
+\textit{The Lean Mathematical Library}.
+In CPP 2020.
+
+\end{thebibliography}
+
+\appendix
+
+\section{補足：Lean 4 コードの主要部分}
+
+\subsection{確率質量関数の定義}
+
+\begin{verbatim}
+structure ProbabilityMassFunction (Ω : FiniteSampleSpace) where
+  pmf : Ω.carrier → ℚ
+  nonneg : ∀ ω, 0 ≤ pmf ω
+  sum_one : (∑ ω, pmf ω) = 1
+\end{verbatim}
+
+\subsection{期待値の定義}
+
+\begin{verbatim}
+def expected (P : ProbabilityMassFunction Ω)
+    (X : Ω.carrier → ℚ) : ℚ :=
+  ∑ ω, P.pmf ω * X ω
+\end{verbatim}
+
+\subsection{マルチンゲール条件}
+
+\begin{verbatim}
+structure IsMartingaleStrong {Ω : FiniteSampleSpace}
+    (P : ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω) : Prop where
+  adapted : IsAdapted ℱ M
+  fair_local :
+    ∀ {n : ℕ} (hn : n ≤ ℱ.timeHorizon)
+      (hn1 : n + 1 ≤ ℱ.timeHorizon)
+      {A : Event Ω.carrier},
+      A ∈ (ℱ.observableAt n hn).events →
+      expected P (fun ω => M (n + 1) ω *
+                           (if ω ∈ A then 1 else 0)) =
+      expected P (fun ω => M n ω *
+                           (if ω ∈ A then 1 else 0))
+\end{verbatim}
+
+\subsection{Optional Stopping Theorem}
+
+\begin{verbatim}
+theorem optionalStopping_theorem
+    {Ω : FiniteSampleSpace}
+    (P : ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingaleStrong P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
+  P.expected (M 0) =
+    P.expected (fun ω => M (τ.time ω) ω) := by
+  ...
+\end{verbatim}
+
+\end{document}

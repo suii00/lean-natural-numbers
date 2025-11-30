@@ -1,0 +1,196 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- 言語・フォント設定 (LuaLaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[japanese,english]{babel}
+
+% --- 数学パッケージ ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+
+% --- グラフィックス・図式 ---
+\usepackage{tikz}
+\usetikzlibrary{shapes, backgrounds, positioning, patterns, calc, arrows.meta, fit, shadows, trees}
+\usepackage{graphicx}
+
+% --- デザイン・枠 ---
+\usepackage[most]{tcolorbox}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% --- ハイパーリンク ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}{補題}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{remark}{注釈}[section]
+
+% --- カスタムコマンド ---
+\newcommand{\LeanCode}[1]{\texttt{#1}}
+\newcommand{\Filtration}{\mathbb{F}}
+\newcommand{\Algebra}[1]{\mathcal{F}_{#1}}
+\newcommand{\StopT}{\tau}
+\newcommand{\Nat}{\mathbb{N}}
+\newcommand{\Ex}[1]{\mathbb{E}[#1]}
+\newcommand{\ExP}[2]{\mathbb{E}_{#1}[#2]}
+
+% --- タイトル情報 ---
+\title{\textbf{アルゴリズム的マルチンゲールと停止時刻定理}\\
+\large --- 有限和による Optional Stopping Theorem の構成 ---}
+
+\author{
+    \textbf{TeX構成・解説}: Gemini (Google) \\
+    \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、\texttt{v0\_AlgorithmicMartingale.lean} で定義された「離散有限標本空間上のマルチンゲール」と、その応用である「Optional Stopping Theorem (OST)」について解説する。これまでのシリーズ（事象、代数、フィルトレーション、停止時間）を統合し、確率論における最も強力な定理の一つを、有限計算可能なアルゴリズムとして定式化する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+ここまでの準備により、確率的な事象、情報の流れ（フィルトレーション）、そして戦略的決定（停止時間）を定義してきた。本稿では、これらに「確率（Probability Mass）」と「期待値（Expectation）」を導入し、「公平な賭け」であるマルチンゲールを定義する。
+
+\section{確率質量関数と期待値}
+
+\subsection{定義}
+有限標本空間 $\Omega$ 上の確率測度は、各標本点に重みを割り当てる確率質量関数（PMF）として表現される。
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=定義 1: 確率質量関数 (PMF)]
+関数 $P: \Omega \to \mathbb{Q}$ が確率質量関数であるとは、以下を満たすことをいう：
+\begin{enumerate}
+    \item \textbf{非負性}: $\forall \omega \in \Omega, P(\omega) \ge 0$
+    \item \textbf{正規性}: $\sum_{\omega \in \Omega} P(\omega) = 1$
+\end{enumerate}
+\end{tcolorbox}
+
+これに伴い、確率変数 $X: \Omega \to \mathbb{Q}$ の期待値は有限和として定義される。
+\[ \ExP{P}{X} = \sum_{\omega \in \Omega} P(\omega) X(\omega) \]
+
+\section{マルチンゲール (Martingale)}
+
+\subsection{定義（簡易版）}
+離散時間過程 $M_n$（各時刻 $n$ における確率変数）がマルチンゲールであるとは、直感的には「公平なゲーム」であることを意味する。
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!75!black, title=定義 2: マルチンゲール（簡易版）]
+確率過程 $M = (M_n)_{n \in \Nat}$ が確率測度 $P$ とフィルトレーション $\Filtration$ に関してマルチンゲールであるとは、以下を満たすことをいう：
+\begin{enumerate}
+    \item \textbf{適合性}: $M$ は $\Filtration$ に適合している（各時刻 $n$ で $M_n$ は $\mathcal{F}_n$-可測）。
+    \item \textbf{公平性（期待値保存）}: 全ての時刻 $n$ について、
+    \[ \ExP{P}{M_{n+1}} = \ExP{P}{M_n} \]
+\end{enumerate}
+\end{tcolorbox}
+\begin{remark}
+本来の定義は条件付き期待値を用いて $\ExP{P}{M_{n+1} \mid \mathcal{F}_n} = M_n$ とするが、本実装の初期バージョンでは、より弱い「全期待値の保存」または「局所的な期待値保存（IsMartingaleStrong）」を用いている。
+\end{remark}
+
+\subsection{視覚的解釈：公平な分岐}
+マルチンゲールの各ステップにおける期待値の変化はゼロである。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Axis
+        \draw[->] (0,0) -- (6,0) node[right] {$n$};
+        \draw[->] (0,-2) -- (0,2) node[above] {$M_n$};
+        
+        % Path 1
+        \draw[blue, thick] (0,0) -- (2,1) -- (4, 0.5) -- (6, 1.5);
+        \fill[blue] (0,0) circle (2pt);
+        \fill[blue] (2,1) circle (2pt);
+        \fill[blue] (4,0.5) circle (2pt);
+        
+        % Expectation lines
+        \draw[dashed, red] (2,1) -- (4,2) node[right] {$+1$};
+        \draw[dashed, red] (2,1) -- (4,0) node[right] {$-1$};
+        \node at (3, 1.8) {$1/2$};
+        \node at (3, 0.2) {$1/2$};
+        
+        \node[align=left, draw, drop shadow, fill=white] at (3, -2.5) {
+            At any point $M_n$, the expected future value\\
+            $\Ex{M_{n+1} \mid M_n}$ is exactly $M_n$.\\
+            No drift up or down.
+        };
+    \end{tikzpicture}
+    \caption{マルチンゲールのイメージ。ランダムウォークのように、次に上がる確率と下がる確率（重み付き）が釣り合っている。}
+\end{figure}
+
+\section{Optional Stopping Theorem (OST)}
+
+マルチンゲール理論の頂点とも言える定理が OST である。「公平な賭けを、賢い戦略（停止時間）で降りることで有利にできるか？」という問いに対し、特定の条件下では「No（期待値は変わらない）」と答えるものである。
+
+\subsection{打ち切り過程 (Stopped Process)}
+停止時間 $\tau$ によって停止された過程 $M^\tau$ を以下で定義する。
+\[ M^\tau_n(\omega) = M_{\min(n, \tau(\omega))}(\omega) \]
+これは、時刻 $\tau(\omega)$ 以降は値が更新されず、定数となる過程である。
+
+\subsection{定理の主張}
+\begin{tcolorbox}[colback=red!5!white, colframe=red!75!black, title=定理: Optional Stopping Theorem (有界版)]
+$M$ が（強い意味での）マルチンゲールであり、$\tau$ が有界な停止時間（$\exists N, \forall \omega, \tau(\omega) \le N$）であるならば、以下が成り立つ：
+\[ \ExP{P}{M_\tau} = \ExP{P}{M_0} \]
+\end{tcolorbox}
+
+すなわち、どんなに巧妙な停止戦略を用いても、期待収益を初期状態から増やすことはできない。
+
+\subsection{証明のアイデア：有限和への展開}
+Lean による証明では、極限操作を回避し、すべてを有限和として展開している。
+\[ M_{\tau} - M_0 = \sum_{n=0}^{N-1} (M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}} \]
+ここで、$\mathbf{1}_{\{\tau > n\}}$ は時刻 $n$ でまだ停止していないことを示す指示関数であり、これは $\mathcal{F}_n$ 可測である。マルチンゲールの性質（直交性）により、各項の期待値が $0$ になることを示す。
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        % Grid
+        \draw[step=1cm,gray!20,very thin] (0,0) grid (5,4);
+        \draw[->] (0,0) -- (5.5,0) node[right] {$n$};
+        \draw[->] (0,0) -- (0,4.5) node[above] {$M_n$};
+
+        % Path
+        \draw[thick, blue] (0,1) -- (1,2) -- (2,1.5) -- (3,2.5);
+        \draw[thick, blue, dashed] (3,2.5) -- (4,1.5) -- (5,2); % Continuation if not stopped
+        
+        % Stopping time
+        \node[red] at (3,2.5) {$\bullet$};
+        \node[red, above] at (3,2.5) {Stop $\tau=3$};
+        
+        % Stopped Process
+        \draw[thick, red] (3,2.5) -- (5,2.5);
+        \node[red, right] at (5,2.5) {$M^\tau_n = M_3$};
+
+        \node[align=left, fill=white, draw, drop shadow] at (2.5, -1.5) {
+            \textbf{Stopped Process $M^\tau$}\\
+            Remains constant after $\tau$.\\
+            OST says $\Ex{M_\tau} = \Ex{M_0}$.
+        };
+    \end{tikzpicture}
+    \caption{停止時間による打ち切り。$\tau$ 以降、グラフは平坦になる。}
+\end{figure}
+
+\section{まとめ}
+本稿では、離散有限標本空間上でのマルチンゲールと Optional Stopping Theorem の構成を解説した。
+\begin{itemize}
+    \item 確率は有限和（$\sum$）で扱える有理数 PMF として実装。
+    \item マルチンゲール条件は、期待値の保存則として定義。
+    \item OST は、有界性と有限和の交換を利用して、純粋に代数的に（極限なしで）証明された。
+\end{itemize}
+これにより、確率的アルゴリズムの停止性や正当性を、形式的検証システム（Lean 4）の上で厳密に議論する基盤が整ったことになる。
+
+\end{document}
