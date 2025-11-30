@@ -957,6 +957,24 @@ lemma expected_sub
       -- E[X] + E[-Y] = E[X] - E[Y]
       simpa [h_neg, sub_eq_add_neg]
 
+-- 有限和と期待値の交換
+lemma expected_finset_sum
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    {ι : Type*} (s : Finset ι) (X : ι → Ω.carrier → ℚ) :
+  Prob.ProbabilityMassFunction.expected P
+    (fun ω => ∑ i ∈ s, X i ω)
+    =
+  ∑ i ∈ s, Prob.ProbabilityMassFunction.expected P (X i) := by
+  classical
+  refine Finset.induction_on s ?h0 ?hstep
+  · -- 空集合
+    simp [Prob.ProbabilityMassFunction.expected]
+  · intro a s ha ih
+    -- 挿入ステップ
+    simp [Finset.sum_insert, ha,
+          Prob.ProbabilityMassFunction.expected_add, ih]
+
 
 /-- Step 1：局所増分の期待値が 0 になる（強マルチンゲール＋停止時間の可観測性）。 -/
 lemma increment_zero
