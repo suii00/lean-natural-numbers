@@ -89,6 +89,65 @@ lemma eventLe_mem_observable
     eventLe τ t ∈ (ℱ.observableAt t ht).events := by
   simpa [eventLe] using τ.isStopping t ht
 
+/-- 事象 `{τ = n}`。 -/
+def eventEq (τ : ComputableStoppingTime ℱ) (n : ℕ) : Prob.Event Ω.carrier :=
+  {ω | τ.time ω = n}
+
+lemma eventEq_mem_observable
+    (τ : ComputableStoppingTime ℱ) (n : ℕ) (hn : n ≤ ℱ.timeHorizon) :
+    eventEq τ n ∈ (ℱ.observableAt n hn).events := by
+  classical
+  cases n with
+  | zero =>
+      -- {τ = 0} は {τ ≤ 0} と同じ
+      simpa [eventEq, eventLe] using eventLe_mem_observable (τ := τ) 0 hn
+  | succ n' =>
+      -- {τ = n'+1} = {τ ≤ n'+1} ∩ ({τ ≤ n'} )ᶜ
+      have hset :
+          eventEq (τ := τ) (n' + 1) =
+            eventLe (τ := τ) (n' + 1) ∩ Prob.Event.complement (eventLe (τ := τ) n') := by
+        ext ω; constructor
+        · intro h; dsimp [eventEq] at h
+          constructor
+          · -- τ.time ω = n'+1 ⇒ τ.time ω ≤ n'+1
+            have : τ.time ω = n' + 1 := h
+            simp [eventLe, this]
+          · -- かつ τ.time ω ≤ n' ではない
+            have : τ.time ω = n' + 1 := h
+            have hnot : ¬ τ.time ω ≤ n' := by
+              -- n' < n'+1 = τ.time ω
+              have : n' < τ.time ω := by simpa [this] using Nat.lt_succ_self n'
+              exact Nat.not_le_of_gt this
+            -- 補集合への所属は `¬ τ.time ω ≤ n'` と同値
+            have : ω ∈ Prob.Event.complement (eventLe (τ := τ) n') := by
+              simp [Prob.Event.complement, eventLe, hnot]
+            exact this
+        · intro h; rcases h with ⟨hle, hnot⟩
+          -- hle : τ.time ω ≤ n'+1, hnot : ¬ τ.time ω ≤ n'
+          have hgt : n' < τ.time ω := Nat.lt_of_not_ge hnot
+          have hge : n' + 1 ≤ τ.time ω := Nat.succ_le_of_lt hgt
+          have heq : τ.time ω = n' + 1 := le_antisymm hle hge
+          exact heq
+      -- 可観測性
+      have h_le_n   : eventLe (τ := τ) (n' + 1) ∈ (ℱ.observableAt (n' + 1) hn).events :=
+        eventLe_mem_observable (τ := τ) (n' + 1) hn
+      have h_le_pred :
+          eventLe (τ := τ) n' ∈ (ℱ.observableAt (n' + 1) hn).events := by
+        -- monotonicity from n' to n'+1
+        have hs : n' ≤ ℱ.timeHorizon := Nat.le_trans (Nat.le_succ _) hn
+        have hmono := ℱ.monotone (s := n') (t := n' + 1)
+            (hs := hs) (ht := hn) (Nat.le_succ _)
+        have hpred := eventLe_mem_observable (τ := τ) n' hs
+        exact hmono hpred
+      have hcomp :
+          Prob.Event.complement (eventLe (τ := τ) n')
+            ∈ (ℱ.observableAt (n' + 1) hn).events :=
+        (ℱ.observableAt (n' + 1) hn).closed_complement h_le_pred
+      have hinter :=
+        Prob.FiniteAlgebra.closed_intersection
+          (ℱ := ℱ.observableAt (n' + 1) hn) h_le_n hcomp
+      simpa [hset, Prob.Event.intersection, Prob.Event.complement] using hinter
+
 /-!
 ## 2. 定数停止時間
 
