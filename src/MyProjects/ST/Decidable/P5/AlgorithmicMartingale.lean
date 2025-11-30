@@ -728,53 +728,8 @@ Finite-state, bounded stopping time version of OST, expanded as a finite sum.
 
 前提:
 * `IsMartingaleStrong` : 条件付き期待値レベルのマルチンゲール
-* `τ` は `ℱ` に関する停止時間
-* `∀ ω, τ.time ω ≤ ℱ.timeHorizon` （有界停止時間）
-
-結論:
-* `∑ E[M n 1_{τ=n}] = ∑ E[M 0 1_{τ=n}]`
 -/
-
-
-/--
-Finite-state, bounded stopping time version of OST, expanded as a finite sum.
-
-前提:
-* `IsMartingaleStrong` : 条件付き期待値レベルのマルチンゲール
-* `τ` は `ℱ` に関する停止時間
-* `∀ ω, τ.time ω ≤ ℱ.timeHorizon` （有界停止時間）
-
-結論:
-* `∑ E[M n 1_{τ=n}] = ∑ E[M 0 1_{τ=n}]`
--/
-
-
-
-lemma optionalStopping_sum_terms
-    {Ω : Prob.FiniteSampleSpace}
-    (P : Prob.ProbabilityMassFunction Ω)
-    (ℱ : DecidableFiltration Ω)
-    (M : SimpleProcess Ω)
-    (hMart : IsMartingaleStrong P ℱ M)
-    (τ : ComputableStoppingTime ℱ)
-    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
-    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
-      Prob.ProbabilityMassFunction.expected P
-        (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
-    =
-    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
-      Prob.ProbabilityMassFunction.expected P
-        (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
-  classical
-  -- 1. 左辺を expected_atStopping_as_sum で E[M_τ] に書き換え
-  -- 2. 右辺を「M 0 は時間に依存しない」＋ ∑ 1_{τ=n} = 1 で E[M_0] に書き換え
-  -- 3. 強い OST: E[M_τ] = E[M_0] を使って等式を結ぶ
-  sorry
-
-
-
-
-/-- `M 0` を全時刻でコピーした定数過程。 -/
+/- `M 0` を全時刻でコピーした定数過程。 -/
 def timeConstProcess
     {Ω : Prob.FiniteSampleSpace} (M : SimpleProcess Ω) : SimpleProcess Ω :=
   fun _ ω => M 0 ω
@@ -1368,6 +1323,50 @@ theorem optionalStopping_global
   -- 最終的に E[M_τ] = E[M_0] を取り出す
   -- x - y = 0 ⇒ x = y
   exact sub_eq_zero.mp this
+
+
+/-- OST を「termwise の和」の形で述べた corollary。 -/
+lemma optionalStopping_sum_terms
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingaleStrong P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
+  =
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+  classical
+  -- 既存補題：E[M_τ] を和に展開
+  have hsplit :=
+    optionalStopping_theorem_split P ℱ M τ hBound
+  -- グローバル OST：E[M_τ] = E[M_0]
+  have hglob :=
+    optionalStopping_global P ℱ M hMart τ hBound
+  -- E[M_0] を和に展開
+  have hM0 :=
+    expected_M0_as_sum_over_tau P ℱ M τ hBound
+
+  calc
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
+        = Prob.ProbabilityMassFunction.expected P
+            (fun ω => M (τ.time ω) ω) := by
+              -- hsplit : E[M_τ] = Σ E[M_n · 1_{τ=n}]
+              simpa using hsplit.symm
+    _ = Prob.ProbabilityMassFunction.expected P (M 0) := hglob
+    _ =
+      ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+              -- hM0 : E[M_0] = Σ E[M_0 · 1_{τ=n}]
+              simpa using hM0
 
 
 /-
