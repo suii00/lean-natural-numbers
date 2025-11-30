@@ -1,4 +1,5 @@
 import Mathlib.Data.Rat.Defs
+import Mathlib.Tactic.Abel
 import Mathlib.Algebra.Field.Rat   -- brings the `Semiring` / `Field` instances for ℚ
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Fintype.BigOperators
@@ -1083,6 +1084,117 @@ lemma increment_zero
             simp [hind]
     _ = 0 := hzeroA
 
+/--
+`M_τ - M_0` を「増分 × {まだ止まっていない}」の有限和に展開する純代数の等式。
+`hBound : τ.time ω ≤ N` のみを仮定する。
+-/
+lemma stopped_difference_as_sum
+    {Ω : Prob.FiniteSampleSpace}
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ)
+    (N : ℕ)
+    (hBound : ∀ ω, τ.time ω ≤ N) :
+  ∀ ω,
+    M (τ.time ω) ω - M 0 ω =
+      ∑ n ∈ Finset.range N,
+        (M (n+1) ω - M n ω) *
+          (if τ.time ω > n then (1 : ℚ) else 0) := by
+  classical
+  intro ω
+  -- k := τ(ω)
+  set k := τ.time ω with hkdef
+  have hk : k ≤ N := hBound ω
+
+  ------------------------------------------------------------------
+  -- (1) 指示子が 1 になる項だけを残して range k に縮約
+  ------------------------------------------------------------------
+  have hfilter :
+      ∑ n ∈ Finset.range N,
+        (if k > n then (M (n+1) ω - M n ω) else 0)
+      =
+      ∑ n ∈ Finset.range k, (M (n+1) ω - M n ω) := by
+    -- { n < N | k > n } = { n | n < k }
+    have hset :
+        Finset.filter (fun n => k > n) (Finset.range N)
+          = Finset.range k := by
+      ext n
+      constructor
+      · intro h
+        rcases Finset.mem_filter.mp h with ⟨hnN, hlt⟩
+        exact Finset.mem_range.mpr hlt
+      · intro h
+        have hn : n < k := Finset.mem_range.mp h
+        have hnN : n < N := lt_of_lt_of_le hn hk
+        exact Finset.mem_filter.mpr ⟨Finset.mem_range.mpr hnN, hn⟩
+    -- sum over range N with if を、filter 付きの sum に書き換えてから、range k に張り替える
+    calc
+      ∑ n ∈ Finset.range N,
+          (if k > n then (M (n+1) ω - M n ω) else 0)
+          = ∑ n ∈ (Finset.range N).filter (fun n => k > n),
+              (M (n+1) ω - M n ω) := by
+            -- sum_filter の対称形を使う
+            simpa using
+              (Finset.sum_filter
+                (s := Finset.range N)
+                (p := fun n => k > n)
+                (f := fun n => M (n+1) ω - M n ω)).symm
+      _ = ∑ n ∈ Finset.range k, (M (n+1) ω - M n ω) := by
+            simpa [hset]
+
+  ------------------------------------------------------------------
+  -- (2) テレスコープ：Σ_{n<k} (M_{n+1}-M_n) = M_k - M_0
+  ------------------------------------------------------------------
+  have htel :
+      ∑ n ∈ Finset.range k, (M (n+1) ω - M n ω) =
+        M k ω - M 0 ω := by
+    -- k に対する自然数帰納法
+    induction k with
+    | zero =>
+        -- k = 0 のとき：range 0 は空 ⇒ 和は 0、右辺も 0
+        simp
+    | succ k ih =>
+        -- 帰納法のゴール:
+        --   ∑_{n<k+1} (M_{n+1}-M_n) = M_{k+1} - M0
+        calc
+          ∑ n ∈ Finset.range (k + 1), (M (n+1) ω - M n ω)
+              = ∑ n ∈ Finset.range k, (M (n+1) ω - M n ω)
+                  + (M (k+1) ω - M k ω) := by
+                -- 最後の項を取り出す標準パターン
+                -- sum_range_succ を使うと一撃でこの形になります
+                simpa [Finset.range_succ] using
+                  (Finset.sum_range_succ
+                    (fun n => M (n+1) ω - M n ω) k)
+          _ = (M k ω - M 0 ω) + (M (k+1) ω - M k ω) := by
+                -- 帰納法の仮定 ih をそのまま代入
+                simpa [ih]
+          _ = M (k+1) ω - M 0 ω := by
+                -- (M_k - M_0) + (M_{k+1} - M_k) = M_{k+1} - M_0
+                abel
+
+  ------------------------------------------------------------------
+  -- (3) 指示子付きの和に戻す
+  ------------------------------------------------------------------
+  calc
+    M (τ.time ω) ω - M 0 ω
+        = M k ω - M 0 ω := by
+            -- k = τ(ω)
+            simp [hkdef]
+    _ = ∑ n ∈ Finset.range k, (M (n+1) ω - M n ω) := by
+            simpa using htel.symm
+    _ = ∑ n ∈ Finset.range N,
+          (if k > n then (M (n+1) ω - M n ω) else 0) := by
+            simpa using hfilter.symm
+    _ = ∑ n ∈ Finset.range N,
+          (M (n+1) ω - M n ω) *
+            (if k > n then 1 else 0) := by
+          refine Finset.sum_congr rfl ?_
+          intro n hn; by_cases h : k > n <;> simp [h]
+    _ = ∑ n ∈ Finset.range N,
+          (M (n+1) ω - M n ω) *
+            (if τ.time ω > n then 1 else 0) := by
+          -- 最後に k = τ(ω) を戻す
+          simp [hkdef]
 
 
 /-theorem optionalStopping_theorem
