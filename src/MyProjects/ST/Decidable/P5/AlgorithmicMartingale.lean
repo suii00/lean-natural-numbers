@@ -308,6 +308,44 @@ structure IsMartingale
       Prob.ProbabilityMassFunction.expected P (M (n + 1)) =
       Prob.ProbabilityMassFunction.expected P (M n)
 
+/--
+より強い（OST 向けの）マルチンゲール条件：
+すべての可観測事象 `A ∈ ℱ_n` に対し
+`E[M_{n+1}·1_A] = E[M_n·1_A]` が成り立つ。
+-/
+structure IsMartingaleStrong
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω) : Prop where
+  adapted : IsAdapted ℱ M
+  fair_local :
+    ∀ {n : ℕ} (hn : n ≤ ℱ.timeHorizon) (hn1 : n + 1 ≤ ℱ.timeHorizon)
+      {A : Prob.Event Ω.carrier},
+      A ∈ (ℱ.observableAt n hn).events →
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (n + 1) ω * (if ω ∈ A then 1 else 0)) =
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M n ω * (if ω ∈ A then 1 else 0))
+
+/-- 強い条件から「全期待値一定」版の IsMartingale を得る。 -/
+lemma IsMartingaleStrong.to_IsMartingale
+    {Ω : Prob.FiniteSampleSpace}
+    {P : Prob.ProbabilityMassFunction Ω}
+    {ℱ : DecidableFiltration Ω}
+    {M : SimpleProcess Ω}
+    (h : IsMartingaleStrong P ℱ M) :
+    IsMartingale P ℱ M := by
+  refine ⟨h.adapted, ?_⟩
+  intro n hn1
+  have hn : n ≤ ℱ.timeHorizon := Nat.le_trans (Nat.le_succ n) hn1
+  -- 事象 A = univ をとる
+  have hA : (Set.univ : Prob.Event Ω.carrier) ∈ (ℱ.observableAt n hn).events :=
+    (ℱ.observableAt n hn).has_univ
+  have hloc := h.fair_local hn hn1 (A := Set.univ) hA
+  -- if … then 1 else 0 が常に 1 になるので簡約
+  simpa using hloc
+
 /-! ### 定数過程はマルチンゲール -/
 
 /-- 定数値 `c` をとる単純過程。 -/
@@ -790,7 +828,7 @@ theorem optionalStopping_theorem
     (P : Prob.ProbabilityMassFunction Ω)
     (ℱ : DecidableFiltration Ω)
     (M : SimpleProcess Ω)
-    (hMart : IsMartingale P ℱ M)
+    (hMart : IsMartingaleStrong P ℱ M)
     (τ : ComputableStoppingTime ℱ)
     (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
     Prob.ProbabilityMassFunction.expected P (M 0) =
@@ -801,7 +839,7 @@ theorem optionalStopping_theorem
     optionalStopping_theorem_split P ℱ M τ hBound
   -- Step 2: 和の各項で M_n を M_0 に置き換える
   have hsum :=
-    optionalStopping_sum_terms P ℱ M hMart τ
+    optionalStopping_sum_terms P ℱ M (IsMartingaleStrong.to_IsMartingale hMart) τ
   -- Step 3: M_0 側の有限和は E[M_0] に戻る
   have hM0 :=
     expected_M0_as_sum_over_tau P ℱ M τ hBound
