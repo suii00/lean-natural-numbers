@@ -47,3 +47,39 @@ lemma optionalStopping_sum_terms
   intro n hn
   -- termwise 等式を各項に適用
   exact optionalStopping_termwise P ℱ M hMart τ n
+
+
+theorem optionalStopping_theorem
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingaleStrong P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
+    Prob.ProbabilityMassFunction.expected P (M 0) =
+      Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
+  classical
+  -- Step 1: E[M_τ] を有限和に分解
+  have hsplit :=
+    optionalStopping_theorem_split P ℱ M τ hBound
+  -- Step 2: 和の各項で M_n を M_0 に置き換える
+  have hsum :=
+    optionalStopping_sum_terms P ℱ M (IsMartingaleStrong.to_IsMartingale hMart) τ
+  -- Step 3: M_0 側の有限和は E[M_0] に戻る
+  have hM0 :=
+    expected_M0_as_sum_over_tau P ℱ M τ hBound
+
+  -- 3 つの等式をつないで結論を得る
+  calc
+    Prob.ProbabilityMassFunction.expected P (M 0)
+        = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+            Prob.ProbabilityMassFunction.expected P
+              (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+          exact hM0
+    _ = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+            Prob.ProbabilityMassFunction.expected P
+              (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
+          exact hsum.symm
+    _ = Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
+          exact hsplit.symm

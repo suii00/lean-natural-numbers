@@ -918,7 +918,162 @@ lemma pathwise_increment_decomp
           ((M (n + 1) ω - M n ω) * (if τ.time ω > n then 1 else 0)) := by
           simp [k]
 
-theorem optionalStopping_theorem
+lemma expected_sub
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (X Y : Ω.carrier → ℚ) :
+  Prob.ProbabilityMassFunction.expected P
+    (fun ω => X ω - Y ω)
+  =
+  Prob.ProbabilityMassFunction.expected P X -
+    Prob.ProbabilityMassFunction.expected P Y := by
+  classical
+  -- E[X - Y] = E[X + (-Y)]
+  have h_add :=
+    Prob.ProbabilityMassFunction.expected_add (P := P)
+      (X := X) (Y := fun ω => - Y ω)
+  have h_neg :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => - Y ω)
+      =
+      - Prob.ProbabilityMassFunction.expected P Y := by
+    -- -Y = (-1) * Y
+    have := Prob.ProbabilityMassFunction.expected_mul_const
+      (P := P) (X := Y) (c := (-1 : ℚ))
+    simpa [mul_comm] using this
+
+  calc
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω => X ω - Y ω)
+        = Prob.ProbabilityMassFunction.expected P
+            (fun ω => X ω + - Y ω) := by
+              simp [sub_eq_add_neg]
+    _ = Prob.ProbabilityMassFunction.expected P X +
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => - Y ω) := by
+              simpa using h_add
+    _ = _ := by
+      -- E[X] + E[-Y] = E[X] - E[Y]
+      simpa [h_neg, sub_eq_add_neg]
+
+
+/-- Step 1：局所増分の期待値が 0 になる（強マルチンゲール＋停止時間の可観測性）。 -/
+lemma increment_zero
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingaleStrong P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) (hn1 : n + 1 ≤ ℱ.timeHorizon) :
+  Prob.ProbabilityMassFunction.expected P
+    (fun ω =>
+      (M (n+1) ω - M n ω) *
+      (if τ.time ω > n then 1 else 0)) = 0 := by
+  classical
+  ------------------------------------------------------------------
+  -- 1. A := {τ ≤ n} の補集合 (= {τ > n}) と indicator の定義
+  ------------------------------------------------------------------
+  let A : Prob.Event Ω.carrier :=
+    Prob.Event.complement (ComputableStoppingTime.eventLe (τ := τ) n)
+  let ind : Ω.carrier → ℚ := fun ω => if ω ∈ A then 1 else 0
+
+  have hn : n ≤ ℱ.timeHorizon :=
+    Nat.le_trans (Nat.le_succ n) hn1
+
+  -- {τ ≤ n} ∈ ℱ.observableAt n ⇒ その補集合 A も可観測
+  have hA :
+      A ∈ (ℱ.observableAt n hn).events := by
+    have hLe :=
+      ComputableStoppingTime.eventLe_mem_observable
+        (τ := τ) n hn
+    exact (ℱ.observableAt n hn).closed_complement hLe
+
+  -- fair_local を A に適用
+  have hfair :=
+    hMart.fair_local (hn := hn) (hn1 := hn1) (A := A) hA
+  -- hfair :
+  --   P.expected (fun ω => M (n+1) ω * ind ω)
+  --   = P.expected (fun ω => M n ω * ind ω)
+
+  ------------------------------------------------------------------
+  -- 2. E[(M_{n+1}-M_n)·ind] を「差の期待値」に落とす
+  ------------------------------------------------------------------
+  have hdiff :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => (M (n+1) ω - M n ω) * ind ω) =
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (n+1) ω * ind ω) -
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M n ω * ind ω) := by
+    -- integrand を (g - h) 形にして expected_sub 適用
+    have h_sub :
+        (fun ω => (M (n+1) ω - M n ω) * ind ω)
+          =
+        (fun ω =>
+          (M (n+1) ω * ind ω) -
+          (M n ω * ind ω)) := by
+      -- pointwise に sub_mul を使うだけ
+      funext ω
+      -- (a - b) * c = a*c - b*c
+      simpa [ind] using
+        (sub_mul (M (n+1) ω) (M n ω) (ind ω))
+    -- E[(g - h)] = E[g] - E[h]
+    have h_exp_sub :=
+      expected_sub
+        (P := P)
+        (X := fun ω => M (n+1) ω * ind ω)
+        (Y := fun ω => M n ω * ind ω)
+    -- integrand の書き換えを反映
+    simpa [h_sub] using h_exp_sub
+
+  ------------------------------------------------------------------
+  -- 3. fair_local から差が 0 になることを取り出す
+  ------------------------------------------------------------------
+  have hzeroA :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => (M (n+1) ω - M n ω) * ind ω) = 0 := by
+    -- hdiff の RHS に hfair を入れて「x - x = 0」
+    have :
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M (n+1) ω * ind ω) -
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M n ω * ind ω) = 0 := by
+      -- hfair : E[M_{n+1}·ind] = E[M_n·ind]
+      -- → 差は 0
+      simpa [hfair, sub_self]
+    exact hdiff.trans this
+
+  ------------------------------------------------------------------
+  -- 4. ind を「{τ>n} の indicator」に書き換えて終了
+  ------------------------------------------------------------------
+  have hind :
+      ind =
+      (fun ω : Ω.carrier =>
+        if τ.time ω > n then (1 : ℚ) else 0) := by
+    funext ω
+    dsimp [ind, A, ComputableStoppingTime.eventLe, Prob.Event.complement]
+    by_cases hle : τ.time ω ≤ n
+    · have hgt : ¬ τ.time ω > n := Nat.not_lt.mpr hle
+      simp [hle, hgt]
+    · have hgt : τ.time ω > n := Nat.lt_of_not_ge hle
+      simp [hle, hgt]
+
+  calc
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω =>
+        (M (n+1) ω - M n ω) *
+        (if τ.time ω > n then 1 else 0))
+      = Prob.ProbabilityMassFunction.expected P
+          (fun ω =>
+            (M (n+1) ω - M n ω) * ind ω) := by
+            -- ind = 1_{τ>n} を使って integrand を書き換え
+            simp [hind]
+    _ = 0 := hzeroA
+
+
+
+/-theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
     (ℱ : DecidableFiltration Ω)
@@ -952,7 +1107,7 @@ theorem optionalStopping_theorem
           exact hsum.symm
     _ = Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
           exact hsplit.symm
-
+-/
   /-
   証明スケッチ（今は `sorry` のまま）:
   1. `expected_atStopping_as_sum` を使って
