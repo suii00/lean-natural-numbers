@@ -962,16 +962,12 @@ lemma expected_finset_sum
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
     {ι : Type*} (s : Finset ι) (X : ι → Ω.carrier → ℚ) :
-  Prob.ProbabilityMassFunction.expected P
-    (fun ω => ∑ i ∈ s, X i ω)
-    =
-  ∑ i ∈ s, Prob.ProbabilityMassFunction.expected P (X i) := by
+  Prob.ProbabilityMassFunction.expected P (fun ω => ∑ i ∈ s, X i ω) =
+    ∑ i ∈ s, Prob.ProbabilityMassFunction.expected P (X i) := by
   classical
   refine Finset.induction_on s ?h0 ?hstep
-  · -- 空集合
-    simp [Prob.ProbabilityMassFunction.expected]
+  · simp [Prob.ProbabilityMassFunction.expected]
   · intro a s ha ih
-    -- 挿入ステップ
     simp [Finset.sum_insert, ha,
           Prob.ProbabilityMassFunction.expected_add, ih]
 
@@ -1215,7 +1211,15 @@ lemma stopped_difference_as_sum
           simp [hkdef]
 
 
-/-theorem optionalStopping_theorem
+/--
+Finite-state, bounded stopping time version of OST (global form):
+
+`IsMartingaleStrong`（局所条件付き期待値）と
+有界停止時間 `τ` の下で
+
+`E[M_τ] = E[M_0]`
+-/
+theorem optionalStopping_global
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
     (ℱ : DecidableFiltration Ω)
@@ -1223,43 +1227,148 @@ lemma stopped_difference_as_sum
     (hMart : IsMartingaleStrong P ℱ M)
     (τ : ComputableStoppingTime ℱ)
     (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
-    Prob.ProbabilityMassFunction.expected P (M 0) =
-      Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
+  Prob.ProbabilityMassFunction.expected P
+    (fun ω => M (τ.time ω) ω)
+  =
+  Prob.ProbabilityMassFunction.expected P (M 0) := by
   classical
-  -- Step 1: E[M_τ] を有限和に分解
-  have hsplit :=
-    optionalStopping_theorem_split P ℱ M τ hBound
-  -- Step 2: 和の各項で M_n を M_0 に置き換える
-  have hsum :=
-    optionalStopping_sum_terms P ℱ M (IsMartingaleStrong.to_IsMartingale hMart) τ
-  -- Step 3: M_0 側の有限和は E[M_0] に戻る
-  have hM0 :=
-    expected_M0_as_sum_over_tau P ℱ M τ hBound
+  -- N := timeHorizon と置く
+  let N := ℱ.timeHorizon
+  have hBound' : ∀ ω, τ.time ω ≤ N := by
+    intro ω; simpa using hBound ω
 
-  -- 3 つの等式をつないで結論を得る
-  calc
-    Prob.ProbabilityMassFunction.expected P (M 0)
-        = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+  -- Step 1: pathwise 等式を期待値レベルに持ち上げる
+  have hpath :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (τ.time ω) ω - M 0 ω)
+      =
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω =>
+          ∑ n ∈ Finset.range N,
+            (M (n+1) ω - M n ω) *
+              (if τ.time ω > n then 1 else 0)) := by
+    -- `stopped_difference_as_sum` は ω ごとの等式を与えるので，
+    -- その等式に `expected` を適用する。
+    refine congrArg (Prob.ProbabilityMassFunction.expected P) ?hfun
+    funext ω
+    exact stopped_difference_as_sum ℱ M τ N hBound' ω
+
+  -- Step 2: 左辺 E[M_τ - M_0] を差の形に分解
+  have hleft :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (τ.time ω) ω - M 0 ω)
+      =
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (τ.time ω) ω)
+      -
+      Prob.ProbabilityMassFunction.expected P (M 0) := by
+    -- ここは先に作った `expected_sub` を使う
+    -- expected_sub P (X := fun ω => M (τ.time ω) ω) (Y := M 0)
+    have := expected_sub
+      (P := P)
+      (X := fun ω => M (τ.time ω) ω)
+      (Y := M 0)
+    simpa using this
+
+  -- Step 3: 右辺の期待値を「和の期待値の和」に分解して、各項を increment_zero で 0 にする
+  have hright_zero :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω =>
+          ∑ n ∈ Finset.range N,
+            (M (n+1) ω - M n ω) *
+              (if τ.time ω > n then 1 else 0))
+      = 0 := by
+    -- expected_finset_sum で和と期待値を交換
+    have hsum_exp :
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω =>
+            ∑ n ∈ Finset.range N,
+              (M (n+1) ω - M n ω) *
+                (if τ.time ω > n then 1 else 0))
+      =
+        ∑ n ∈ Finset.range N,
+          Prob.ProbabilityMassFunction.expected P
+            (fun ω =>
+              (M (n+1) ω - M n ω) *
+                (if τ.time ω > n then 1 else 0)) := by
+      -- ここは自作の expected_finset_sum を使う想定
+      simpa using
+        expected_finset_sum
+          (P := P)
+          (s := Finset.range N)
+          (X := fun n ω =>
+            (M (n+1) ω - M n ω) *
+              (if τ.time ω > n then 1 else 0))
+
+    -- 各項が 0 であること（increment_zero から）
+    have hterm_zero :
+        ∀ n ∈ Finset.range N,
+          Prob.ProbabilityMassFunction.expected P
+            (fun ω =>
+              (M (n+1) ω - M n ω) *
+                (if τ.time ω > n then 1 else 0)) = 0 := by
+      intro n hn
+      have hn1 : n + 1 ≤ ℱ.timeHorizon := by
+        -- hn : n < N = timeHorizon
+        have : n < ℱ.timeHorizon := Finset.mem_range.mp hn
+        exact Nat.succ_le_of_lt this
+      simpa using
+        increment_zero P ℱ M hMart τ n hn1
+
+    -- 和が 0 であること
+    have hsum_zero :
+        ∑ n ∈ Finset.range N,
+          Prob.ProbabilityMassFunction.expected P
+            (fun ω =>
+              (M (n+1) ω - M n ω) *
+                (if τ.time ω > n then 1 else 0)) = 0 := by
+      have hcongr :
+          ∑ n ∈ Finset.range N,
             Prob.ProbabilityMassFunction.expected P
-              (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
-          exact hM0
-    _ = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
-            Prob.ProbabilityMassFunction.expected P
-              (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) := by
-          exact hsum.symm
-    _ = Prob.ProbabilityMassFunction.expected P (fun ω => M (τ.time ω) ω) := by
-          exact hsplit.symm
--/
-  /-
-  証明スケッチ（今は `sorry` のまま）:
-  1. `expected_atStopping_as_sum` を使って
-       `E[M_τ] = ∑_{n=0}^{N} E[M_n · 1_{τ=n}]`
-     に分解する。ここで `N = ℱ.timeHorizon`。
-  2. マルチンゲール性から `E[M_n]` は n に依らず一定。
-     定数 `E[M_0]` を取り出し、指示関数の期待値は確率 `P(τ=n)` に置き換える。
-  3. 全確率の和が 1 であることを使って
-       `E[M_τ] = E[M_0] * ∑_{n=0}^{N} P(τ=n) = E[M_0]`.
-  -/
+              (fun ω =>
+                (M (n+1) ω - M n ω) *
+                  (if τ.time ω > n then 1 else 0))
+        =
+          ∑ n ∈ Finset.range N, (0 : ℚ) := by
+        refine Finset.sum_congr rfl ?_
+        intro n hn
+        simpa using (hterm_zero n hn)
+      simpa using hcongr
+
+    -- 期待値レベルへ戻す
+    exact hsum_exp.trans hsum_zero
+
+
+  -- Step 4: 左右を hpath でつないで E[M_τ] = E[M_0] を取り出す
+  -- hpath : E[left integrand] = E[right integrand]
+  -- hleft : E[left integrand] = E[M_τ] - E[M_0]
+  -- hright_zero : E[right integrand] = 0
+  have :
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (τ.time ω) ω)
+      -
+      Prob.ProbabilityMassFunction.expected P (M 0)
+      = 0 := by
+    -- hleft, hpath, hright_zero を合成
+    calc
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M (τ.time ω) ω)
+        -
+        Prob.ProbabilityMassFunction.expected P (M 0)
+          = Prob.ProbabilityMassFunction.expected P
+              (fun ω => M (τ.time ω) ω - M 0 ω) := by
+                simpa [hleft]  -- 向きに応じて微調整
+      _ = Prob.ProbabilityMassFunction.expected P
+              (fun ω =>
+                ∑ n ∈ Finset.range N,
+                  (M (n+1) ω - M n ω) *
+                    (if τ.time ω > n then 1 else 0)) := hpath
+      _ = 0 := hright_zero
+
+  -- 最終的に E[M_τ] = E[M_0] を取り出す
+  -- x - y = 0 ⇒ x = y
+  exact sub_eq_zero.mp this
+
 
 /-
 ## 4. 有界停止時間に対する Optional Stopping Theorem（ステートメント）
