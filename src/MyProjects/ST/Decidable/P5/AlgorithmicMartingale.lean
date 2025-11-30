@@ -717,39 +717,46 @@ lemma optionalStopping_theorem_split
     (expected_atStopping_as_sum
       (P := P) (M := M) (τ := τ) (N := ℱ.timeHorizon) (hBound := hBound))
 
-/--
+/-
 OST のコア部分：「各 n ごとに `M_n · 1_{τ=n}` の期待値は `M_0 · 1_{τ=n}` と等しい」。
 現行の `IsMartingale`（全期待値一定のみ）では証明できないため、型だけ確定し証明は将来の拡張に委ねる。
 -/
-lemma optionalStopping_termwise
-    {Ω : Prob.FiniteSampleSpace}
-    (P : Prob.ProbabilityMassFunction Ω)
-    (ℱ : DecidableFiltration Ω)
-    (M : SimpleProcess Ω)
-    (hMart : IsMartingale P ℱ M)
-    (τ : ComputableStoppingTime ℱ)
-    (n : ℕ) :
-    Prob.ProbabilityMassFunction.expected P
-      (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
-    Prob.ProbabilityMassFunction.expected P
-      (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
-  /-
-  ★ ここが離散 OST の本質部分（唯一の核心 TODO）。
-  現状の `IsMartingale` は「全期待値一定」しか仮定しないため証明は保留。
-  将来、条件付き期待値や適合性を含む強い定義を導入した際にここを埋める。
-  -/
-  sorry
 
 /-
-Step 2（有限和への持ち上げ）: termwise 等式が全 n で成立すると仮定し、和全体を書き換える。
+Finite-state, bounded stopping time version of OST, expanded as a finite sum.
+
+前提:
+* `IsMartingaleStrong` : 条件付き期待値レベルのマルチンゲール
+* `τ` は `ℱ` に関する停止時間
+* `∀ ω, τ.time ω ≤ ℱ.timeHorizon` （有界停止時間）
+
+結論:
+* `∑ E[M n 1_{τ=n}] = ∑ E[M 0 1_{τ=n}]`
 -/
+
+
+/--
+Finite-state, bounded stopping time version of OST, expanded as a finite sum.
+
+前提:
+* `IsMartingaleStrong` : 条件付き期待値レベルのマルチンゲール
+* `τ` は `ℱ` に関する停止時間
+* `∀ ω, τ.time ω ≤ ℱ.timeHorizon` （有界停止時間）
+
+結論:
+* `∑ E[M n 1_{τ=n}] = ∑ E[M 0 1_{τ=n}]`
+-/
+
+
+
 lemma optionalStopping_sum_terms
     {Ω : Prob.FiniteSampleSpace}
     (P : Prob.ProbabilityMassFunction Ω)
     (ℱ : DecidableFiltration Ω)
     (M : SimpleProcess Ω)
-    (hMart : IsMartingale P ℱ M)
-    (τ : ComputableStoppingTime ℱ) :
+    (hMart : IsMartingaleStrong P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (hBound : ∀ ω, τ.time ω ≤ ℱ.timeHorizon) :
     ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
       Prob.ProbabilityMassFunction.expected P
         (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
@@ -758,10 +765,13 @@ lemma optionalStopping_sum_terms
       Prob.ProbabilityMassFunction.expected P
         (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
   classical
-  refine Finset.sum_congr rfl ?h
-  intro n hn
-  -- termwise 等式を各項に適用
-  exact optionalStopping_termwise P ℱ M hMart τ n
+  -- 1. 左辺を expected_atStopping_as_sum で E[M_τ] に書き換え
+  -- 2. 右辺を「M 0 は時間に依存しない」＋ ∑ 1_{τ=n} = 1 で E[M_0] に書き換え
+  -- 3. 強い OST: E[M_τ] = E[M_0] を使って等式を結ぶ
+  sorry
+
+
+
 
 /-- `M 0` を全時刻でコピーした定数過程。 -/
 def timeConstProcess
@@ -820,8 +830,93 @@ lemma expected_M0_as_sum_over_tau
           Prob.ProbabilityMassFunction.expected P
             (fun ω => timeConstProcess M n ω * (if τ.time ω = n then 1 else 0)) := h'
     _ = ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
-          Prob.ProbabilityMassFunction.expected P
+        Prob.ProbabilityMassFunction.expected P
             (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := hsum
+
+/-- パスごとの増分分解：`M τ - M 0` を増分の有限和に展開する（期待値を取る前の純代数）。 -/
+lemma pathwise_increment_decomp
+    {Ω : Prob.FiniteSampleSpace}
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (τ : ComputableStoppingTime ℱ) :
+    ∀ ω,
+      M (τ.time ω) ω - M 0 ω =
+        ∑ n ∈ Finset.range ℱ.timeHorizon,
+          ((M (n + 1) ω - M n ω) * (if τ.time ω > n then 1 else 0)) := by
+  classical
+  intro ω
+  set k := τ.time ω
+  have hk : k ≤ ℱ.timeHorizon := τ.time_le_horizon ω
+  -- 係数が 0 になる項を落として range k に縮約
+  have hsplit :
+      ∑ n ∈ Finset.range ℱ.timeHorizon,
+        (if k > n then (M (n + 1) ω - M n ω) else 0)
+      =
+      ∑ n ∈ Finset.range k, (M (n + 1) ω - M n ω) := by
+    -- filterで k>n を残すと range k に一致
+    have hfilter :
+        Finset.filter (fun n => k > n) (Finset.range ℱ.timeHorizon)
+          = Finset.range k := by
+      ext n
+      constructor
+      · intro h
+        rcases Finset.mem_filter.mp h with ⟨hnTH, hlt⟩
+        exact Finset.mem_range.mpr hlt
+      · intro h
+        have hn : n < k := Finset.mem_range.mp h
+        have hnTH : n < ℱ.timeHorizon := lt_of_lt_of_le hn hk
+        exact Finset.mem_filter.mpr ⟨Finset.mem_range.mpr hnTH, hn⟩
+    calc
+      ∑ n ∈ Finset.range ℱ.timeHorizon,
+          (if k > n then (M (n + 1) ω - M n ω) else 0)
+          = ∑ n ∈ (Finset.range ℱ.timeHorizon).filter (fun n => k > n),
+              (M (n + 1) ω - M n ω) := by
+              -- sum_filter で if を吸収
+              classical
+              have := Finset.sum_filter
+                (s := Finset.range ℱ.timeHorizon)
+                (p := fun n => k > n)
+                (f := fun n => M (n + 1) ω - M n ω)
+              -- sum_filter : ∑ s (if p then f else 0) = ∑ (filter p s) f
+              -- ここでは左右を入れ替えて使う
+              simpa using this.symm
+      _ = ∑ n ∈ Finset.range k, (M (n + 1) ω - M n ω) := by
+            simpa [hfilter]
+  -- テレスコープ：∑_{n<k} (M_{n+1}-M_n) = M_k - M_0
+  have htel :
+      ∑ n ∈ Finset.range k, (M (n + 1) ω - M n ω) =
+        M k ω - M 0 ω := by
+    induction k with
+    | zero =>
+        simp
+    | succ k ih =>
+        calc
+          ∑ n ∈ Finset.range (k + 1), (M (n + 1) ω - M n ω)
+              = (∑ n ∈ Finset.range k, (M (n + 1) ω - M n ω))
+                  + (M (k + 1) ω - M k ω) := by
+                    simpa using
+                      (Finset.sum_range_succ (f := fun n => M (n + 1) ω - M n ω) k)
+          _ = (M k ω - M 0 ω) + (M (k + 1) ω - M k ω) := by
+            simp [ih]
+          _ = M (k + 1) ω - M 0 ω := by
+            -- (a - b) + (b - c) = a - c
+            have h := sub_add_sub_cancel (M (k + 1) ω) (M k ω) (M 0 ω)
+            -- sub_add_sub_cancel : a - b + (b - c) = a - c
+            simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using h
+  -- 仕上げ：0 を掛けていた項を元に戻す
+  calc
+    M (τ.time ω) ω - M 0 ω
+        = ∑ n ∈ Finset.range k, (M (n + 1) ω - M n ω) := htel.symm
+    _ = ∑ n ∈ Finset.range ℱ.timeHorizon,
+          (if k > n then (M (n + 1) ω - M n ω) else 0) := hsplit.symm
+    _ = ∑ n ∈ Finset.range ℱ.timeHorizon,
+          ((M (n + 1) ω - M n ω) * (if k > n then 1 else 0)) := by
+          -- 0/1 のスカラーを前に出す（ℚ 上）
+          refine Finset.sum_congr rfl ?_
+          intro n hn; by_cases h : k > n <;> simp [h]
+    _ = ∑ n ∈ Finset.range ℱ.timeHorizon,
+          ((M (n + 1) ω - M n ω) * (if τ.time ω > n then 1 else 0)) := by
+          simp [k]
 
 theorem optionalStopping_theorem
     {Ω : Prob.FiniteSampleSpace}

@@ -1,0 +1,49 @@
+lemma optionalStopping_termwise
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingale P ℱ M)
+    (τ : ComputableStoppingTime ℱ)
+    (n : ℕ) :
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω => M n ω * (if τ.time ω = n then 1 else 0)) =
+    Prob.ProbabilityMassFunction.expected P
+      (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+  /-
+  ★ ここが離散 OST の本質部分（唯一の核心 TODO）。
+  現状の `IsMartingale` は「全期待値一定」しか仮定しないため証明は保留。
+  将来、条件付き期待値や適合性を含む強い定義を導入した際にここを埋める。
+  -/
+  sorry
+
+どの反例で壊れるのか（例：2回コイン投げのランダムウォーク＋τ=stop on first −1）
+
+という「反省ノート」として書いておく。
+
+.lean には theorem は残さない（あるいは -- DEPRECATED / false in general と大きくコメントして、証明は書かない）。
+
+
+
+/-
+Step 2（有限和への持ち上げ）: termwise 等式が全 n で成立すると仮定し、和全体を書き換える。
+-/
+lemma optionalStopping_sum_terms
+    {Ω : Prob.FiniteSampleSpace}
+    (P : Prob.ProbabilityMassFunction Ω)
+    (ℱ : DecidableFiltration Ω)
+    (M : SimpleProcess Ω)
+    (hMart : IsMartingale P ℱ M)
+    (τ : ComputableStoppingTime ℱ) :
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M n ω * (if τ.time ω = n then 1 else 0))
+    =
+    ∑ n ∈ Finset.range (ℱ.timeHorizon + 1),
+      Prob.ProbabilityMassFunction.expected P
+        (fun ω => M 0 ω * (if τ.time ω = n then 1 else 0)) := by
+  classical
+  refine Finset.sum_congr rfl ?h
+  intro n hn
+  -- termwise 等式を各項に適用
+  exact optionalStopping_termwise P ℱ M hMart τ n
