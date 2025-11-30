@@ -80,6 +80,15 @@ instance : LE (ComputableStoppingTime ℱ) where
 lemma le_def {τ₁ τ₂ : ComputableStoppingTime ℱ} :
     τ₁ ≤ τ₂ ↔ ∀ ω, τ₁.time ω ≤ τ₂.time ω := Iff.rfl
 
+/-- 事象 `{τ ≤ t}` を表す補助定義。 -/
+def eventLe (τ : ComputableStoppingTime ℱ) (t : ℕ) : Prob.Event Ω.carrier :=
+  {ω | τ.time ω ≤ t}
+
+lemma eventLe_mem_observable
+    (τ : ComputableStoppingTime ℱ) (t : ℕ) (ht : t ≤ ℱ.timeHorizon) :
+    eventLe τ t ∈ (ℱ.observableAt t ht).events := by
+  simpa [eventLe] using τ.isStopping t ht
+
 /-!
 ## 2. 定数停止時間
 
