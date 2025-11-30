@@ -1033,16 +1033,28 @@ lemma increment_zero
   have hzeroA :
       Prob.ProbabilityMassFunction.expected P
         (fun ω => (M (n+1) ω - M n ω) * ind ω) = 0 := by
-    -- hdiff の RHS に hfair を入れて「x - x = 0」
-    have :
+    -- まず、hfair を「ind 付き」の形に書き換える
+    have hf :
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M (n+1) ω * ind ω) =
+        Prob.ProbabilityMassFunction.expected P
+          (fun ω => M n ω * ind ω) := by
+      -- ゴール側で ind を展開すると、ちょうど hfair の形になる
+      simpa [ind] using hfair
+
+    -- そこから「差が 0」を作る
+    have hdiff0 :
         Prob.ProbabilityMassFunction.expected P
           (fun ω => M (n+1) ω * ind ω) -
         Prob.ProbabilityMassFunction.expected P
           (fun ω => M n ω * ind ω) = 0 := by
-      -- hfair : E[M_{n+1}·ind] = E[M_n·ind]
-      -- → 差は 0
-      simpa [hfair, sub_self]
-    exact hdiff.trans this
+      -- hf : 左辺 = 右辺 なので、差は x - x = 0
+      simpa [hf, sub_self]
+
+    -- 既に持っている hdiff :
+    --   E[(M_{n+1}-M_n)·ind] = E[M_{n+1}·ind] - E[M_n·ind]
+    -- と合成して結論を出す
+    exact hdiff.trans hdiff0
 
   ------------------------------------------------------------------
   -- 4. ind を「{τ>n} の indicator」に書き換えて終了
