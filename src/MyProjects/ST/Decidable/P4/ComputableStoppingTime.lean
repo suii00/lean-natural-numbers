@@ -203,7 +203,7 @@ def max (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     intro ω
     have h1 := τ₁.time_le_horizon ω
     have h2 := τ₂.time_le_horizon ω
-    exact Nat.max_le_iff.mpr ⟨h1, h2⟩
+    exact max_le_iff.mpr ⟨h1, h2⟩
 
 @[simp] lemma min_le_left (τ₁ τ₂ : ComputableStoppingTime ℱ) :
     min τ₁ τ₂ ≤ τ₁ := by
