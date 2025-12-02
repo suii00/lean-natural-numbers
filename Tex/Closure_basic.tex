@@ -1,0 +1,178 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{fontspec}
+
+\usepackage[japanese, bidi=basic, provide=*]{babel}
+
+\babelprovide[import, onchar=ids fonts]{japanese}
+\babelprovide[import, onchar=ids fonts]{english}
+
+% Set default/Latin font to Sans Serif in the main (rm) slot
+\babelfont{rm}{Noto Sans}
+% Assign a specific font for Japanese text
+\babelfont[japanese]{rm}{Noto Sans CJK JP}
+
+% Add because main language is not English
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+% --- PACKAGES ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows.meta, positioning, calc}
+\usepackage{tcolorbox}
+
+% --- THEOREMS ---
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{theorem}{定理}[section]
+
+% --- METADATA ---
+\title{構造塔と閉包作用素：線形包による階層構造の可視化}
+\author{
+    \textbf{TeX Document Generator}: Gemini (Google) \\
+    \textbf{Lean Code Author}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、形式化数学ライブラリ（Mathlib）における順序構造と線形代数の概念を融合させた「構造塔（Structure Tower）」の理論について解説する。特に、CODEXによって生成されたLeanコード（\texttt{Basic.md}）に基づき、2次元有理数ベクトル空間 $\mathbb{Q}^2$ 上の線形包が形成する階層構造を、閉包作用素の観点から数学的に定式化し、図式を用いて視覚的に説明する。
+\end{abstract}
+
+\section{はじめに：構造塔とは}
+
+構造塔（Structure Tower）とは、ある数学的対象 $X$ に対して、複雑さや生成の段階に応じた階層 $L_0 \subseteq L_1 \subseteq L_2 \subseteq \dots$ を与える枠組みである。
+
+本稿で扱うモデルは、$\mathbb{Q}^2$（有理数体上の2次元ベクトル空間）において、「いくつの基底ベクトルを使えばそのベクトルを表現できるか」という基準に基づいて階層化したものである。これは数学的には\textbf{閉包作用素（Closure Operator）}の概念と密接に関連している。
+
+\section{数学的定式化}
+
+\subsection{基礎となる空間と基底}
+
+基礎集合を $V = \mathbb{Q}^2$ とし、標準基底を $e_1 = (1, 0), e_2 = (0, 1)$ とする。
+任意のベクトル $v \in V$ は、スカラー $a, b \in \mathbb{Q}$ を用いて $v = ae_1 + be_2$ と一意に表される。
+
+\subsection{最小層関数 (minLayer)}
+
+各ベクトル $v \in V$ に対し、それを生成するために必要な最小の基底の個数を $\mu(v)$ と定義する。Leanコード内の `minBasisCount` に対応する。
+
+\begin{definition}[最小層関数]
+関数 $\mu: V \to \mathbb{N}$ を以下のように定める。
+\[
+\mu(v) = 
+\begin{cases} 
+0 & \text{if } v = (0, 0) \\
+1 & \text{if } (v_1 = 0 \lor v_2 = 0) \land v \neq (0, 0) \\
+2 & \text{if } v_1 \neq 0 \land v_2 \neq 0 
+\end{cases}
+\]
+\end{definition}
+
+\subsection{層 (Layer) の定義}
+
+$\mu$ を用いて、構造塔の第 $n$ 層 $L_n$ を定義する。
+
+\begin{definition}[層]
+\[
+L_n = \{ v \in V \mid \mu(v) \leq n \}
+\]
+\end{definition}
+
+具体的には以下のようになる。
+\begin{itemize}
+    \item $L_0 = \{ (0,0) \}$：零空間（0個の基底で生成）
+    \item $L_1 = \text{span}(e_1) \cup \text{span}(e_2)$：座標軸の和集合（1個以下の基底で生成）
+    \item $L_2 = V = \mathbb{Q}^2$：全空間（2個以下の基底で生成）
+\end{itemize}
+
+\begin{tcolorbox}[title=注意点, colback=yellow!10!white, colframe=yellow!50!black]
+$L_1$ は部分空間ではないことに注意されたい。$e_1 \in L_1$ かつ $e_2 \in L_1$ であるが、その和 $e_1 + e_2 = (1, 1)$ は $L_1$ に含まれず、$L_2$ に属する。すなわち、構造塔の各層は必ずしも代数的な閉じた構造（部分空間など）ではないが、単調性 $L_n \subseteq L_{n+1}$ は満たす。
+\end{tcolorbox}
+
+\section{閉包作用素との対応}
+
+Leanコードのコメントにある通り、この構造は閉包作用素 $c: \mathcal{P}(V) \to \mathcal{P}(V)$ の反復適用と解釈できる。
+
+もし「基底の集合 $B \subseteq \{e_1, e_2\}$ からの線形包」を閉包操作と見なすと、
+\begin{itemize}
+    \item $L_0$ は $\emptyset$ の閉包（零ベクトル）。
+    \item $L_1$ は単集合 $\{e_1\}$ または $\{e_2\}$ の閉包の和集合。
+    \item $L_2$ は $\{e_1, e_2\}$ の閉包。
+\end{itemize}
+という対応関係が見えてくる。これにより、代数的な「生成（span）」の概念と、順序論的な「階層（tower）」の概念が統合される。
+
+\section{図式的理解}
+
+$\mathbb{Q}^2$ における構造塔の様子を以下に図示する。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=2]
+    % Draw Grid
+    \draw[step=0.5,gray!20,very thin] (-2.2,-2.2) grid (2.2,2.2);
+
+    % Draw Axes (Layer 1)
+    \draw[blue, ultra thick, ->] (-2.5, 0) -- (2.5, 0) node[right, black] {$x (e_1)$};
+    \draw[blue, ultra thick, ->] (0, -2.5) -- (0, 2.5) node[above, black] {$y (e_2)$};
+
+    % Draw Origin (Layer 0)
+    \filldraw[red] (0,0) circle (3pt) node[anchor=north east, black] {$(0,0)$};
+    
+    % Draw Layer 2 points
+    \filldraw[black!60] (1.5, 1.5) circle (1.5pt) node[anchor=south west] {$(a,b) \in L_2 \setminus L_1$};
+    \filldraw[black!60] (-1, 2) circle (1.5pt);
+    \filldraw[black!60] (2, -1) circle (1.5pt);
+
+    % Annotations
+    \node[red, align=center] at (0.3, 0.3) {\textbf{Layer 0}};
+    \node[blue] at (1.5, 0.2) {\textbf{Layer 1} (Axis)};
+    \node[blue] at (0.2, 1.5) {\textbf{Layer 1} (Axis)};
+    \node[gray, align=center] at (-1.5, -1.5) {\textbf{Layer 2}\\(General Plane)};
+
+    % Legend
+    \matrix [draw, fill=white, below left] at (2.5, 2.5) {
+        \node [red] {$\bullet$}; & \node {Layer 0 (Zero)}; \\
+        \draw [blue, thick] (-0.2,0) -- (0.2,0); & \node {Layer 1 (Axes)}; \\
+        \node [gray] {$\bullet$}; & \node {Layer 2 (Plane)}; \\
+    };
+\end{tikzpicture}
+\caption{構造塔の可視化：$\mathbb{Q}^2$ における $L_0, L_1, L_2$ の分布}
+\label{fig:tower_viz}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{\textcolor{red}{Layer 0}}: 原点のみ。
+    \item \textbf{\textcolor{blue}{Layer 1}}: $x$軸および$y$軸上の点（原点除く）。これらは1つの基底だけで表現できる。
+    \item \textbf{\textcolor{gray}{Layer 2}}: 軸上以外のすべての点。これらは表現に2つの基底（$e_1$ と $e_2$）の両方を必要とする。
+\end{itemize}
+
+\section{Leanコードにおける実装の要点}
+
+提供されたLeanコード（\texttt{Basic.md}）では、以下のように構造体が定義されている。
+
+\begin{verbatim}
+structure SimpleTowerWithMin where
+  layer : Index -> Set carrier
+  minLayer : carrier -> Index
+  ...
+\end{verbatim}
+
+ここで、$\mathbb{Q}^2$ の例（\texttt{linearSpanTower}）では次のように実装されている：
+
+\begin{itemize}
+    \item \texttt{carrier} := $\mathbb{Q} \times \mathbb{Q}$
+    \item \texttt{Index} := $\mathbb{N}$
+    \item \texttt{minLayer v} := ベクトル $v$ の成分のうち、0でないものの個数（簡易的なランク）。
+\end{itemize}
+
+この実装は、単にベクトル空間を扱うだけでなく、それを「複雑さ（必要なリソース量）」に応じてフィルタリングする構造塔の具体例として、教育的に非常に明確なモデルとなっている。
+
+\end{document}

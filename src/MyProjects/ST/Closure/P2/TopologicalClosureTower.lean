@@ -129,8 +129,9 @@ noncomputable def finiteClosureTower (n : ℕ) : StructureTowerWithMin where
   
   covering := by
     intro i
-    use closureLevel n i
-    simp
+    refine ⟨closureLevel n i, ?_⟩
+    change closureLevel n i ≤ closureLevel n i
+    exact le_rfl
   
   monotone := by
     intro i j hij x hx
@@ -140,7 +141,8 @@ noncomputable def finiteClosureTower (n : ℕ) : StructureTowerWithMin where
   
   minLayer_mem := by
     intro x
-    simp
+    change closureLevel n x ≤ closureLevel n x
+    exact le_rfl
   
   minLayer_minimal := by
     intro x k hx
@@ -152,14 +154,13 @@ noncomputable def finiteClosureTower (n : ℕ) : StructureTowerWithMin where
 層の構造を明示的に計算：
 -/
 
-example : (0 : Fin 5) ∈ (finiteClosureTower 5).layer 0 := by
+example : (0 : Fin 5) ∈ (finiteClosureTower 5).layer (0 : ℕ) := by
   simp [finiteClosureTower, closureLevel]
 
-example : (3 : Fin 5) ∈ (finiteClosureTower 5).layer 2 := by
+example : (3 : Fin 5) ∈ (finiteClosureTower 5).layer (2 : ℕ) := by
   simp [finiteClosureTower, closureLevel]
-  omega
 
-example : (finiteClosureTower 5).minLayer (2 : Fin 5) = 2 := by
+example : (finiteClosureTower 5).minLayer (2 : Fin 5) = (2 : ℕ) := by
   simp [finiteClosureTower, closureLevel]
 
 /-!
@@ -232,17 +233,16 @@ noncomputable def extendedClosureTower : StructureTowerWithMin where
 -/
 
 /-- 有理数（孤立点）は層 0 に属する -/
-example : ExtendedRatSpace.rational (1/2) ∈ extendedClosureTower.layer 0 := by
+example : ExtendedRatSpace.rational (1/2) ∈ extendedClosureTower.layer (0 : ℕ) := by
   simp [extendedClosureTower, extendedClosureLevel]
 
 /-- 極限点は層 1 に属する（0 回では閉じない） -/
-example : ExtendedRatSpace.limitPoint ∈ extendedClosureTower.layer 1 := by
+example : ExtendedRatSpace.limitPoint ∈ extendedClosureTower.layer (1 : ℕ) := by
   simp [extendedClosureTower, extendedClosureLevel]
 
 /-- 極限点は層 0 に属さない -/
-example : ExtendedRatSpace.limitPoint ∉ extendedClosureTower.layer 0 := by
+example : ExtendedRatSpace.limitPoint ∉ extendedClosureTower.layer (0 : ℕ) := by
   simp [extendedClosureTower, extendedClosureLevel]
-  omega
 
 /-!
 ## 理論的洞察：位相的閉包と構造塔

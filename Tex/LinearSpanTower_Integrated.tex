@@ -1,0 +1,172 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{fontspec}
+
+\usepackage[japanese, bidi=basic, provide=*]{babel}
+
+\babelprovide[import, onchar=ids fonts]{japanese}
+\babelprovide[import, onchar=ids fonts]{english}
+
+% Set default/Latin font to Sans Serif in the main (rm) slot
+\babelfont{rm}{Noto Sans}
+% Assign a specific font for Japanese text
+\babelfont[japanese]{rm}{Noto Sans CJK JP}
+
+% Add because main language is not English
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+% --- PACKAGES ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows.meta, positioning, calc, patterns}
+\usepackage{tcolorbox}
+\usepackage{fancyvrb}
+
+% --- THEOREMS ---
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}{例}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}{補題}[section]
+
+% --- METADATA ---
+\title{線形包による構造塔の数学的定式化と圏論的視点}
+\author{
+    \textbf{TeX Document Generator}: Gemini (Google) \\
+    \textbf{Lean Code Author}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、形式化数学における「構造塔（Structure Tower）」の概念を、有理数体上の2次元ベクトル空間 $\mathbb{Q}^2$ をモデルとして解説する。特に、CODEXによって生成されたLeanコード（\texttt{LinearSpanTower\_Integrated.md}）に基づき、構造塔が閉包作用素の階層としてどのように実現されるか、また線形写像が構造塔の射としてどのように機能するかを数学的に定式化する。
+\end{abstract}
+
+\section{構造塔 (Structure Tower) の定義}
+
+Leanコード内で定義されている \texttt{StructureTowerWithMin} は、集合 $X$（carrier）とその上の複雑さの階層を表現する構造である。
+
+\begin{definition}[最小層を持つ構造塔]
+構造塔 $T = (X, I, \le, L, \mu)$ は以下の要素からなる。
+\begin{itemize}
+    \item $X$: 基礎集合 (Carrier)
+    \item $(I, \le)$: 順序付き添字集合 (Index)
+    \item $L: I \to \mathcal{P}(X)$: 各段階の層 (Layer)
+    \item $\mu: X \to I$: 最小層関数 (minLayer)
+\end{itemize}
+これらは以下の公理を満たす。
+\begin{enumerate}
+    \item \textbf{被覆性}: $\forall x \in X, \exists i \in I, x \in L(i)$
+    \item \textbf{単調性}: $i \le j \implies L(i) \subseteq L(j)$
+    \item \textbf{最小性}: $x \in L(i) \iff \mu(x) \le i$
+\end{enumerate}
+\end{definition}
+
+\section{具体的なモデル：$\mathbb{Q}^2$ 上の線形包階層}
+
+提供されたLeanコードでは、この抽象的な構造を $X = \mathbb{Q}^2$, $I = \mathbb{N}$ で実装している。
+
+\subsection{最小基底数関数 $\mu$}
+
+各ベクトル $v \in \mathbb{Q}^2$ に対し、それを表現するのに必要な標準基底 $\{e_1, e_2\}$ の最小個数を $\mu(v)$ とする。
+
+\[
+\mu(v) = 
+\begin{cases} 
+0 & \text{if } v = (0, 0) \\
+1 & \text{if } (v \in \text{span}(e_1) \cup \text{span}(e_2)) \land v \neq 0 \\
+2 & \text{otherwise (一般の位置)}
+\end{cases}
+\]
+
+\subsection{層の構造}
+
+この $\mu$ によって定義される層 $L_n = \{ v \in \mathbb{Q}^2 \mid \mu(v) \le n \}$ は以下のようになる。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=2]
+    % Background for Layer 2
+    \fill[gray!10] (-2.2,-2.2) rectangle (2.2,2.2);
+    \node[gray] at (1.8, 1.8) {$L_2$};
+
+    % Draw Grid
+    \draw[step=0.5,gray!30,very thin] (-2.2,-2.2) grid (2.2,2.2);
+
+    % Draw Axes (Layer 1)
+    \draw[blue, line width=1.5pt] (-2.5, 0) -- (2.5, 0) node[right, black] {$L_1 (e_1)$};
+    \draw[blue, line width=1.5pt] (0, -2.5) -- (0, 2.5) node[above, black] {$L_1 (e_2)$};
+
+    % Draw Origin (Layer 0)
+    \filldraw[red] (0,0) circle (4pt) node[anchor=north east, black, xshift=-2pt, yshift=-2pt] {$L_0$};
+    
+    % Sample Points
+    \filldraw[black] (1.5, 1.0) circle (1.5pt) node[anchor=south west] {$\mu(v)=2$};
+    \filldraw[blue] (0, 1.5) circle (1.5pt) node[anchor=south west] {$\mu(v)=1$};
+    
+    % Legend
+    \matrix [draw, fill=white, below left, nodes={anchor=center}] at (2.5, -1.5) {
+        \fill[red] (0,0) circle (2pt); & \node {Layer 0 (Zero)}; \\
+        \draw[blue, line width=1.5pt] (-0.3,0) -- (0.3,0); & \node {Layer 1 (Axes)}; \\
+        \fill[gray!20] (-0.3,-0.3) rectangle (0.3,0.3); & \node {Layer 2 (Space)}; \\
+    };
+\end{tikzpicture}
+\caption{$\mathbb{Q}^2$ における構造塔の可視化}
+\label{fig:tower}
+\end{figure}
+
+この図式（図 \ref{fig:tower}）は、構造塔が単なる部分集合の列ではなく、空間の複雑度によるフィルタリングであることを示している。
+
+\section{射と構造保存}
+
+\texttt{LinearSpanTower\_Integrated.md} の重要な追加点は、構造塔の間の射（Morphism）の定義である。
+
+\begin{definition}[構造塔の射]
+2つの構造塔 $T, T'$ 間の射は、写像の対 $(f, \phi)$ であり、以下を満たす。
+\begin{itemize}
+    \item $f: X \to X'$ (基礎写像)
+    \item $\phi: I \to I'$ (添字写像、順序保存)
+    \item \textbf{最小層保存}: $\mu'(f(x)) = \phi(\mu(x))$
+\end{itemize}
+\end{definition}
+
+\subsection{スカラー倍写像の例}
+
+Leanコードでは、非ゼロのスカラー $r \in \mathbb{Q} \setminus \{0\}$ によるスカラー倍写像 $f(v) = rv$ が構造塔の自己同型射（Automorphism）になることが示されている。
+
+\begin{theorem}[スカラー倍の構造保存性]
+任意の $v \in \mathbb{Q}^2$ と $r \neq 0$ に対して、以下が成り立つ。
+\[ \mu(rv) = \mu(v) \]
+\end{theorem}
+
+\begin{proof}
+$r \neq 0$ であるため、ベクトル $v$ の各成分が $0$ であることと、$rv$ の各成分が $0$ であることは同値である。
+したがって、非ゼロ成分の個数（基底数）は変化しない。
+これにより、スカラー倍は各層 $L_n$ を自身に移す ($L_n \to L_n$) ことが保証される。
+\end{proof}
+
+\section{閉包作用素としての解釈}
+
+この構造塔は、線形包（Linear Span）という閉包作用素 $cl$ の反復適用と見なすことができる。
+
+\[ L_n = \{ v \in X \mid v \in cl(\{b_1, \dots, b_k\}) \text{ where } k \le n, b_i \in \text{Basis} \} \]
+
+Leanコードで示唆されている通り、これは以下の対応関係を持つ。
+\begin{itemize}
+    \item \textbf{Layer 0}: 空集合の閉包 $\to \{0\}$
+    \item \textbf{Layer 1}: 単一要素の閉包の和集合 $\to$ 直線の和集合
+    \item \textbf{Layer 2}: 全体の閉包 $\to$ 平面全体
+\end{itemize}
+
+\section{結論}
+
+CODEXによるLeanコードと本解説により、抽象的な「構造塔」の概念が、具体的な線形代数の言葉（次元、基底、ランク）で明確に理解できることが示された。特に $\mu$ 関数が「線形独立性の測度」として機能するという洞察は、他の代数構造（群や環）への一般化を示唆する重要な視点である。
+
+\end{document}
