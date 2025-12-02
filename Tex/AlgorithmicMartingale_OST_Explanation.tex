@@ -499,11 +499,11 @@ Lean 4 実装：\texttt{increment\_zero}（約120行の詳細な証明）。
 \begin{tikzcd}[row sep=large, column sep=large]
   M_\tau - M_0 \arrow[d, "\text{テレスコーピング}"] \\
   \sum_{n=0}^{T-1} (M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}
-    \arrow[d, "\mathbb{E}[\cdot]"] \\
+    \arrow[d, "{\mathbb{E}[\cdot]}"] \\
   \sum_{n=0}^{T-1} \mathbb{E}[(M_{n+1} - M_n) \cdot \mathbf{1}_{\{\tau > n\}}]
     \arrow[d, "\text{各項} = 0"] \\
-  0 \arrow[d, Rightarrow] \\
-  \mathbb{E}[M_\tau] = \mathbb{E}[M_0]
+  {0} \arrow[d, Rightarrow] \\
+  {\mathbb{E}[M_\tau] = \mathbb{E}[M_0]}
 \end{tikzcd}
 \caption{OST 証明の論理的流れ}
 \end{figure}
