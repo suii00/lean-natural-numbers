@@ -1,11 +1,12 @@
+import Mathlib.Data.Rat.Lemmas
 import Mathlib.Data.Finset.Basic
 import Mathlib.Order.Basic
 import Mathlib.Order.Hom.Basic
+import Mathlib.Order.Closure
 import Mathlib.LinearAlgebra.Span.Basic
 import Mathlib.Data.Set.Lattice
-import Mathlib.Order.GaloisConnection.Basic
 import Mathlib.Data.Set.Basic
-import Mathlib.Tactic.NormNum.Core
+import Mathlib.Tactic
 
 /-!
 # 構造塔と閉包作用素：線形包による実装
@@ -115,7 +116,7 @@ def isSpanOfE2 (v : Vec2Q) : Prop :=
 
 /-- ベクトル v が e₁ と e₂ の線形結合であるか判定
 （これは常に真：ℚ²のすべてのベクトルは2つの標準基底で表現可能） -/
-def isSpanOfE1E2 (v : Vec2Q) : Prop :=
+def isSpanOfE1E2 (_v : Vec2Q) : Prop :=
   True  -- すべての v ∈ ℚ² は v = v.1 * e₁ + v.2 * e₂
 
 /-!
@@ -128,8 +129,8 @@ def isSpanOfE1E2 (v : Vec2Q) : Prop :=
 -/
 
 /-- ベクトル v を表現するのに必要な最小の標準基底の個数 -/
-def minBasisCount (v : Vec2Q) : ℕ :=
-  if v = Vec2Q.zero then 0
+noncomputable def minBasisCount (v : Vec2Q) : ℕ :=
+  if v.1 = 0 ∧ v.2 = 0 then 0
   else if v.1 = 0 ∨ v.2 = 0 then 1
   else 2
 
@@ -140,24 +141,37 @@ def minBasisCount (v : Vec2Q) : ℕ :=
 -/
 
 lemma minBasisCount_zero : minBasisCount Vec2Q.zero = 0 := by
-  unfold minBasisCount
-  simp
+  classical
+  simp [minBasisCount, Vec2Q.zero]
 
 lemma minBasisCount_e1 : minBasisCount e₁ = 1 := by
-  unfold minBasisCount e₁ Vec2Q.zero
-  simp
-  sorry  -- 証明略：(1, 0) ≠ (0, 0) かつ (0, 0).2 = 0
+  classical
+  simp [minBasisCount, e₁]
 
 lemma minBasisCount_e2 : minBasisCount e₂ = 1 := by
-  unfold minBasisCount e₂ Vec2Q.zero
-  simp
-  sorry  -- 証明略：(0, 1) ≠ (0, 0) かつ (0, 1).1 = 0
+  classical
+  simp [minBasisCount, e₂]
 
 lemma minBasisCount_general (a b : ℚ) (ha : a ≠ 0) (hb : b ≠ 0) :
     minBasisCount (a, b) = 2 := by
-  unfold minBasisCount Vec2Q.zero
-  simp [ha, hb]
-  sorry  -- 証明略：a ≠ 0 かつ b ≠ 0 なら両座標とも非零
+  classical
+  have h2 : ¬ (a = 0 ∧ b = 0) := by
+    intro h; exact ha h.left
+  have h3 : ¬ (a = 0 ∨ b = 0) := by
+    intro h; cases h with
+    | inl ha0 => exact ha ha0
+    | inr hb0 => exact hb hb0
+  simp [minBasisCount, h2, h3]
+
+lemma minBasisCount_axis_left (b : ℚ) (hb : b ≠ 0) :
+    minBasisCount (0, b) = 1 := by
+  classical
+  simp [minBasisCount, hb]
+
+lemma minBasisCount_axis_right (a : ℚ) (ha : a ≠ 0) :
+    minBasisCount (a, 0) = 1 := by
+  classical
+  simp [minBasisCount, ha]
 
 /-!
 ## 構造塔のインスタンス定義
@@ -213,87 +227,32 @@ minLayer(v) = 「v を閉じるのに必要な最小の閉包操作の回数」
 これにより、構造塔の抽象的な概念が具体的な線形代数の概念に翻訳される。
 -/
 
-def linearSpanTower : SimpleTowerWithMin where
+noncomputable def linearSpanTower : SimpleTowerWithMin where
   carrier := Vec2Q
   Index := ℕ
   indexPreorder := inferInstance
 
-  layer := fun n =>
-    match n with
-    | 0 => {v : Vec2Q | v = Vec2Q.zero}
-    | 1 => {v : Vec2Q | v.1 = 0 ∨ v.2 = 0}
-    | _ => Set.univ  -- n ≥ 2 なら全空間
+  layer := fun n => {v : Vec2Q | minBasisCount v ≤ n}
 
   covering := by
     intro v
-    use 2
-    trivial
+    refine ⟨minBasisCount v, ?_⟩
+    simp
 
   monotone := by
     intro i j hij v hv
-    match i, j with
-    | 0, 0 => exact hv
-    | 0, 1 =>
-      unfold Set.mem at hv ⊢
-      simp at hv
-      left
-      exact hv.2
-    | 0, n+2 =>
-      trivial
-    | 1, 1 => exact hv
-    | 1, n+2 =>
-      trivial
-    | i+2, j =>
-      trivial
+    exact le_trans hv hij
 
   minLayer := minBasisCount
 
   minLayer_mem := by
     intro v
-    unfold minBasisCount
-    split_ifs with h1 h2
-    · -- v = 0 の場合
-      simp [h1]
-    · -- v ≠ 0 かつ (v.1 = 0 ∨ v.2 = 0) の場合
-      exact h2
-    · -- v.1 ≠ 0 かつ v.2 ≠ 0 の場合
-      trivial
+    show minBasisCount v ≤ minBasisCount v
+    exact le_rfl
 
   minLayer_minimal := by
     intro v i hv
-    unfold minBasisCount
-    split_ifs with h1 h2
-    · -- v = 0 の場合：minLayer = 0 は常に最小
-      exact Nat.zero_le i
-    · -- v ≠ 0 かつ (v.1 = 0 ∨ v.2 = 0) の場合：minLayer = 1
-      match i with
-      | 0 =>
-        -- layer(0) には 0 しかない
-        simp at hv
-        contradiction
-      | _ =>
-        -- i ≥ 1 なので 1 ≤ i
-        exact Nat.one_le_iff_ne_zero.mpr (by omega)
-    · -- v.1 ≠ 0 かつ v.2 ≠ 0 の場合：minLayer = 2
-      match i with
-      | 0 =>
-        -- layer(0) には 0 しかない
-        simp at hv
-        have : v = Vec2Q.zero := hv
-        simp [Vec2Q.zero] at this
-        push_neg at h2
-        cases this with
-        | intro h3 h4 =>
-          exact absurd h3 h2.1
-      | 1 =>
-        -- layer(1) には軸上のベクトルしかない
-        unfold Set.mem at hv
-        cases hv with
-        | inl h => exact absurd h h2.1
-        | inr h => exact absurd h h2.2
-      | n+2 =>
-        -- i ≥ 2 なので 2 ≤ i
-        omega
+    exact hv
 
 /-!
 ## 具体例：数値計算による確認
@@ -303,37 +262,34 @@ def linearSpanTower : SimpleTowerWithMin where
 -/
 
 /-- 零ベクトルは層0に属する -/
-example : Vec2Q.zero ∈ linearSpanTower.layer 0 := by
-  simp [Vec2Q.zero]
+example : Vec2Q.zero ∈ linearSpanTower.layer (0 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_zero]
 
 /-- e₁ は層1に属する -/
-example : e₁ ∈ linearSpanTower.layer 1 := by
-  unfold e₁
-  right
-  rfl
+example : e₁ ∈ linearSpanTower.layer (1 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_e1]
 
 /-- e₂ も層1に属する -/
-example : e₂ ∈ linearSpanTower.layer 1 := by
-  unfold e₂
-  left
-  rfl
+example : e₂ ∈ linearSpanTower.layer (1 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_e2]
 
 /-- 一般のベクトル (3, 5) は層2に属する -/
-example : (3, 5 : Vec2Q) ∈ linearSpanTower.layer 2 := by
-  trivial
+example : ((3 : ℚ), (5 : ℚ)) ∈ linearSpanTower.layer (2 : ℕ) := by
+  have h := minBasisCount_general 3 5 (by norm_num) (by norm_num)
+  simpa [linearSpanTower] using h.le
 
 /-- minLayer の具体的な計算例 -/
-example : linearSpanTower.minLayer Vec2Q.zero = 0 := by
-  exact minBasisCount_zero
+example : linearSpanTower.minLayer Vec2Q.zero = (0 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_zero]
 
-example : linearSpanTower.minLayer e₁ = 1 := by
-  exact minBasisCount_e1
+example : linearSpanTower.minLayer e₁ = (1 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_e1]
 
-example : linearSpanTower.minLayer e₂ = 1 := by
-  exact minBasisCount_e2
+example : linearSpanTower.minLayer e₂ = (1 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_e2]
 
-example : linearSpanTower.minLayer (3, 5) = 2 := by
-  exact minBasisCount_general 3 5 (by norm_num) (by norm_num)
+example : linearSpanTower.minLayer (3, 5) = (2 : ℕ) := by
+  simp [linearSpanTower, minBasisCount_general 3 5 (by norm_num) (by norm_num)]
 
 /-!
 ## 構造塔の射：線形写像との対応
@@ -355,13 +311,36 @@ example : linearSpanTower.minLayer (3, 5) = 2 := by
 
 /-- スカラー倍写像：構造塔の自己射の例
 非零スカラーによる倍写像は minLayer を保存する -/
-def scalarMultMap (r : ℚ) (hr : r ≠ 0) : Vec2Q → Vec2Q :=
+def scalarMultMap (r : ℚ) (_hr : r ≠ 0) : Vec2Q → Vec2Q :=
   fun v => Vec2Q.smul r v
 
 lemma scalarMult_preserves_minLayer (r : ℚ) (hr : r ≠ 0) (v : Vec2Q) :
     minBasisCount (scalarMultMap r hr v) = minBasisCount v := by
-  unfold scalarMultMap Vec2Q.smul minBasisCount
-  sorry  -- 証明略：スカラー倍は零/非零を保つため minBasisCount も保つ
+  classical
+  cases v with
+  | mk a b =>
+      by_cases ha : a = 0
+      · by_cases hb : b = 0
+        · -- 零ベクトル
+          subst ha; subst hb
+          simp [scalarMultMap, Vec2Q.smul]
+        · -- a = 0, b ≠ 0
+          have hb' : b ≠ 0 := hb
+          subst ha
+          have hmul : r * b ≠ 0 := mul_ne_zero hr hb'
+          simp [scalarMultMap, Vec2Q.smul, minBasisCount_axis_left, hb', hmul]
+      · by_cases hb : b = 0
+        · -- a ≠ 0, b = 0
+          have ha' : a ≠ 0 := ha
+          subst hb
+          have hmul : r * a ≠ 0 := mul_ne_zero hr ha'
+          simp [scalarMultMap, Vec2Q.smul, minBasisCount_axis_right, ha', hmul]
+        · -- a ≠ 0, b ≠ 0
+          have ha' : a ≠ 0 := ha
+          have hb' : b ≠ 0 := hb
+          have hmul1 : r * a ≠ 0 := mul_ne_zero hr ha'
+          have hmul2 : r * b ≠ 0 := mul_ne_zero hr hb'
+          simp [scalarMultMap, Vec2Q.smul, minBasisCount_general, ha', hb', hmul1, hmul2]
 
 /-!
 ## 学習のまとめ：構造塔の本質的理解
