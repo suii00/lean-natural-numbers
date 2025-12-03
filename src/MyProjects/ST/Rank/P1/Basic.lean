@@ -1,11 +1,13 @@
 import Mathlib.Data.Nat.Basic
 import Mathlib.Data.Nat.Prime.Basic
+import Mathlib.Data.Nat.Factors
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Order.Basic
 import Mathlib.Order.Hom.Basic
 import Mathlib.Algebra.Polynomial.Basic
 import Mathlib.Algebra.Polynomial.Degree.Definitions
+import Mathlib.Tactic
 
 /-!
 # Rank型構造塔：標準的構成理論
@@ -455,20 +457,20 @@ def finsetSizeTower (α : Type*) : SimpleTowerWithMin :=
 **具体的な計算例**:
 -/
 
-example : ∅ ∈ (finsetSizeTower ℕ).layer 0 := by
-  show Finset.card ∅ ≤ 0
+example : (∅ : Finset ℕ) ∈ (finsetSizeTower ℕ).layer (0 : ℕ) := by
+  show Finset.card (∅ : Finset ℕ) ≤ 0
   simp
 
-example : {1} ∈ (finsetSizeTower ℕ).layer 1 := by
-  show Finset.card {1} ≤ 1
+example : ({1} : Finset ℕ) ∈ (finsetSizeTower ℕ).layer (1 : ℕ) := by
+  show Finset.card ({1} : Finset ℕ) ≤ 1
   simp
 
-example : {1, 2} ∈ (finsetSizeTower ℕ).layer 2 := by
-  show Finset.card {1, 2} ≤ 2
+example : ({1, 2} : Finset ℕ) ∈ (finsetSizeTower ℕ).layer (2 : ℕ) := by
+  show Finset.card ({1, 2} : Finset ℕ) ≤ 2
   norm_num
 
-example : (finsetSizeTower ℕ).minLayer {1, 2, 3} = 3 := by
-  show Finset.card {1, 2, 3} = 3
+example : (finsetSizeTower ℕ).minLayer ({1, 2, 3} : Finset ℕ) = (3 : ℕ) := by
+  show Finset.card ({1, 2, 3} : Finset ℕ) = 3
   norm_num
 
 /-!
@@ -493,9 +495,9 @@ example : (finsetSizeTower ℕ).minLayer {1, 2, 3} = 3 := by
 -/
 
 /-- 正整数の素因数の個数（重複度込み）
-これは整数論におけるΩ関数である -/
+これは整数論におけるΩ関数である（primeFactorsList の長さとして定義） -/
 def primeFactorCount (n : ℕ+) : ℕ :=
-  n.val.factors.length
+  (Nat.primeFactorsList n.val).length
 
 /-- 素因数の個数をrank関数とする -/
 def primeFactorRank : RankFunction ℕ+ ℕ where
@@ -518,19 +520,19 @@ def primeFactorTower : SimpleTowerWithMin :=
 
 -- 2は素数なので、rank(2) = 1
 example : primeFactorCount ⟨2, Nat.succ_pos 1⟩ = 1 := by
-  rfl
+  native_decide
 
 -- 4 = 2² なので、rank(4) = 2
 example : primeFactorCount ⟨4, Nat.succ_pos 3⟩ = 2 := by
-  rfl
+  native_decide
 
 -- 8 = 2³ なので、rank(8) = 3
 example : primeFactorCount ⟨8, Nat.succ_pos 7⟩ = 3 := by
-  rfl
+  native_decide
 
 -- 6 = 2 × 3 なので、rank(6) = 2
 example : primeFactorCount ⟨6, Nat.succ_pos 5⟩ = 2 := by
-  rfl
+  native_decide
 
 /-!
 **なぜこのrankが「自然」か**:
