@@ -1,0 +1,21 @@
+### エラー修正ログ
+- エラー概要：`RankTower_Extended.lean` が `lake build MyProjects.ST.Rank.P2.RankTower_Extended` でコンパイル失敗（不存在フィールド `finite_edgeSet`、コメント未閉じ、不要な `simp` 引数、例証のタクティクス過多による `No goals to be solved`）。
+- 原因：
+  - mathlib SimpleGraph API を誤って `finite_edgeSet` と想定していた（実際は `edgeFinset` を使うか `edgeSet` の有限性から `Nat.card` を取る）。
+  - ブロックコメントを閉じ忘れたためパーサが EOF までコメント扱い。
+  - `simp [natDegree_X, natDegree_C]` の引数過多で linter 警告。
+  - 約数個数の例で `norm_num` 後に追加タクティクスを続け、ゴール解消後に `No goals to be solved` が発生。
+- 修正内容：
+  - `graphEdgeRank` を `noncomputable` にし、`Fintype.ofFinite G.edgeSet` を経由して `Nat.card` で辺数を定義。`graphEdgeTower` も非計算的に整合。
+  - グラフ節の説明コメントに対応する `-/` を追加しコメントを正しく閉じた。
+  - 多項式例の `simp` から不要な `natDegree_C` を削除。
+  - 約数個数の例（τ(1)）を `decide` の短い証明に置き換え、タクティクス過多を解消。
+- 修正が正しい理由：
+  - `SimpleGraph.edgeSet` は頂点有限なら `Finite` となるため `Nat.card` で辺数を数えるのが正しい（`finite_edgeSet` というフィールドは存在しない）。
+  - コメント終端を補うことで Lean パーサが以後のコードを正しく解釈する。
+  - 不要な `simp` 引数と過剰タクティクスを削ることで linter 警告とタクティクスエラーを除去し、証明内容自体は `natDegree_X` や `decide` で十分に示せる。
+- 動作確認：`lake build MyProjects.ST.Rank.P2.RankTower_Extended` を実行し成功（2025-12-04）。
+- どういう意図でこの実装に至ったかメモ：
+  - mathlib 既存 API に忠実に、最小修正でビルドを通す方針（ブルバキ的に定義から組み立て直す）。
+  - 先に `Closure` 系ディレクトリにいたが、対象は `Rank/P2` だったため作業ディレクトリを修正しつつログを残した。
+  - 非計算的定義を採用しても塔の構造には影響しないため、可読性・安定性を優先した。

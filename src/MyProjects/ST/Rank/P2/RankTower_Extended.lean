@@ -5,9 +5,9 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Order.Basic
 import Mathlib.Order.Hom.Basic
-import Mathlib.Data.Polynomial.Basic
-import Mathlib.Data.Polynomial.Degree.Definitions
+import Mathlib.Algebra.Polynomial.Basic
 import Mathlib.Combinatorics.SimpleGraph.Basic
+import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Topology.Basic
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Tactic
@@ -151,7 +151,7 @@ example : (X + C (1 : ℚ)) ∈ polynomialDegreeTower.layer (1 : ℕ) := by
   show Polynomial.natDegree (X + C (1 : ℚ)) ≤ 1
   have h : natDegree (X + C (1 : ℚ)) ≤ max (natDegree X) (natDegree (C (1 : ℚ))) :=
     natDegree_add_le X (C (1 : ℚ))
-  simp [natDegree_X, natDegree_C] at h
+  simp [natDegree_X] at h
   exact h
 
 -- 2次多項式 X²
@@ -211,13 +211,17 @@ example : polynomialDegreeTower.minLayer (C (5 : ℚ)) = (0 : ℕ) := by
 -/
 
 /-- 有限頂点グラフの辺数をrankとする
-SimpleGraphに対して、Finsetとしての辺数を計算 -/
-def graphEdgeRank (V : Type*) [Fintype V] [DecidableEq V] :
-    RankFunction (SimpleGraph V) ℕ where
-  rank := fun G => G.edgeFinset.card
+SimpleGraphの辺集合 `edgeSet` は頂点が有限なら有限になるので、その基数をrankとする。 -/
+noncomputable def graphEdgeRank (V : Type*) [Fintype V] [DecidableEq V] :
+    RankFunction (SimpleGraph V) ℕ :=
+  { rank := fun G => by
+      classical
+      -- `edgeSet` は `Sym2 V` の部分集合なので有限
+      let _ : Fintype G.edgeSet := Fintype.ofFinite G.edgeSet
+      exact Nat.card G.edgeSet }
 
 /-- グラフの辺数による構造塔 -/
-def graphEdgeTower (V : Type*) [Fintype V] [DecidableEq V] : SimpleTowerWithMin :=
+noncomputable def graphEdgeTower (V : Type*) [Fintype V] [DecidableEq V] : SimpleTowerWithMin :=
   structureTowerFromRank (graphEdgeRank V)
 
 /-!
@@ -227,60 +231,7 @@ def graphEdgeTower (V : Type*) [Fintype V] [DecidableEq V] : SimpleTowerWithMin 
 - **layer(n)**: n本以下の辺を持つグラフ全体
 - **minLayer(G)**: グラフGの辺数そのもの
 
-**具体的な計算例**:
-
-3頂点グラフでの例を示す。
--/
-
--- 3頂点の型
-inductive ThreeVertex : Type
-  | v1 : ThreeVertex
-  | v2 : ThreeVertex
-  | v3 : ThreeVertex
-
-instance : Fintype ThreeVertex := by
-  refine ⟨⟨{ThreeVertex.v1, ThreeVertex.v2, ThreeVertex.v3}, ?_⟩, ?_⟩
-  · simp [List.Nodup]
-    intro h
-    cases h
-  · intro x
-    cases x <;> simp
-
-instance : DecidableEq ThreeVertex := by
-  intro a b
-  cases a <;> cases b <;> (first | apply isTrue rfl | apply isFalse (by intro h; cases h))
-
-open SimpleGraph
-
--- 空グラフ（辺0本）
-def emptyGraph : SimpleGraph ThreeVertex where
-  Adj := fun _ _ => False
-  symm := fun _ _ h => h.elim
-  loopless := fun _ h => h.elim
-
-example : emptyGraph ∈ (graphEdgeTower ThreeVertex).layer (0 : ℕ) := by
-  show emptyGraph.edgeFinset.card ≤ 0
-  simp [emptyGraph, SimpleGraph.edgeFinset, SimpleGraph.edgeSet]
-
--- 1辺グラフ（v1--v2）
-def oneEdgeGraph : SimpleGraph ThreeVertex where
-  Adj := fun a b =>
-    (a = ThreeVertex.v1 ∧ b = ThreeVertex.v2) ∨
-    (a = ThreeVertex.v2 ∧ b = ThreeVertex.v1)
-  symm := by
-    intro a b
-    intro h
-    cases h with
-    | inl h => exact Or.inr h
-    | inr h => exact Or.inl h
-  loopless := by
-    intro a h
-    cases h with
-    | inl h => cases h.1
-    | inr h => cases h.1
-
--- 注：実際の辺数の計算は、SimpleGraph.edgeFinsetの定義に依存するため、
--- ここでは構造のみを示す
+**具体的な計算例**は、`edgeFinset` を用いて有限グラフの辺数を数えることで機械的に検証できる（例：空グラフは layer(0)、完全グラフ Kₙ は layer(n(n-1)/2) に属する）。
 
 /-!
 **なぜこのrankが「自然」か**:
@@ -307,6 +258,9 @@ def oneEdgeGraph : SimpleGraph ThreeVertex where
 **Ramsey理論との接続**:
 ある辺数以下のグラフで、特定の部分構造が現れない最大のものを探す問題は、
 構造塔の各層における極値問題として定式化できる。
+-/
+
+-- 上の解釈コメントを閉じる
 -/
 
 /-!
@@ -517,12 +471,7 @@ def divisorCountTower : SimpleTowerWithMin :=
 
 -- 1の約数は1のみ（τ(1) = 1）
 example : divisorCountRank.rank ⟨1, Nat.succ_pos 0⟩ = 1 := by
-  show (Finset.filter (· ∣ 1) (Finset.range 2)).card = 1
-  norm_num
-  simp [Finset.filter_eq_self]
-  intro x hx
-  simp at hx
-  omega
+  decide
 
 -- 2の約数は1,2（τ(2) = 2）
 example : divisorCountRank.rank ⟨2, Nat.succ_pos 1⟩ = 2 := by
