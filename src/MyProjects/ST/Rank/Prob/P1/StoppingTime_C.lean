@@ -210,6 +210,11 @@ noncomputable def rankFromFiltrationTower
     (ℱ : Filtration Ω) : Ω → ℕ :=
   fun ω => (towerOf ℱ).minLayer {ω}
 
+/-- `rankFromFiltrationTower` は `firstMeasurableTime` と一致する。 -/
+lemma rankFromFiltrationTower_eq_firstMeasurableTime
+    (ℱ : Filtration Ω) (ω : Ω) :
+    rankFromFiltrationTower ℱ ω = firstMeasurableTime ℱ ω := rfl
+
 /-!
 ### 補題8：rankFromFiltrationTowerの性質
 
@@ -237,21 +242,6 @@ lemma rankFromFiltrationTower_le_iff
     exact (towerOf ℱ).minLayer_minimal {ω} n h
 
 end StoppingTimeAsRank
-
-/-!
-## RankTowerの双方向対応の確率論版
-
-（詳細な可測性対応は今後の課題とし、ここでは省略する。）
--/
-
--- 今後の拡張用にセクション名のみ残す
-section ProbabilisticRankCorrespondence end ProbabilisticRankCorrespondence
-
-/-!
-## 具体例：定数停止時間
-
-（完全版の停止時間可測性をまだ接続していないため省略）
--/
 
 /-!
 ## RankTowerの双方向対応の確率論版
@@ -339,7 +329,7 @@ RankTower.leanの抽象理論が、確率論において以下のように具体
 
 ## 今後の課題
 
-1. **証明の完成**: 現在sorryとなっている定理の形式的証明
+1. **証明の充実**: TODO コメントで残した可測性補題の形式的証明
 2. **一般化**: 有界でない停止時間への拡張
 3. **応用**: マルチンゲール理論との統合（Martingale_StructureTower.md）
 4. **計算**: rank関数の効率的な計算アルゴリズムの開発
