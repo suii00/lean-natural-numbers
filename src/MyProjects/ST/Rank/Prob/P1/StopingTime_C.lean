@@ -366,15 +366,9 @@ noncomputable def constantStoppingTime
     classical
     by_cases h : K ≤ n
     · -- K ≤ n の場合: {ω | K ≤ n} = Set.univ
-      have hset : {ω | (fun _ : Ω => K) ω ≤ n} = Set.univ := by
-        ext ω; simp [h]
-      rw [hset]
-      exact MeasurableSet.univ
+      simp [h]
     · -- K > n の場合: {ω | K ≤ n} = ∅
-      have hset : {ω | (fun _ : Ω => K) ω ≤ n} = ∅ := by
-        ext ω; simp [h]
-      rw [hset]
-      exact MeasurableSet.empty
+      simp [h]
 
 /-!
 ### 定義：零停止時間
@@ -421,10 +415,6 @@ lemma constantStoppingTime_layer_structure
   by_cases h : K ≤ n
   · simp [h, constantStoppingTime]
   · simp [h, constantStoppingTime]
-    push_neg at h
-    ext ω
-    simp
-    exact Nat.not_le.mpr h
 
 /-!
 ### 定理：零停止時間の層
