@@ -12,6 +12,15 @@ import Mathlib.Order.ConditionallyCompleteLattice.Basic
 双方向対応を示すファイル。ブルバキ的に「階層＝ランク」の正規形を与える。
 -/
 
+/-!
+## 理論的意義
+
+この双方向対応により：
+- 構造塔 ≃ ランク関数 という正規形を得る
+- `minLayer = rank` の同一視が正当化される
+- 異なる数学分野の統一的理解が可能になる
+-/
+
 /-- 最小層を持つ構造塔（添字は ℕ に固定した簡約版） -/
 structure StructureTowerWithMin where
   carrier : Type*
@@ -152,6 +161,16 @@ noncomputable def minBasisCount (v : Vec2Q) : ℕ :=
   if v.1 = 0 ∧ v.2 = 0 then 0
   else if v.1 = 0 ∨ v.2 = 0 then 1
   else 2
+
+-- 零・単基底・一般ベクトルのランク確認
+example : minBasisCount (0, 0) = 0 := by
+  simp [minBasisCount]
+
+example : minBasisCount (1, 0) = 1 := by
+  simp [minBasisCount]
+
+example : minBasisCount (1, 1) = 2 := by
+  simp [minBasisCount]
 
 /-- minBasisCount は常に 2 以下なので被覆性を満たす -/
 lemma minBasisCount_covers : ∀ v : Vec2Q, ∃ n : ℕ, (minBasisCount v : WithTop ℕ) ≤ n := by
