@@ -1,0 +1,183 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% パッケージの読み込み
+\usepackage{amsmath, amssymb, amsthm, mathrsfs}
+\usepackage{luatexja}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, backgrounds, positioning, calc, arrows.meta, patterns}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+
+% ハイパーリンク設定
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{remark}[definition]{注釈}
+\newtheorem{example}[definition]{例}
+
+% マクロ
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\OmegaSpace}{\Omega}
+\newcommand{\Filtration}{\mathcal{F}}
+\newcommand{\Tau}{\tau}
+\newcommand{\Rank}{\rho}
+\newcommand{\Tower}{\mathcal{T}}
+\newcommand{\Layer}[1]{\mathrm{Layer}_{#1}}
+\newcommand{\MinLayer}{\mathrm{minLayer}}
+
+\title{\textbf{停止時間と構造塔：拡張定理と代数的性質} \\ \large --- \texttt{StoppingTime\_RankExtension.md} の数学的解説 ---}
+\author{
+    Lean Code Generation: \textbf{CODEX (OpenAI)} \\
+    TeX Explanation \& Typesetting: \textbf{Gemini (Google)}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4ファイル \texttt{StoppingTime\_RankExtension.md} で形式化された、停止時間とランク関数の対応理論の拡張について解説する。主なトピックは、停止時間の代数的演算（最小値）が構造塔の層演算（和集合）に対応すること、停止時間の順序関係が停止集合の包含関係に対応すること、および停止時間の変換（射）の定式化である。これにより、停止時間を単なる関数ではなく、代数的な操作対象として構造的に扱う視点を提供する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+前稿までに、停止時間 $\Tau$ とランク関数 $\Rank$ の基本的な同型対応を確認した。本稿では、この対応関係をより動的な側面へ拡張する。すなわち、停止時間同士の演算や変換が、対応する構造塔（およびその層）においてどのように表現されるかを数学的に明らかにする。
+
+\section{代数的性質：停止時間の最小値}
+
+二つの停止時間 $\Tau_1, \Tau_2$ があるとき、その「早い方」をとる操作 $\min(\Tau_1, \Tau_2)$ は確率論において頻繁に現れる。
+
+\subsection{定義とRank表現}
+Leanコードでは \texttt{stoppingTimeMin} として定義されている。
+\[
+    (\Tau_1 \wedge \Tau_2)(\omega) := \min(\Tau_1(\omega), \Tau_2(\omega))
+\]
+これはランク関数の世界では、単純に各点ごとの最小値 $\Rank_{\Tau_1} \wedge \Rank_{\Tau_2}$ に対応する。
+
+\subsection{層の特徴付け（定理）}
+最も重要な結果は、この最小値操作が、層（停止集合）のレベルでは「和集合」に対応するという定理 (\texttt{stoppingTimeMin\_layer\_characterization}) である。
+
+\begin{theorem}[最小値と層の和]
+任意の $n \in \N$ について、
+\[
+    \{\omega \mid \min(\Tau_1(\omega), \Tau_2(\omega)) \le n\} = \{\omega \mid \Tau_1(\omega) \le n\} \cup \{\omega \mid \Tau_2(\omega) \le n\}
+\]
+\end{theorem}
+
+\begin{proof}[直観的証明]
+「$\Tau_1$ か $\Tau_2$ のどちらか早い方が時刻 $n$ までに起きた」ということは、「$\Tau_1$ が $n$ までに起きた」か、または「$\Tau_2$ が $n$ までに起きた」ことと同値である。論理和 ($\lor$) が集合の和 ($\cup$) に対応している。
+\end{proof}
+
+\subsection{図式的理解}
+この関係を以下に図示する。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.2]
+    % Omega space
+    \draw[rounded corners, fill=gray!5] (-3,-2) rectangle (3,2);
+    \node at (-2.5, 1.7) {$\OmegaSpace$};
+
+    % Set A (Tau1 <= n)
+    \begin{scope}
+        \fill[blue!30, opacity=0.7] (-0.5,0) ellipse (1.5cm and 1cm);
+    \end{scope}
+    \draw[blue!80!black, thick] (-0.5,0) ellipse (1.5cm and 1cm);
+    \node[blue!80!black] at (-1.5, 0.5) {$\{\Tau_1 \le n\}$};
+
+    % Set B (Tau2 <= n)
+    \begin{scope}
+        \fill[red!30, opacity=0.7] (0.5,0) ellipse (1.5cm and 1cm);
+    \end{scope}
+    \draw[red!80!black, thick] (0.5,0) ellipse (1.5cm and 1cm);
+    \node[red!80!black] at (1.5, 0.5) {$\{\Tau_2 \le n\}$};
+
+    % Union Label
+    \node[font=\bfseries] at (0, -1.5) {和集合 $\cup$ が $\min(\Tau_1, \Tau_2)$ の停止集合};
+    
+    % Sample point
+    \node[circle, fill, inner sep=1.5pt, label={above:$\omega$}] at (0,0) {};
+    \node[font=\footnotesize] at (0, -0.3) {どちらも満たす};
+
+\end{tikzpicture}
+\caption{停止時間の最小値と停止集合の和。青い領域でも赤い領域でも、少なくとも一方の停止時間は時刻 $n$ 以下であるため、$\min(\Tau_1, \Tau_2) \le n$ が成立する。}
+\label{fig:min_union}
+\end{figure}
+
+\section{順序構造と単調性}
+
+次に、停止時間の間の順序関係 $\Tau_1 \le \Tau_2$ が層に及ぼす影響を考える。これはセクション4の \texttt{MonotonicityProperties} に対応する。
+
+\subsection{定理：順序と包含関係の反転}
+\begin{theorem}[包含関係の反転]
+すべての $\omega$ で $\Tau_1(\omega) \le \Tau_2(\omega)$ ならば、任意の $n$ について以下が成り立つ。
+\[
+    \{\omega \mid \Tau_2(\omega) \le n\} \subseteq \{\omega \mid \Tau_1(\omega) \le n\}
+\]
+\end{theorem}
+
+\begin{remark}
+$\Tau_1$ は $\Tau_2$ より「早い」停止時間である。遅い方 ($\Tau_2$) が既に起きているならば、早い方 ($\Tau_1$) は当然既に起きている、という論理である。このため、集合としては包含関係が逆転（順序保存ではなく反変）するように見える点に注意が必要である。
+\end{remark}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1]
+    % Outer set (Tau1 <= n)
+    \draw[fill=blue!10, draw=blue!80!black, thick] (0,0) circle (2.5cm);
+    \node[blue!80!black] at (0, 2.0) {$\{\Tau_1 \le n\}$ (早い)};
+
+    % Inner set (Tau2 <= n)
+    \draw[fill=red!20, draw=red!80!black, thick] (0,0) circle (1.5cm);
+    \node[red!80!black] at (0, 0) {$\{\Tau_2 \le n\}$ (遅い)};
+
+    % Annotations
+    \node[align=left, font=\small] at (4, 1) {$\Tau_1 \le \Tau_2$\\ (常に $\Tau_1$ が先に起こる)};
+    \draw[->] (2.8, 1) -- (2.0, 1);
+
+    \node[align=left, font=\footnotesize] at (0, -3) {「遅いイベント」が起きたなら、\\ 「早いイベント」は既に起きている。\\ $\therefore$ 包含関係になる。};
+
+\end{tikzpicture}
+\caption{停止時間の順序と停止集合の包含関係。$\Tau_1$ の方が小さいため、停止条件を満たす集合はより広くなる。}
+\label{fig:monotonicity}
+\end{figure}
+
+\section{構造塔の射としての停止時間変換}
+
+最後に、停止時間の変換（Transform）について解説する。これは圏論的な視点、すなわち構造塔の間の「射 (Morphism)」として停止時間の操作を捉える試みである。
+
+\subsection{定義：停止時間変換}
+構造体 \texttt{StoppingTimeTransform} は、以下の要素から成る。
+\begin{itemize}
+    \item 空間の変換 $f: \OmegaSpace \to \OmegaSpace$
+    \item 時間の変換 $t: \N \to \N$ （単調増加）
+\end{itemize}
+これらが停止時間を保存する条件とは、任意の $\Tau$ に対して
+\[
+    t(\Tau(\omega)) \le \Tau(f(\omega))
+\]
+が成り立つことである。これは、変換後の世界での停止時刻 $\Tau(f(\omega))$ が、変換前の時刻を時間変換したものよりも「遅く」ない（あるいは時間が引き延ばされている）ことを要求する条件であり、構造塔の射の定義と整合する。
+
+\section{結論}
+\texttt{StoppingTime\_RankExtension.md} は、停止時間を単なる静的な関数から、演算可能な代数的対象へと昇華させた。
+\begin{enumerate}
+    \item \textbf{代数}: $\min$ 演算は層の $\cup$ 演算に対応する。
+    \item \textbf{順序}: 関数としての順序 $\le$ は、層の包含関係 $\supseteq$ を導く。
+    \item \textbf{圏}: 停止時間の変換は、構造塔の射として定式化される。
+\end{enumerate}
+これにより、確率論的な操作の多くが、構造塔上の操作として統一的に理解できることが示された。
+
+\end{document}

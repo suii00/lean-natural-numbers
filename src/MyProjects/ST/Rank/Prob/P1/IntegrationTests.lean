@@ -1,14 +1,14 @@
 import MyProjects.ST.Formalization.P2.SigmaAlgebraTower
 import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 import MyProjects.ST.Rank.P3.RankTower
-import MyProjects.ST.Rank.Prob.P1.StopingTime_C
+import MyProjects.ST.Rank.Prob.P1.StoppingTime_C
 import MyProjects.ST.Rank.Prob.P1.StoppingTime_RankExtension
 
 /-!
 # 停止時間とRank関数の対応：統合テスト
 
 このファイルは、以下の統合をテストする：
-- StopingTime_C.lean（核心定理）
+- StoppingTime_C.lean（核心定理）
 - StoppingTime_RankExtension.lean（拡張定理）
 
 ## テストの構成
@@ -34,7 +34,7 @@ open TowerRank
 section TypeChecks
 
 /-!
-### Test 1.1: stopingTimeToRank の型
+### Test 1.1: StoppingTimeToRank の型
 -/
 #check stoppingTimeToRank
 -- stoppingTimeToRank :

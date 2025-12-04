@@ -1,7 +1,7 @@
 import MyProjects.ST.Formalization.P2.SigmaAlgebraTower
 import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 import MyProjects.ST.Rank.P3.RankTower
-import MyProjects.ST.Rank.Prob.P1.StopingTime_C
+import MyProjects.ST.Rank.Prob.P1.StoppingTime_C
 import MyProjects.ST.Rank.Prob.P1.StoppingTime_RankExtension
 
 namespace StructureTowerProbability
@@ -76,7 +76,7 @@ min の停止集合と max の停止集合の関係。
 -/
 theorem stoppingTime_min_max_duality
     (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (n : ℕ) :
-    {ω | stoppingTimeMin ℱ τ₁ τ₂ ω ≤ n} ∪ 
+    {ω | stoppingTimeMin ℱ τ₁ τ₂ ω ≤ n} ∪
     {ω | stoppingTimeMax ℱ τ₁ τ₂ ω > n} = Set.univ := by
   -- 直観的事実（どちらかが n までに停止するか、最大が n を超える）
   classical
@@ -128,7 +128,7 @@ noncomputable def stoppingTimeCompose
 theorem stoppingTimeCompose_layer_bound
     (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (n : ℕ) :
     {ω | stoppingTimeCompose ℱ τ₁ τ₂ ω ≤ n} ⊆
-    ⋃ (k : ℕ) (_ : k ≤ n), 
+    ⋃ (k : ℕ) (_ : k ≤ n),
       {ω | τ₁.τ ω ≤ k} ∩ {ω | τ₂.τ ω ≤ n - k} := by
   -- TODO: k := τ₁.τ ω と取ればよいが、和集合への包含を書くための
   -- インデックス操作が未整理なため保留。
@@ -157,7 +157,7 @@ section RankInvariants
 -/
 theorem rank_composition_bound
     (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (ω : Ω) :
-    let T_composed := towerFromStoppingTime ℱ 
+    let T_composed := towerFromStoppingTime ℱ
                         ⟨stoppingTimeCompose ℱ τ₁ τ₂, sorry⟩
     T_composed.minLayer ω = τ₁.τ ω + τ₂.τ ω := by
   sorry
@@ -174,13 +174,13 @@ min/max に関する rank の性質。
 -/
 theorem rank_min_characterization
     (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (ω : Ω) :
-    stoppingTimeMin ℱ τ₁ τ₂ ω = 
+    stoppingTimeMin ℱ τ₁ τ₂ ω =
     min (τ₁.τ ω) (τ₂.τ ω) := by
   rfl
 
 theorem rank_max_characterization
     (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (ω : Ω) :
-    stoppingTimeMax ℱ τ₁ τ₂ ω = 
+    stoppingTimeMax ℱ τ₁ τ₂ ω =
     max (τ₁.τ ω) (τ₂.τ ω) := by
   rfl
 
@@ -219,10 +219,10 @@ structure TruncatedFiltration (ℱ : Filtration Ω) (τ : StoppingTime ℱ) wher
 切り詰められたフィルトレーションも構造塔を定義する。
 -/
 -- プレースホルダ：完全な実装は今後の課題
-axiom truncatedFiltration_towerOf 
-    (ℱ : Filtration Ω) (τ : StoppingTime ℱ) 
+axiom truncatedFiltration_towerOf
+    (ℱ : Filtration Ω) (τ : StoppingTime ℱ)
     (T : TruncatedFiltration ℱ τ) :
-    ∃ (ST : StructureTowerMin (Set Ω) ℕ), 
+    ∃ (ST : StructureTowerMin (Set Ω) ℕ),
       ∀ n, ST.layer n = {A | @MeasurableSet Ω (T.level n) A}
 
 end InducedFiltrations
@@ -241,9 +241,9 @@ section ExtendedExamples
 2つの定数停止時間の最小値は、小さい方の定数停止時間になる。
 -/
 example (ℱ : Filtration Ω) (K₁ K₂ : ℕ) (ω : Ω) :
-    stoppingTimeMin ℱ 
-      ⟨fun _ => K₁, by intro n; simp⟩ 
-      ⟨fun _ => K₂, by intro n; simp⟩ ω = 
+    stoppingTimeMin ℱ
+      ⟨fun _ => K₁, by intro n; simp⟩
+      ⟨fun _ => K₂, by intro n; simp⟩ ω =
     min K₁ K₂ := by
   simp [stoppingTimeMin]
 
@@ -255,7 +255,7 @@ example (ℱ : Filtration Ω) (K₁ K₂ : ℕ) (ω : Ω) :
 **注意**: これは確率空間が可算な場合にのみ意味を持つ。
 -/
 -- 型のみ定義（完全な実装は可測性が必要）
-axiom identityStoppingTime (ℱ : Filtration Ω) 
+axiom identityStoppingTime (ℱ : Filtration Ω)
     [Encodable Ω] : StoppingTime ℱ
 
 /-!
@@ -269,7 +269,7 @@ axiom identityStoppingTime (ℱ : Filtration Ω)
 「初めてAに入る時刻」= 「Aの特性関数が初めて1になる層」
 -/
 -- プレースホルダ：確率過程の理論が必要
-axiom hittingTime_as_rank 
+axiom hittingTime_as_rank
     {α : Type*} (X : ℕ → Ω → α) (A : Set α) :
     ∃ (ρ : Ω → ℕ), True -- TODO: decidability・可測性を整備して実装する
 
@@ -303,15 +303,15 @@ end ExtendedExamples
 
 ## 残された課題
 
-1. **可測性の完全証明**: 
+1. **可測性の完全証明**:
    - `stoppingTimeCompose` の可測性
    - `TruncatedFiltration` の完全実装
 
-2. **演算の可換性**: 
+2. **演算の可換性**:
    - min と max の de Morgan 則
    - 合成の結合律
 
-3. **確率過程への応用**: 
+3. **確率過程への応用**:
    - 適合過程との関係
    - マルコフ性の構造塔的解釈
 

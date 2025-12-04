@@ -1,14 +1,14 @@
 import MyProjects.ST.Formalization.P2.SigmaAlgebraTower
 import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 import MyProjects.ST.Rank.P3.RankTower
-import MyProjects.ST.Rank.Prob.P1.StopingTime_C
+import MyProjects.ST.Rank.Prob.P1.StoppingTime_C
 
 namespace StructureTowerProbability
 
 /-!
 # 停止時間とRank関数の対応：拡張定理
 
-このファイルは StopingTime_C.lean の拡張として、
+このファイルは StoppingTime_C.lean の拡張として、
 より高度な対応定理と応用例を提供する。
 -/
 
@@ -19,7 +19,7 @@ open TowerRank
 /-!
 ## セクション1：逆方向対応の詳細化
 
-StopingTime_C.leanで定義された rankFromFiltrationTower を使って、
+StoppingTime_C.leanで定義された rankFromFiltrationTower を使って、
 「フィルトレーション → rank → 構造塔」の往復を詳細化する。
 -/
 
