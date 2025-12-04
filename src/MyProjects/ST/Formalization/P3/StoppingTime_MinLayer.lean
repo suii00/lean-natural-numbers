@@ -4,7 +4,7 @@ import Mathlib.MeasureTheory.Integral.Bochner.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.L1
 import Mathlib.MeasureTheory.Integral.Bochner.VitaliCaratheodory
 import Mathlib.Probability.Process.Filtration
-import MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton
+import MyProjects.ST.Formalization.P2.SigmaAlgebraTower
 
 /-!
 # StoppingTime_MinLayer
@@ -15,7 +15,7 @@ import MyProjects.ST.Formalization.P2.SigmaAlgebraTower_Skeleton
 * 停止時間/停止集合/停止 σ-代数/停止フィルトレーション核の定義
 * 後続の optional stopping に向けた停止過程 `stopped` の純粋関数レベル定義
 
-`SigmaAlgebraTower_Skeleton.lean` で構築したフィルトレーション/構造塔を
+`SigmaAlgebraTower.lean` で構築したフィルトレーション/構造塔を
 停止時間へ適用する最初のステップ。
 このモジュールは optional stopping 章から参照される基盤 API 集である。
 
