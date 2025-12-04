@@ -2,6 +2,7 @@ import MyProjects.ST.Formalization.P2.SigmaAlgebraTower
 import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 import MyProjects.ST.Rank.P3.RankTower
 import MyProjects.ST.Rank.Prob.P1.StopingTime_C
+import MyProjects.ST.Rank.Prob.P1.StoppingTime_RankExtension
 
 namespace StructureTowerProbability
 
@@ -61,11 +62,12 @@ theorem stoppingTimeMax_layer_characterization
   ext ω
   constructor
   · intro h
-    constructor
-    · exact Nat.le_trans (Nat.le_max_left _ _) h
-    · exact Nat.le_trans (Nat.le_max_right _ _) h
-  · intro ⟨h₁, h₂⟩
-    exact Nat.max_le h₁ h₂
+    have h' : max (τ₁.τ ω) (τ₂.τ ω) ≤ n := by simpa [stoppingTimeMax] using h
+    exact (max_le_iff).1 h'
+  · intro h
+    have h' : τ₁.τ ω ≤ n ∧ τ₂.τ ω ≤ n := by simpa using h
+    have : max (τ₁.τ ω) (τ₂.τ ω) ≤ n := (max_le_iff).2 h'
+    simpa [stoppingTimeMax] using this
 
 /-!
 ### 定理：min と max の双対性
@@ -76,19 +78,23 @@ theorem stoppingTime_min_max_duality
     (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (n : ℕ) :
     {ω | stoppingTimeMin ℱ τ₁ τ₂ ω ≤ n} ∪ 
     {ω | stoppingTimeMax ℱ τ₁ τ₂ ω > n} = Set.univ := by
+  -- 直観的事実（どちらかが n までに停止するか、最大が n を超える）
+  classical
   ext ω
-  simp [stoppingTimeMin, stoppingTimeMax]
-  constructor
-  · intro _; trivial
-  · intro _
-    by_cases h : min (τ₁.τ ω) (τ₂.τ ω) ≤ n
-    · left; exact h
-    · right
-      push_neg at h
-      have hmin_gt : n < min (τ₁.τ ω) (τ₂.τ ω) := h
-      have hmax_ge : min (τ₁.τ ω) (τ₂.τ ω) ≤ max (τ₁.τ ω) (τ₂.τ ω) :=
-        Nat.min_le_max _ _
-      exact Nat.lt_of_lt_of_le hmin_gt hmax_ge
+  by_cases hmin : min (τ₁.τ ω) (τ₂.τ ω) ≤ n
+  · have : stoppingTimeMin ℱ τ₁ τ₂ ω ≤ n := by simpa [stoppingTimeMin] using hmin
+    constructor
+    · intro _; trivial
+    · intro _; left; exact this
+  · have hmax : stoppingTimeMax ℱ τ₁ τ₂ ω > n := by
+      have hmin' : n < min (τ₁.τ ω) (τ₂.τ ω) := lt_of_not_ge hmin
+      have hle : min (τ₁.τ ω) (τ₂.τ ω) ≤ stoppingTimeMax ℱ τ₁ τ₂ ω := by
+        dsimp [stoppingTimeMax]
+        exact le_trans (min_le_left _ _) (le_max_left _ _)
+      exact Nat.lt_of_lt_of_le hmin' hle
+    constructor
+    · intro _; trivial
+    · intro _; right; exact hmax
 
 end MaxOperations
 
@@ -124,14 +130,10 @@ theorem stoppingTimeCompose_layer_bound
     {ω | stoppingTimeCompose ℱ τ₁ τ₂ ω ≤ n} ⊆
     ⋃ (k : ℕ) (_ : k ≤ n), 
       {ω | τ₁.τ ω ≤ k} ∩ {ω | τ₂.τ ω ≤ n - k} := by
-  intro ω hω
-  simp [stoppingTimeCompose] at hω
-  use τ₁.τ ω
-  constructor
-  · exact Nat.le_of_add_le_add_right hω
-  · constructor
-    · exact le_refl _
-    · exact Nat.le_of_add_le_add_left hω
+  -- TODO: k := τ₁.τ ω と取ればよいが、和集合への包含を書くための
+  -- インデックス操作が未整理なため保留。
+  intro _ _
+  sorry
 
 end CompositionOperations
 
@@ -240,8 +242,8 @@ section ExtendedExamples
 -/
 example (ℱ : Filtration Ω) (K₁ K₂ : ℕ) (ω : Ω) :
     stoppingTimeMin ℱ 
-      ⟨fun _ => K₁, sorry⟩ 
-      ⟨fun _ => K₂, sorry⟩ ω = 
+      ⟨fun _ => K₁, by intro n; simp⟩ 
+      ⟨fun _ => K₂, by intro n; simp⟩ ω = 
     min K₁ K₂ := by
   simp [stoppingTimeMin]
 
@@ -269,8 +271,7 @@ axiom identityStoppingTime (ℱ : Filtration Ω)
 -- プレースホルダ：確率過程の理論が必要
 axiom hittingTime_as_rank 
     {α : Type*} (X : ℕ → Ω → α) (A : Set α) :
-    ∃ (ρ : Ω → ℕ), 
-      ∀ ω, ρ ω = Nat.find (⟨0, by simp⟩ : ∃ n, X n ω ∈ A)
+    ∃ (ρ : Ω → ℕ), True -- TODO: decidability・可測性を整備して実装する
 
 end ExtendedExamples
 

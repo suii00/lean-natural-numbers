@@ -2,7 +2,7 @@ import MyProjects.ST.Formalization.P2.SigmaAlgebraTower
 import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 import MyProjects.ST.Rank.P3.RankTower
 import MyProjects.ST.Rank.Prob.P1.StopingTime_C
--- import MyProjects.ST.Rank.Prob.P1.StoppingTime_RankExtension
+import MyProjects.ST.Rank.Prob.P1.StoppingTime_RankExtension
 
 /-!
 # 停止時間とRank関数の対応：統合テスト
@@ -37,7 +37,7 @@ section TypeChecks
 ### Test 1.1: stopingTimeToRank の型
 -/
 #check stoppingTimeToRank
--- stoppingTimeToRank : 
+-- stoppingTimeToRank :
 --   {Ω : Type*} → [inst : MeasurableSpace Ω] →
 --   (ℱ : Filtration Ω) → (τ : StoppingTime ℱ) → Ω → ℕ
 
@@ -47,7 +47,7 @@ section TypeChecks
 #check towerFromStoppingTime
 -- towerFromStoppingTime :
 --   {Ω : Type*} → [inst : MeasurableSpace Ω] →
---   (ℱ : Filtration Ω) → (τ : StoppingTime ℱ) → 
+--   (ℱ : Filtration Ω) → (τ : StoppingTime ℱ) →
 --   StructureTowerWithMin
 
 /-!
@@ -78,7 +78,7 @@ section RankCorrespondenceTests
 /-!
 ### Test 2.1: 定数停止時間のrank表現
 -/
-theorem test_constant_rank 
+theorem test_constant_rank
     (ℱ : Filtration Ω) (K : ℕ) (ω : Ω) :
     stoppingTimeToRank ℱ (constantStoppingTime ℱ K) ω = K := by
   exact constantStoppingTime_rank ℱ K ω
@@ -126,7 +126,7 @@ section LayerCharacterizationTests
 -/
 theorem test_stopping_set_eq_layer
     (ℱ : Filtration Ω) (τ : StoppingTime ℱ) (n : ℕ) :
-    {ω | τ.τ ω ≤ n} = 
+    {ω | τ.τ ω ≤ n} =
     (towerFromStoppingTime ℱ τ).layer n := by
   exact stoppingSet_eq_layer ℱ τ n
 
@@ -151,9 +151,9 @@ theorem test_zero_covers_all
 ### Test 3.4: 層の単調性
 -/
 theorem test_layer_monotonicity
-    (ℱ : Filtration Ω) (τ : StoppingTime ℱ) 
+    (ℱ : Filtration Ω) (τ : StoppingTime ℱ)
     {n m : ℕ} (hnm : n ≤ m) :
-    (towerFromStoppingTime ℱ τ).layer n ⊆ 
+    (towerFromStoppingTime ℱ τ).layer n ⊆
     (towerFromStoppingTime ℱ τ).layer m := by
   exact (towerFromStoppingTime ℱ τ).monotone hnm
 
@@ -238,7 +238,7 @@ theorem test_minLayer_is_minimal
 -/
 theorem test_minLayer_membership
     (ℱ : Filtration Ω) (τ : StoppingTime ℱ) (ω : Ω) :
-    ω ∈ (towerFromStoppingTime ℱ τ).layer 
+    ω ∈ (towerFromStoppingTime ℱ τ).layer
           ((towerFromStoppingTime ℱ τ).minLayer ω) := by
   exact (towerFromStoppingTime ℱ τ).minLayer_mem ω
 
@@ -257,7 +257,7 @@ section MeasurabilityTests
 -/
 theorem test_constant_measurable
     (ℱ : Filtration Ω) (K : ℕ) (n : ℕ) :
-    @MeasurableSet Ω (ℱ.base.𝓕 n) 
+    @MeasurableSet Ω (ℱ.base.𝓕 n)
       {ω | (constantStoppingTime ℱ K).τ ω ≤ n} := by
   exact (constantStoppingTime ℱ K).measurable n
 
@@ -266,7 +266,7 @@ theorem test_constant_measurable
 -/
 theorem test_measurability_via_layer
     (ℱ : Filtration Ω) (τ : StoppingTime ℱ) (n : ℕ) :
-    @MeasurableSet Ω (ℱ.base.𝓕 n) 
+    @MeasurableSet Ω (ℱ.base.𝓕 n)
       ((towerFromStoppingTime ℱ τ).layer n) := by
   have h := τ.measurable n
   have h_eq := stoppingSet_eq_layer ℱ τ n

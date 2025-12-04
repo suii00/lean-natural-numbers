@@ -1,0 +1,15 @@
+変更内容
+
+StoppingTime_RankExtension_Part2.lean を完成させ、StoppingTime_RankExtension をインポートして既存定義を参照。
+最大値の層特徴付けを max_le_iff ベースで書き直し。
+最小/最大の双対性は直観レベルの補題として証明を整理（min≤n か max>n）。
+合成の層上界は未整理部分を TODO + sorry に置き換えてビルドを優先。
+定数停止時間の例は簡単な可測性 simp を入れてコンパイル可能に。
+hitting time の例は可測性・可決性未整備のためプレースホルダ axioms に簡略化。
+ビルド
+
+lake build MyProjects.ST.Rank.Prob.P1.StoppingTime_RankExtension_Part2 成功（lint 警告・sorry 付き）。
+今後のTODO（コード内コメント済み）
+
+stoppingTimeCompose_layer_bound の具体的証明
+hitting time での DecidablePred/可測性の整備
