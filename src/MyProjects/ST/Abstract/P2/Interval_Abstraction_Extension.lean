@@ -1,5 +1,7 @@
 import Mathlib.Data.Set.Lattice
+import Mathlib.Data.Int.Basic
 import Mathlib.Order.Basic
+import Mathlib.Tactic
 
 /-!
 # 区間抽象化による構造塔の拡張
@@ -25,14 +27,14 @@ minLayer(x) = 「x を含む最小の区間の精度レベル」
 
 namespace IntervalAbstraction
 
-/-- 有理数の区間を表す型 -/
+/-- 整数の区間を表す型 -/
 structure Interval where
-  lower : ℚ
-  upper : ℚ
+  lower : ℤ
+  upper : ℤ
   valid : lower ≤ upper
 
 /-- 区間の幅を計算 -/
-def Interval.width (i : Interval) : ℚ := i.upper - i.lower
+def Interval.width (i : Interval) : ℤ := i.upper - i.lower
 
 /-- 区間が点（具体値）かどうか -/
 def Interval.isPoint (i : Interval) : Bool := i.lower = i.upper
@@ -45,12 +47,12 @@ inductive IntervalValue : Type
   | SignPos : IntervalValue                -- 正（符号レベル）
   | CoarseInterval : Interval → IntervalValue  -- 粗い区間
   | FineInterval : Interval → IntervalValue    -- 細かい区間
-  | Point : ℚ → IntervalValue              -- 具体値
+  | Point : ℤ → IntervalValue              -- 具体値
 
 open IntervalValue
 
 /-- 区間の「粗さ」を測る閾値 -/
-def coarseThreshold : ℚ := 20
+def coarseThreshold : ℤ := (20 : ℤ)
 
 /-- 精度レベルの定義（minLayer）
 
@@ -61,13 +63,13 @@ Level 3: 幅 ≤ 20 の細かい区間
 Level 4: 点（具体値）
 -/
 def intervalPrecision : IntervalValue → ℕ
-  | Top => 0
-  | SignNeg => 1
-  | SignZero => 1
-  | SignPos => 1
-  | CoarseInterval i => if i.width > coarseThreshold then 2 else 3
-  | FineInterval i => 3
-  | Point _ => 4
+  | IntervalValue.Top => 0
+  | IntervalValue.SignNeg => 1
+  | IntervalValue.SignZero => 1
+  | IntervalValue.SignPos => 1
+  | IntervalValue.CoarseInterval i => if i.width > coarseThreshold then 2 else 3
+  | IntervalValue.FineInterval _ => 3
+  | IntervalValue.Point _ => 4
 
 /-- 簡約版 StructureTowerWithMin -/
 structure SimpleTowerWithMin where
@@ -106,7 +108,6 @@ noncomputable example :
     CoarseInterval ⟨-100, 100, by norm_num⟩ ∈ intervalTower.layer 2 := by
   simp [intervalTower, towerFromRank, intervalPrecision,
         Interval.width, coarseThreshold]
-  norm_num
 
 /-- 例3：変数が区間 [3, 7] にある場合（Level 3）
 細かい区間なので、より詳細な解析が可能 -/
@@ -128,19 +129,19 @@ example : Point 42 ∈ intervalTower.layer 4 := by
 
 /-- 区間から符号への抽象化 -/
 def intervalToSign : IntervalValue → IntervalValue
-  | Top => Top
-  | SignNeg => SignNeg
-  | SignZero => SignZero
-  | SignPos => SignPos
-  | CoarseInterval i =>
+  | IntervalValue.Top => IntervalValue.Top
+  | IntervalValue.SignNeg => IntervalValue.SignNeg
+  | IntervalValue.SignZero => IntervalValue.SignZero
+  | IntervalValue.SignPos => IntervalValue.SignPos
+  | IntervalValue.CoarseInterval i =>
       if i.upper < 0 then SignNeg
       else if i.lower > 0 then SignPos
       else Top  -- 符号が不明
-  | FineInterval i =>
+  | IntervalValue.FineInterval i =>
       if i.upper < 0 then SignNeg
       else if i.lower > 0 then SignPos
       else Top
-  | Point p =>
+  | IntervalValue.Point p =>
       if p < 0 then SignNeg
       else if p = 0 then SignZero
       else SignPos
