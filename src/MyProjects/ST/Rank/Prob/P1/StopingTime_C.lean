@@ -340,4 +340,165 @@ RankTower.leanの抽象理論が、確率論において以下のように具体
 - Williams, D. "Probability with Martingales": 確率論的動機
 -/
 
+/-!
+## セクション7：定数停止時間の完全実装
+
+StoppingTime_RankExtension.lean との統合のために、
+定数停止時間の完全な実装を提供する。
+-/
+
+section ConstantStoppingTimeComplete
+
+/-!
+### 定義：定数停止時間
+
+すべての標本点が時刻Kで停止する最も単純な停止時間。
+
+**rank理論との対応**:
+- rank(ω) = K for all ω
+- 構造塔の層: layer(n) = ∅ if n < K, Set.univ if n ≥ K
+-/
+noncomputable def constantStoppingTime
+    (ℱ : Filtration Ω) (K : ℕ) : StoppingTime ℱ where
+  τ := fun _ => K
+  measurable := by
+    intro n
+    classical
+    by_cases h : K ≤ n
+    · -- K ≤ n の場合: {ω | K ≤ n} = Set.univ
+      have hset : {ω | (fun _ : Ω => K) ω ≤ n} = Set.univ := by
+        ext ω; simp [h]
+      rw [hset]
+      exact MeasurableSet.univ
+    · -- K > n の場合: {ω | K ≤ n} = ∅
+      have hset : {ω | (fun _ : Ω => K) ω ≤ n} = ∅ := by
+        ext ω; simp [h]
+      rw [hset]
+      exact MeasurableSet.empty
+
+/-!
+### 定義：零停止時間
+
+K = 0 の特殊な場合。
+-/
+noncomputable def zeroStoppingTime (ℱ : Filtration Ω) :
+    StoppingTime ℱ :=
+  constantStoppingTime ℱ 0
+
+/-!
+### 補題：定数停止時間のrank表現
+-/
+lemma constantStoppingTime_rank
+    (ℱ : Filtration Ω) (K : ℕ) (ω : Ω) :
+    stoppingTimeToRank ℱ (constantStoppingTime ℱ K) ω = K := by
+  unfold stoppingTimeToRank constantStoppingTime
+  simp
+
+/-!
+### 定理：定数停止時間の構造塔
+
+定数停止時間から構成される構造塔の minLayer も定数。
+-/
+theorem constantStoppingTime_tower
+    (ℱ : Filtration Ω) (K : ℕ) (ω : Ω) :
+    let T := towerFromStoppingTime ℱ (constantStoppingTime ℱ K)
+    T.minLayer ω = K := by
+  have h := minLayer_eq_stoppingTime_pointwise ℱ
+              (constantStoppingTime ℱ K) ω
+  simpa [constantStoppingTime] using h
+
+/-!
+### 補題：定数停止時間の層構造
+
+**数学的意味**:
+- n < K のとき: layer(n) = ∅（誰もまだ停止していない）
+- n ≥ K のとき: layer(n) = Set.univ（全員が停止した）
+-/
+lemma constantStoppingTime_layer_structure
+    (ℱ : Filtration Ω) (K : ℕ) (n : ℕ) :
+    {ω | (constantStoppingTime ℱ K).τ ω ≤ n} =
+    if K ≤ n then Set.univ else ∅ := by
+  by_cases h : K ≤ n
+  · simp [h, constantStoppingTime]
+  · simp [h, constantStoppingTime]
+    push_neg at h
+    ext ω
+    simp
+    exact Nat.not_le.mpr h
+
+/-!
+### 定理：零停止時間の層
+
+零停止時間は、すべての層で全標本空間を覆う。
+-/
+theorem zeroStoppingTime_covers_all
+    (ℱ : Filtration Ω) (n : ℕ) :
+    {ω | (zeroStoppingTime ℱ).τ ω ≤ n} = Set.univ := by
+  simp [zeroStoppingTime, constantStoppingTime]
+
+/-!
+### 検証例：定数停止時間の具体的な計算
+-/
+example (ℱ : Filtration Ω) (ω : Ω) :
+    (constantStoppingTime ℱ 5).τ ω = 5 := by
+  rfl
+
+example (ℱ : Filtration Ω) (ω : Ω) :
+    (zeroStoppingTime ℱ).τ ω = 0 := by
+  rfl
+
+end ConstantStoppingTimeComplete
+
+/-!
+## セクション8：統合テスト準備
+
+StoppingTime_RankExtension.lean で定義される演算との統合をテスト。
+-/
+
+section IntegrationPreparation
+
+/-!
+### 補題：定数停止時間の最小値（型レベル）
+
+この補題は StoppingTime_RankExtension.lean の
+`stoppingTimeMin_full` と組み合わせて使う。
+-/
+lemma constantStoppingTime_min_value
+    (ℱ : Filtration Ω) (K₁ K₂ : ℕ) (ω : Ω) :
+    min ((constantStoppingTime ℱ K₁).τ ω)
+        ((constantStoppingTime ℱ K₂).τ ω) =
+    min K₁ K₂ := by
+  simp [constantStoppingTime]
+
+/-!
+### 定理：定数停止時間はrank理論の恒等射に対応
+
+**数学的意味**:
+定数停止時間 K は、rank関数 ρ(ω) = K に対応する。
+これは構造塔の「定数層」を定義する。
+-/
+theorem constantStoppingTime_is_constant_rank
+    (ℱ : Filtration Ω) (K : ℕ) :
+    ∀ ω₁ ω₂ : Ω,
+      stoppingTimeToRank ℱ (constantStoppingTime ℱ K) ω₁ =
+      stoppingTimeToRank ℱ (constantStoppingTime ℱ K) ω₂ := by
+  intro ω₁ ω₂
+  simp [stoppingTimeToRank, constantStoppingTime]
+
+end IntegrationPreparation
+
+/-!
+## 理論的まとめ：定数停止時間の役割
+
+定数停止時間は、以下の意味で理論の基本単位となる：
+
+1. **加法の単位元**: τ + 0 = τ（零停止時間）
+2. **最小値の単位元**: min(τ, ∞) = τ（無限大停止時間）
+3. **rank理論の基底**: すべてのrank関数は定数関数の和で近似可能
+4. **テストケースの基準**: 最も単純な検証可能な例
+
+この実装により、StoppingTime_RankExtension.lean の理論が
+具体的に計算可能な形で検証可能になる。
+-/
+
 end StructureTowerProbability

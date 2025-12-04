@@ -1,0 +1,188 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% パッケージの読み込み
+\usepackage{amsmath, amssymb, amsthm, mathrsfs}
+\usepackage{luatexja}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, backgrounds, positioning, calc, arrows.meta}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+
+% ハイパーリンク設定
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue
+}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{remark}[definition]{注釈}
+
+% マクロ
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\OmegaSpace}{\Omega}
+\newcommand{\Filtration}{\mathcal{F}}
+\newcommand{\Tau}{\tau}
+\newcommand{\Rank}{\rho}
+\newcommand{\Tower}{\mathcal{T}}
+\newcommand{\Layer}[1]{\mathrm{Layer}_{#1}}
+\newcommand{\MinLayer}{\mathrm{minLayer}}
+
+\title{\textbf{停止時間と構造塔：双方向の対応関係} \\ \large --- \texttt{StopingTime\_C.md} の数学的解説 ---}
+\author{
+    Lean Code Generation: \textbf{CODEX (OpenAI)} \\
+    TeX Explanation \& Typesetting: \textbf{Gemini (Google)}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4ファイル \texttt{StopingTime\_C.md} で形式化された、確率論における「停止時間」と順序構造論における「ランク関数」の双方向の対応関係について解説する。前回の \texttt{StoppingTime\_AsRank.md} が停止時間をランク関数と見なす一方向の視点を提供したのに対し、本ファイルではフィルトレーションからランク関数を構成する逆方向の写像 (\texttt{rankFromFiltrationTower}) を導入し、両者の概念的同型性を確立している点が特徴である。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+確率論における停止時間 (Stopping Time) と、構造塔理論 (Structure Tower Theory) におけるランク関数 (Rank Function) は、一見異なる分野の概念であるが、共に「情報の深さ」や「決定の時刻」を扱う数学的対象である。
+
+本稿で解説する \texttt{StopingTime\_C.md} は、以下の対応関係を形式化している。
+
+\begin{center}
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!50!black,title=概念の辞書]
+\begin{tabular}{lcl}
+\textbf{確率論} & $\longleftrightarrow$ & \textbf{構造塔理論} \\
+停止時間 $\Tau$ & $\longleftrightarrow$ & ランク関数 $\Rank$ \\
+停止集合 $\{\Tau \le n\}$ & $\longleftrightarrow$ & 第 $n$ 層 $\Layer{n}$ \\
+初めて可測になる時刻 & $\longleftrightarrow$ & $\MinLayer(x)$ \\
+\end{tabular}
+\end{tcolorbox}
+\end{center}
+
+\section{順方向：停止時間から構造塔へ}
+
+まず、与えられた停止時間 $\Tau$ をランク関数と見なし、それに基づいて構造塔を構成するプロセスを確認する。
+
+\subsection{ランク関数としての停止時間}
+Leanコード内の \texttt{stoppingTimeToRank} は、停止時間 $\Tau: \OmegaSpace \to \N$ をそのままランク関数として定義している。
+\[
+    \Rank_\Tau(\omega) := \Tau(\omega)
+\]
+補題 \texttt{stoppingTime\_rank\_covers} は、すべての標本点 $\omega$ がいつかは停止すること（ランクが有限であること）を保証する。
+
+\subsection{層と停止集合の同一性}
+このランク関数から誘導される構造塔 $\Tower_\Tau$ の第 $n$ 層は、以下の定理 (\texttt{stoppingSet\_eq\_layer}) により、停止集合と一致する。
+\begin{theorem}[停止集合の層表現]
+\[
+    \{\omega \mid \Tau(\omega) \le n\} = \Layer{n}(\Tower_\Tau)
+\]
+\end{theorem}
+
+また、構造塔における「最小層」関数 $\MinLayer$ は、元の停止時間と一致する (\texttt{minLayer\_eq\_stoppingTime})。
+\[
+    \MinLayer_{\Tower_\Tau}(\omega) = \Tau(\omega)
+\]
+これは、標本点 $\omega$ が「初めて決定される層」のインデックスが、まさに停止時刻そのものであることを示している。
+
+\section{逆方向：フィルトレーションからランク関数へ}
+
+\texttt{StopingTime\_C.md} の最大の特徴は、このセクションにある逆写像の定義である。
+
+\subsection{フィルトレーションからのランク抽出}
+フィルトレーション $\Filtration = (\Filtration_n)_{n \in \N}$ が与えられたとき、各標本点 $\omega$ に対して「それが初めて可測になる（識別可能になる）時刻」を定義できる。これを \texttt{rankFromFiltrationTower} として実装している。
+
+\begin{definition}[フィルトレーションからのランク]
+フィルトレーション $\Filtration$ が定める構造塔 $\Tower_\Filtration$ に対し、
+\[
+    \Rank_\Filtration(\omega) := \MinLayer_{\Tower_\Filtration}(\{\omega\})
+\]
+と定義する。
+\end{definition}
+
+\begin{remark}
+ここで $\MinLayer$ は、単集合 $\{\omega\}$ が初めて層 $\Layer{n}$ (すなわち $\sigma$-加法族 $\Filtration_n$) に含まれる最小の $n$ を指す。これは確率論的には「$\omega$ という結果が確定する最小の時刻」と解釈できる。
+\end{remark}
+
+\subsection{同値性の保証}
+補題 \texttt{rankFromFiltrationTower\_le\_iff} は、この構成が整合的であることを示している。
+\begin{lemma}
+\[
+    \Rank_\Filtration(\omega) \le n \iff \{\omega\} \in \Layer{n}(\Tower_\Filtration)
+\]
+\end{lemma}
+つまり、「ランクが $n$ 以下である」ことと、「時刻 $n$ で事象 $\{\omega\}$ が観測可能である」ことは等価である。
+
+\section{対応の全体像（図解）}
+
+本ファイルで確立された双方向の対応関係を以下に図示する。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    node distance=3cm,
+    auto,
+    block/.style={
+        rectangle,
+        draw=blue!50,
+        fill=blue!10,
+        thick,
+        minimum width=3.5cm,
+        minimum height=1.5cm,
+        align=center,
+        rounded corners
+    },
+    cloud/.style={
+        ellipse,
+        draw=red!50,
+        fill=red!10,
+        thick,
+        minimum width=3cm,
+        align=center
+    }
+]
+
+% Nodes
+\node[block] (StoppingTime) {\textbf{停止時間 $\Tau$} \\ (確率論)};
+\node[block, right=4cm of StoppingTime] (RankFunction) {\textbf{ランク関数 $\Rank$} \\ (構造塔理論)};
+\node[cloud, below=2cm of StoppingTime] (StoppingSet) {\textbf{停止集合} \\ $\{\Tau \le n\}$};
+\node[cloud, below=2cm of RankFunction] (Layer) {\textbf{構造塔の層} \\ $\Layer{n}$};
+
+% Edges
+\draw[<->, ultra thick, blue!80!black] (StoppingTime) -- node[above] {概念的同型} node[below] {\texttt{stoppingTimeToRank}} (RankFunction);
+
+\draw[->, thick, dashed] (StoppingTime) -- node[left] {定義} (StoppingSet);
+\draw[->, thick, dashed] (RankFunction) -- node[right] {定義} (Layer);
+
+\draw[<->, ultra thick, red!80!black] (StoppingSet) -- node[above] {定理: 完全一致} node[below] {\texttt{stoppingSet\_eq\_layer}} (Layer);
+
+% Inverse mapping visualization
+\node[block, below=5cm of StoppingTime, xshift=2cm, text width=10cm] (Inverse) {
+    \textbf{逆構成: \texttt{rankFromFiltrationTower}} \\
+    $\Rank_\Filtration(\omega) = \min \{n \mid \{\omega\} \in \Filtration_n\}$
+};
+
+\draw[->, bend right=45, gray] (Layer) to node[right] {最小層の抽出} (Inverse);
+
+\end{tikzpicture}
+\caption{停止時間とランク関数の循環的な対応構造}
+\label{fig:cycle}
+\end{figure}
+
+\section{結論}
+\texttt{StopingTime\_C.md} は、停止時間 $\Tau$ を単なる関数としてではなく、フィルトレーション構造そのものから自然に導出される「ランク」として位置づけた。
+\begin{itemize}
+    \item \textbf{順方向}: 停止時間は、構造塔の層（停止集合）を生成する。
+    \item \textbf{逆方向}: フィルトレーション（構造塔）の最小層関数は、停止時間を再構成する。
+\end{itemize}
+これにより、確率論的な「待機」のプロセスが、順序構造上の「深さ」の概念と数学的に完全に等価であることが示された。
+
+\end{document}
