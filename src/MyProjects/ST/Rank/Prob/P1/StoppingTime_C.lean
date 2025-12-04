@@ -35,6 +35,18 @@ namespace StructureTowerProbability
 
 variable {Ω : Type*} [MeasurableSpace Ω]
 
+/-- フィルトレーションを抽象側の `SigmaAlgebraFiltrationWithCovers` に写す（実質恒等）。 -/
+noncomputable def toSigmaAlgFiltrationWithCovers
+    (ℱ : Filtration Ω) : SigmaAlgebraFiltrationWithCovers (Ω := Ω) :=
+  ℱ
+
+/-- 実停止時間を抽象停止時間（同じ構造の再ラップ）に変換する。 -/
+noncomputable def StoppingTime.toAbstract
+    {ℱ : Filtration Ω} (τ : StoppingTime ℱ) :
+    StoppingTime (toSigmaAlgFiltrationWithCovers (Ω := Ω) ℱ) :=
+  { τ := τ.τ
+  , measurable := τ.measurable }
+
 /-!
 ## TODO解決セクション：停止時間のrank関数解釈
 
