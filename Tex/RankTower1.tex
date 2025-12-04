@@ -1,0 +1,110 @@
+\documentclass[report, paper=a4, fontsize=11pt, openany]{jlreq}
+
+% ------------------------------------------------------------------------
+% パッケージ設定
+% ------------------------------------------------------------------------
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, positioning}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems, breakable, skins}
+
+% ------------------------------------------------------------------------
+% 定理環境の設定
+% ------------------------------------------------------------------------
+\newtcbtheorem[number within=chapter]{theorem}{定理}{
+  enhanced,
+  colback=red!5!white,
+  colframe=red!75!black,
+  fonttitle=\bfseries
+}{thm}
+
+\newtcbtheorem[number within=chapter]{definition}{定義}{
+  enhanced,
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries
+}{def}
+
+% ------------------------------------------------------------------------
+% マクロ定義
+% ------------------------------------------------------------------------
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\layer}{\mathrm{layer}}
+\newcommand{\minLayer}{\mathrm{minLayer}}
+\newcommand{\rank}{\rho}
+
+% ------------------------------------------------------------------------
+% タイトル情報
+% ------------------------------------------------------------------------
+\title{\textbf{Rank関数と構造塔の双方向対応}\\
+\large --- Canonical Correspondence Theory ---}
+
+\author{
+  \textbf{TeX構成・解説}: Gemini (Google) \\
+  \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔（Structure Tower）とRank関数（$\rank: X \to \N \cup \{\infty\}$）の間に存在する自然な双方向対応について解説する。これにより、構造塔とRank関数は数学的に等価な情報の表現であることが示され、正規形定理（Normal Form Theorem）が導かれる。本稿は \texttt{RankTower.lean} の内容に基づく。
+\end{abstract}
+
+\tableofcontents
+
+\chapter{双方向の変換構成}
+
+\section{順方向：Rank関数 $\to$ 構造塔}
+
+Rank関数 $\rank: X \to \N$ が与えられたとき、構造塔 $T_\rank$ を以下のように構成する（Lean: \texttt{towerFromRank}）。
+\begin{itemize}
+    \item $\layer(n) = \{ x \mid \rank(x) \le n \}$
+    \item $\minLayer(x) = \rank(x)$
+\end{itemize}
+
+\section{逆方向：構造塔 $\to$ Rank関数}
+
+構造塔 $T = (X, \layer, \minLayer)$ が与えられたとき、Rank関数 $\rank_T$ をその最小層写像として定義する（Lean: \texttt{rankFromTower}）。
+\begin{equation}
+    \rank_T(x) := T.\minLayer(x)
+\end{equation}
+
+Leanの実装では、部分写像や無限大に対応するため、値域を \texttt{WithTop} $\N$ （$\N \cup \{\infty\}$）として一般化している。
+
+\chapter{正規形定理 (Normal Form Theorem)}
+
+この2つの変換は互いに逆写像の関係にあり、以下の定理が成り立つ。
+
+\begin{theorem}{正規形定理}{normal_form}
+任意のRank関数 $\rho$ と、任意の（最小層を持つ）構造塔 $T$ について、以下が成立する。
+
+\begin{enumerate}
+    \item \textbf{Rankの恒等性}:
+    \[ \rank_{T_\rho}(x) = \rho(x) \]
+    Rank関数から構造塔を作り、そこからRankを取り出すと、元に戻る。
+
+    \item \textbf{Towerの恒等性}:
+    \[ T_{\rank_T}.\layer(n) = T.\layer(n) \]
+    構造塔からRankを取り出し、そこから構造塔を再構成すると、各層は完全に一致する。
+\end{enumerate}
+\end{theorem}
+
+\section{定理の意義}
+この定理は、「構造塔」という抽象的な概念と、「Rank関数」という具体的な数値関数が、数学的に\textbf{同型（Isomorphic）}であることを示している。これにより、構造塔の議論をRank関数の議論に、あるいはその逆に自由に翻訳することが正当化される。
+
+\chapter{Leanにおける実装の要点}
+
+\texttt{RankTower.lean} における証明の要点は、\texttt{Nat.find}（最小値検索）と順序の性質の活用にある。
+
+\begin{itemize}
+    \item \textbf{順方向の証明}: $\minLayer$ の最小性は、自然数の整列性（well-foundedness）または \texttt{Nat.find\_min'} から直接従う。
+    \item \textbf{逆方向の証明}: 構造塔の公理 \texttt{minLayer\_minimal} により、$\minLayer(x)$ が実際に $x$ が属する最小のインデックスであることが保証されるため、等価性が成立する。
+\end{itemize}
+
+\end{document}

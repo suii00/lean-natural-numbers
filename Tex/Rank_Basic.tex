@@ -1,0 +1,254 @@
+\documentclass[report, paper=a4, fontsize=11pt, openany]{jlreq}
+
+% ------------------------------------------------------------------------
+% パッケージ設定
+% ------------------------------------------------------------------------
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs} % 表のデザイン用
+\usepackage{enumitem} % リストのカスタマイズ
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, positioning, backgrounds, fit}
+\usepackage{tcolorbox}
+\tcbuselibrary{theorems, breakable, skins}
+
+% ------------------------------------------------------------------------
+% 定理環境の設定
+% ------------------------------------------------------------------------
+\newtcbtheorem[number within=chapter]{definition}{定義}{
+  enhanced,
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  attach boxed title to top left={yshift=-2mm, xshift=2mm},
+  boxed title style={colback=blue!75!black}
+}{def}
+
+\newtcbtheorem[number within=chapter]{theorem}{定理}{
+  enhanced,
+  colback=red!5!white,
+  colframe=red!75!black,
+  fonttitle=\bfseries,
+  attach boxed title to top left={yshift=-2mm, xshift=2mm},
+  boxed title style={colback=red!75!black}
+}{thm}
+
+\newtcbtheorem[number within=chapter]{proposition}{命題}{
+  enhanced,
+  colback=green!5!white,
+  colframe=green!60!black,
+  fonttitle=\bfseries,
+  attach boxed title to top left={yshift=-2mm, xshift=2mm},
+  boxed title style={colback=green!60!black}
+}{prop}
+
+% ------------------------------------------------------------------------
+% マクロ定義
+% ------------------------------------------------------------------------
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\layer}{\mathrm{layer}}
+\newcommand{\minLayer}{\mathrm{minLayer}}
+\newcommand{\rank}{\rho}
+
+% ------------------------------------------------------------------------
+% タイトル情報
+% ------------------------------------------------------------------------
+\title{\textbf{Rank型構造塔：標準的構成理論}\\
+\large --- 複雑度関数による構造の自動生成 ---}
+
+\author{
+  \textbf{TeX構成・解説}: Gemini (Google) \\
+  \textbf{Lean実装・原案}: CODEX (OpenAI)
+}
+\date{\today}
+
+% ------------------------------------------------------------------------
+% 本文
+% ------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、数学的構造に対して自然に付随する「ランク関数（複雑度関数）」から、構造塔（Structure Tower）を標準的に構成する手法について解説する。この構成法は、線形代数、多項式環、グラフ理論など多岐にわたる分野に適用可能であり、構造塔の公理を半順序の基本性質のみから導出できるという特徴を持つ。本理論は、OpenAIのCODEXによって生成されたLeanコード（\texttt{Rank\_Basic.lean}, \texttt{RankTower.lean}）に基づき、GoogleのGeminiが数学的定式化を行ったものである。
+\end{abstract}
+
+\tableofcontents
+
+\chapter{序論}
+
+数学的対象をその「複雑さ」や「大きさ」に基づいて階層化することは、多くの分野で見られる普遍的な手法である。例えば、ベクトル空間における次元、多項式の次数、グラフの辺数などがこれに当たる。
+
+本稿では、これらの概念を\textbf{Rank関数}（$\rank$）として一般化し、そこから\textbf{構造塔}（Structure Tower）と呼ばれる階層構造が自動的に、かつ一意に定まることを示す。この構成法（Rank型構造塔）は、構造塔理論における最も基礎的かつ強力な構成原理（Fundamental Construction Principle）である。
+
+\chapter{Rank型構造塔の定義}
+
+\section{Rank関数}
+
+まず、対象の複雑さを測る尺度となるRank関数を定義する。
+
+\begin{definition}{Rank関数}{rank_func}
+集合 $X$ と前順序集合 $(I, \le)$ に対し、関数 $\rank: X \to I$ を\textbf{Rank関数}（または複雑度関数）と呼ぶ。
+\end{definition}
+
+ここで $I$ は通常、自然数全体 $\N$ や順序数などが用いられるが、一般の半順序集合でも理論は成立する。`RankTower.lean` では、無限大を含む $\N \cup \{\infty\}$ (Leanでは \texttt{WithTop} $\N$) を値域とすることで、より一般的な議論を展開している。
+
+\section{構造塔の標準的構成}
+
+任意のRank関数から、構造塔を以下の手順で構成する。これは、Leanコード内での \texttt{structureTowerFromRank} に対応する。
+
+\begin{definition}{Rank型構造塔}{rank_tower}
+Rank関数 $\rank: X \to I$ が与えられたとき、各指標 $n \in I$ に対する層（layer）と最小層写像（minLayer）を次のように定義する。
+
+\begin{align}
+    \layer(n) &:= \{ x \in X \mid \rank(x) \le n \} \\
+    \minLayer(x) &:= \rank(x)
+\end{align}
+
+この組 $(X, I, \layer, \minLayer)$ を\textbf{Rank型構造塔}と呼ぶ。
+\end{definition}
+
+\section{構造塔の可視化}
+
+この定義の直観的意味を以下の図式に示す。Rank関数 $\rank$ は要素 $x$ をその「高さ（ランク）」へ写像し、$\layer(n)$ はランクが $n$ 以下の全ての要素を含む部分集合として定義される。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[scale=1.0]
+        % Background shading for layers
+        \draw[fill=blue!5, rounded corners] (-3, -0.5) rectangle (3, 5.5);
+        \node at (0, 6) {\large 全体集合 $X$};
+
+        % Layer 2
+        \draw[fill=blue!15, rounded corners] (-2.5, 0) rectangle (2.5, 4.5);
+        \node[anchor=north east] at (2.5, 4.5) {$\layer(n)$};
+
+        % Layer 1
+        \draw[fill=blue!25, rounded corners] (-2, 0.5) rectangle (2, 3.0);
+        \node[anchor=north east] at (2, 3.0) {$\layer(m) \quad (m < n)$};
+
+        % Element x
+        \node[circle, fill=red, inner sep=1.5pt, label=below:$x$] (x) at (0, 1.5) {};
+
+        % Rank function mapping
+        \node (I) at (6, 2.5) {指標集合 $I$};
+        \draw[->, thick, -latex] (5.5, 0) -- (5.5, 5);
+        \node[right] at (5.5, 5) {$\le$};
+
+        \node (rn) at (5.5, 4.0) {$- \quad n$};
+        \node (rm) at (5.5, 2.0) {$- \quad m$};
+        \node (rr) at (5.5, 1.5) {$\bullet \quad \rank(x)$};
+
+        % Arrow from x to rank(x)
+        \draw[->, dashed, thick, red] (x) -- node[above] {$\rank$} (rr);
+
+        \node[align=left, font=\small] at (0, -1.5) {
+            $\rank(x) \le m \le n$ なので、\\
+            $x \in \layer(m) \subseteq \layer(n)$ となる。
+        };
+    \end{tikzpicture}
+    \caption{Rank型構造塔の概念図。包含関係 $\layer(m) \subseteq \layer(n)$ は、順序関係 $m \le n$ から自然に導かれる。}
+    \label{fig:rank_tower}
+\end{figure}
+
+\chapter{理論的性質と証明の経済性}
+
+Rank型構造塔の最大の利点は、構造塔が満たすべき4つの公理が、順序集合上の自明な性質（反射律・推移律）のみから証明できる点にある（Proof Economy）。
+
+\begin{theorem}{構造塔の公理の充足}{axioms}
+Rank型構造塔は、以下の構造塔の公理を満たす。
+\begin{enumerate}
+    \item \textbf{被覆性 (Covering)}: $\forall x \in X, \exists i \in I, x \in \layer(i)$
+    \item \textbf{単調性 (Monotone)}: $i \le j \implies \layer(i) \subseteq \layer(j)$
+    \item \textbf{最小層の所属性 (MinLayer Mem)}: $\forall x \in X, x \in \layer(\minLayer(x))$
+    \item \textbf{最小層の最小性 (MinLayer Minimal)}: $x \in \layer(i) \implies \minLayer(x) \le i$
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+定義 $\layer(n) = \{ x \mid \rank(x) \le n \}$ および $\minLayer = \rank$ に基づき証明する。
+\begin{enumerate}
+    \item \textbf{被覆性}: 任意の $x$ に対し $i = \rank(x)$ と取れば、$\rank(x) \le \rank(x)$（反射律）より成立。
+    \item \textbf{単調性}: $i \le j$ とする。$x \in \layer(i)$ ならば $\rank(x) \le i$ である。よって $\rank(x) \le i \le j$ より $\rank(x) \le j$（推移律）。ゆえに $x \in \layer(j)$。
+    \item \textbf{最小層の所属性}: $\minLayer(x) = \rank(x)$ である。$\rank(x) \le \rank(x)$ より、定義から $x \in \layer(\rank(x))$ は自明。
+    \item \textbf{最小層の最小性}: $x \in \layer(i)$ とする。定義よりこれは $\rank(x) \le i$ を意味する。$\minLayer(x) = \rank(x)$ なので、そのまま $\minLayer(x) \le i$ が導かれる。
+\end{enumerate}
+以上より、全ての証明は順序の公理への書き換えのみで完結する。
+\end{proof}
+
+\chapter{双方向対応と正規形}
+
+`RankTower.md` では、構造塔とRank関数の間に双方向の自然な対応（Canonical Correspondence）が存在することが示されている。
+
+\section{逆方向：構造塔からRank関数へ}
+
+構造塔 $T$ が与えられたとき、その「最小層」を取り出すことでRank関数を構成できる。
+\[
+    \rank_T(x) := T.\minLayer(x)
+\]
+この操作を \texttt{rankFromTower} と呼ぶ。
+
+\section{正規形定理}
+
+\begin{theorem}{正規形定理 (Normal Form)}{normal_form}
+\begin{enumerate}
+    \item Rank関数 $\rho$ から構造塔を作り、再びRank関数に戻すと、元の $\rho$ に一致する。
+    \[ \rank_{\text{tower}(\rho)} = \rho \]
+    \item 構造塔 $T$ からRank関数を作り、再び構造塔に戻すと、各層 $\layer(n)$ は一致する。
+    \[ \layer_{\text{rank}(T)}(n) = T.\layer(n) \]
+\end{enumerate}
+\end{theorem}
+
+これにより、\textbf{「最小層を持つ構造塔」と「Rank関数」は数学的に等価な情報の表現である}ことが正当化される。
+
+\chapter{具体例と応用}
+
+この構成法は、数学のあらゆる分野に適用可能な「一般化テンプレート」を提供する。
+
+\section{各分野におけるRank関数の対応}
+
+\begin{table}[htbp]
+    \centering
+    \caption{数学分野とRank関数の対応例}
+    \label{tab:examples}
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{@{}llll@{}}
+        \toprule
+        \textbf{数学分野} & \textbf{Rank関数 ($\rho$)} & \textbf{意味} & \textbf{層 $\layer(n)$ の解釈} \\ \midrule
+        線形代数 & $\dim(\mathrm{span}(v))$ & 必要な生成元数 & $n$次元以下の部分空間 \\
+        多項式環 & $\deg(P)$ & 次数 & $n$次以下の多項式 \\
+        有限集合 & $|S|$ (cardinality) & 要素数 & 要素数$n$以下の部分集合 \\
+        整数論 & $\Omega(n)$ & 素因数の個数 & 素因数が$n$個以下の整数 \\
+        グラフ理論 & $|E(G)|$ & 辺の数 & 辺数が$n$以下のグラフ \\
+        確率論 & $\tau$ (Stopping time) & 停止時刻 & 時刻$n$までに観測可能な事象 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{線形包（Linear Span）の再解釈}
+
+\texttt{Closure\_Basic} で議論された線形包の構成は、まさにこの理論の典型例である。ベクトル $v$ を表現するのに必要な基底の最小個数を \texttt{minBasisCount} とすると、
+\[
+    \rank(v) := \mathrm{minBasisCount}(v)
+\]
+と定義することで、ベクトル空間のフィルトレーション（部分空間の列）が自然に導出される。これは「偶然」ではなく、Rank型構造塔の普遍性を示唆している。
+
+\chapter{結論}
+
+Rank型構造塔の理論は、以下の3つの本質的メリットを持つ。
+
+\begin{itemize}
+    \item \textbf{意味の透明性 (Semantic Transparency)}: 層の定義が「ランクが $n$ 以下」という極めて明確な意味を持つ。
+    \item \textbf{証明の軽量化 (Proof Economy)}: 構造塔の公理が、Rank関数の順序的性質から自動的に従う。
+    \item \textbf{一般化テンプレート (Generalization Template)}: 異なる数学的分野に対し、統一的な形式化を提供する。
+\end{itemize}
+
+この理論的枠組みは、GeminiとCODEXの協働により、Leanにおける形式化とその数学的背景の言語化として整理されたものである。
+
+\end{document}
