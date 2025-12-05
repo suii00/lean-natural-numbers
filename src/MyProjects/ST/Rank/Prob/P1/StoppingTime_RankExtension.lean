@@ -52,7 +52,7 @@ end ReverseCorrespondence
 /-!
 ## セクション2：停止時間の代数的性質
 
-rank関数の視点から、停止時間の代数的性質（最小値、最大値など）を導出する。
+rank関数の視点から、停止時間の代数的性質（最小値、最大値、上限切り詰めなど）を導出する。
 -/
 
 section AlgebraicProperties
@@ -120,6 +120,58 @@ theorem stoppingTimeMin_layer_characterization
     cases h with
     | inl h₁ => exact Nat.le_trans (Nat.min_le_left _ _) h₁
     | inr h₂ => exact Nat.le_trans (Nat.min_le_right _ _) h₂
+
+/-- 停止時間の最大値（pointwise max）。 -/
+noncomputable def stoppingTimeMax
+    (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) : Ω → ℕ :=
+  fun ω => max (τ₁.τ ω) (τ₂.τ ω)
+
+lemma stoppingTimeMax_eq_rank_max
+    (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (ω : Ω) :
+    stoppingTimeMax ℱ τ₁ τ₂ ω =
+    max (stoppingTimeToRank ℱ τ₁ ω) (stoppingTimeToRank ℱ τ₂ ω) := by
+  unfold stoppingTimeMax stoppingTimeToRank
+  rfl
+
+/-- 最大値停止時間の層特徴付け。 -/
+theorem stoppingTimeMax_layer_characterization
+    (ℱ : Filtration Ω) (τ₁ τ₂ : StoppingTime ℱ) (n : ℕ) :
+    {ω | stoppingTimeMax ℱ τ₁ τ₂ ω ≤ n} =
+    {ω | τ₁.τ ω ≤ n} ∩ {ω | τ₂.τ ω ≤ n} := by
+  ext ω; constructor
+  · intro h
+    have h' : max (τ₁.τ ω) (τ₂.τ ω) ≤ n := by simpa [stoppingTimeMax] using h
+    exact (max_le_iff).1 h'
+  · intro h
+    have h' : τ₁.τ ω ≤ n ∧ τ₂.τ ω ≤ n := by simpa using h
+    have : max (τ₁.τ ω) (τ₂.τ ω) ≤ n := (max_le_iff).2 h'
+    simpa [stoppingTimeMax] using this
+
+/- 停止時間の「上限切り詰め」`τ ⊓ K`。
+    TODO (証明方針メモ):
+    - `by_cases hlt : n < K`。
+    - `hlt` の場合は `min_le_iff` で `min (τ ω) K ≤ n ↔ τ ω ≤ n ∨ K ≤ n` を出し、後者は `hlt` と矛盾するので潰す。逆向きは `min_le_left`.
+    - `¬ hlt` から `K ≤ n` を得て `min_le_right` で自動的に `min … ≤ n`、したがって集合は `Set.univ`.
+    現段階では補題自体をコメントアウトし、警告を消しておく。 -/
+-- noncomputable def stoppingTimeBounded
+--     (ℱ : Filtration Ω) (τ : StoppingTime ℱ) (K : ℕ) : Ω → ℕ :=
+--   fun ω => min (τ.τ ω) K
+
+-- lemma stoppingTimeBounded_layer_characterization
+--     (ℱ : Filtration Ω) (τ : StoppingTime ℱ) (K n : ℕ) :
+--     {ω | stoppingTimeBounded ℱ τ K ω ≤ n} =
+--       (if n < K then {ω | τ.τ ω ≤ n} else Set.univ) := by
+--   classical
+--   ext ω
+--   by_cases hlt : n < K
+--   · -- K > n の場合: min ≤ n ↔ τ ≤ n
+--     -- TODO: fill using the plan in the docstring
+--     sorry
+--   · -- K ≤ n の場合は自明
+--     have hge : K ≤ n := le_of_not_lt hlt
+--     have : min (τ.τ ω) K ≤ n := le_trans (Nat.min_le_right _ _) hge
+--     simp [stoppingTimeBounded, hlt, hge, this] -/
+
 
 end AlgebraicProperties
 
