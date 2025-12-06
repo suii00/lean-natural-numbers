@@ -3,6 +3,9 @@ import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
 import MyProjects.ST.Rank.P3.RankTower
 import MyProjects.ST.Rank.Prob.P1.StoppingTime_C
 
+set_option linter.unusedSectionVars false
+set_option linter.unnecessarySimpa false
+
 /-!
 # 有限部分集合の構造塔：`Finset` と元数による rank
 
