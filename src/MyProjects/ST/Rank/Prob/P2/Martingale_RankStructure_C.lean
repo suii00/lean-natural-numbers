@@ -128,9 +128,9 @@ theorem rankOptionalStopping_bounded
           ∫ ω, condExp μ H.filtration k (H.process (k + 1)) ω ∂μ
             = ∫ ω, H.process (k + 1) ω ∂μ := by
         -- 条件付き期待値の積分は元の積分に一致
-        -- （mathlib: `MeasureTheory.integral_condExp`）
+        -- （mathlib: `integral_condExp`）
         simpa [StructureTowerProbability.condExp] using
-          (MeasureTheory.integral_condExp
+          (integral_condExp
             (μ := μ)
             (m := H.filtration k)
             (m₀ := ‹MeasurableSpace Ω›)
