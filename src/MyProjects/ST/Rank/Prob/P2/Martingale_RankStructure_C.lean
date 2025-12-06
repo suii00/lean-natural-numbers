@@ -82,7 +82,9 @@ abbrev rankStoppedProcess (M : Martingale μ) (τ : Ω → ℕ) : ℕ → Ω →
 ## セクション2: 薄いラッパー定理群
 
 以下の定理は、既存のMartingale_StructureTower.mdとStoppingTime_MinLayer.mdの
-補題を「rank版のstatement」に翻訳するだけ。証明は既存補題を呼ぶ一行。
+補題を「rank版のstatement」に翻訳するもの。定理1だけは停止マルチンゲールを
+構成したうえで condExp の積分一致を使って期待値一定性を帰納で示す。
+定理2–4は既存補題を `exact` で呼ぶ一行仕上げ。
 -/
 
 /-!
@@ -97,11 +99,9 @@ Martingale_StructureTower.md の bounded OST を
 rank理論の言葉で再定式化したもの。
 
 **証明戦略**:
-`exact` で既存の定理を一行で呼ぶだけ。
+`H := M.stoppedProcess_martingale_of_bdd` で停止マルチンゲールを作り、
+condExp の積分一致 (`integral_condExp`) と帰納法で `E[H_n]=E[H_0]` を示す。
  -/
--- NOTE: `MyStoppingTime` や `ℱ.base.𝓕` まわりの依存が未整理のため、
--- 下記の定理本体は一時的にコメントアウトしています。
--- 依存が揃い次第、既存補題を呼ぶ一行証明に差し戻してください。
 theorem rankOptionalStopping_bounded
     (M : Martingale μ)
     (τ : Ω → ℕ)
@@ -170,8 +170,8 @@ StoppingTime_MinLayer.md の `stopped_stronglyMeasurable_of_stoppingSets`
 **証明戦略**:
 既存補題を `exact` で呼ぶだけ。
 
-NOTE: `rankStoppedProcess ⟨ℱ, X, hX, …⟩` まわりで未整理の依存があるため、
-定理本体は一時的にコメントアウトしています。依存が揃い次第復活させてください。
+NOTE: `rankStoppedProcess ⟨ℱ, X, hX, …⟩` を
+`Martingale` 側の停止過程補題に即座に写して一行で証明する。
 -/
 theorem rankStopped_adapted
     (M : Martingale μ)
@@ -194,8 +194,7 @@ StoppingTime_MinLayer.md の `stopped_integrable_of_bdd` のrank版。
 **証明戦略**:
 既存補題を `exact` で呼ぶだけ。
 
-NOTE: 依存補題の束縛が未整理のため、定理本体は一時コメントアウト。
-依存が整い次第、`exact stopped_integrable_of_bdd …` の一行に戻す。
+NOTE: `stopped_integrable_of_bdd` をそのまま `exact` で呼んで完結。
 -/
 theorem rankStopped_integrable
     (M : Martingale μ)
@@ -221,8 +220,7 @@ Martingale_StructureTower.md の
 **証明戦略**:
 既存補題を `exact` で呼ぶだけ。
 
-NOTE: こちらも依存整理待ちのため一時コメントアウト。
-復旧後は `exact Martingale.stoppedProcess_martingale_property_of_bdd …` に戻す。
+NOTE: `Martingale.stoppedProcess_martingale_property_of_bdd` を `exact` で呼ぶだけの薄いラッパー。
 -/
 theorem rankStopped_martingale_property
     (M : Martingale μ)
