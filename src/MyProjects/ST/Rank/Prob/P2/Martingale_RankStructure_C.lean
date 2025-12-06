@@ -42,7 +42,7 @@ Rank Structure の言葉で再定式化する「橋渡し層」。
 - StoppingTime_MinLayer.md: 停止過程のAPI
 -/
 
-open scoped Classical
+open Classical
 open MeasureTheory StructureTowerProbability
 
 namespace StructureTowerProbability.Rank
