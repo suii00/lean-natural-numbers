@@ -153,37 +153,28 @@ theorem rankOST_expectation_constant
     _   = ∫ ω, rankStoppedProcess M τ n ω ∂μ := hn.symm
 
 /-!
-## 補助定理3: Rank構造塔の層による特徴付け
+## 補助定理3: Rank構造塔の層による特徴付け（片方向）
 
 **Statement**:
-停止過程の値が層nに属することの特徴付け。
+τ ω ≤ n なら、その点での停止過程の値は atStoppingTime と一致する。
 
 **Rank理論での意味**:
-ω ∈ {停止時刻 ≤ n} ⇔ ω は構造塔の第n層に属する
+ω ∈ {停止時刻 ≤ n} なら、構造塔の第 n 層で評価した stopped 過程は
+rank(ω) で評価した値（atStoppingTime）と一致する。
 
-この同値性により、停止時間の概念が構造塔のminLayer関数と
-完全に一致することが明示的になる。
+（逆向きは一般には偽なので主張しない。RankOST ではこの片方向で十分。）
 
 **証明**:
 これは定義の展開だけで証明できる基本補題。
 -/
 
-lemma rankStopped_layer_characterization
+lemma rankStopped_eq_atStoppingTime_of_le
     (M : Martingale μ)
     (τ : Ω → ℕ)
-    (n : ℕ) (ω : Ω) :
-    (τ ω ≤ n) ↔
-    (rankStoppedProcess M τ n ω = atStoppingTime M.process τ ω) := by
-  constructor
-  · intro hτ
-    -- τ ω ≤ n ならば stopped M.process τ n ω = M.process (τ ω) ω
-    exact Martingale.stoppedProcess_eq_atStoppingTime M τ hτ
-  · intro heq
-    -- この方向は一般には成り立たないので sorry
-    -- (反例: τ ω > n でも偶然値が一致する可能性)
-    -- より弱い形の statement に修正すべきだが、
-    -- 教育的価値のため残しておく
-    sorry
+    (n : ℕ) (ω : Ω)
+    (hτ : τ ω ≤ n) :
+    rankStoppedProcess M τ n ω = atStoppingTime M.process τ ω := by
+  exact Martingale.stoppedProcess_eq_atStoppingTime M τ hτ
 
 /-!
 ## 理論的意義の補題: Rank関数としての停止時間
