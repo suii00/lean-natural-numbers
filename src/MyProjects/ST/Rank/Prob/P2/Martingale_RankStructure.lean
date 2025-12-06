@@ -1,239 +1,297 @@
 import MyProjects.ST.Formalization.P4.Martingale_StructureTower
 import MyProjects.ST.Formalization.P3.StoppingTime_MinLayer
-import MyProjects.ST.Rank.P3.RankTower
 import MyProjects.ST.Rank.Prob.P1.StoppingTime_C
+import MyProjects.ST.Rank.P3.RankTower
+import Mathlib.MeasureTheory.Function.ConditionalExpectation.Basic
 
-set_option linter.unusedSectionVars false
-set_option linter.unnecessarySimpa false
 
 /-!
-# 有限部分集合の構造塔：`Finset` と元数による rank
+# Martingale Theory via Rank Structure
 
-## 数学的背景
+**実装戦略**: 薄いラッパーから始める
 
-型 `α` 上の有限部分集合は `Finset α` で表される。
-ここでは
+既存の Martingale_StructureTower / StoppingTime_MinLayer の補題を
+Rank Structure の言葉で再定式化する「橋渡し層」。
 
-* **元**: `Finset α`（有限部分集合）
-* **rank**: 元数 `s.card : ℕ`
-* **第 `n` 層**: 元数が `n` 以下の有限部分集合全体
+この段階では：
+- Statement の翻訳に集中
+- 証明は既存補題を呼ぶだけ
+- 完全な一般化は OptionalStopping_RankTheory.lean に譲る
 
-という対応で、`StructureTowerWithMin` の具体例を構成する。
+## 理論的意義
 
-## 構造塔としての解釈
+**なぜこのアプローチを取るか**:
 
-- 層 `layer n` は「高々 `n` 個の点を使って作られた部分集合」の全体。
-- `minLayer s` は、その部分集合 `s` を作るのに必要な**最小の層番号**であり、
-  この例では単に `s.card` になる。
-- 被覆性：任意の有限部分集合 `s` について `s.card` という有限の層が存在するので、
-  構造塔は全ての元を覆う。
+1. **心理的負担の最小化**: 既存の証明済み補題を活用し、新規証明を避ける
+2. **段階的構築**: まず骨格を作り、後で拡張する布石とする
+3. **概念の橋渡し**: マルチンゲール理論とRank理論の接続を明示
 
-これは線形包の例（ベクトル空間の次元）と良く似ているが、
+**数学的動機**:
 
-- ベクトルではなく「点の集まり」
-- 線形結合ではなく「単純な集合の包含」
+マルチンゲール理論における停止時間は、構造塔理論におけるminLayer関数と本質的に同一である：
+- 停止時間 τ(ω) = 「標本点ωが初めて決定される時刻」
+- minLayer(x) = 「要素xが属する最小の層」
 
-という、より組合せ論的・幾何的な直感で同じパターンを見せる例になっている。
+この対応により、Optional Stopping Theorem等の古典的結果が
+構造塔の普遍性から自然に導出されることが期待される。
 
-## 教育的意義
-
-- **rank = 資源の個数** という解釈を最も素朴な形で体験できる。
-- `towerFromRank` による「rank → 構造塔」構成を、停止時間以外の
-  全く別の具体例で確認できる。
-- 後でグラフ・単体複体・線形包などに一般化する際の、共通テンプレートとなる。
+## 参考文献
+- Williams, D. "Probability with Martingales" (1991)
+- RankTower.lean: 双方向対応理論
+- Martingale_StructureTower.md: bounded OST の実装
+- StoppingTime_MinLayer.md: 停止過程のAPI
 -/
-
-namespace StructureTowerCombinatorics
 
 open Classical
-open TowerRank
+open MeasureTheory StructureTowerProbability
 
-section
+namespace StructureTowerProbability.Rank
 
-variable (α : Type*) [DecidableEq α]
+variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
 
 /-!
-## 1. rank 関数の定義
+## セクション1: 基本的な概念の翻訳
 
-有限部分集合 `s : Finset α` の rank を、そのまま元数 `s.card` と定義する。
-これは「何個の点を使っているか」を測る量であり、構造塔の最小層と一致する。
+薄いラッパー戦略の第一歩として、既存の概念をrank版として再定義する。
 -/
 
-/-- 有限部分集合の rank（元数）。 -/
-def finiteSubsetRank (s : Finset α) : ℕ :=
-  s.card
+/-- 停止時間をrank関数として解釈する（薄いラッパー）。
 
-/-- rank 関数の被覆性：各有限部分集合 `s` は自分自身の元数以下で抑えられる。 -/
-lemma finiteSubsetRank_covers :
-    ∀ s : Finset α, ∃ n : ℕ, finiteSubsetRank (α := α) s ≤ n := by
-  intro s
-  refine ⟨s.card, ?_⟩
-  simp [finiteSubsetRank]
+**数学的意味**:
+停止時間 τ : Ω → ℕ は、そのままrank関数 ρ : Ω → ℕ と見なせる。
 
-/-!
-## 2. `towerFromRank` による構造塔の構成
-
-`RankTower.lean` で定義された一般構成
-
-* `towerFromRank : (X → WithTop ℕ) → (∀ x, ∃ n, ρ x ≤ n) → StructureTowerWithMin`
-
-を用いて、有限部分集合の構造塔を定義する。
-ここでは
-
-* キャリア `carrier = Finset α`
-* rank `ρ s = (finiteSubsetRank s : WithTop ℕ)` （自然数を `WithTop` に埋め込む）
-
-とする。
+**既存理論との対応**:
+StoppingTime_C.lean の `stoppingTimeToRank` と同一。
 -/
+abbrev stoppingTimeAsRank (ℱ : Filtration Ω) (τ : StoppingTime ℱ) : Ω → ℕ :=
+  stoppingTimeToRank ℱ τ
 
-/-- 有限部分集合と元数から作る構造塔。 -/
-noncomputable def finiteSubsetTower : StructureTowerWithMin :=
-  TowerRank.towerFromRank
-    (fun s : Finset α => (finiteSubsetRank (α := α) s : WithTop ℕ))
-    (by
-      intro s
-      -- ρ(s) = s.card なので、`n = s.card` を取れば ρ(s) ≤ n が成り立つ
-      refine ⟨s.card, ?_⟩
-      simp [finiteSubsetRank])
+/-- マルチンゲールの停止過程をrank理論で解釈する（薄いラッパー）。
+
+**数学的意味**:
+マルチンゲールMを停止時間τで止めた過程 M^τ は、
+構造塔の視点では「rank ≤ n の層に属する標本点での値」として理解できる。
+
+**既存理論との対応**:
+Martingale_StructureTower.md の `stoppedProcess` の別名。
+-/
+abbrev rankStoppedProcess (M : Martingale μ) (τ : Ω → ℕ) : ℕ → Ω → ℝ :=
+  Martingale.stoppedProcess M τ
 
 /-!
-この定義により、`finiteSubsetTower α` は次のように具体化される：
+## セクション2: 薄いラッパー定理群
 
-* `layer n = { s | finiteSubsetRank s ≤ n }`
-* `minLayer s = finiteSubsetRank s = s.card`
-
-これらは RankTower 側の一般定理から自動的に従う。
+以下の定理は、既存のMartingale_StructureTower.mdとStoppingTime_MinLayer.mdの
+補題を「rank版のstatement」に翻訳するもの。定理1だけは停止マルチンゲールを
+構成したうえで condExp の積分一致を使って期待値一定性を帰納で示す。
+定理2–4は既存補題を `exact` で呼ぶ一行仕上げ。
 -/
 
 /-!
-## 3. 層の特徴付け
+### 定理1: Bounded Optional Stopping (Rank版)
 
-一般論 `towerFromRank` の定義から、層は
+**Statement の翻訳**:
+有界な停止時間（＝有界なrank関数）でマルチンゲールを止めると、
+期待値が保存される。
 
-`L(n) = { x | ρ(x) ≤ n }`
+**既存補題との対応**:
+Martingale_StructureTower.md の bounded OST を
+rank理論の言葉で再定式化したもの。
 
-として与えられている。
-有限部分集合に対してこれを展開すると、
-「元数が `n` 以下の有限部分集合の全体」という特徴付けになる。
+**証明戦略**:
+`H := M.stoppedProcess_martingale_of_bdd` で停止マルチンゲールを作り、
+condExp の積分一致 (`integral_condExp`) と帰納法で `E[H_n]=E[H_0]` を示す。
+ -/
+
+theorem rankOptionalStopping_bounded
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    ∀ n, ∫ ω, rankStoppedProcess M τ n ω ∂μ
+        = ∫ ω, rankStoppedProcess M τ 0 ω ∂μ := by
+  classical
+  -- 停止過程は有界停止時間のもとで再びマルチンゲールになる
+  set H : Martingale μ :=
+    M.stoppedProcess_martingale_of_bdd (τ := τ) hτ hτ_bdd
+  -- マルチンゲールの期待値は時刻に依らず一定であることを示す
+  have hconst : ∀ k, ∫ ω, H.process k ω ∂μ = ∫ ω, H.process 0 ω ∂μ :=
+  by
+    refine Nat.rec ?base ?step
+    · -- k = 0
+      rfl
+    · intro k ih
+      -- martingale 性：E[X_{k+1} | 𝓕_k] = X_k
+      have hmart : condExp μ H.filtration k (H.process (k + 1))
+                    =ᵐ[μ] H.process k := H.martingale k
+      -- condExp の積分は元の積分に一致
+      have hcond :
+          ∫ ω, condExp μ H.filtration k (H.process (k + 1)) ω ∂μ
+            = ∫ ω, H.process (k + 1) ω ∂μ := by
+        -- 条件付き期待値の積分は元の積分に一致
+        -- （mathlib: `integral_condExp`）
+        simpa [StructureTowerProbability.condExp] using
+          (integral_condExp
+            (μ := μ)
+            (m := H.filtration k)
+            (m₀ := ‹MeasurableSpace Ω›)
+            (f := H.process (k + 1))
+            (hm := H.filtration.le k))
+      calc
+        ∫ ω, H.process (k + 1) ω ∂μ
+            = ∫ ω, condExp μ H.filtration k (H.process (k + 1)) ω ∂μ := by
+                symm; exact hcond
+        _ = ∫ ω, H.process k ω ∂μ := by
+                have hcongr := MeasureTheory.integral_congr_ae hmart
+                simpa using hcongr
+        _ = ∫ ω, H.process 0 ω ∂μ := ih
+  -- rankStoppedProcess は H.process に一致
+  intro n
+  have hrepr : ∫ ω, rankStoppedProcess M τ n ω ∂μ
+              = ∫ ω, H.process n ω ∂μ := by rfl
+  have hrepr0 : ∫ ω, rankStoppedProcess M τ 0 ω ∂μ
+               = ∫ ω, H.process 0 ω ∂μ := by rfl
+  calc
+    ∫ ω, rankStoppedProcess M τ n ω ∂μ
+        = ∫ ω, H.process n ω ∂μ := hrepr
+    _   = ∫ ω, H.process 0 ω ∂μ := hconst n
+    _   = ∫ ω, rankStoppedProcess M τ 0 ω ∂μ := hrepr0.symm
+
+/-
+### 定理2: 停止過程の適合性 (Rank版)
+
+**Statement の翻訳**:
+rank関数τが「停止集合 = rank ≤ n の層」を定義するとき、
+停止過程は元のフィルトレーションに適合する。
+
+**既存補題との対応**:
+StoppingTime_MinLayer.md の `stopped_stronglyMeasurable_of_stoppingSets`
+をrank理論として再解釈。
+
+**証明戦略**:
+既存補題を `exact` で呼ぶだけ。
+
+NOTE: `rankStoppedProcess ⟨ℱ, X, hX, …⟩` を
+`Martingale` 側の停止過程補題に即座に写して一行で証明する。
 -/
+theorem rankStopped_adapted
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n}) :
+    ∀ n, StronglyMeasurable[M.filtration n] (rankStoppedProcess M τ n) := by
+  intro n
+  simpa [rankStoppedProcess] using
+    (M.stoppedProcess_stronglyMeasurable_of_stoppingSets (τ := τ) hτ n)
 
-/-- 有限部分集合構造塔の第 `n` 層は、元数が `n` 以下の有限部分集合全体である。 -/
-lemma finiteSubsetTower_layer_characterization (n : ℕ) :
-    (finiteSubsetTower (α := α)).layer n =
-      { s : Finset α | finiteSubsetRank (α := α) s ≤ n } := by
-  -- `towerFromRank` の定義をそのまま展開するだけでよい
-  ext s
-  simp [finiteSubsetTower, finiteSubsetRank, TowerRank.towerFromRank]
+/-
+### 定理3: 停止過程の可積分性 (Rank版)
+
+**Statement の翻訳**:
+有界なrank関数で止めた過程は、各時刻で可積分性を保つ。
+
+**既存補題との対応**:
+StoppingTime_MinLayer.md の `stopped_integrable_of_bdd` のrank版。
+
+**証明戦略**:
+既存補題を `exact` で呼ぶだけ。
+
+NOTE: `stopped_integrable_of_bdd` をそのまま `exact` で呼んで完結。
+-/
+theorem rankStopped_integrable
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    ∀ n, Integrable (rankStoppedProcess M τ n) μ := by
+  intro n
+  simpa [rankStoppedProcess] using
+    (M.stoppedProcess_integrable_of_bdd (τ := τ) hτ hτ_bdd n)
+
+/-
+### 定理4: 停止過程のマルチンゲール性 (Rank版)
+
+**Statement の翻訳**:
+有界なrank関数で止めたマルチンゲールは、
+依然としてマルチンゲール性を保つ。
+
+**既存補題との対応**:
+Martingale_StructureTower.md の
+`stoppedProcess_martingale_property_of_bdd` のrank版。
+
+**証明戦略**:
+既存補題を `exact` で呼ぶだけ。
+
+NOTE: `Martingale.stoppedProcess_martingale_property_of_bdd` を `exact` で呼ぶだけの薄いラッパー。
+-/
+theorem rankStopped_martingale_property
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    ∀ n, condExp μ M.filtration n (rankStoppedProcess M τ (n + 1))
+          =ᵐ[μ] rankStoppedProcess M τ n := by
+  intro n
+  simpa [rankStoppedProcess, condExp] using
+    (M.stoppedProcess_martingale_property_of_bdd
+      (τ := τ) hτ hτ_bdd n)
 
 /-!
-## 4. `minLayer` と rank の一致
+## 今後の展開
 
-RankTower.lean の一般定理
+この薄い層の上に、OptionalStopping_RankTheory.lean で
+完全な rank 版 OST の理論を構築する予定。
 
-* `towerFromRank_minLayer_eq_rank`
+**次のステップ**:
+1. 無界停止時間への拡張
+2. Doob's Optional Stopping Theorem の完全証明
+3. Rank理論の普遍性からOSTを導出する圏論的証明
+4. マルチンゲール収束定理のrank版
 
-を適用すると、`towerFromRank` から作った構造塔の `minLayer` は
-元の rank 関数と一致する。
+**この薄いラッパーの意義**:
+- 心理的負担を最小化しつつ、rank理論とマルチンゲール理論の接続を確立
+- 既存の証明済み補題を活用することで、正確性を保証
+- 段階的拡張の布石として機能
 
-この例では、`minLayer s = s.card` が機械的に導かれる。
+**Bourbakiの精神**:
+「必要十分な一般性」の原則に従い、まず最小限の抽象化から始め、
+徐々に一般化していく手法を採用。
 -/
 
-/-- 有限部分集合構造塔の `minLayer` は、元数 `card` に一致する。 -/
-lemma finiteSubsetTower_minLayer_eq_card (s : Finset α) :
-    (finiteSubsetTower (α := α)).minLayer s = s.card := by
-  -- 一般定理を rank = `finiteSubsetRank` に適用
-  have h :=
-    TowerRank.towerFromRank_minLayer_eq_rank
-      (ρ := finiteSubsetRank (α := α))
-      (h := by
-        intro t
-        refine ⟨t.card, ?_⟩
-        simp [finiteSubsetRank])
-      (x := s)
-  -- 定義を展開して「minLayer = card」に書き換える
-  simpa [finiteSubsetTower, finiteSubsetRank] using h
-
-/-- `minLayer` を rank 関数として見るためのシンプルな別表記。 -/
-lemma finiteSubsetTower_minLayer_eq_rank (s : Finset α) :
-    (finiteSubsetTower (α := α)).minLayer s =
-      finiteSubsetRank (α := α) s := by
-  simpa [finiteSubsetRank] using finiteSubsetTower_minLayer_eq_card (α := α) s
-
-/-- 構造塔の被覆性は、rank の被覆性からただちに従うことの再確認。 -/
-lemma finiteSubsetTower_covers (s : Finset α) :
-    ∃ n : ℕ, s ∈ (finiteSubsetTower (α := α)).layer n := by
-  -- `n = minLayer s` を取れば必ず層に属する
-  refine ⟨(finiteSubsetTower (α := α)).minLayer s, ?_⟩
-  exact (finiteSubsetTower (α := α)).minLayer_mem s
+end StructureTowerProbability.Rank
 
 /-!
-## 5. 具体的な計算例
+## 学習のまとめ
 
-以下では、抽象的な型 `α` に対する一般的な性質と、
-具体的な `α = ℕ` の場合の挙動を確認する。
+**この薄いラッパーから学べること**:
+
+1. **翻訳の技法**: 既存の定理を新しい言葉で再定式化する方法
+2. **証明の再利用**: `exact` による既存補題の活用パターン
+3. **段階的構築**: 完全な理論の前に骨格を作る重要性
+4. **概念の橋渡し**: 異なる数学分野（確率論・構造塔理論）の統合手法
+
+**このアプローチの利点**:
+
+- ✅ 実装コストが低い（3-5個の薄い定理で十分）
+- ✅ 既存証明の正確性を継承
+- ✅ 後続の拡張への明確な道筋
+- ✅ 教育的価値が高い（翻訳のプロセスが明示的）
+
+**このアプローチの限界**:
+
+- ⚠️ 完全な一般化ではない（有界停止時間のみ）
+- ⚠️ 新しい洞察は限定的（既存理論の言い換えに過ぎない）
+- ⚠️ 圏論的構造は未整備
+
+しかし、これらの限界は意図的なものであり、
+OptionalStopping_RankTheory.lean での完全な理論構築への
+「心理的に優しい入口」として機能する。
+
+## 参考文献
+
+- Williams, D. (1991). "Probability with Martingales". Cambridge University Press.
+- Rogers, L. C. G., & Williams, D. (2000). "Diffusions, Markov Processes, and Martingales". Cambridge University Press.
+- Kallenberg, O. (2002). "Foundations of Modern Probability". Springer.
+- RankTower.lean: 本プロジェクトの双方向対応理論
+- Martingale_StructureTower.md: マルチンゲール理論の基礎
+- StoppingTime_MinLayer.md: 停止時間のminLayer解釈
 -/
-
-/-- 例1：任意の有限部分集合について、`minLayer` は元数と一致する。 -/
-example (s : Finset α) :
-    (finiteSubsetTower (α := α)).minLayer s = s.card := by
-  simpa using finiteSubsetTower_minLayer_eq_card (α := α) s
-
-/-- 例2：元数が `n` 以下なら、第 `n` 層に属する。 -/
-example (s : Finset α) (n : ℕ) (h : s.card ≤ n) :
-    s ∈ (finiteSubsetTower (α := α)).layer n := by
-  -- 層の特徴付けに書き換えてから、仮定を使う
-  have h' : finiteSubsetRank (α := α) s ≤ n := by
-    simpa [finiteSubsetRank] using h
-  -- 目標を rank の不等式に書き換えてから `h'` を適用
-  simpa [finiteSubsetTower_layer_characterization (α := α) n] using h'
-
-/-- 例3（具体例）：`{1, 3}` は第2層には属するが、第1層には属さない（`α = ℕ`）。 -/
-example : ({1, 3} : Finset ℕ) ∈ (finiteSubsetTower (α := ℕ)).layer 2 ∧
-    ({1, 3} : Finset ℕ) ∉ (finiteSubsetTower (α := ℕ)).layer 1 := by
-  -- `card {1,3} = 2` を計算
-  have hcard : ({1, 3} : Finset ℕ).card = 2 := by
-    decide
-  constructor
-  · -- 2層には属する
-    have h : ({1, 3} : Finset ℕ).card ≤ 2 := by
-      simpa [hcard]
-    have h' : finiteSubsetRank (α := ℕ) ({1, 3} : Finset ℕ) ≤ 2 := by
-      simpa [finiteSubsetRank] using h
-    simpa [finiteSubsetTower_layer_characterization (α := ℕ) 2] using h'
-  · -- 1層には属さない
-    intro hmem
-    have h' :
-        finiteSubsetRank (α := ℕ) ({1, 3} : Finset ℕ) ≤ 1 := by
-      -- 層の特徴付けから不等式に落とす
-      simpa [finiteSubsetTower_layer_characterization (α := ℕ) 1] using hmem
-    -- `card = 2` なので `2 ≤ 1` は不可能
-    have : 2 ≤ 1 := by
-      simpa [finiteSubsetRank, hcard] using h'
-    exact Nat.not_succ_le_self 1 this
-
-/-!
-## この例のポイント（まとめ）
-
-1. **rank = 元数**
-   有限部分集合の「大きさ」を、そのまま rank 関数として扱えることを確認した。
-
-2. **`towerFromRank` の具体的実装**
-   `towerFromRank` に `ρ s = card s` を入れるだけで、
-   「高々 n 個の点を持つ部分集合の層」という自然な構造塔が得られる。
-
-3. **`minLayer = rank` の一般定理の再利用**
-   `TowerRank.towerFromRank_minLayer_eq_rank` をそのまま適用することで、
-   `minLayer s = card s` を一行で導出できた。
-   これは停止時間の場合と全く同じパターンである。
-
-4. **他分野への橋渡し**
-   - 単体複体の `k`-骨格（`k` 次元以下の単体全体）
-   - グラフにおける「頂点数で切った部分グラフの塔」
-   - 線形包（次元による層）
-
-   など、よりリッチな例へ発展させる際のテンプレートとして機能する。
--/
-
-end
-
-end StructureTowerCombinatorics
