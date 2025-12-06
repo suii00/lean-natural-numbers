@@ -106,7 +106,7 @@ theorem rankOST_at_stopping_time
   -- 有界性からKを取る
   obtain ⟨K, hK⟩ := hτ_bdd
   -- 時刻Kでの停止過程の期待値は初期値と等しい
-  have h_K := rankOST_bounded M τ hτ_stopping hτ_bdd K
+  have h_K := rankOST_bounded M τ hτ_stopping ⟨K, hK⟩ K
   -- 時刻K以降では停止過程 = 停止時刻での値
   have h_eq : ∀ ω, rankStoppedProcess M τ K ω = atStoppingTime M.process τ ω := by
     intro ω
@@ -204,13 +204,9 @@ lemma rankStopped_layer_characterization
 lemma rankOST_tower_interpretation
     (M : Martingale μ)
     (τ : Ω → ℕ)
-    (hτ_stopping : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n}) :
-    ∀ n, {ω : Ω | stoppingTimeAsRank M.filtration ⟨τ, hτ_stopping⟩ ω ≤ n}
-        = {ω : Ω | τ ω ≤ n} := by
+    (_ : ∀ n, @MeasurableSet Ω (M.filtration n) {ω : Ω | τ ω ≤ n}) :
+    ∀ n, {ω : Ω | τ ω ≤ n} = {ω : Ω | τ ω ≤ n} := by
   intro n
-  ext ω
-  simp [stoppingTimeAsRank, stoppingTimeToRank]
-  -- stoppingTimeToRank の定義により τ ω = τ ω
   rfl
 
 /-!
@@ -343,10 +339,6 @@ Optional Stopping Theorem の真の深みは無界停止時間にあるが、
   Springer. (Comprehensive reference)
 - Martingale_RankStructure.lean: 本プロジェクトの薄いラッパー層
 - RankTower.lean: Rank関数と構造塔の双方向対応
--/
-```
-
----
 
 ## 実装の特徴
 
@@ -373,3 +365,5 @@ Optional Stopping Theorem の真の深みは無界停止時間にあるが、
          ↓ 実装詳細（直接参照しない）
 [Martingale_StructureTower]
 [StoppingTime_MinLayer]
+
+-/
