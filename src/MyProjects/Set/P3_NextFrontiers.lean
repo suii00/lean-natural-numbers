@@ -304,7 +304,7 @@ def galoisTower {l : α → β} {u : β → α} (gc : GaloisConnection l u) :
   level x := {y : α | y ≤ galoisClosure gc x}
   monotone_level := by
     intro x x' hxx' y hy
-    change y ≤ galoisClosure gc x' 
+    change y ≤ galoisClosure gc x'
     have hmon : Monotone (galoisClosure gc) :=
       gc.monotone_u.comp gc.monotone_l
     exact le_trans hy (hmon hxx')
@@ -469,7 +469,7 @@ def ElementarySets : Set (Set ℝ) :=
   {A | ∃ a b : ℝ, A = Set.Icc a b}
 
 /-- Step 2: Generate the sigma-algebra. -/
-def LebesgueSigmaAlgebra : SigmaAlgebra ℝ :=
+noncomputable def LebesgueSigmaAlgebra : SigmaAlgebra ℝ :=
   generateSigmaAlgebra ElementarySets
 
 /-- Exercise: Define outer measure on arbitrary sets. -/
@@ -699,4 +699,3 @@ mathematics.
 Your work has established the foundation. These challenges build
 the cathedral.
 -/
-
