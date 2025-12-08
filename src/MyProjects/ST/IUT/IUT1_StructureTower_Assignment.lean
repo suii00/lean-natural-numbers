@@ -9,6 +9,7 @@ import Mathlib.Data.Fintype.Card
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Order.Basic
 import Mathlib.NumberTheory.ArithmeticFunction  -- Nat.totient
+import Mathlib.Data.Nat.Totient
 
 /-!
 # IUT1 課題：構造塔で学ぶ数論の基礎
@@ -460,27 +461,29 @@ theorem layer_one_eq_singleton :
   constructor
   · intro hm
     have hmpos : 0 < m.val := m.property
-    have hcard : (Nat.divisors m.val).card ≤ 1 := hm
-    have hpos : 0 < (Nat.divisors m.val).card := by
-      have hmem : (1 : ℕ) ∈ Nat.divisors m.val :=
-        Nat.mem_divisors.mpr ⟨Nat.one_dvd _, Nat.succ_le_of_lt hmpos⟩
-      exact Finset.card_pos.mpr ⟨1, hmem⟩
-    have hcard1 : (Nat.divisors m.val).card = 1 :=
-      le_antisymm hcard (Nat.succ_le_iff.mpr hpos)
-    obtain ⟨x, hxmem, hxuniq⟩ := Finset.card_eq_one.mp hcard1
-    have h1mem : (1 : ℕ) ∈ Nat.divisors m.val :=
-      Nat.mem_divisors.mpr ⟨Nat.one_dvd _, Nat.succ_le_of_lt hmpos⟩
-    have hx1 : x = 1 := hxuniq h1mem
-    have hmv_mem : m.val ∈ Nat.divisors m.val :=
-      Nat.mem_divisors.mpr ⟨by rfl, Nat.succ_le_of_lt hmpos⟩
-    have hmv1 : m.val = 1 := by
-      have := hxuniq hmv_mem
-      simpa [hx1] using this
-    subst hmv1
-    simp
+    have hcard_le : (Nat.divisors m.val).card ≤ 1 := hm
+    have hmem_one : (1 : ℕ) ∈ Nat.divisors m.val :=
+      Nat.mem_divisors.mpr ⟨Nat.one_dvd _, Nat.ne_of_gt hmpos⟩
+    have hmem_self : m.val ∈ Nat.divisors m.val :=
+      Nat.mem_divisors.mpr ⟨Nat.dvd_refl _, Nat.ne_of_gt hmpos⟩
+    have hcard_pos : 0 < (Nat.divisors m.val).card :=
+      Finset.card_pos.mpr ⟨1, hmem_one⟩
+    have hcard_eq : (Nat.divisors m.val).card = 1 :=
+      Nat.le_antisymm hcard_le (Nat.succ_le_iff.mpr hcard_pos)
+    rcases Finset.card_eq_one.mp hcard_eq with ⟨x, hx⟩
+    have hx1' : 1 = x := by
+      have : (1 : ℕ) ∈ ({x} : Finset ℕ) := by simpa [hx] using hmem_one
+      exact Finset.mem_singleton.mp this
+    have hxm' : m.val = x := by
+      have : m.val ∈ ({x} : Finset ℕ) := by simpa [hx] using hmem_self
+      exact Finset.mem_singleton.mp this
+    have hmval1 : m.val = 1 := by simpa [hx1'] using hxm'
+    have hm_eq : m = ⟨1, Nat.one_pos⟩ := Subtype.ext (by simpa using hmval1)
+    simpa [hm_eq]
   · intro hm
     rcases hm with rfl
-    simp [divisorTower, numDivisors_one]
+    change numDivisors ⟨1, Nat.one_pos⟩ ≤ 1
+    native_decide
 
 /-- Layer 2 には素数が含まれる -/
 theorem prime_in_layer_two (p : ℕ) (hp : Nat.Prime p) :
@@ -590,21 +593,15 @@ example : congruenceTower.minLayer (4 : ℤ) = 2 := by
 /-- Layer 0 は奇数全体 -/
 theorem layer_zero_odd :
     congruenceTower.layer 0 = { m : ℤ | m % 2 ≠ 0 } := by
-  ext m
-  constructor
-  · intro hm
-    have hzero : twoPadicValSimple m = 0 := le_antisymm hm (Nat.zero_le _)
-    dsimp [twoPadicValSimple] at hzero
-    by_cases hodd : m % 2 ≠ 0
-    · exact hodd
-    · have : False := by
-        -- if not odd, first branch impossible so contradiction
-        simp [hodd] at hzero
-      contradiction
-  · intro hodd
-    dsimp [congruenceTower, twoPadicValSimple]
-    -- odd → first branch selected, so value = 0
-    simp [hodd]
+  ext (m : ℤ)
+  by_cases hodd : m % 2 ≠ 0
+  · simp [congruenceTower, twoPadicValSimple, hodd]
+  · have hmod2 : m % 2 = 0 := by simpa using hodd
+    by_cases h4 : m % 4 = 0
+    · by_cases h8 : m % 8 = 0
+      · simp [congruenceTower, twoPadicValSimple, hodd, hmod2, h4, h8]
+      · simp [congruenceTower, twoPadicValSimple, hodd, hmod2, h4, h8]
+    · simp [congruenceTower, twoPadicValSimple, hodd, hmod2, h4]
 
 /-- 包含関係：2-進イデアル列 -/
 theorem ideal_chain :
@@ -682,13 +679,16 @@ noncomputable def quadraticNormTower : StructureTowerMin where
 /-! ### 計算例 -/
 
 example : quadraticNormTower.minLayer (1, 0) = 1 := by
-  simp [quadraticNormTower, normAbs, norm, Int.ofNat_eq_coe, Int.floor_coe]
+  dsimp [quadraticNormTower, normAbs, norm]
+  native_decide
 
 example : quadraticNormTower.minLayer (0, 1) = 2 := by
-  norm_num [quadraticNormTower, normAbs, norm]
+  dsimp [quadraticNormTower, normAbs, norm]
+  native_decide
 
 example : quadraticNormTower.minLayer (3, 2) = 1 := by
-  norm_num [quadraticNormTower, normAbs, norm]
+  dsimp [quadraticNormTower, normAbs, norm]
+  native_decide
 
 end QuadraticFieldNorm
 
