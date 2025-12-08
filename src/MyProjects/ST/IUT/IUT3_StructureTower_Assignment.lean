@@ -656,7 +656,7 @@ end GaloisTheory.GaloisGroupOrder
 
 -- TODO: 以下のセクション（可解拡大以降）は再設計時に段階的に復活させる。
 
-/-!
+/-
 ## 例3：可解拡大の階層
 
 ### IUT1, IUT2からの発展
@@ -746,7 +746,11 @@ end GaloisTheory.GaloisGroupOrder
 
 -/
 
+
 namespace GaloisTheory.SolvableExtensions
+
+-- FiniteGaloisExtension などは前節の namespace で定義しているので開く
+open GaloisTheory.FieldExtensionDegree
 
 /-- 可解列の長さを表す型 -/
 inductive SolvableLength
@@ -797,7 +801,7 @@ def Q_sqrt2_sqrt3_solvable : SolvableGaloisExtension where
 実装上の制約により、ここでは可解長を自然数に制限する。
 無限の場合は別途扱う。
 -/
-
+/-
 /-- 可解長による順序（有限部分のみ） -/
 def solvable_length_to_nat (L : SolvableGaloisExtension) : ℕ :=
   match L.solvable_length with
@@ -839,11 +843,12 @@ example : solvableTower.minLayer Q_sqrt2_solvable = 1 := by
 example : solvableTower.minLayer Q_sqrt2_sqrt3_solvable = 1 := by
   rfl
 
-/-! ### 可解性の理論（概念スケッチのみ）
-※ 詳細証明は後日追加予定。現状は定義と計算例に留める。 -/
+-- ### 可解性の理論（概念スケッチのみ）
+-- ※ 詳細証明は後日追加予定。現状は定義と計算例に留める。
 
 end GaloisTheory.SolvableExtensions
-
+/-
+-/  -- ここまで可解拡大セクション（再設計待ち）
 /-!
 ## 例4：円分拡大の階層（IUT1からの発展）
 
