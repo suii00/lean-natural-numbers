@@ -1575,7 +1575,7 @@ example : ramificationTower.minLayer Q_sqrt2_p3 = 1 := by
 
 example : ramificationTower.minLayer Q_sqrt2_p2 = 2 := by
   rfl  -- 完全分岐
-/-
+
 /-! ### 分岐理論の定理 -/
 
 /-- 基本等式：efg = [K:ℚ] -/
@@ -1746,7 +1746,9 @@ noncomputable def classGroupTower : StructureTowerMin IdealClassData ℕ where
 
   covering := by
     intro data
-    exact ⟨data.class_number, le_refl _⟩
+    refine ⟨data.class_number, ?_⟩
+    change data.class_number ≤ data.class_number
+    exact le_rfl
 
   monotone := by
     intro i j hij data hdata
@@ -1756,7 +1758,8 @@ noncomputable def classGroupTower : StructureTowerMin IdealClassData ℕ where
 
   minLayer_mem := by
     intro data
-    exact le_refl _
+    change data.class_number ≤ data.class_number
+    exact le_rfl
 
   minLayer_minimal := by
     intro data i hi
@@ -1769,7 +1772,7 @@ example : classGroupTower.minLayer Q_class = 1 := by
 
 example : classGroupTower.minLayer Q_sqrt_minus5_class = 2 := by
   rfl
-
+/-
 /-! ### イデアル類群の理論 -/
 
 /-- 類数 1 ⇔ UFD -/
