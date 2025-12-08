@@ -86,6 +86,7 @@ structure HyperbolicCurve where
   punctures : ℕ
   /-- 双曲条件：2g - 2 + n > 0 -/
   hyperbolic : 2 * genus + punctures > 2
+deriving DecidableEq
 
 namespace HyperbolicCurve
 
@@ -121,6 +122,7 @@ structure FiniteCover where
   degree_pos : degree > 0
   /-- 被覆の種数（Riemann-Hurwitzの公式から計算可能） -/
   coverGenus : ℕ
+deriving DecidableEq
 
 namespace FiniteCover
 
@@ -512,6 +514,7 @@ structure RationalPoint where
   logHeight : ℚ
   /-- 高さ > 0 -/
   height_pos : logHeight > 0
+deriving DecidableEq
 
 namespace RationalPoint
 
@@ -556,7 +559,6 @@ structure RationalPointTower where
   minLayer_mem : ∀ P, P.curve = baseCurve → P ∈ layer (minLayer P) := by
     intro P hP
     simp [layer, minLayer, hP]
-    sorry
   /-- minLayer_minimal -/
   minLayer_minimal : ∀ P n, P.curve = baseCurve → P ∈ layer n →
     minLayer P ≤ n := by
