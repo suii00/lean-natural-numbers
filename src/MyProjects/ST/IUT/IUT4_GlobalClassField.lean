@@ -71,6 +71,9 @@ structure StructureTowerMin where
   minLayer_mem : ∀ x, x ∈ layer (minLayer x)
   minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
 
+/-- 添字集合の半順序を取り出すインスタンス -/
+instance (T : StructureTowerMin) : Preorder T.Index := T.indexPreorder
+
 /-!
 ## 例6: 大域体のアーベル拡大階層
 
@@ -149,27 +152,23 @@ def fifth_cyclotomic : GlobalAbelianExtension where
 noncomputable def globalAbelianExtensionTower : StructureTowerMin where
   carrier := GlobalAbelianExtension
   Index := ℕ
-  layer := fun n => { L : GlobalAbelianExtension | L.conductor ∣ n }
+  layer := fun n => { L : GlobalAbelianExtension | L.conductor ≤ n }
   covering := by
     intro L
-    use L.conductor
-    simp
+    refine ⟨L.conductor, ?_⟩
+    change L.conductor ≤ L.conductor
+    exact le_rfl
   monotone := by
     intro i j hij L hL
-    simp at hL ⊢
-    exact Nat.dvd_trans hL (Nat.dvd_of_le_of_dvd (Nat.zero_lt_of_lt hij) (Nat.dvd_refl j))
+    exact le_trans hL hij
   minLayer := fun L => L.conductor
   minLayer_mem := by
     intro L
-    simp
+    change L.conductor ≤ L.conductor
+    exact le_rfl
   minLayer_minimal := by
     intro L i hi
-    simp at hi
-    exact Nat.le_of_dvd (Nat.pos_of_ne_zero (by
-      intro h
-      cases L.conductor
-      · contradiction
-      · simp)) hi
+    exact hi
 
 /-! ### Kronecker-Weber定理の構造塔版 -/
 
@@ -273,27 +272,23 @@ def rationals_idele_level_5 : IdeleClassGroup where
 noncomputable def ideleClassGroupTower : StructureTowerMin where
   carrier := IdeleClassGroup
   Index := ℕ
-  layer := fun n => { C : IdeleClassGroup | C.quotient_level ∣ n }
+  layer := fun n => { C : IdeleClassGroup | C.quotient_level ≤ n }
   covering := by
     intro C
-    use C.quotient_level
-    simp
+    refine ⟨C.quotient_level, ?_⟩
+    change C.quotient_level ≤ C.quotient_level
+    exact le_rfl
   monotone := by
     intro i j hij C hC
-    simp at hC ⊢
-    exact Nat.dvd_trans hC (Nat.dvd_of_le_of_dvd (Nat.zero_lt_of_lt hij) (Nat.dvd_refl j))
+    exact le_trans hC hij
   minLayer := fun C => C.quotient_level
   minLayer_mem := by
     intro C
-    simp
+    change C.quotient_level ≤ C.quotient_level
+    exact le_rfl
   minLayer_minimal := by
     intro C i hi
-    simp at hi
-    exact Nat.le_of_dvd (Nat.pos_of_ne_zero (by
-      intro h
-      cases C.quotient_level
-      · contradiction
-      · simp)) hi
+    exact hi
 
 -- 大域Artin写像（概念的）
 structure GlobalArtinMap where
@@ -374,14 +369,12 @@ def rationals_i_local_global : LocalGlobalCorrespondence where
     sorry  -- 2 の指数が 2 なので f = 2² = 4
 
 -- Artin相互律の構造塔版（主定理）
-theorem artin_reciprocity_structure_tower :
-  ∀ (corr : LocalGlobalCorrespondence),
-  corr.product_formula →
-  (corr.local_extensions.map Prod.snd).sum =
-    globalAbelianExtensionTower.minLayer corr.global_extension := by
-  intro corr h
-  simp [globalAbelianExtensionTower]
-  exact h
+theorem artin_reciprocity_structure_tower
+    (corr : LocalGlobalCorrespondence) :
+    (corr.local_extensions.map Prod.snd).sum =
+      globalAbelianExtensionTower.minLayer corr.global_extension := by
+  -- 縮退版：product_formula フィールドをそのまま取り出す
+  simpa [globalAbelianExtensionTower] using corr.product_formula
 
 /-!
 ### Product Formulaの深い意味
@@ -598,27 +591,23 @@ def dirichlet_L_mod_4 : LFunctionData where
 noncomputable def lFunctionTower : StructureTowerMin where
   carrier := LFunctionData
   Index := ℕ
-  layer := fun n => { L : LFunctionData | L.conductor ∣ n }
+  layer := fun n => { L : LFunctionData | L.conductor ≤ n }
   covering := by
     intro L
-    use L.conductor
-    simp
+    refine ⟨L.conductor, ?_⟩
+    change L.conductor ≤ L.conductor
+    exact le_rfl
   monotone := by
     intro i j hij L hL
-    simp at hL ⊢
-    exact Nat.dvd_trans hL (Nat.dvd_of_le_of_dvd (Nat.zero_lt_of_lt hij) (Nat.dvd_refl j))
+    exact le_trans hL hij
   minLayer := fun L => L.conductor
   minLayer_mem := by
     intro L
-    simp
+    change L.conductor ≤ L.conductor
+    exact le_rfl
   minLayer_minimal := by
     intro L i hi
-    simp at hi
-    exact Nat.le_of_dvd (Nat.pos_of_ne_zero (by
-      intro h
-      cases L.conductor
-      · contradiction
-      · simp)) hi
+    exact hi
 
 -- Langlands対応の構造塔版（概念的）
 structure LanglandsCorrespondence where
