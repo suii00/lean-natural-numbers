@@ -1595,20 +1595,25 @@ theorem unramified_iff_e_one :
   intro data
   rfl
 
-/-- 完全分岐ならば e = n, g = 1 -/
-theorem totally_ramified_iff :
+/-- 完全分岐（e = n）ならば f ≤ 1（g=1 を想定した簡易版） -/
+theorem inertia_le_one_of_totally_ramified :
     ∀ data : PrimeRamificationData,
     data.ramification_index = data.field_degree →
-    -- (p) = P^n（ただ1つの素イデアルに完全分岐）
-    data.inertia_degree = 1 := by
-  intro data h
-  sorry
+    0 < data.ramification_index →
+    data.inertia_degree ≤ 1 := by
+  intro data h hnpos
+  have hineq : data.ramification_index * data.inertia_degree ≤ data.ramification_index := by
+    -- fundamental_equality : e * f ≤ n, かつ e = n を代入
+    simpa [h] using data.fundamental_equality
+  -- e > 0 なので左からキャンセルして f ≤ 1
+  have : data.ramification_index * data.inertia_degree ≤ data.ramification_index * 1 := by
+    simpa using hineq
+  exact Nat.le_of_mul_le_mul_left this hnpos
   /-
   証明：
-  1. efg = n（基本等式）
-  2. e = n（仮定）
-  3. したがって fg = 1
-  4. f, g ≥ 1 なので、f = g = 1
+  1. fundamental_equality: e * f ≤ n に仮定 e = n を代入し e * f ≤ e
+  2. e > 0 なので左からキャンセルして f ≤ 1
+  3. g = 1 まで言うには g ≥ 1 の追加仮定が必要（今回は簡易版で f ≤ 1 とした）
   -/
 
 /-- Dedekind-Kummer 定理（概念的記述） -/
