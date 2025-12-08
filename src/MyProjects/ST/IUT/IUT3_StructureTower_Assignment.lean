@@ -1772,7 +1772,7 @@ example : classGroupTower.minLayer Q_class = 1 := by
 
 example : classGroupTower.minLayer Q_sqrt_minus5_class = 2 := by
   rfl
-/-
+
 /-! ### イデアル類群の理論 -/
 
 /-- 類数 1 ⇔ UFD -/
@@ -1947,7 +1947,9 @@ noncomputable def localFieldTower : StructureTowerMin PadicExtension ℕ where
 
   covering := by
     intro K
-    exact ⟨K.degree, le_refl _⟩
+    refine ⟨K.degree, ?_⟩
+    change K.degree ≤ K.degree
+    exact le_rfl
 
   monotone := by
     intro i j hij K hK
@@ -1957,7 +1959,8 @@ noncomputable def localFieldTower : StructureTowerMin PadicExtension ℕ where
 
   minLayer_mem := by
     intro K
-    exact le_refl _
+    change K.degree ≤ K.degree
+    exact le_rfl
 
   minLayer_minimal := by
     intro K i hi
@@ -1970,7 +1973,7 @@ example (p : ℕ) : localFieldTower.minLayer (Qp_trivial p) = 1 := by
 
 example (p : ℕ) : localFieldTower.minLayer (Qp_sqrt_p p) = 2 := by
   rfl
-
+/-
 /-! ### 局所体の理論 -/
 
 /-- ef = n の基本等式 -/
