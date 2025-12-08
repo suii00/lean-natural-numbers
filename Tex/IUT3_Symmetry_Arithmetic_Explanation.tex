@@ -1,0 +1,215 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% --- パッケージの読み込み ---
+\usepackage{amsmath, amssymb, amsthm, mathrsfs}
+\usepackage{luatexja}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, backgrounds, positioning, calc, arrows.meta, fit, patterns, trees, graphs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{multicol}
+
+% --- ハイパーリンク設定 ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+
+% --- マクロ定義 ---
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\Gal}{\mathrm{Gal}}
+\newcommand{\Oint}{\mathcal{O}}
+\newcommand{\Carrier}{\mathcal{X}}
+\newcommand{\Layer}[1]{\mathrm{Layer}_{#1}}
+\newcommand{\MinLayer}{\mathrm{minLayer}}
+
+% --- タイトル情報 ---
+\title{\textbf{対称性と算術の構造塔：IUT理論への代数的アプローチ} \\ \large --- ガロア理論・代数的整数論の形式化と解説 ---}
+\author{
+    Lean Code Generation: \textbf{CODEX (OpenAI)} \\
+    TeX Explanation \& Typesetting: \textbf{Gemini (Google)}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4ファイル \texttt{IUT3\_StructureTower\_Assignment.md} およびその縮退版 \texttt{\_Degenerate.md} に基づき、ガロア理論と代数的整数論における階層構造（拡大次数、ガロア群、分岐、単数群など）を「構造塔 (Structure Tower)」として統一的に理解する手法について解説する。特に、ガロアの基本定理や類体論といった大定理を「ラッパー構造体」を用いて形式化する手法に着目し、これらがIUT理論における「対称性の宇宙際化」といかに関連するかを俯瞰する。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =========================================================================
+% Section 1: IUT3の全体像
+% =========================================================================
+\section{IUT3：対称性と算術の統合}
+
+IUT（宇宙際タイヒミュラー）理論の学習カリキュラムにおいて、IUT3は「対称性」と「算術」の統合をテーマとしている。
+
+\begin{table}[h]
+\centering
+\caption{構造塔による視点の深化}
+\begin{tabular}{lclcl}
+\toprule
+\textbf{段階} & \textbf{対象} & \textbf{minLayerの意味} & \textbf{主要概念} \\ \midrule
+IUT1 & 数論 & 素因数個数, 拡大次数 & 数の複雑さ \\
+IUT2 & 幾何 & 次元, 高さ & 空間の広がり \\
+\textbf{IUT3} & \textbf{代数} & \textbf{群の位数, 分岐指数} & \textbf{対称性と構造} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+IUT3における構造塔は、単なる「大きさ」の比較を超えて、ガロア群による\textbf{「対称性の構造」}や、素イデアル分解による\textbf{「算術的な構造」}を階層化するツールとして用いられる。
+
+% =========================================================================
+% Section 2: ガロア理論の構造塔
+% =========================================================================
+\section{ガロア理論：対称性の階層}
+
+ガロア理論の中心は、体の拡大 $L/K$ とその自己同型群 $\Gal(L/K)$ の間の双対性にある。
+
+\subsection{ガロア拡大の次数階層}
+有限ガロア拡大 $L/\Q$ を、その拡大次数（＝ガロア群の位数）で階層化する。
+\[ \MinLayer(L) = [L:\Q] = |\Gal(L/\Q)| \]
+
+例えば、$\Q(\sqrt{2}, \sqrt{3})$ の構造塔における位置付けは以下のようになる。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=1.5cm]
+    \node (Q) {$\Q$ ($\Layer{1}$)};
+    \node (Q2) [above left=of Q] {$\Q(\sqrt{2})$};
+    \node (Q3) [above=of Q] {$\Q(\sqrt{3})$};
+    \node (Q6) [above right=of Q] {$\Q(\sqrt{6})$};
+    \node (L) [above=of Q3] {$\Q(\sqrt{2}, \sqrt{3})$ ($\Layer{4}$)};
+
+    \draw (Q) -- (Q2);
+    \draw (Q) -- (Q3);
+    \draw (Q) -- (Q6);
+    \draw (Q2) -- (L);
+    \draw (Q3) -- (L);
+    \draw (Q6) -- (L);
+    
+    \node [right=0.5cm of L] {$\Gal \cong V_4$ (Klein四元群)};
+    \node [right=0.5cm of Q6] {$\Gal \cong \Z/2\Z$};
+\end{tikzpicture}
+\caption{拡大次数の構造塔と中間体の格子}
+\end{figure}
+
+\subsection{ガロアの基本定理の形式化：ラッパー構造体}
+\texttt{\_Degenerate.md} では、ガロアの基本定理のような大定理を証明する代わりに、「定理の主張を型として定義する」\textbf{ラッパー構造体 (Wrapper)} という手法を導入している。
+
+\begin{definition}[基本定理ラッパー（縮退版）]
+構造体 \texttt{FundamentalTheoremWrapper} は以下のフィールドを持つ。
+\begin{itemize}
+    \item \texttt{num\_intermediate\_fields}: 中間体の個数
+    \item \texttt{num\_subgroups}: 部分群の個数
+    \item \texttt{bijection\_degenerate}: 両者が等しいことの証明 ($=$)
+\end{itemize}
+これにより、完全な圏同値の証明を回避しつつ、定理の核心である「1対1対応」を計算可能な形で保持する。
+\end{definition}
+
+\subsection{可解拡大とAbel-Ruffiniの定理}
+「方程式が代数的に解けるか」という問いは、ガロア群が「可解群」であるかという問いに帰着される。
+構造塔では、可解群の派生列の長さをランクとする。
+\[ \MinLayer(L) = \text{可解列の長さ} \]
+対称群 $S_5$ など、可解でない群に対応する拡大は、この塔の「無限遠（あるいは定義域外）」に追いやられる。これが Abel-Ruffini の定理（5次以上の方程式の不可解性）の構造的解釈である。
+
+% =========================================================================
+% Section 3: 代数的整数論の構造塔
+% =========================================================================
+\section{代数的整数論：分岐と単数の階層}
+
+数体 $K$ の整数環 $\Oint_K$ における素イデアルの振る舞いや単数群の構造を扱う。
+
+\subsection{分岐理論 (Ramification)}
+素数 $p$ が $K$ でどのように分解するかを、分岐指数 $e$ で階層化する。
+\[ p\Oint_K = \mathfrak{p}_1^{e_1} \dots \mathfrak{p}_g^{e_g} \]
+$\MinLayer = e_i$ と置くことで、不分岐拡大 ($e=1$) を「単純な層」、完全分岐拡大 ($e=n$) を「深い層」として分類できる。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+    % Unramified
+    \draw (0,0) circle (0.5) node {$p$};
+    \draw[->] (0, 0.6) -- (-1, 1.5);
+    \draw[->] (0, 0.6) -- (1, 1.5);
+    \node at (-1, 1.8) {$\mathfrak{p}_1$};
+    \node at (1, 1.8) {$\mathfrak{p}_2$};
+    \node[below] at (0, -0.6) {分解 ($e=1, g=2$)};
+
+    % Ramified
+    \begin{scope}[xshift=4cm]
+    \draw (0,0) circle (0.5) node {$p$};
+    \draw[->] (0, 0.6) -- (0, 1.5);
+    \node at (0, 1.8) {$\mathfrak{p}^2$};
+    \node[below] at (0, -0.6) {分岐 ($e=2, g=1$)};
+    \end{scope}
+\end{tikzpicture}
+\caption{素イデアルの分解と分岐。分岐は「幾何学的な特異点」に対応する。}
+\end{figure}
+
+\subsection{Dedekind-Kummer の定理}
+多項式 $f(x) \pmod p$ の因数分解と、素イデアルの分解が対応するという定理。
+これもラッパー構造体により、「多項式の分解パターン」と「イデアルの分解データ」の一致として実装される。
+
+\subsection{Dirichletの単数定理}
+単数群 $\Oint_K^\times$ のランク（自由度）は、体の埋め込みの数で決まる。
+\[ \text{rank}(\Oint_K^\times) = r_1 + r_2 - 1 \]
+構造塔において、このランクは「乗法的な自由度」を表す。$\Q$ (ランク0) や虚二次体 (ランク0) は層0に、実二次体 (ランク1) は層1に位置する。
+
+% =========================================================================
+% Section 4: 局所大域原理
+% =========================================================================
+\section{局所大域原理 (Hasse Principle)}
+
+数論における強力な手法である「局所大域原理」を、構造塔の間の関係として捉える。
+
+\begin{itemize}
+    \item \textbf{局所構造塔}: 各素数 $p$ ごとの $p$進体 $\Q_p$ 上の構造。
+    \item \textbf{大域構造塔}: 有理数体 $\Q$ 上の構造。
+\end{itemize}
+
+Hasse-Minkowskiの定理（2次形式の可解性）は、すべての局所構造塔での可解性が、大域構造塔での可解性を保証するという原理である。
+これはIUT理論において、局所的な宇宙（テアトル）の同期から大域的な結論を導く論理の原型となる。
+
+% =========================================================================
+% Section 5: IUT理論への展望
+% =========================================================================
+\section{IUT理論への橋渡し：対称性の宇宙際化}
+
+本課題の構造塔は、望月新一のIUT理論における以下の概念のモデルとなる。
+
+\subsection{ガロア群と多重宇宙}
+通常、ガロア群 $G$ は1つの体 $K$ の内部対称性として扱われる。しかしIUT理論では、異なる「宇宙」を用意し、それらをガロア群の作用と見なして繋ぐ（あるいは区別する）という視点をとる。
+構造塔の各層 $\Layer{n}$ は、ある固定された対称性を持つ「部分宇宙」に対応し、層の移動は宇宙間の変形（\textbf{$\Theta$-link}）に対応する。
+
+\subsection{復元と剛性}
+ガロア群や基本群から元の幾何的対象を復元できるか、という「遠アーベル幾何」の問いは、構造塔においては「$\MinLayer$ の情報（群の構造）から、台集合の要素（体や曲線）を一意に特定できるか」という問いに翻訳される。
+
+\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black,title=Group Workの視点]
+「ガロアの基本定理」を単なる定理としてではなく、**「群（対称性）」と「体（情報）」の完全な辞書**として捉え直すこと。この辞書が成り立つ世界（ガロア拡大）と、成り立たない世界（非分離拡大や超越拡大）の境界を見極めることが、数論的幾何学の勘所である。
+\end{tcolorbox}
+
+\end{document}

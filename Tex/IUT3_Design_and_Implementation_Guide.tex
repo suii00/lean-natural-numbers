@@ -1,0 +1,205 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% --- パッケージの読み込み ---
+\usepackage{amsmath, amssymb, amsthm, mathrsfs}
+\usepackage{luatexja}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, backgrounds, positioning, calc, arrows.meta, fit, patterns, trees}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{multicol}
+
+% --- コード設定 ---
+\lstset{
+    language=Caml, % Leanに近い色分けのため
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{purple},
+    numbers=left,
+    frame=single,
+    breaklines=true,
+    captionpos=b
+}
+
+% --- ハイパーリンク設定 ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{example}{実装例}[section]
+\newtheorem{remark}{実装ノート}[section]
+
+% --- マクロ定義 ---
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Gal}{\mathrm{Gal}}
+\newcommand{\Oint}{\mathcal{O}}
+\newcommand{\MinLayer}{\mathrm{minLayer}}
+
+% --- タイトル情報 ---
+\title{\textbf{構造塔による数論的構造の設計と実装計画} \\ \large --- 教育用縮退モデルとしての IUT3 ---}
+\author{
+    Lean Code Generation: \textbf{CODEX (OpenAI)} \\
+    TeX Explanation \& Typesetting: \textbf{Gemini (Google)}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4ファイル \texttt{IUT3\_StructureTower\_Assignment.md} および \texttt{\_Degenerate.md} で提示されたコードを、数論的構造の「縮退モデル（Degenerate Models）」として解説する。これらは完全な数学的証明を含むものではなく、ガロア理論や代数的整数論の大定理が構造塔の枠組みでどのように記述されるべきかを示した「設計図」である。特に、定理の主張を保持するラッパー構造体の役割と、将来的にMathlibの定理と接続する際に証明（sorry）が必要となる箇所について詳述する。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =========================================================================
+% Section 1: 縮退モデルの意図
+% =========================================================================
+\section{縮退モデルと設計図としてのコード}
+
+本課題のコードは、数学的な厳密性を犠牲にして、**構造の俯瞰**と**教育的直観**を優先した「縮退モデル」である。
+
+\subsection{縮退モデル (Degenerate Model) とは}
+通常の数学的形式化では、定義の直後に定理とその証明が続く。しかし、ガロア理論のような高度な理論では、証明の細部に立ち入る前に「全体としてどのような構造をしているか」を理解することが重要である。
+
+そこで本コードでは、以下の手法を採用している。
+\begin{itemize}
+    \item **定義の簡略化**: 例えばガロア拡大を、単に「拡大次数と群の位数が一致するデータ」として定義する。
+    \item **定理のフィールド化**: 定理を「証明すべき命題」ではなく、構造体の「フィールド（データ）」として持たせる。
+    \item **等式の縮退**: 圏同値や同型を、自然数レベルの等式（個数の一致など）に縮退させて表現する。
+\end{itemize}
+
+\subsection{構造塔による統一}
+全ての例は「構造塔 (Structure Tower)」という共通のインターフェースを持つ。
+\[ \MinLayer(x) = \text{対象 } x \text{ の複雑さ（次数、ランク、分岐指数など）} \]
+これにより、異なる分野（群論、体論、環論）の概念を同一の尺度で比較・実装することが可能となる。
+
+% =========================================================================
+% Section 2: ガロア理論の実装設計
+% =========================================================================
+\section{ガロア理論：基本定理の設計}
+
+\subsection{ガロア拡大の構造塔}
+ファイル内では、有限ガロア拡大 $L/\Q$ を構造塔の要素としている。
+\begin{lstlisting}[caption=ガロア拡大の定義（縮退版）]
+structure FiniteGaloisExtension where
+  carrier : Type*
+  degree : ℕ
+  galois_group_order : ℕ
+  -- ガロア拡大の定義性質を等式として保持
+  galois_condition : galois_group_order = degree
+\end{lstlisting}
+
+\begin{remark}[Mathlibとの接続]
+将来的にMathlibと接続する場合、この構造体は以下のように置換されるべきである。
+\begin{lstlisting}
+variable (K L : Type*) [Field K] [Field L] [Algebra K L]
+-- ガロア拡大のクラスインスタンスを要求
+[IsGalois K L] [FiniteDimensional K L]
+\end{lstlisting}
+そして、`minLayer` は `FiniteDimensional.finrank K L` として定義される。
+\end{remark}
+
+\subsection{ガロアの基本定理ラッパー}
+ガロアの基本定理（中間体と部分群の反変同値）は、以下のラッパー構造体で表現されている。
+
+\begin{lstlisting}[caption=基本定理ラッパー]
+structure FundamentalTheoremWrapper (L_degree : ℕ) where
+  num_intermediate_fields : ℕ
+  num_subgroups : ℕ
+  -- 圏同値の影（個数の一致）のみを保持
+  bijection_degenerate : num_intermediate_fields = num_subgroups
+\end{lstlisting}
+
+これは「定理の証明」ではなく、「定理が成り立つ世界」の仕様記述である。完全な実装を行う場合、このラッパーは以下の定理に置き換わる。
+
+\begin{tcolorbox}[title=将来の実装目標 (To Be Proved)]
+\[ \text{IntermediateField } K \ L \simeq (\text{Subgroup } (\Gal(L/K)))^{\text{op}} \]
+証明には、ガロア対応の全単射性 (`Set.Bijection` や `Equiv`) を構築する必要があり、ここが最大の `sorry` ポイントとなる。
+\end{tcolorbox}
+
+% =========================================================================
+% Section 3: 代数的整数論の実装設計
+% =========================================================================
+\section{代数的整数論：分岐と類体の設計}
+
+\subsection{分岐理論 (Dedekind-Kummer)}
+素イデアル分解の様子を、リストのデータとして保持する設計となっている。
+
+\begin{lstlisting}[caption=分岐データ]
+structure PrimeRamificationData where
+  ramification_index : ℕ -- e
+  inertia_degree : ℕ     -- f
+  -- 基本等式の整合性をチェック
+  fundamental_equality : e * f <= n
+\end{lstlisting}
+
+この構造体は、具体的な数体（例：$\Q(\sqrt{2})$）における素数の分解パターンを「テストケース」として記述するために用いられる。実際の証明では、イデアルの分解一意性と、剰余環 $\Oint_K/\mathfrak{p}$ の構造解析が必要となる。
+
+\subsection{Dirichletの単数定理}
+単数群のランク $r$ が $r_1 + r_2 - 1$ に等しいという定理も、同様にラッパーのフィールドとして与えられている。
+
+\begin{remark}[構造塔の無限性]
+単数群のランクが $r > 0$ の場合（例：実二次体）、単数群は無限群となる。構造塔の視点では、これは基本単数 $\epsilon$ のべき乗 $\epsilon^n$ によって、高さ（ノルムの対数など）が無限に伸びていく塔として解釈できる。
+\begin{center}
+\begin{tikzpicture}
+    \draw[->] (0,0) -- (0,3) node[above] {Height (Log Norm)};
+    \foreach \y in {0.5, 1.0, 1.5, 2.0, 2.5} {
+        \draw (-0.1, \y) -- (0.1, \y);
+    }
+    \node[right] at (0.1, 0.5) {$\epsilon^1$};
+    \node[right] at (0.1, 1.0) {$\epsilon^2$};
+    \node[right] at (0.1, 1.5) {$\epsilon^3$};
+    \node at (2, 1.5) {$\dots$ 無限に続く層};
+\end{tikzpicture}
+\end{center}
+\end{remark}
+
+% =========================================================================
+% Section 4: 実装ロードマップ
+% =========================================================================
+\section{Mathlib接続へのロードマップ}
+
+現在の「縮退モデル」から「完全な形式化」へ移行するために、具体的にどこに手を加えるべきかを整理する。
+
+\subsection{ステップ1: 型の置換}
+現在の `carrier : Type` を、Mathlibの型クラスに置き換える。
+\begin{itemize}
+    \item `FiniteGaloisExtension` $\to$ `[Field K] [Field L] [IsGalois K L]`
+    \item `NumberField` $\to$ `[NumberField K]`
+    \item `PrimeRamificationData` $\to$ `Ideal.ramificationIdx` 等の関数
+\end{itemize}
+
+\subsection{ステップ2: 定理の証明 (sorry の解消)}
+ラッパー内の等式フィールド（例: `bijection_degenerate`）を削除し、独立した `theorem` として定義する。証明の中身は当初 `sorry` とし、Mathlib のライブラリ検索 (`apply?` 等) を用いて埋めていく。
+
+\subsection{ステップ3: 構造塔への埋め込み}
+Mathlib の対象を `StructureTowerMin` のインスタンスにする。
+\begin{lstlisting}
+noncomputable instance : StructureTowerMin (IntermediateField K L) ℕ where
+  minLayer E := FiniteDimensional.finrank K E
+  ...
+\end{lstlisting}
+ここで `covering` や `monotone` の証明には、部分体の性質（次数が有限であること、包含関係が推移的であること）を用いる。
+
+\section{結論}
+
+本稿で解説したファイル群は、最終的な定理証明の前段階として、\textbf{「どのような数論的対象を、どの指標（minLayer）で階層化するか」}という概念設計をコードとして表現したものである。
+ラッパー構造体を用いた手法は、形式化の初期段階において、定理の全体像を見失わずに仕様を固めるための有効な（しかし一時的な）足場として機能する。
+
+\end{document}
