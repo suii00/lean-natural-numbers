@@ -350,10 +350,11 @@ theorem layer_zero_generic :
     | prime n =>
         -- ht((n)) = 1 > 0 なので矛盾
         change idealHeight (IntPrimeIdeal.prime n) ≤ 0 at hp
-        simp [idealHeight] at hp
+        have h' : (1 : ℕ) ≤ 0 := by simpa [idealHeight] using hp
+        cases h'
   · intro hp
     rcases hp with rfl
-    simp [idealHeight]
+    simp [specZTower, idealHeight]
   /-
   幾何的証明アイデア:
   1. Spec(ℤ) において、唯一の高さ0の素イデアルは (0)
@@ -368,16 +369,11 @@ theorem layer_zero_generic :
 Spec(ℤ) のすべての点は高さ ≤ 1 なので、
 layer 1 = Spec(ℤ) 全体
 -/
-theorem layer_one_全体 :
+-- Lean の環境によっては日本語識別子が扱いづらい場合があるので ASCII 名に変更
+theorem layer_one_all :
     ∀ p : IntPrimeIdeal, p ∈ specZTower.layer 1 := by
   intro p
-  cases p with
-  | zero =>
-      -- membership reduces to 0 ≤ 1
-      simp [specZTower, idealHeight]
-  | prime n =>
-      -- membership reduces to 1 ≤ 1
-      simp [specZTower, idealHeight]
+  cases p <;> simp [specZTower, idealHeight]
   /-
   幾何的証明アイデア:
   1. Spec(ℤ) の次元は 1（Hartshorne I.1）
@@ -490,13 +486,19 @@ def localizationTower : StructureTowerMin where
   covering := by
     intro R
     refine ⟨localizationDepth R, ?_⟩
+    change localizationDepth R ≤ localizationDepth R
     exact le_rfl
   monotone := by
     intro i j hij R hR
     exact le_trans hR hij
   minLayer := localizationDepth
-  minLayer_mem := by intro R; dsimp; exact le_rfl
-  minLayer_minimal := by intro R i hR; exact hR
+  minLayer_mem := by
+    intro R
+    change localizationDepth R ≤ localizationDepth R
+    exact le_rfl
+  minLayer_minimal := by
+    intro R i hR
+    exact hR
 
 /-! ### 計算例 -/
 
@@ -605,8 +607,13 @@ def krullTower : StructureTowerMin where
     change chainLength c ≤ j
     exact le_trans hc hij
   minLayer := chainLength
-  minLayer_mem := by intro c; change chainLength c ≤ chainLength c; exact le_rfl
-  minLayer_minimal := by intro c i hc; exact hc
+  minLayer_mem := by
+    intro c
+    change chainLength c ≤ chainLength c
+    exact le_rfl
+  minLayer_minimal := by
+    intro c i hc
+    exact hc
 
 
 example : krullTower.minLayer IdealChain.trivial = 0 := rfl
@@ -639,7 +646,7 @@ Spec(S) → Spec(R) は「有限射」
 - **layer n**: 深さ ≤ n の拡大
 - **minLayer(S/R)**: 拡大の「段階数」
 -/
-/-
+
 namespace IntegralExtension
 
 /-- 整拡大の階層（簡略版）
@@ -676,19 +683,23 @@ def integralTower : StructureTowerMin where
   covering := by
     intro e
     refine ⟨extensionDepth e, ?_⟩
+    change extensionDepth e ≤ extensionDepth e
     exact le_rfl
   monotone := by
     intro i j hij e he
     exact le_trans he hij
   minLayer := extensionDepth
-  minLayer_mem := by intro e; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro e
+    change extensionDepth e ≤ extensionDepth e
+    exact le_rfl
   minLayer_minimal := by intro e i he; exact he
 
 example : integralTower.minLayer IntExt.base = 0 := rfl
 example : integralTower.minLayer IntExt.quadratic = 1 := rfl
 
 end IntegralExtension
-/-
+
 /-!
 # Part 2: 代数曲線の構造塔
 
@@ -696,7 +707,7 @@ end IntegralExtension
 「方程式 = 曲線」の対応が鍵。
 -/
 
-/-!
+/-
 ## 例5：アフィン曲線上の点の高さ
 
 ### IUT1からの発展
@@ -727,13 +738,6 @@ h(P) は点 P の「複雑さ」を測る
 **幾何的意味**:
 - layer 0: 簡単な点（整数座標など）
 - layer n: 複雑な点（大きな分母）
-
-### IUT理論への展望
-
-点の高さは、Hodge-Arakelov 理論の基礎。
-IUT では「高さの変形」が中核。
-
-参照: IUT III, §3, "heights"
 -/
 
 namespace AffineCurveHeight
@@ -778,13 +782,19 @@ def curveHeightTower : StructureTowerMin where
   covering := by
     intro P
     refine ⟨pointHeight P, ?_⟩
+    change pointHeight P ≤ pointHeight P
     exact le_rfl
   monotone := by
     intro i j hij P hP
     exact le_trans hP hij
   minLayer := pointHeight
-  minLayer_mem := by intro P; dsimp; exact le_rfl
-  minLayer_minimal := by intro P i hP; exact hP
+  minLayer_mem := by
+    intro P
+    change pointHeight P ≤ pointHeight P
+    exact le_rfl
+  minLayer_minimal := by
+    intro P i hP
+    exact hP
 
 example : curveHeightTower.minLayer RationalPoint.origin = 0 := rfl
 example : curveHeightTower.minLayer RationalPoint.simple = 1 := rfl
@@ -871,12 +881,16 @@ def projectiveCurveTower : StructureTowerMin where
   covering := by
     intro C
     refine ⟨curveDegree C, ?_⟩
+    change curveDegree C ≤ curveDegree C
     exact le_rfl
   monotone := by
     intro i j hij C hC
     exact le_trans hC hij
   minLayer := curveDegree
-  minLayer_mem := by intro C; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro C
+    change curveDegree C ≤ curveDegree C
+    exact le_rfl
   minLayer_minimal := by intro C i hC; exact hC
 
 example : projectiveCurveTower.minLayer ProjectiveCurve.line = 1 := rfl
@@ -963,12 +977,16 @@ def singularityTower : StructureTowerMin where
   covering := by
     intro P
     refine ⟨pointMultiplicity P, ?_⟩
+    change pointMultiplicity P ≤ pointMultiplicity P
     exact le_rfl
   monotone := by
     intro i j hij P hP
     exact le_trans hP hij
   minLayer := pointMultiplicity
-  minLayer_mem := by intro P; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro P
+    change pointMultiplicity P ≤ pointMultiplicity P
+    exact le_rfl
   minLayer_minimal := by intro P i hP; exact hP
 
 example : singularityTower.minLayer CurvePoint.smooth = 1 := rfl
@@ -1051,12 +1069,16 @@ def divisorTower : StructureTowerMin where
   covering := by
     intro D
     refine ⟨divisorDegree D, ?_⟩
+    change divisorDegree D ≤ divisorDegree D
     exact le_rfl
   monotone := by
     intro i j hij D hD
     exact le_trans hD hij
   minLayer := divisorDegree
-  minLayer_mem := by intro D; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro D
+    change divisorDegree D ≤ divisorDegree D
+    exact le_rfl
   minLayer_minimal := by intro D i hD; exact hD
 
 example : divisorTower.minLayer Divisor.zero = 0 := rfl
@@ -1154,12 +1176,16 @@ def sheafTower : StructureTowerMin where
   covering := by
     intro F
     refine ⟨sheafSupportDim F, ?_⟩
+    change sheafSupportDim F ≤ sheafSupportDim F
     exact le_rfl
   monotone := by
     intro i j hij F hF
     exact le_trans hF hij
   minLayer := sheafSupportDim
-  minLayer_mem := by intro F; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro F
+    change sheafSupportDim F ≤ sheafSupportDim F
+    exact le_rfl
   minLayer_minimal := by intro F i hF; exact hF
 
 example : sheafTower.minLayer CurveSheaf.zero = 0 := rfl
@@ -1226,12 +1252,16 @@ def cohomologyTower : StructureTowerMin where
   covering := by
     intro F
     refine ⟨firstNonzeroCoh F, ?_⟩
+    change firstNonzeroCoh F ≤ firstNonzeroCoh F
     exact le_rfl
   monotone := by
     intro i j hij F hF
     exact le_trans hF hij
   minLayer := firstNonzeroCoh
-  minLayer_mem := by intro F; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro F
+    change firstNonzeroCoh F ≤ firstNonzeroCoh F
+    exact le_rfl
   minLayer_minimal := by intro F i hF; exact hF
 
 example : cohomologyTower.minLayer CohomologicalSheaf.acyclic = 0 := rfl
@@ -1306,12 +1336,16 @@ def etaleTower : StructureTowerMin where
   covering := by
     intro Y
     refine ⟨coverDegree Y, ?_⟩
+    change coverDegree Y ≤ coverDegree Y
     exact le_rfl
   monotone := by
     intro i j hij Y hY
     exact le_trans hY hij
   minLayer := coverDegree
-  minLayer_mem := by intro Y; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro Y
+    change coverDegree Y ≤ coverDegree Y
+    exact le_rfl
   minLayer_minimal := by intro Y i hY; exact hY
 
 example : etaleTower.minLayer EtaleCover.trivial = 1 := rfl
@@ -1400,12 +1434,16 @@ def discriminantTower : StructureTowerMin where
   covering := by
     intro p
     refine ⟨disc2adicVal p, ?_⟩
+    change disc2adicVal p ≤ disc2adicVal p
     exact le_rfl
   monotone := by
     intro i j hij p hp
     exact le_trans hp hij
   minLayer := disc2adicVal
-  minLayer_mem := by intro p; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro p
+    change disc2adicVal p ≤ disc2adicVal p
+    exact le_rfl
   minLayer_minimal := by intro p i hp; exact hp
 
 example : discriminantTower.minLayer WeierstrassParam.smooth = 0 := rfl
@@ -1481,12 +1519,16 @@ def reductionTower : StructureTowerMin where
   covering := by
     intro r
     refine ⟨reductionBadness r, ?_⟩
+    change reductionBadness r ≤ reductionBadness r
     exact le_rfl
   monotone := by
     intro i j hij r hr
     exact le_trans hr hij
   minLayer := reductionBadness
-  minLayer_mem := by intro r; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro r
+    change reductionBadness r ≤ reductionBadness r
+    exact le_rfl
   minLayer_minimal := by intro r i hr; exact hr
 
 example : reductionTower.minLayer ReductionType.good = 0 := rfl
@@ -1576,12 +1618,16 @@ def mordellWeilTower : StructureTowerMin where
   covering := by
     intro E
     refine ⟨mwRank E, ?_⟩
+    change mwRank E ≤ mwRank E
     exact le_rfl
   monotone := by
     intro i j hij E hE
     exact le_trans hE hij
   minLayer := mwRank
-  minLayer_mem := by intro E; dsimp; exact le_rfl
+  minLayer_mem := by
+    intro E
+    change mwRank E ≤ mwRank E
+    exact le_rfl
   minLayer_minimal := by intro E i hE; exact hE
 
 example : mordellWeilTower.minLayer EllipticCurveByRank.rank0 = 0 := rfl
@@ -1709,7 +1755,5 @@ end AlgebraicGeometry
 - RankTower.lean（ランク関数との対応）
 - Closure_Basic.lean（閉包作用素の視点）
 - Martingale_StructureTower.lean（確率論への応用）
-
--/
 
 -/
