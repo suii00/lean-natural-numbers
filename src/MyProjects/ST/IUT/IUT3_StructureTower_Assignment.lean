@@ -1201,7 +1201,7 @@ noncomputable def separableTower : StructureTowerMin SeparableExtension ℕ wher
     exact hi
 
 /-! ### 完全体の理論 -/
-/-
+
 /-- 標数 0 の体上では、すべての拡大が分離的 -/
 theorem char_zero_always_separable :
     ∀ L : SeparableExtension,
@@ -1362,7 +1362,10 @@ noncomputable def integralExtensionTower : StructureTowerMin NumberField ℕ whe
 
   covering := by
     intro K
-    exact ⟨K.ring_rank, le_refl _⟩
+    refine ⟨K.ring_rank, ?_⟩
+    -- 層の定義を展開して自明な反射律で閉じる
+    change K.ring_rank ≤ K.ring_rank
+    exact le_rfl
 
   monotone := by
     intro i j hij K hK
@@ -1372,7 +1375,8 @@ noncomputable def integralExtensionTower : StructureTowerMin NumberField ℕ whe
 
   minLayer_mem := by
     intro K
-    exact le_refl _
+    change K.ring_rank ≤ K.ring_rank
+    exact le_rfl
 
   minLayer_minimal := by
     intro K i hi
@@ -1387,7 +1391,7 @@ example : integralExtensionTower.minLayer Q_sqrt2_field = 2 := by
   rfl
 
 /-! ### 整数環の理論 -/
-
+/-
 /-- 整数環の階数は拡大次数と等しい -/
 theorem ring_rank_eq_field_degree :
     ∀ K : NumberField,
