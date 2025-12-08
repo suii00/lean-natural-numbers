@@ -171,6 +171,9 @@ structure StructureTowerMin where
   /-- minLayer x は最小 -/
   minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
 
+/-- 添字集合の半順序を取り出すインスタンス -/
+instance (T : StructureTowerMin) : Preorder T.Index := T.indexPreorder
+
 /-!
 ### IUT4の新概念：多重宇宙
 
