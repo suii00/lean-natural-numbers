@@ -6,7 +6,7 @@ import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Integral.DominatedConvergence
 import Mathlib.MeasureTheory.Integral.MeanInequalities
 import Mathlib.Analysis.Normed.Operator.BanachSteinhaus
-import Mathlib.Analysis.NormedSpace.HahnBanach.Extension
+import Mathlib.Analysis.Normed.Module.HahnBanach
 import MyProjects.Set.Bourbaki_Lean_Guide
 
 open scoped BigOperators ENNReal Topology
