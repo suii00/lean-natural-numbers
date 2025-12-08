@@ -1070,7 +1070,7 @@ theorem kronecker_weber :
 
 end GaloisTheory.CyclotomicExtensions
 
-/-
+
 /-!
 ## 例5：分離拡大の階層
 
@@ -1180,7 +1180,10 @@ noncomputable def separableTower : StructureTowerMin SeparableExtension ℕ wher
 
   covering := by
     intro L
-    exact ⟨L.separable_degree, le_refl _⟩
+    refine ⟨L.separable_degree, ?_⟩
+    -- 層の定義を展開して自明な反射律で閉じる
+    change L.separable_degree ≤ L.separable_degree
+    exact le_rfl
 
   monotone := by
     intro i j hij L hL
@@ -1190,14 +1193,15 @@ noncomputable def separableTower : StructureTowerMin SeparableExtension ℕ wher
 
   minLayer_mem := by
     intro L
-    exact le_refl _
+    change L.separable_degree ≤ L.separable_degree
+    exact le_rfl
 
   minLayer_minimal := by
     intro L i hi
     exact hi
 
 /-! ### 完全体の理論 -/
-
+/-
 /-- 標数 0 の体上では、すべての拡大が分離的 -/
 theorem char_zero_always_separable :
     ∀ L : SeparableExtension,
