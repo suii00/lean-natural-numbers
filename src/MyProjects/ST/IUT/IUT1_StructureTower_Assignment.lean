@@ -197,7 +197,7 @@ def numDistinctPrimeFactors (n : PosInt) : ℕ :=
 /-- 1の素因数個数は0 -/
 lemma numDistinctPrimeFactors_one :
     numDistinctPrimeFactors ⟨1, Nat.one_pos⟩ = 0 := by
-  sorry
+  native_decide
   /-
   証明戦略：
   1. Nat.primeFactors 1 = ∅（1は素因数を持たない）
@@ -267,22 +267,19 @@ def primeFactorTower : StructureTowerMin where
 
 /-- 例1：1の最小層は0 -/
 example : primeFactorTower.minLayer ⟨1, Nat.one_pos⟩ = 0 := by
-  sorry  -- numDistinctPrimeFactors_one を用いて示せる
+  native_decide
 
 /-- 例2：素数2の最小層は1 -/
 example : primeFactorTower.minLayer ⟨2, by norm_num⟩ = 1 := by
-  sorry
-  -- numDistinctPrimeFactors_prime を使って証明
+  native_decide
 
 /-- 例3：6 = 2 × 3 の最小層は2 -/
 example : primeFactorTower.minLayer ⟨6, by norm_num⟩ = 2 := by
-  sorry
-  -- primeFactors 6 = {2, 3} より card = 2
+  native_decide
 
 /-- 例4：30 = 2 × 3 × 5 の最小層は3 -/
 example : primeFactorTower.minLayer ⟨30, by norm_num⟩ = 3 := by
-  sorry
-  -- primeFactors 30 = {2, 3, 5} より card = 3
+  native_decide
 
 /-! ### 層の構造に関する定理 -/
 
@@ -374,13 +371,11 @@ def numDivisors (n : PosInt) : ℕ :=
 /-! ### 基本補題 -/
 
 lemma numDivisors_one : numDivisors ⟨1, Nat.one_pos⟩ = 1 := by
-  sorry
-  -- divisors 1 = {1} より card = 1
+  simp [numDivisors, Nat.divisors_one]
 
 lemma numDivisors_prime (p : ℕ) (hp : Nat.Prime p) :
     numDivisors ⟨p, hp.pos⟩ = 2 := by
   sorry
-  -- 素数pの約数は1とpのみ
 
 /-- 約数個数による構造塔 -/
 def divisorTower : StructureTowerMin where
@@ -403,10 +398,10 @@ def divisorTower : StructureTowerMin where
 example : divisorTower.minLayer ⟨1, Nat.one_pos⟩ = 1 := by rfl
 
 example : divisorTower.minLayer ⟨6, by norm_num⟩ = 4 := by
-  sorry  -- divisors 6 = {1, 2, 3, 6}
+  native_decide  -- computable finite set
 
 example : divisorTower.minLayer ⟨12, by norm_num⟩ = 6 := by
-  sorry  -- divisors 12 = {1, 2, 3, 4, 6, 12}
+  native_decide
 
 /-! ### 約数関数の性質 -/
 
@@ -516,10 +511,10 @@ def congruenceTower : StructureTowerMin where
 example : congruenceTower.minLayer (1 : ℤ) = 0 := by rfl  -- 奇数
 
 example : congruenceTower.minLayer (2 : ℤ) = 1 := by
-  sorry  -- 2 = 2¹
+  native_decide  -- twoPadicValSimple 2 = 1
 
 example : congruenceTower.minLayer (4 : ℤ) = 2 := by
-  sorry  -- 4 = 2²
+  native_decide  -- twoPadicValSimple 4 = 2
 
 /-! ### 数論的性質 -/
 
