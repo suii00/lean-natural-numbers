@@ -1,0 +1,655 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+
+% LuaLaTeX用パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,shapes,calc}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+% 定理環境の設定
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{corollary}[definition]{系}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% コマンド定義
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\rank}{\mathrm{rank}}
+\newcommand{\minLayer}{\mathrm{minLayer}}
+\DeclareMathOperator{\layer}{layer}
+\DeclareMathOperator{\card}{card}
+
+\title{Rank理論と確率論の統一的理解\\
+{\large 構造塔・停止時間・マルチンゲール}}
+\author{%
+  生成: Claude Code (Anthropic)\\
+  \small Leanコード生成: CODEX (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Leanで形式化されたRank理論と確率論の統一的な枠組みを数学的に解説する。
+構造塔（Structure Tower）とRank関数の双方向対応を基礎として、確率論における停止時間、
+マルチンゲール理論、Optional Stopping定理がRank理論の言葉で自然に記述できることを示す。
+この統一的視点は、Bourbakiの母構造の思想を現代の形式数学と確率論に適用した一例である。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%============================================================================
+\section{Rank Towerと構造塔の理論}
+%============================================================================
+
+\subsection{導入と動機}
+
+構造塔（Structure Tower）は、数学的対象の階層構造を捉える基本的な概念である。
+一方、Rank関数は各要素に「階層レベル」を割り当てる関数である。
+本章では、これら二つの概念が本質的に同等であり、双方向に変換可能であることを示す。
+
+\subsection{基本定義}
+
+\begin{definition}[最小層を持つ構造塔]
+最小層を持つ構造塔（Structure Tower with Minimal Layer）は以下のデータからなる：
+\begin{itemize}
+  \item 台集合 $X$ （carrier）
+  \item 層の族 $\layer_n \subseteq X$ （$n \in \N$）
+  \item 被覆性：$\forall x \in X, \exists n \in \N, x \in \layer_n$
+  \item 単調性：$i \leq j \Rightarrow \layer_i \subseteq \layer_j$
+  \item 最小層関数 $\minLayer : X \to \N$
+  \item 最小性の条件：
+    \begin{itemize}
+      \item $\forall x \in X, x \in \layer_{\minLayer(x)}$
+      \item $\forall x \in X, \forall i \in \N, x \in \layer_i \Rightarrow \minLayer(x) \leq i$
+    \end{itemize}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Rank関数]
+Rank関数とは、写像 $\rho : X \to \N \cup \{\infty\}$ で、被覆性条件
+\[
+\forall x \in X, \exists n \in \N, \rho(x) \leq n
+\]
+を満たすものである。
+\end{definition}
+
+\subsection{双方向対応}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[>=stealth, thick]
+  % 左側：Rank関数
+  \node[draw, rectangle, minimum width=3cm, minimum height=1.5cm] (rank) at (0,0) {Rank関数 $\rho : X \to \N$};
+
+  % 右側：構造塔
+  \node[draw, rectangle, minimum width=3cm, minimum height=1.5cm] (tower) at (7,0) {構造塔 $(X, \{\layer_n\})$};
+
+  % 矢印
+  \draw[->] (rank.north) to[bend left=30] node[above] {$\mathrm{towerFromRank}$} (tower.north);
+  \draw[->] (tower.south) to[bend left=30] node[below] {$\mathrm{rankFromTower}$} (rank.south);
+
+  % 双方向の同等性
+  \node at (3.5, -2.5) {双方向対応（正規形定理）};
+\end{tikzpicture}
+\caption{Rank関数と構造塔の双方向対応}
+\label{fig:rank-tower-bijection}
+\end{figure}
+
+\begin{theorem}[Rank関数から構造塔へ]
+\label{thm:rank-to-tower}
+Rank関数 $\rho : X \to \N$ （被覆性条件を満たす）が与えられたとき、
+構造塔を次のように定義できる：
+\[
+\layer_n := \{x \in X \mid \rho(x) \leq n\}
+\]
+このとき、$\minLayer(x) = \rho(x)$ が成り立つ。
+\end{theorem}
+
+\begin{proof}
+被覆性と単調性は $\rho$ の性質から明らか。
+$\minLayer(x)$ は条件 $\rho(x) \leq n$ を満たす最小の $n$ として定義される。
+$\rho(x)$ 自身がこの条件を満たすため、$\minLayer(x) \leq \rho(x)$。
+逆に、$\minLayer(x)$ の定義より $\rho(x) \leq \minLayer(x)$。
+したがって $\minLayer(x) = \rho(x)$。
+\end{proof}
+
+\begin{theorem}[構造塔からRank関数へ]
+\label{thm:tower-to-rank}
+構造塔 $(X, \{\layer_n\}, \minLayer)$ が与えられたとき、
+Rank関数を次のように定義できる：
+\[
+\rho(x) := \minLayer(x)
+\]
+\end{theorem}
+
+\begin{theorem}[正規形定理]
+\label{thm:normal-form}
+上記の双方向変換は互いに逆写像である：
+\begin{enumerate}
+  \item $\rho \xrightarrow{\text{tower}} T \xrightarrow{\text{rank}} \rho'$ のとき、$\rho' = \rho$
+  \item $T \xrightarrow{\text{rank}} \rho \xrightarrow{\text{tower}} T'$ のとき、各層が一致：$T.\layer_n = T'.\layer_n$
+\end{enumerate}
+\end{theorem}
+
+\subsection{構造塔の図式的理解}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.8]
+  % 層の描画
+  \foreach \n in {0,1,2,3} {
+    \draw[fill=blue!20] (0,\n) ellipse (2cm and 0.4cm);
+    \node[right] at (2.2,\n) {$\layer_{\n}$};
+  }
+
+  % 要素の配置
+  \node[circle,fill=red,inner sep=2pt,label=left:$x_1$] (x1) at (-0.5,0) {};
+  \node[circle,fill=red,inner sep=2pt,label=left:$x_2$] (x2) at (0.5,1) {};
+  \node[circle,fill=red,inner sep=2pt,label=left:$x_3$] (x3) at (-0.3,2) {};
+  \node[circle,fill=red,inner sep=2pt,label=left:$x_4$] (x4) at (0.7,3) {};
+
+  % ランク値の表示
+  \node[right] at (3,0) {$\rho(x_1) = 0$};
+  \node[right] at (3,1) {$\rho(x_2) = 1$};
+  \node[right] at (3,2) {$\rho(x_3) = 2$};
+  \node[right] at (3,3) {$\rho(x_4) = 3$};
+
+  % 単調性の矢印
+  \draw[->,dashed] (-3,0) -- (-3,3.5) node[above] {単調性};
+\end{tikzpicture}
+\caption{構造塔の階層構造とRank関数の対応}
+\label{fig:tower-structure}
+\end{figure}
+
+\subsection{具体例：ベクトル空間のRank}
+
+\begin{example}[$\Q^2$ の最小基底数]
+$\Q^2$ の各ベクトル $v = (v_1, v_2)$ に対して、
+\[
+\minLayer(v) = \begin{cases}
+0 & \text{if } v = (0, 0) \\
+1 & \text{if } v_1 = 0 \text{ or } v_2 = 0 \text{ (but not both)} \\
+2 & \text{otherwise}
+\end{cases}
+\]
+と定義すると、これはRank関数であり、対応する構造塔は：
+\begin{align*}
+\layer_0 &= \{(0,0)\} \\
+\layer_1 &= \{(v_1, v_2) \mid v_1 = 0 \text{ or } v_2 = 0\} \\
+\layer_2 &= \Q^2
+\end{align*}
+\end{example}
+
+\subsection{理論的意義}
+
+この双方向対応により、以下のことが明確になる：
+\begin{itemize}
+  \item 構造塔とRank関数は同じ数学的実在の異なる表現
+  \item $\minLayer = \rank$ の同一視が正当化される
+  \item 異なる数学分野（代数、順序、確率）の統一的理解
+\end{itemize}
+
+%============================================================================
+\section{停止時間とRank関数の対応}
+%============================================================================
+
+\subsection{確率論的背景}
+
+確率論において、停止時間（stopping time）は確率過程の重要な概念である。
+本章では、RankTowerで確立された理論を確率論的文脈に適用する。
+
+\subsection{基本定義}
+
+\begin{definition}[フィルトレーション]
+確率空間 $(\Omega, \F, \mu)$ 上のフィルトレーション（filtration）とは、
+$\sigma$-代数の増加列 $\{\F_n\}_{n \in \N}$ であって、
+\[
+\F_0 \subseteq \F_1 \subseteq \F_2 \subseteq \cdots \subseteq \F
+\]
+を満たすものである。
+\end{definition}
+
+\begin{definition}[停止時間]
+フィルトレーション $\{\F_n\}$ に適合した停止時間 $\tau : \Omega \to \N$ とは、
+すべての $n \in \N$ に対して
+\[
+\{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \F_n
+\]
+を満たす可測関数である。
+\end{definition}
+
+\subsection{停止時間とRank関数の対応}
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=large, row sep=large]
+  \text{停止時間 } \tau \arrow[r, "\text{解釈}"] \arrow[d, "\text{停止集合}"']
+    & \text{Rank関数 } \rho \arrow[d, "\text{層}"] \\
+  \{\tau \leq n\} \in \F_n \arrow[r, "\text{対応}"]
+    & \layer_n = \{\omega \mid \rho(\omega) \leq n\}
+\end{tikzcd}
+\caption{停止時間とRank関数の対応関係}
+\label{fig:stopping-rank-correspondence}
+\end{figure}
+
+\begin{theorem}[停止時間のRank解釈]
+\label{thm:stopping-as-rank}
+停止時間 $\tau : \Omega \to \N$ は、自然にRank関数として解釈できる。
+すなわち、$\rho(\omega) := \tau(\omega)$ と定義すると、
+\begin{enumerate}
+  \item 停止集合 $\{\tau \leq n\}$ は構造塔の第 $n$ 層に対応
+  \item $\minLayer(\omega) = \tau(\omega)$
+  \item フィルトレーション $\{\F_n\}$ が構造塔を定義
+\end{enumerate}
+\end{theorem}
+
+\subsection{確率論的直観}
+
+停止時間のRank解釈により、以下の対応が得られる：
+
+\begin{center}
+\begin{tabular}{c|c}
+\hline
+構造塔理論 & 確率論 \\
+\hline
+Rank関数 $\rho : X \to \N$ & 停止時間 $\tau : \Omega \to \N$ \\
+層 $\layer_n = \{\rho \leq n\}$ & 停止集合 $\{\tau \leq n\} \in \F_n$ \\
+$\minLayer(x)$ & 初めて可測になる時刻 \\
+被覆性 & 有界停止時間の条件 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{フィルトレーションの構造塔表現}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.9]
+  % 時間軸
+  \draw[->] (-0.5,0) -- (8,0) node[right] {時刻 $n$};
+  \foreach \n in {0,1,2,3,4} {
+    \draw (\n*1.5,0.1) -- (\n*1.5,-0.1) node[below] {$\n$};
+  }
+
+  % σ-代数の増加
+  \foreach \n in {0,1,2,3,4} {
+    \draw[fill=green!\n0] (\n*1.5,1) rectangle ++(1.2,0.5+\n*0.3);
+    \node at (\n*1.5+0.6, 1.25+\n*0.15) {$\F_{\n}$};
+  }
+
+  % 停止時間の例
+  \draw[very thick, red] (0,3) -- (1.5,3) -- (1.5,3.3) -- (3,3.3) -- (3,3.9) -- (6,3.9);
+  \node[red,right] at (6.2,3.9) {$\tau(\omega)$ の軌跡};
+
+  % 停止集合の可測性
+  \draw[blue, dashed] (3,-0.5) -- (3,4.5);
+  \node[blue] at (3,4.7) {$\{\tau \leq 2\} \in \F_2$};
+\end{tikzpicture}
+\caption{フィルトレーションと停止時間の階層構造}
+\label{fig:filtration-tower}
+\end{figure}
+
+\subsection{定数停止時間の例}
+
+\begin{example}[定数停止時間]
+すべての $\omega \in \Omega$ に対して $\tau(\omega) = K$ （定数）とすると、
+これは最も単純な停止時間である。
+対応する構造塔は：
+\[
+\layer_n = \begin{cases}
+\emptyset & \text{if } n < K \\
+\Omega & \text{if } n \geq K
+\end{cases}
+\]
+これは「階段状」の構造塔を定義する。
+\end{example}
+
+\subsection{理論的意義}
+
+停止時間のRank解釈により：
+\begin{itemize}
+  \item 停止時間＝フィルトレーションが定義する構造塔上のRank関数
+  \item 停止集合 $\{\tau \leq n\}$ は第 $n$ 層
+  \item $\minLayer$ の確率論的意味＝「初めて決定可能になる時刻」
+  \item 確率論的概念が構造塔理論で統一的に理解可能
+\end{itemize}
+
+%============================================================================
+\section{マルチンゲール理論のRank構造}
+%============================================================================
+
+\subsection{マルチンゲールの基礎}
+
+\begin{definition}[マルチンゲール]
+フィルトレーション $\{\F_n\}$ に適合した確率過程 $\{X_n\}_{n \in \N}$ が
+マルチンゲールであるとは、各 $n$ に対して
+\[
+\E[X_{n+1} \mid \F_n] = X_n \quad \text{a.s.}
+\]
+が成り立つことをいう。
+\end{definition}
+
+\subsection{停止過程}
+
+\begin{definition}[停止過程]
+マルチンゲール $M = \{X_n\}$ と停止時間 $\tau$ に対して、
+停止過程（stopped process）を次で定義する：
+\[
+X_n^{\tau}(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+\end{definition}
+
+\subsection{Rank理論による解釈}
+
+停止過程は、Rank理論の言葉では次のように理解できる：
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.8]
+  % 構造塔の層
+  \foreach \n in {0,1,2,3} {
+    \draw[fill=blue!15] (-3,\n*1.5) rectangle (3,\n*1.5+1);
+    \node[left] at (-3.2,\n*1.5+0.5) {$\layer_{\n}$};
+  }
+
+  % マルチンゲールの値
+  \foreach \n in {0,1,2,3} {
+    \node[circle,fill=red,inner sep=2pt] at (0,\n*1.5+0.5) {};
+    \node[right] at (0.3,\n*1.5+0.5) {$X_{\n}$};
+  }
+
+  % 停止の効果
+  \draw[->, very thick, green!60!black] (-2,2) -- (2,2);
+  \node[green!60!black] at (0,2.3) {$\rank(\omega) = 2$ で停止};
+
+  % 停止後の値
+  \foreach \n in {2,3} {
+    \draw[dashed, thick, orange] (-1.5,\n*1.5+0.5) circle (0.3);
+  }
+  \node[orange, right] at (1,5.5) {$X_2^{\tau}$ で固定};
+\end{tikzpicture}
+\caption{停止過程のRank理論的解釈}
+\label{fig:stopped-process-rank}
+\end{figure}
+
+\begin{theorem}[停止過程の適合性]
+有界停止時間 $\tau$ に対して、停止過程 $\{X_n^{\tau}\}$ は
+元のフィルトレーション $\{\F_n\}$ に適合する。
+\end{theorem}
+
+\subsection{Rank版マルチンゲール性}
+
+\begin{theorem}[停止過程のマルチンゲール性]
+\label{thm:stopped-martingale}
+マルチンゲール $M = \{X_n\}$ と有界停止時間 $\tau$ に対して、
+停止過程 $\{X_n^{\tau}\}$ もマルチンゲールである。
+すなわち、
+\[
+\E[X_{n+1}^{\tau} \mid \F_n] = X_n^{\tau} \quad \text{a.s.}
+\]
+\end{theorem}
+
+\begin{proof}[証明の概略]
+Rank理論の視点では、停止過程は各層 $\layer_n = \{\tau \leq n\}$ での値を
+適切に取ることで定義される。マルチンゲール性は、層の単調性と
+条件付き期待値の性質から従う。
+\end{proof}
+
+\subsection{薄いラッパー戦略}
+
+本章で示した定理は、既存のマルチンゲール理論の結果を
+Rank理論の言葉で再定式化したものである（薄いラッパー）。
+この戦略により：
+\begin{itemize}
+  \item 既存の証明済み補題を活用
+  \item 新しい視点からの理解
+  \item 段階的な理論構築
+\end{itemize}
+
+%============================================================================
+\section{Optional Stopping定理のRank版}
+%============================================================================
+
+\subsection{Optional Stopping定理の古典的形}
+
+Optional Stopping定理（任意停止定理）は、マルチンゲール理論の最も重要な定理の一つである。
+
+\begin{theorem}[Doob's Optional Stopping Theorem (有界版)]
+\label{thm:ost-classical}
+マルチンゲール $M = \{X_n\}$ と有界停止時間 $\tau$ （$\tau \leq K$ a.s.）に対して、
+\[
+\E[X_{\tau}] = \E[X_0]
+\]
+が成り立つ。
+\end{theorem}
+
+\subsection{Rank版の定式化}
+
+\begin{theorem}[Optional Stopping定理：Rank版]
+\label{thm:ost-rank}
+マルチンゲール $M$ とRank関数 $\rho : \Omega \to \N$ （有界）に対して、
+\[
+\E[X_{\rho(\omega)}] = \E[X_0]
+\]
+が成り立つ。さらに、任意の時刻 $n$ に対して
+\[
+\E[X_n^{\rho}] = \E[X_0]
+\]
+ここで $X_n^{\rho}$ は停止過程である。
+\end{theorem}
+
+\subsection{証明の構造}
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=large]
+  M \text{ はマルチンゲール} \arrow[d, "\text{停止}"] \\
+  M^{\tau} \text{ はマルチンゲール} \arrow[d, "\text{期待値}"] \\
+  \E[X_n^{\tau}] = \E[X_0] \arrow[d, "n \geq K"] \\
+  \E[X_{\tau}] = \E[X_0]
+\end{tikzcd}
+\caption{Optional Stopping定理の証明の流れ}
+\label{fig:ost-proof-structure}
+\end{figure}
+
+\begin{proof}[定理~\ref{thm:ost-rank}の証明概略]
+\begin{enumerate}
+  \item 定理~\ref{thm:stopped-martingale}より、$M^{\rho}$ はマルチンゲール
+  \item マルチンゲールの期待値は時刻に依らず一定：$\E[X_n^{\rho}] = \E[X_0^{\rho}] = \E[X_0]$
+  \item 有界性 $\rho \leq K$ より、$n \geq K$ のとき $X_n^{\rho} = X_{\rho}$
+  \item したがって、$\E[X_{\rho}] = \E[X_K^{\rho}] = \E[X_0]$
+\end{enumerate}
+\end{proof}
+
+\subsection{Rank理論的解釈}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.9]
+  % 構造塔
+  \draw[fill=blue!10] (0,0) -- (4,0) -- (3,3) -- (1,3) -- cycle;
+  \node at (2,1.5) {構造塔};
+
+  % 層の区切り
+  \foreach \n in {0,1,2,3} {
+    \draw[dashed] (1+\n*0.5,\n) -- (3-\n*0.5,\n);
+    \node[left] at (0.8+\n*0.5,\n) {$\layer_{\n}$};
+  }
+
+  % 期待値の保存
+  \draw[->, very thick, red] (5,0) -- (5,3);
+  \node[red, right] at (5.2,1.5) {$\E[X_n^{\tau}]$ は一定};
+
+  % 層ごとの寄与
+  \foreach \n in {0,1,2} {
+    \draw[->, green!60!black] (2.5-\n*0.5,\n+0.5) -- (4.5,\n+0.5);
+  }
+  \node[green!60!black, right] at (6.5,1.5) {各層での寄与};
+\end{tikzpicture}
+\caption{Optional Stopping定理の構造塔的理解}
+\label{fig:ost-tower-interpretation}
+\end{figure}
+
+Optional Stopping定理のRank理論的意味：
+\begin{itemize}
+  \item 期待値の保存＝構造塔の層間の普遍性
+  \item 停止時間＝$\minLayer$ 関数
+  \item 停止集合＝Rank理論の層
+  \item マルチンゲール性＝層の射が構造を保存
+\end{itemize}
+
+\subsection{具体例：定数停止時間}
+
+\begin{example}[定数停止時間での検証]
+$\tau \equiv k$ （定数）のとき、Optional Stopping定理は
+\[
+\E[X_k] = \E[X_0]
+\]
+を主張する。これは単に、マルチンゲールの期待値が時刻に依らないという
+基本性質そのものである。
+\end{example}
+
+\subsection{理論的意義と今後の展望}
+
+\subsubsection{レイヤー分離の成功}
+
+本稿の実装では、以下のレイヤー構造を採用した：
+\begin{center}
+\begin{tikzpicture}[node distance=1.5cm]
+  \node[draw, rectangle] (ost) {Optional Stopping (Rank版)};
+  \node[draw, rectangle, below of=ost] (wrapper) {薄いラッパー層};
+  \node[draw, rectangle, below of=wrapper] (impl) {内部実装（確率論）};
+
+  \draw[->] (ost) -- (wrapper);
+  \draw[->] (wrapper) -- (impl);
+  \draw[red, dashed, ->] (ost) to[bend right=45] node[right] {直接依存せず} (impl);
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{今後の研究方向}
+
+\begin{enumerate}
+  \item \textbf{無界停止時間への拡張}
+    \begin{itemize}
+      \item Doob's Optional Stopping Theorem の完全版
+      \item $L^1$ 収束条件
+      \item Uniform integrability
+    \end{itemize}
+
+  \item \textbf{マルチンゲール収束定理}
+    \begin{itemize}
+      \item 層の極限としての収束
+      \item 構造塔の完備性
+    \end{itemize}
+
+  \item \textbf{圏論的アプローチ}
+    \begin{itemize}
+      \item 構造塔の普遍性からOSTを導出
+      \item 随伴関手による特徴付け
+    \end{itemize}
+
+  \item \textbf{他の確率定理への応用}
+    \begin{itemize}
+      \item Doob's Maximal Inequality
+      \item Burkholder-Davis-Gundy Inequality
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Bourbakiの精神}
+
+本稿の approach は、Bourbakiの「母構造による数学の統一」という思想を
+現代の形式数学と確率論に適用したものである：
+
+\begin{itemize}
+  \item \textbf{構造の抽出}：異なる分野（代数、順序、確率）に共通する構造塔
+  \item \textbf{必要十分な一般性}：完全な一般化より本質を捉えた抽象化
+  \item \textbf{階層的組織化}：概念を層状に整理
+\end{itemize}
+
+%============================================================================
+\section{結論}
+%============================================================================
+
+本稿では、Leanで形式化されたRank理論と確率論の統一的枠組みを解説した。
+主要な成果は以下の通りである：
+
+\subsection{主要結果}
+
+\begin{enumerate}
+  \item \textbf{双方向対応}（第1章）\\
+    構造塔とRank関数が本質的に同等であることを示した（定理~\ref{thm:normal-form}）。
+
+  \item \textbf{停止時間のRank解釈}（第2章）\\
+    確率論の停止時間が、構造塔上のRank関数として理解できることを示した
+    （定理~\ref{thm:stopping-as-rank}）。
+
+  \item \textbf{マルチンゲールのRank構造}（第3章）\\
+    マルチンゲール理論がRank理論の言葉で記述可能であることを示した。
+
+  \item \textbf{Optional Stopping定理のRank版}（第4章）\\
+    古典的なOptional Stopping定理をRank理論で再定式化した
+    （定理~\ref{thm:ost-rank}）。
+\end{enumerate}
+
+\subsection{統一的視点の意義}
+
+Rank理論による統一的視点は、以下の利点をもたらす：
+
+\begin{itemize}
+  \item 異なる数学分野の概念が統一的に理解できる
+  \item 形式検証により数学的厳密性が保証される
+  \item 段階的な理論構築が可能
+  \item 新しい洞察と一般化への道筋
+\end{itemize}
+
+\subsection{形式数学の教育的価値}
+
+Leanによる形式化は、以下の教育的価値を持つ：
+
+\begin{itemize}
+  \item すべての仮定が明示的
+  \item 証明の各ステップが追跡可能
+  \item 概念の関係が可視化される
+  \item 抽象化のプロセスが明確
+\end{itemize}
+
+\subsection{謝辞}
+
+本稿のLeanコードは CODEX (OpenAI) により生成され、
+数学的解説は Claude Code (Anthropic) により作成された。
+形式数学と自然言語の相補的な役割が、本稿の作成過程で示された。
+
+%============================================================================
+\section*{参考文献}
+%============================================================================
+
+\begin{enumerate}[label={[\arabic*]}]
+  \item Williams, D. (1991). \textit{Probability with Martingales}. Cambridge University Press.
+  \item Rogers, L. C. G., \& Williams, D. (2000). \textit{Diffusions, Markov Processes, and Martingales}. Cambridge University Press.
+  \item Kallenberg, O. (2002). \textit{Foundations of Modern Probability}. Springer.
+  \item Bourbaki, N. (1968). \textit{Elements of Mathematics: Theory of Sets}. Springer.
+  \item The mathlib Community. (2020). \textit{The Lean Mathematical Library}.
+    Proceedings of the 9th ACM SIGPLAN International Conference on Certified Programs and Proofs.
+\end{enumerate}
+
+\end{document}

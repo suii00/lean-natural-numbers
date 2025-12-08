@@ -1,0 +1,532 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{luatexja}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+\title{構造塔理論のLean形式化\\
+Bourbaki的視点からの確率論への応用}
+\author{Claude Code（TeX生成）\\
+OpenAI CODEX（Lean形式化）}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Bourbakiの構造理論に着想を得た「構造塔（Structure Tower）」の概念を、Lean定理証明支援系において形式化した結果を解説する。特に、半順序集合上の単調な集合族という抽象的な枠組みから出発し、圏論的構造、σ-代数のフィルトレーション、停止時間、そしてマルチンゲール理論へと段階的に発展させる。この形式化により、確率論の基本定理を構造塔の視点から統一的に理解できることを示す。
+\end{abstract}
+
+\tableofcontents
+
+\section{Bourbaki的構造塔の基礎理論}
+
+\subsection{動機と基本概念}
+
+Bourbakiの『数学原論』における「母構造」の考え方は、数学的対象を階層的に理解する強力な枠組みを提供する。本研究では、この思想を前順序集合 $I$ で添字付けられた集合の族 $(X_i)_{i \in I}$ として形式化する。
+
+\begin{definition}[構造塔]\label{def:structure-tower}
+前順序集合 $(I, \leq)$ と集合 $X$ に対して、\textbf{構造塔}とは以下のデータからなる：
+\begin{itemize}
+\item 各 $i \in I$ に対する集合 $X_i \subseteq X$（\textbf{層}と呼ぶ）
+\item \textbf{被覆性}：$\bigcup_{i \in I} X_i = X$
+\item \textbf{単調性}：$i \leq j \Rightarrow X_i \subseteq X_j$
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+Leanでの形式化では、この構造を以下のように定義している：
+\begin{verbatim}
+structure StructureTower (ι α : Type*) [Preorder ι] where
+  level : ι → Set α
+  monotone_level : ∀ ⦃i j⦄, i ≤ j → level i ⊆ level j
+\end{verbatim}
+\end{remark}
+
+\subsection{基本的な性質}
+
+\begin{lemma}[層の単調性]
+構造塔 $T$ において、層の関数 $\text{level} : I \to \mathcal{P}(X)$ は単調である：
+\[
+i \leq j \Rightarrow \text{level}(i) \subseteq \text{level}(j)
+\]
+\end{lemma}
+
+\begin{lemma}[全体との関係]
+各層 $X_i$ は全体の和集合に含まれる：
+\[
+X_i \subseteq \bigcup_{j \in I} X_j
+\]
+\end{lemma}
+
+\subsection{具体例：自然数の初期セグメント}
+
+\begin{example}[自然数の構造塔]
+$X = \mathbb{N}$、$I = \mathbb{N}$ とし、各層を
+\[
+X_n = \{k \in \mathbb{N} \mid k \leq n\}
+\]
+と定義すると、これは構造塔をなす。実際：
+\begin{itemize}
+\item 被覆性：任意の $k \in \mathbb{N}$ に対して $k \in X_k$
+\item 単調性：$n \leq m$ ならば $k \leq n$ は $k \leq m$ を含意する
+\end{itemize}
+\end{example}
+
+\begin{theorem}[自然数構造塔の被覆]
+上記の自然数構造塔において、
+\[
+\bigcup_{n \in \mathbb{N}} X_n = \mathbb{N}
+\]
+が成り立つ。
+\end{theorem}
+
+\section{最小層を持つ構造塔と圏論的構造}
+
+\subsection{最小層の概念}
+
+構造塔において、各要素が「最初に現れる層」を選ぶ関数を導入することで、より豊かな構造が得られる。
+
+\begin{definition}[最小層を持つ構造塔]\label{def:structure-tower-min}
+構造塔 $T = (X, (X_i)_{i \in I}, \leq)$ に対して、関数 $\text{minLayer} : X \to I$ が以下を満たすとき、$(T, \text{minLayer})$ を\textbf{最小層を持つ構造塔}という：
+\begin{enumerate}
+\item $\forall x \in X, \, x \in X_{\text{minLayer}(x)}$
+\item $\forall x \in X, \forall i \in I, \, x \in X_i \Rightarrow \text{minLayer}(x) \leq i$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+この定義により、各要素の「所属」が一意に定まる。これが後の普遍性の証明で重要な役割を果たす。
+\end{remark}
+
+\subsection{構造塔の圏}
+
+最小層を持つ構造塔の間に射を定義することで、圏構造が得られる。
+
+\begin{definition}[構造塔の射]
+最小層を持つ構造塔 $T = (X, I, (X_i), \text{minLayer}_T)$ と $T' = (X', I', (X'_j), \text{minLayer}_{T'})$ の間の射は、対 $(f, \phi)$ であって：
+\begin{itemize}
+\item $f : X \to X'$（基礎集合の写像）
+\item $\phi : I \to I'$（添字集合の単調写像）
+\item \textbf{層構造保存}：$x \in X_i \Rightarrow f(x) \in X'_{\phi(i)}$
+\item \textbf{最小層保存}：$\text{minLayer}_{T'}(f(x)) = \phi(\text{minLayer}_T(x))$
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[圏構造]
+最小層を持つ構造塔と上記の射は圏 $\mathbf{StructureTowerWithMin}$ をなす。恒等射と合成は自然に定義される。
+\end{theorem}
+
+\begin{proof}
+恒等射は $(\text{id}_X, \text{id}_I)$、合成は成分ごとの合成として定義する。結合律と単位律は成分ごとに成り立つ。
+\end{proof}
+
+\subsection{圏論的図式}
+
+構造塔の間の射は以下の可換図式を満たす：
+
+\[
+\begin{tikzcd}
+X \arrow[r, "f"] \arrow[d, "\text{minLayer}_T"] & X' \arrow[d, "\text{minLayer}_{T'}"] \\
+I \arrow[r, "\phi"] & I'
+\end{tikzcd}
+\]
+
+\subsection{自由構造塔と普遍性}
+
+\begin{definition}[自由構造塔]
+前順序集合 $(X, \leq)$ に対して、自由構造塔 $F(X)$ を以下で定義する：
+\begin{itemize}
+\item 基礎集合：$X$
+\item 添字集合：$X$
+\item 層：$X_i = \{x \in X \mid x \leq i\}$
+\item 最小層：$\text{minLayer}(x) = x$
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[自由構造塔の普遍性]\label{thm:free-tower-universal}
+前順序集合 $X$ と構造塔 $T$ に対して、単調写像 $f : X \to \text{carrier}(T)$ であって $x \mapsto \text{minLayer}_T(f(x))$ が単調であるとき、構造塔の射 $\phi : F(X) \to T$ で $\phi \circ \iota = f$（$\iota$ は埋め込み）を満たすものが一意に存在する。
+\end{theorem}
+
+\begin{proof}[証明のスケッチ]
+存在性：$\phi$ を $\phi(x) = f(x)$、添字写像を $x \mapsto \text{minLayer}_T(f(x))$ と定義する。最小層保存性は構成から明らか。
+
+一意性：別の射 $\psi$ が同じ条件を満たすとする。$\psi$ の最小層保存性より、$\psi$ の添字写像は $\phi$ の添字写像と一致する。したがって $\psi = \phi$。
+\end{proof}
+
+\subsection{積構造}
+
+\begin{definition}[構造塔の積]
+構造塔 $T_1, T_2$ に対して、積 $T_1 \times T_2$ を以下で定義する：
+\begin{itemize}
+\item 基礎集合：$X_1 \times X_2$
+\item 添字集合：$I_1 \times I_2$
+\item 層：$(X_1 \times X_2)_{(i,j)} = X_i^{(1)} \times X_j^{(2)}$
+\item 最小層：$\text{minLayer}((x,y)) = (\text{minLayer}_1(x), \text{minLayer}_2(y))$
+\end{itemize}
+\end{definition}
+
+射影 $\pi_1 : T_1 \times T_2 \to T_1$, $\pi_2 : T_1 \times T_2 \to T_2$ が存在し、積の普遍性を満たす：
+
+\[
+\begin{tikzcd}
+& T \arrow[dl, "f_1"'] \arrow[dr, "f_2"] \arrow[d, dashed, "\exists! h"] & \\
+T_1 & T_1 \times T_2 \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & T_2
+\end{tikzcd}
+\]
+
+\section{σ-代数の構造塔：確率論への第一歩}
+
+\subsection{σ-代数のフィルトレーション}
+
+確率論において、情報の増加を表現するフィルトレーションは構造塔の典型例である。
+
+\begin{definition}[σ-代数の順序]
+可測空間 $(\Omega, \mathcal{F})$ に対して、$\Omega$ 上のσ-代数の族には包含関係による半順序が入る：
+\[
+\mathcal{F}_1 \leq \mathcal{F}_2 \iff \text{$\mathcal{F}_1$ で可測な集合は $\mathcal{F}_2$ でも可測}
+\]
+\end{definition}
+
+\begin{definition}[σ-代数構造塔]
+$\Omega$ 上のσ-代数の構造塔を以下で定義する：
+\begin{itemize}
+\item 基礎集合：$\mathcal{P}(\Omega)$（$\Omega$ の部分集合全体）
+\item 添字集合：$\{\mathcal{F} \mid \mathcal{F} \text{ は } \Omega \text{ 上のσ-代数}\}$
+\item 層：$\text{layer}(\mathcal{F}) = \{A \subseteq \Omega \mid A \text{ は } \mathcal{F}\text{-可測}\}$
+\item 最小層：$\text{minLayer}(A) = \sigma(A)$（$A$ を含む最小のσ-代数）
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[σ-代数の単調性]
+$\mathcal{F}_1 \leq \mathcal{F}_2$ ならば $\text{layer}(\mathcal{F}_1) \subseteq \text{layer}(\mathcal{F}_2)$。
+\end{theorem}
+
+\subsection{離散時間フィルトレーション}
+
+\begin{definition}[自然数添字フィルトレーション]
+可測空間 $(\Omega, \mathcal{F})$ 上の\textbf{フィルトレーション}とは、σ-代数の族 $(\mathcal{F}_n)_{n \in \mathbb{N}}$ であって
+\[
+\mathcal{F}_0 \subseteq \mathcal{F}_1 \subseteq \mathcal{F}_2 \subseteq \cdots \subseteq \mathcal{F}
+\]
+を満たすもの。
+\end{definition}
+
+これは構造塔の定義における単調性そのものである。
+
+\begin{remark}
+Leanでの形式化では、以下の構造を定義している：
+\begin{verbatim}
+structure Core (Ω ι : Type*) [MeasurableSpace Ω] [Preorder ι] where
+  𝓕 : ι → MeasurableSpace Ω
+  mono : Monotone 𝓕
+\end{verbatim}
+\end{remark}
+
+\subsection{最小層としての可測時刻}
+
+自然数添字フィルトレーション $(\mathcal{F}_n)_{n \in \mathbb{N}}$ に対して、集合 $A \subseteq \Omega$ が「初めて可測になる時刻」を定義できる。
+
+\begin{definition}[最小可測時刻]
+$A$ がある時刻で $\mathcal{F}_n$-可測であるとき、
+\[
+\text{minLayer}(A) = \min\{n \in \mathbb{N} \mid A \in \mathcal{F}_n\}
+\]
+と定義する（$\min$ は存在する場合）。
+\end{definition}
+
+これは構造塔の最小層の概念と完全に一致する。
+
+\section{停止時間と最小層の理論}
+
+\subsection{停止時間の定義}
+
+\begin{definition}[停止時間]
+フィルトレーション $(\mathcal{F}_n)_{n \in \mathbb{N}}$ に対して、関数 $\tau : \Omega \to \mathbb{N}$ が\textbf{停止時間}であるとは、任意の $n \in \mathbb{N}$ に対して
+\[
+\{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \mathcal{F}_n
+\]
+が成り立つこと。
+\end{definition}
+
+\begin{remark}
+停止時間の条件は「時刻 $n$ までの情報で、$\tau \leq n$ かどうかを判定できる」ことを意味する。これは情報の因果性を表現している。
+\end{remark}
+
+\subsection{停止時間と構造塔}
+
+停止時間 $\tau$ に対して、停止集合 $\{\tau \leq n\}$ は構造塔の層に属する：
+
+\begin{lemma}
+停止時間 $\tau$ に対して、
+\[
+\{\omega \mid \tau(\omega) \leq n\} \in \text{layer}(\mathcal{F}_n)
+\]
+が成り立つ。
+\end{lemma}
+
+\subsection{単点の最小可測時刻}
+
+\begin{definition}[First Measurable Time]
+$\omega \in \Omega$ に対して、単点 $\{\omega\}$ が初めて可測になる時刻を
+\[
+\text{firstMeasurableTime}(\omega) = \text{minLayer}(\{\omega\})
+\]
+と定義する。
+\end{definition}
+
+\begin{theorem}
+$\text{firstMeasurableTime}(\omega)$ において、$\{\omega\}$ は $\mathcal{F}_{\text{firstMeasurableTime}(\omega)}$-可測である。
+\end{theorem}
+
+\subsection{停止σ-代数}
+
+\begin{definition}[停止σ-代数]
+停止時間 $\tau$ に対して、停止σ-代数 $\mathcal{F}_\tau$ を
+\[
+\mathcal{F}_\tau = \{A \subseteq \Omega \mid \forall n \in \mathbb{N}, \, A \cap \{\tau \leq n\} \in \mathcal{F}_n\}
+\]
+と定義する。
+\end{definition}
+
+\begin{theorem}[停止σ-代数の性質]
+$\mathcal{F}_\tau$ は実際にσ-代数をなす。さらに、停止集合 $\{\tau \leq n\}$ は $\mathcal{F}_\tau$ に属する。
+\end{theorem}
+
+\subsection{切り詰め停止時間}
+
+\begin{definition}[切り詰め]
+停止時間 $\tau$ と $n \in \mathbb{N}$ に対して、
+\[
+(\tau \wedge n)(\omega) = \min\{\tau(\omega), n\}
+\]
+は停止時間である。
+\end{definition}
+
+\begin{lemma}
+$n \leq m$ ならば、任意の $\omega$ に対して $(\tau \wedge n)(\omega) \leq (\tau \wedge m)(\omega)$。
+\end{lemma}
+
+\subsection{停止フィルトレーション}
+
+\begin{definition}[停止フィルトレーション]
+停止時間 $\tau$ に対して、停止フィルトレーション $(\mathcal{G}_n)_{n \in \mathbb{N}}$ を
+\[
+\mathcal{G}_n = \mathcal{F}_{\tau \wedge n}
+\]
+と定義する。
+\end{definition}
+
+\begin{theorem}
+$(\mathcal{G}_n)$ は単調増加するσ-代数の族である：
+\[
+\mathcal{G}_0 \subseteq \mathcal{G}_1 \subseteq \mathcal{G}_2 \subseteq \cdots
+\]
+\end{theorem}
+
+\section{マルチンゲール理論の構造塔アプローチ}
+
+\subsection{条件付き期待値}
+
+\begin{definition}[条件付き期待値]
+確率空間 $(\Omega, \mathcal{F}, \mathbb{P})$ 上の可積分関数 $X : \Omega \to \mathbb{R}$ とσ-代数 $\mathcal{G} \subseteq \mathcal{F}$ に対して、$\mathbb{E}[X \mid \mathcal{G}]$ を $X$ の $\mathcal{G}$ に関する条件付き期待値という。これは以下を満たす $\mathcal{G}$-可測関数：
+\begin{enumerate}
+\item $\mathbb{E}[X \mid \mathcal{G}]$ は $\mathcal{G}$-可測
+\item 任意の $A \in \mathcal{G}$ に対して
+\[
+\int_A \mathbb{E}[X \mid \mathcal{G}] \, d\mathbb{P} = \int_A X \, d\mathbb{P}
+\]
+\end{enumerate}
+\end{definition}
+
+\subsection{マルチンゲールの定義}
+
+\begin{definition}[マルチンゲール]
+確率空間 $(\Omega, \mathcal{F}, \mathbb{P})$ とフィルトレーション $(\mathcal{F}_n)_{n \in \mathbb{N}}$ に対して、確率過程 $(X_n)_{n \in \mathbb{N}}$ が\textbf{マルチンゲール}であるとは：
+\begin{enumerate}
+\item \textbf{適合性}：各 $X_n$ は $\mathcal{F}_n$-可測
+\item \textbf{可積分性}：各 $X_n$ は可積分（$\mathbb{E}[|X_n|] < \infty$）
+\item \textbf{マルチンゲール性}：任意の $n \in \mathbb{N}$ に対して
+\[
+\mathbb{E}[X_{n+1} \mid \mathcal{F}_n] = X_n \quad \text{a.s.}
+\]
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+条件 (3) は「未来の期待値が現在の値に等しい」ことを表し、これが「公平なゲーム」の数学的定式化である。
+\end{remark}
+
+\subsection{マルチンゲールの基本例}
+
+\begin{example}[定数マルチンゲール]
+定数 $c \in \mathbb{R}$ に対して、$X_n \equiv c$ はマルチンゲールである。実際、
+\[
+\mathbb{E}[X_{n+1} \mid \mathcal{F}_n] = \mathbb{E}[c \mid \mathcal{F}_n] = c = X_n
+\]
+\end{example}
+
+\begin{example}[和と定数倍]
+$(X_n)$, $(Y_n)$ がマルチンゲールならば、$a, b \in \mathbb{R}$ に対して $(aX_n + bY_n)$ もマルチンゲールである。
+\end{example}
+
+\subsection{停止過程}
+
+\begin{definition}[停止過程]
+過程 $(X_n)$ と停止時間 $\tau$ に対して、\textbf{停止過程} $(X^\tau_n)$ を
+\[
+X^\tau_n(\omega) = X_{\min\{n, \tau(\omega)\}}(\omega)
+\]
+と定義する。
+\end{definition}
+
+\begin{lemma}[停止過程の性質]
+停止過程は以下を満たす：
+\begin{enumerate}
+\item $n \leq \tau(\omega)$ ならば $X^\tau_n(\omega) = X_n(\omega)$
+\item $\tau(\omega) \leq n \leq m$ ならば $X^\tau_m(\omega) = X^\tau_n(\omega)$
+\end{enumerate}
+\end{lemma}
+
+\subsection{停止過程の可測性}
+
+\begin{theorem}[停止過程の適合性]
+$(X_n)$ が $(\mathcal{F}_n)$-適合で、$\tau$ が停止時間ならば、停止過程 $(X^\tau_n)$ も $(\mathcal{F}_n)$-適合である。
+\end{theorem}
+
+\begin{proof}[証明のスケッチ]
+$X^\tau_n$ を指示関数の和として表現する：
+\[
+X^\tau_n = \mathbb{1}_{\{\tau > n\}} X_n + \sum_{k=0}^n \mathbb{1}_{\{\tau = k\}} X_k
+\]
+各項が $\mathcal{F}_n$-可測であることから従う。
+\end{proof}
+
+\subsection{オプショナル停止定理（有界停止時間）}
+
+\begin{theorem}[有界オプショナル停止定理]\label{thm:optional-stopping-bounded}
+$(X_n)$ がマルチンゲールで、$\tau$ が有界停止時間（$\exists K, \, \tau \leq K$）ならば、停止過程 $(X^\tau_n)$ もマルチンゲールである。
+\end{theorem}
+
+\begin{proof}[証明のスケッチ]
+停止過程の増分を考える：
+\[
+X^\tau_{n+1} - X^\tau_n = \mathbb{1}_{\{\tau > n\}} (X_{n+1} - X_n)
+\]
+条件付き期待値を取ると、
+\begin{align*}
+\mathbb{E}[X^\tau_{n+1} - X^\tau_n \mid \mathcal{F}_n] &= \mathbb{1}_{\{\tau > n\}} \mathbb{E}[X_{n+1} - X_n \mid \mathcal{F}_n] \\
+&= \mathbb{1}_{\{\tau > n\}} \cdot 0 = 0
+\end{align*}
+ここで、$\mathbb{1}_{\{\tau > n\}}$ は $\mathcal{F}_n$-可測であることと、マルチンゲール性を用いた。
+\end{proof}
+
+\subsection{マルチンゲールの構造塔的解釈}
+
+マルチンゲールの理論は、フィルトレーション（σ-代数の構造塔）上の特別な過程として理解できる：
+
+\begin{center}
+\begin{tikzcd}[column sep=large, row sep=large]
+\mathcal{F}_0 \arrow[r, hook] & \mathcal{F}_1 \arrow[r, hook] & \mathcal{F}_2 \arrow[r, hook] & \cdots \\
+X_0 \arrow[u] \arrow[r] &
+X_1 \arrow[u] \arrow[r] &
+X_2 \arrow[u] \arrow[r] & \cdots
+\end{tikzcd}
+\end{center}
+\noindent
+上段はフィルトレーション $(\mathcal{F}_n)$、下段はマルチンゲール $(X_n)$ を表す。縦の矢印は可測性、横の矢印は条件付き期待値の関係を示す。
+
+各層での情報（σ-代数）と、その情報で測れる量（確率変数）の対応が、構造塔の枠組みで自然に表現される。
+
+\section{構造塔理論の統一的視点}
+
+\subsection{階層性の普遍性}
+
+本稿で展開した構造塔の理論は、以下の数学的対象を統一的に扱う枠組みを提供する：
+
+\begin{enumerate}
+\item \textbf{順序構造}：前順序集合の初期セグメント
+\item \textbf{代数構造}：σ-代数のフィルトレーション
+\item \textbf{確率論的構造}：停止時間とマルチンゲール
+\end{enumerate}
+
+これらはすべて「単調増加する集合の族」として捉えることができ、構造塔の公理を満たす。
+
+\subsection{最小層の役割}
+
+最小層 $\text{minLayer}$ の導入により、以下が可能になる：
+
+\begin{itemize}
+\item 射の一意性（定理 \ref{thm:free-tower-universal}）
+\item 要素の「最初の出現」の定式化
+\item 停止時間の構造塔的解釈
+\end{itemize}
+
+これは、形式数学において「自然な」構成を一意化するための重要な技法である。
+
+\subsection{形式化の意義}
+
+Lean定理証明支援系での形式化により、以下が達成された：
+
+\begin{enumerate}
+\item 定義の厳密性の検証
+\item 証明の完全性の保証
+\item 定理間の依存関係の明確化
+\end{enumerate}
+
+特に、「停止過程がマルチンゲールである」という定理の証明において、すべての仮定（有界性、可測性）が明示的に形式化された。
+
+\section{今後の展望}
+
+\subsection{発展的トピック}
+
+本形式化は以下のトピックへの拡張が可能である：
+
+\begin{itemize}
+\item \textbf{一般停止時間のオプショナル停止}：有界性を緩めた定理
+\item \textbf{ドゥーブの分解定理}：部分マルチンゲールの構造
+\item \textbf{極限定理}：マルチンゲール収束定理
+\item \textbf{連続時間への拡張}：連続パラメータの構造塔
+\end{itemize}
+
+\subsection{他分野への応用}
+
+構造塔の枠組みは、確率論以外にも応用可能である：
+
+\begin{itemize}
+\item \textbf{位相空間論}：開集合のフィルトレーション
+\item \textbf{ホモロジー代数}：鎖複体のフィルトレーション
+\item \textbf{計算理論}：情報の階層と型理論
+\end{itemize}
+
+\section{まとめ}
+
+本稿では、Bourbakiの構造理論に着想を得た「構造塔」の概念を、Leanで形式化した結果を解説した。抽象的な順序構造から出発し、圏論的性質、σ-代数のフィルトレーション、停止時間、そしてマルチンゲール理論へと段階的に発展させることで、確率論の基本定理が構造塔の枠組みで統一的に理解できることを示した。
+
+特に重要な成果は以下である：
+
+\begin{itemize}
+\item 最小層を持つ構造塔の圏論的性質の形式化
+\item σ-代数フィルトレーションと停止時間の構造塔的解釈
+\item 有界停止時間に対するオプショナル停止定理の完全な形式化
+\end{itemize}
+
+この研究は、形式数学の力を借りて、確率論の抽象的基盤をより明確にするものである。
+
+\vspace{1em}
+\noindent
+\textbf{謝辞：}本稿のLeanコードはOpenAI CODEXにより生成され、TeXドキュメントはClaude Code（Anthropic）により作成された。
+
+\end{document}

@@ -1,0 +1,295 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% --- パッケージの読み込み ---
+\usepackage{amsmath, amssymb, amsthm, mathrsfs}
+\usepackage{luatexja}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, backgrounds, positioning, calc, arrows.meta, patterns, decorations.pathreplacing}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+
+% --- ハイパーリンク設定 ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+
+% --- マクロ定義 ---
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\OmegaSpace}{\Omega}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\Expect}{\mathbb{E}}
+\newcommand{\Tau}{\tau}
+\newcommand{\Rank}{\rho}
+\newcommand{\Tower}{\mathcal{T}}
+\newcommand{\Layer}[1]{\mathrm{Layer}_{#1}}
+\newcommand{\MinLayer}{\mathrm{minLayer}}
+\newcommand{\Ind}[1]{\mathbf{1}_{#1}}
+
+% --- タイトル情報 ---
+\title{\textbf{計算可能な構造塔からアルゴリズム的マルチンゲールへ} \\ \large --- Lean 4による離散確率論の形式化と解説 ---}
+\author{
+    Lean Code Generation: \textbf{CODEX (OpenAI)} \\
+    TeX Explanation \& Typesetting: \textbf{Gemini (Google)}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、一連のLean 4ファイルに基づき、計算可能な構造塔 (Computable Structure Tower) の理論を出発点として、離散有限空間上の確率論、特にマルチンゲール理論と任意停止定理 (Optional Stopping Theorem) を構築する過程を数学的に解説する。この形式化の特徴は、すべての操作（事象の判定、期待値の計算など）が決定可能 (decidable) かつ計算可能であり、解析学的な極限操作を伴わず、有理数体 $\Q$ 上の代数的な操作のみで完結している点にある。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =========================================================================
+% Section 1: DecidableStructureTower_Examples
+% =========================================================================
+\section{計算可能な構造塔の例}
+\label{sec:tower_examples}
+\textit{Based on: \texttt{DecidableStructureTower\_Examples.md}}
+
+確率論への応用の前に、まず「構造塔 (Structure Tower)」の具体的なイメージを確立する。構造塔とは、集合 $X$ に「複雑さ」や「階層」の概念（ランク）を導入したものである。
+
+\subsection{構造塔の定義（再掲）}
+構造塔 $\Tower$ は、集合 $X$ とその部分集合の増大列（層） $(\Layer{n})_{n \in \N}$ からなり、各要素 $x \in X$ に対してそれが初めて現れる層のインデックス $\MinLayer(x)$ が計算可能であるような構造である。
+
+\subsection{具体的な実装例}
+提供されたファイルでは、以下の構造塔が実装されている。これらは全て \texttt{\#eval} で計算可能である。
+
+\begin{itemize}
+    \item \textbf{整数塔 (\texttt{intAbsTower})}:
+    整数 $\Z$ を絶対値で階層化する。
+    \[ \Layer{n} = \{k \in \Z \mid |k| \le n\}, \quad \MinLayer(k) = |k| \]
+    
+    \item \textbf{リスト塔 (\texttt{listLengthTower})}:
+    リストを長さで階層化する。
+    \[ \Layer{n} = \{l \in \text{List}\,\N \mid \text{length}(l) \le n\}, \quad \MinLayer(l) = \text{length}(l) \]
+    
+    \item \textbf{多項式塔 (\texttt{polyDegreeTower})}:
+    多項式を次数で階層化する。
+    \[ \MinLayer(p) = \deg(p) \]
+\end{itemize}
+
+これらの例は、確率論における「停止時間」が、標本空間上の構造塔（ランク関数）の一種であることを理解するための直観的な基盤となる。
+
+% =========================================================================
+% Section 2: DecidableEvents
+% =========================================================================
+\section{有限標本空間と決定可能な事象}
+\label{sec:decidable_events}
+\textit{Based on: \texttt{DecidableEvents.md}}
+
+ここから確率論の構築に入る。通常の測度論では $\sigma$-加法族などの無限構造を扱うが、ここでは計算機上で扱うために「有限性」と「決定可能性」を重視する。
+
+\subsection{有限標本空間}
+標本空間 $\OmegaSpace$ は \texttt{Fintype}（有限型）かつ \texttt{DecidableEq}（等号判定可能）を持つ型として定義される。
+\[ \text{例: } \OmegaSpace = \{H, T\} \text{ (コイン)}, \quad \OmegaSpace = \{1, \dots, 6\} \text{ (サイコロ)} \]
+
+\subsection{決定可能な事象 (Decidable Event)}
+事象 $A \subseteq \OmegaSpace$ は単なる部分集合だが、本形式化では任意の $\omega \in \OmegaSpace$ に対して $\omega \in A$ かどうかが \texttt{Bool} として判定可能 (\texttt{DecidablePred}) であることを要求する。
+
+これにより、以下の集合演算はすべてプログラムとして実行可能となる。
+\begin{itemize}
+    \item 和集合 $A \cup B$: \texttt{fun w => (w \in A) || (w \in B)}
+    \item 共通部分 $A \cap B$: \texttt{fun w => (w \in A) \&\& (w \in B)}
+    \item 補集合 $A^c$: \texttt{fun w => !(w \in A)}
+\end{itemize}
+
+% =========================================================================
+% Section 3: DecidableAlgebra
+% =========================================================================
+\section{有限代数}
+\label{sec:decidable_algebra}
+\textit{Based on: \texttt{DecidableAlgebra.md}}
+
+$\sigma$-加法族の離散版として、\textbf{有限代数 (Finite Algebra)} を定義する。
+
+\begin{definition}[有限代数]
+$\OmegaSpace$ 上の事象の族 $\F$ が有限代数であるとは、以下を満たすことである。
+\begin{enumerate}
+    \item 全事象を含む: $\OmegaSpace \in \F$
+    \item 補集合で閉じている: $A \in \F \implies A^c \in \F$
+    \item 有限和で閉じている: $A, B \in \F \implies A \cup B \in \F$
+\end{enumerate}
+\end{definition}
+
+有限集合上では、これは「情報の粒度」を表す。例えば、サイコロの目で「偶数か奇数か」しか分からない状態は、$\F = \{\emptyset, \{偶数\}, \{奇数\}, \OmegaSpace\}$ という代数に対応する。
+
+% =========================================================================
+% Section 4: DecidableFiltration
+% =========================================================================
+\section{離散フィルトレーション}
+\label{sec:decidable_filtration}
+\textit{Based on: \texttt{DecidableFiltration.md}}
+
+情報の増大を表現するために、有限代数の列を導入する。
+
+\subsection{フィルトレーションの定義}
+フィルトレーション $(\F_t)_{t \in \N}$ とは、有限代数の単調増加列である。
+\[ \F_0 \subseteq \F_1 \subseteq \F_2 \subseteq \dots \subseteq \F_N \]
+ここで $N$ は時間の上限 (\texttt{timeHorizon}) である。$\F_t$ は時刻 $t$ において利用可能な情報を表す。
+
+\subsection{停止時間の定義}
+この枠組みにおける停止時間 $\Tau: \OmegaSpace \to \N$ は、以下のように定義される。
+\[ \forall t, \quad \{\omega \in \OmegaSpace \mid \Tau(\omega) \le t\} \in \F_t \]
+これは、「時刻 $t$ までに停止したかどうかが、時刻 $t$ の情報だけで判定できる」ことを意味する。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.5]
+    % Filtration levels
+    \draw[->] (-0.5, 0) -- (4.5, 0) node[right] {Time $t$};
+    
+    % F0
+    \node at (0, 1.5) {$\F_0$};
+    \draw (0, 0.1) -- (0, -0.1) node[below] {0};
+    \node[draw, circle, inner sep=1pt] at (0, 0.5) {$\{\emptyset, \Omega\}$};
+
+    % F1
+    \node at (1.5, 1.5) {$\F_1$};
+    \draw (1.5, 0.1) -- (1.5, -0.1) node[below] {1};
+    \node[draw, rectangle, inner sep=3pt] at (1.5, 0.5) {情報増大};
+    \draw[->, thick] (0.3, 0.5) -- (1.0, 0.5) node[midway, above] {$\subseteq$};
+
+    % Stopping Time Check
+    \node at (3, 2.0) {Stopping Time $\Tau$};
+    \draw[dashed] (3, 0) -- (3, 1.8);
+    \node[align=left, font=\small] at (3.2, 1.0) {$\{\Tau \le t\}$ は\\ $\F_t$ で判定可能};
+
+\end{tikzpicture}
+\caption{フィルトレーションと情報の流れ。時間は離散的で、各時刻 $t$ に代数 $\F_t$ が割り当てられている。}
+\end{figure}
+
+% =========================================================================
+% Section 5: ComputableStoppingTime
+% =========================================================================
+\section{計算可能な停止時間}
+\label{sec:computable_stopping_time}
+\textit{Based on: \texttt{ComputableStoppingTime.md}}
+
+前節の定義を実装し、計算可能な停止時間としての性質を導出する。
+
+\subsection{停止時間の演算}
+停止時間は代数的な演算について閉じている。
+\begin{theorem}[停止時間の演算]
+$\Tau_1, \Tau_2$ が停止時間ならば、以下も停止時間である。
+\begin{itemize}
+    \item 最小値: $\Tau_1 \wedge \Tau_2 = \min(\Tau_1, \Tau_2)$
+    \item 最大値: $\Tau_1 \vee \Tau_2 = \max(\Tau_1, \Tau_2)$
+    \item 定数: $\Tau(\omega) \equiv c$
+\end{itemize}
+\end{theorem}
+特に $\min$ 演算は、後の停止過程 (Stopped Process) の定義において重要となる。
+
+% =========================================================================
+% Section 6: AlgorithmicMartingaleCore
+% =========================================================================
+\section{アルゴリズム的マルチンゲールの基礎}
+\label{sec:martingale_core}
+\textit{Based on: \texttt{AlgorithmicMartingaleCore.md}}
+
+ここではじめて「確率」と「値」が登場する。
+
+\subsection{確率質量関数と期待値}
+確率空間 $\OmegaSpace$ 上の確率測度を、確率質量関数 (PMF) $P: \OmegaSpace \to \Q$ で定義する。
+期待値 $\Expect_P[X]$ は、積分ではなく\textbf{有限和}として定義される。
+\[ \Expect_P[X] = \sum_{\omega \in \OmegaSpace} X(\omega) P(\omega) \]
+これにより、期待値の計算は完全に代数的であり、有理数の範囲で正確に行われる。
+
+\subsection{単純過程 (Simple Process)}
+確率過程 $M$ は、時刻と標本点を受け取って有理数を返す関数である。
+\[ M: \N \to \OmegaSpace \to \Q \]
+
+\subsection{停止過程 (Stopped Process)}
+停止時間 $\Tau$ によって確率過程 $M$ を止めた過程 $M^\Tau$ は以下のように定義される。
+\[ M^\Tau_n(\omega) = M_{\min(n, \Tau(\omega))}(\omega) \]
+これは、「時刻 $\Tau(\omega)$ 以降は値が更新されず、一定値 $M_{\Tau(\omega)}(\omega)$ を取り続ける」ことを意味する。
+
+% =========================================================================
+% Section 7: AlgorithmicMartingale_v0
+% =========================================================================
+\section{任意停止定理 (OST) の形式化}
+\label{sec:ost}
+\textit{Based on: \texttt{AlgorithmicMartingale\_v0.md}}
+
+本シリーズの集大成として、マルチンゲールの定義と、有界停止時間に対する任意停止定理の証明を行う。
+
+\subsection{マルチンゲールの定義}
+本稿（v0）では、条件付き期待値の完全な導入の前に、以下の簡略化された定義を採用している。
+\begin{definition}[マルチンゲール条件]
+過程 $M$ がマルチンゲールであるとは、任意の時刻 $n$ について、全期待値が保存されることである。
+\[ \Expect[M_{n+1}] = \Expect[M_n] \]
+（※ 将来的には $\Expect[M_{n+1} \mid \F_n] = M_n$ に拡張される予定）
+\end{definition}
+
+\subsection{有界任意停止定理 (Bounded OST)}
+\begin{theorem}[アルゴリズム的OST]
+$M$ をマルチンゲール、$\Tau$ を有界な停止時間（$\exists N, \forall \omega, \Tau(\omega) \le N$）とする。このとき、停止時刻における値の期待値は初期値の期待値に等しい。
+\[ \Expect[M_\Tau] = \Expect[M_0] \]
+\end{theorem}
+
+\subsection{証明のアイデア：テレスコープ和}
+証明は有限和の変形（テレスコープ和）によって行われる。
+停止した値と初期値の差は、増分の和として書ける。
+\[ M_{\Tau(\omega)}(\omega) - M_0(\omega) = \sum_{n=0}^{N-1} (M_{n+1}(\omega) - M_n(\omega)) \cdot \Ind{\Tau > n}(\omega) \]
+ここで $\Ind{\Tau > n}$ は事象 $\{\Tau > n\}$ の指示関数である。
+両辺の期待値を取ると、マルチンゲールの性質（公平な賭け）により、右辺の各項の期待値が $0$ になることを示すことで、$\Expect[M_\Tau - M_0] = 0$ が導かれる。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1]
+    % Axes
+    \draw[->] (0,0) -- (6,0) node[right] {$n$};
+    \draw[->] (0,-2) -- (0,2) node[above] {$M_n$};
+
+    % Paths
+    \draw[gray, thin] (0,0) -- (1,1) -- (2,0.5) -- (3,1.5);
+    \draw[gray, thin] (0,0) -- (1,-1) -- (2,-0.5);
+
+    % Stopping Barrier
+    \draw[blue, thick, dashed] (0,1.2) -- (6,1.2) node[right] {Bound};
+
+    % Stopped Process
+    \draw[thick, red] (0,0) -- (1,1) -- (2,0.5) -- (3,1.5);
+    \node[red, above] at (3,1.5) {Stop};
+    \draw[thick, red] (3,1.5) -- (5,1.5); % Constant after stop
+
+    \node[align=left, font=\small] at (4, -1) {
+        $\Tau$ で停止すると、\\
+        それ以降の増分は $0$ になる。\\
+        $\therefore$ 公平性は保たれる。
+    };
+\end{tikzpicture}
+\caption{停止過程の挙動。停止時刻以降、過程は横ばい（定数）となり、期待値の変化に寄与しなくなる。}
+\end{figure}
+
+\section{結論}
+一連のLeanファイルは、通常の解析的な確率論ではなく、\textbf{離散構造}と\textbf{計算可能性}に立脚した確率論の構築を行っている。
+\begin{itemize}
+    \item \textbf{構造塔}: 複雑さの階層化。
+    \item \textbf{決定可能性}: すべての事象はプログラムで判定可能。
+    \item \textbf{有理数演算}: 期待値は誤差なく計算可能。
+\end{itemize}
+このアプローチは、確率的アルゴリズムの形式検証や、教育的な確率論の導入として非常に強力な視点を提供するものである。
+
+\end{document}
