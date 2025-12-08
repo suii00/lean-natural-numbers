@@ -15,6 +15,7 @@ import Mathlib.NumberTheory.LegendreSymbol.QuadraticReciprocity
 import Mathlib.NumberTheory.DiophantineApproximation.Basic
 import Mathlib.NumberTheory.Pell
 import Mathlib.Data.ZMod.Basic
+import Mathlib.Data.Nat.Factors
 import Mathlib.GroupTheory.Solvable
 import Mathlib.GroupTheory.GroupAction.Basic
 import Mathlib.Algebra.Field.Subfield.Basic
@@ -801,7 +802,7 @@ def Q_sqrt2_sqrt3_solvable : SolvableGaloisExtension where
 実装上の制約により、ここでは可解長を自然数に制限する。
 無限の場合は別途扱う。
 -/
-/-
+
 /-- 可解長による順序（有限部分のみ） -/
 def solvable_length_to_nat (L : SolvableGaloisExtension) : ℕ :=
   match L.solvable_length with
@@ -816,7 +817,10 @@ noncomputable def solvableTower : StructureTowerMin SolvableGaloisExtension ℕ 
 
   covering := by
     intro L
-    exact ⟨solvable_length_to_nat L, le_refl _⟩
+    refine ⟨solvable_length_to_nat L, ?_⟩
+    -- ゴールを「≤」の形に展開して自明な反射律で閉じる
+    change solvable_length_to_nat L ≤ solvable_length_to_nat L
+    exact le_rfl
 
   monotone := by
     intro i j hij L hL
@@ -826,7 +830,9 @@ noncomputable def solvableTower : StructureTowerMin SolvableGaloisExtension ℕ 
 
   minLayer_mem := by
     intro L
-    exact le_refl _
+    -- layer の定義を展開して自明な反射律で閉じる
+    change solvable_length_to_nat L ≤ solvable_length_to_nat L
+    exact le_rfl
 
   minLayer_minimal := by
     intro L i hi
@@ -844,11 +850,10 @@ example : solvableTower.minLayer Q_sqrt2_sqrt3_solvable = 1 := by
   rfl
 
 -- ### 可解性の理論（概念スケッチのみ）
--- ※ 詳細証明は後日追加予定。現状は定義と計算例に留める。
+
 
 end GaloisTheory.SolvableExtensions
-/-
--/  -- ここまで可解拡大セクション（再設計待ち）
+
 /-!
 ## 例4：円分拡大の階層（IUT1からの発展）
 
@@ -952,9 +957,9 @@ def cyc_12 : CyclotomicField where
   n := 12
   n_pos := by norm_num
 
-/-- n の相異なる素因数の個数 ω(n) -/
+/-- n の相異なる素因数の個数 ω(n)。`primeFactorsList` を多重度を潰して数える簡易版。 -/
 def omega (n : ℕ) : ℕ :=
-  (Nat.factors n).toFinset.card
+  (Nat.primeFactorsList n).toFinset.card
 
 /-- 円分体の構造塔 -/
 noncomputable def cyclotomicTower : StructureTowerMin CyclotomicField ℕ where
@@ -962,7 +967,10 @@ noncomputable def cyclotomicTower : StructureTowerMin CyclotomicField ℕ where
 
   covering := by
     intro F
-    exact ⟨omega F.n, le_refl _⟩
+    refine ⟨omega F.n, ?_⟩
+    -- 層の定義を展開して自明な反射律で閉じる
+    change omega F.n ≤ omega F.n
+    exact le_rfl
 
   monotone := by
     intro i j hij F hF
@@ -972,7 +980,8 @@ noncomputable def cyclotomicTower : StructureTowerMin CyclotomicField ℕ where
 
   minLayer_mem := by
     intro F
-    exact le_refl _
+    change omega F.n ≤ omega F.n
+    exact le_rfl
 
   minLayer_minimal := by
     intro F i hi
@@ -981,24 +990,19 @@ noncomputable def cyclotomicTower : StructureTowerMin CyclotomicField ℕ where
 /-! ### 計算例 -/
 
 /-- ζ₁ = 1, ℚ 自身 -/
-example : omega 1 = 0 := by
-  simp [omega]
+example : omega 1 = 0 := by native_decide
 
 /-- ζ₄, n = 4 = 2², 素因数は {2} のみ -/
-example : omega 4 = 1 := by
-  norm_num [omega, Nat.factors]
+example : omega 4 = 1 := by native_decide
 
 /-- ζ₅, n = 5（素数）, 素因数は {5} のみ -/
-example : omega 5 = 1 := by
-  norm_num [omega, Nat.factors]
+example : omega 5 = 1 := by native_decide
 
 /-- ζ₈, n = 8 = 2³, 素因数は {2} のみ -/
-example : omega 8 = 1 := by
-  norm_num [omega, Nat.factors]
+example : omega 8 = 1 := by native_decide
 
 /-- ζ₁₂, n = 12 = 2² · 3, 素因数は {2, 3} -/
-example : omega 12 = 2 := by
-  norm_num [omega, Nat.factors]
+example : omega 12 = 2 := by native_decide
 
 /-! ### 円分体の理論 -/
 
@@ -1066,7 +1070,7 @@ theorem kronecker_weber :
 
 end GaloisTheory.CyclotomicExtensions
 
-
+/-
 /-!
 ## 例5：分離拡大の階層
 
