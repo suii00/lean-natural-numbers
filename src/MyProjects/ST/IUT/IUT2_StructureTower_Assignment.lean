@@ -245,7 +245,7 @@ Mochizuki の IUT 理論では、Spec(ℤ) の各点を
 参照: IUT I, Introduction §I1, "étale-picture"
 -/
 
-/- namespace SpectrumHierarchy
+namespace SpectrumHierarchy
 
 /-- ℤ の素イデアルを表現する型
 
@@ -306,13 +306,19 @@ def specZTower : StructureTowerMin where
   covering := by
     intro p
     refine ⟨idealHeight p, ?_⟩
+    change idealHeight p ≤ idealHeight p
     exact le_rfl
   monotone := by
     intro i j hij p hp
     exact le_trans hp hij
   minLayer := idealHeight
-  minLayer_mem := by intro p; dsimp; exact le_rfl
-  minLayer_minimal := by intro p i hp; exact hp
+  minLayer_mem := by
+    intro p
+    change idealHeight p ≤ idealHeight p
+    exact le_rfl
+  minLayer_minimal := by
+    intro p i hp
+    exact hp
 
 /-! ### 計算例：幾何的対象の確認 -/
 
@@ -394,7 +400,7 @@ theorem inclusion_geometric_meaning :
   4. (0) は開かつ稠密なので、全体に含まれる
   -/
 
--/ -- end SpectrumHierarchy
+end SpectrumHierarchy
 
 /-!
 ## 例2：局所化の階層
@@ -591,13 +597,17 @@ def krullTower : StructureTowerMin where
   covering := by
     intro c
     refine ⟨chainLength c, ?_⟩
+    change chainLength c ≤ chainLength c
     exact le_rfl
   monotone := by
     intro i j hij c hc
+    change chainLength c ≤ i at hc
+    change chainLength c ≤ j
     exact le_trans hc hij
   minLayer := chainLength
-  minLayer_mem := by intro c; dsimp; exact le_rfl
+  minLayer_mem := by intro c; change chainLength c ≤ chainLength c; exact le_rfl
   minLayer_minimal := by intro c i hc; exact hc
+
 
 example : krullTower.minLayer IdealChain.trivial = 0 := rfl
 example : krullTower.minLayer IdealChain.onestep = 1 := rfl
