@@ -8,6 +8,7 @@ import Mathlib.FieldTheory.Tower
 import Mathlib.Data.Fintype.Card
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Order.Basic
+import Mathlib.NumberTheory.ArithmeticFunction  -- Nat.totient
 
 /-!
 # IUT1 課題：構造塔で学ぶ数論の基礎
@@ -225,7 +226,14 @@ lemma numDistinctPrimeFactors_prime (p : ℕ) (hp : Nat.Prime p) :
 lemma numDistinctPrimeFactors_mul_le (m n : PosInt) :
     numDistinctPrimeFactors ⟨m.val * n.val, Nat.mul_pos m.property n.property⟩
       ≤ numDistinctPrimeFactors m + numDistinctPrimeFactors n := by
-  sorry
+  classical
+  have hm0 : m.val ≠ 0 := Nat.ne_of_gt m.property
+  have hn0 : n.val ≠ 0 := Nat.ne_of_gt n.property
+  have hpf :=
+    Nat.primeFactors_mul (a := m.val) (b := n.val) hm0 hn0
+  have hcard := Finset.card_union_le (Nat.primeFactors m.val) (Nat.primeFactors n.val)
+  -- rewrite via hpf
+  simpa [numDistinctPrimeFactors, hpf] using hcard
   /-
   証明戦略：
   1. primeFactors (m * n) ⊆ primeFactors m ∪ primeFactors n
@@ -323,7 +331,17 @@ theorem prime_power_in_layer_one (p : ℕ) (k : ℕ) (hp : Nat.Prime p) (hk : 0 
       have h' : 0 < p ^ k := by exact pow_pos hp.pos k
       simpa using h'⟩
       ∈ primeFactorTower.layer 1 := by
-  sorry
+  classical
+  have hkne : k ≠ 0 := Nat.pos_iff_ne_zero.mp hk
+  have hpf : (Nat.primeFactors (p ^ k)) = ({p} : Finset ℕ) :=
+    Nat.primeFactors_prime_pow (k := k) hkne hp
+  -- numDistinctPrimeFactors (p^k) = 1
+  have hcard : numDistinctPrimeFactors ⟨p ^ k, by
+      have h' : 0 < p ^ k := pow_pos hp.pos k
+      simpa using h'⟩ = 1 := by
+    simp [numDistinctPrimeFactors, hpf]
+  -- membership in layer 1
+  simpa [primeFactorTower, hcard] using (le_of_eq hcard)
   /-
   証明戦略：
   1. p^k の素因数はpのみ
@@ -437,19 +455,41 @@ example : divisorTower.minLayer ⟨12, by norm_num⟩ = 6 := by
 /-- Layer 1 は1のみ -/
 theorem layer_one_eq_singleton :
     divisorTower.layer 1 = {⟨1, Nat.one_pos⟩} := by
-  sorry
-  /-
-  証明戦略：
-  1. m ∈ layer 1 ⇔ numDivisors m ≤ 1
-  2. ⇔ numDivisors m = 1（約数は少なくとも1を含む）
-  3. ⇔ m = 1
-  -/
+  classical
+  ext m
+  constructor
+  · intro hm
+    have hmpos : 0 < m.val := m.property
+    have hcard : (Nat.divisors m.val).card ≤ 1 := hm
+    have hpos : 0 < (Nat.divisors m.val).card := by
+      have hmem : (1 : ℕ) ∈ Nat.divisors m.val :=
+        Nat.mem_divisors.mpr ⟨Nat.one_dvd _, Nat.succ_le_of_lt hmpos⟩
+      exact Finset.card_pos.mpr ⟨1, hmem⟩
+    have hcard1 : (Nat.divisors m.val).card = 1 :=
+      le_antisymm hcard (Nat.succ_le_iff.mpr hpos)
+    obtain ⟨x, hxmem, hxuniq⟩ := Finset.card_eq_one.mp hcard1
+    have h1mem : (1 : ℕ) ∈ Nat.divisors m.val :=
+      Nat.mem_divisors.mpr ⟨Nat.one_dvd _, Nat.succ_le_of_lt hmpos⟩
+    have hx1 : x = 1 := hxuniq h1mem
+    have hmv_mem : m.val ∈ Nat.divisors m.val :=
+      Nat.mem_divisors.mpr ⟨by rfl, Nat.succ_le_of_lt hmpos⟩
+    have hmv1 : m.val = 1 := by
+      have := hxuniq hmv_mem
+      simpa [hx1] using this
+    subst hmv1
+    simp
+  · intro hm
+    rcases hm with rfl
+    simp [divisorTower, numDivisors_one]
 
 /-- Layer 2 には素数が含まれる -/
 theorem prime_in_layer_two (p : ℕ) (hp : Nat.Prime p) :
     ⟨p, hp.pos⟩ ∈ divisorTower.layer 2 := by
-  sorry
   -- numDivisors p = 2 より
+  have h := numDivisors_prime p hp
+  -- layer 2 means numDivisors ≤ 2
+  have : numDivisors ⟨p, hp.pos⟩ ≤ 2 := by simpa [h]
+  exact this
 
 end DivisorCount
 
@@ -550,19 +590,27 @@ example : congruenceTower.minLayer (4 : ℤ) = 2 := by
 /-- Layer 0 は奇数全体 -/
 theorem layer_zero_odd :
     congruenceTower.layer 0 = { m : ℤ | m % 2 ≠ 0 } := by
-  sorry
-  /-
-  証明戦略：
-  1. m ∈ layer 0 ⇔ twoPadicValSimple m ≤ 0
-  2. ⇔ twoPadicValSimple m = 0
-  3. ⇔ m % 2 ≠ 0（奇数）
-  -/
+  ext m
+  constructor
+  · intro hm
+    have hzero : twoPadicValSimple m = 0 := le_antisymm hm (Nat.zero_le _)
+    dsimp [twoPadicValSimple] at hzero
+    by_cases hodd : m % 2 ≠ 0
+    · exact hodd
+    · have : False := by
+        -- if not odd, first branch impossible so contradiction
+        simp [hodd] at hzero
+      contradiction
+  · intro hodd
+    dsimp [congruenceTower, twoPadicValSimple]
+    -- odd → first branch selected, so value = 0
+    simp [hodd]
 
 /-- 包含関係：2-進イデアル列 -/
 theorem ideal_chain :
     ∀ n : ℕ, congruenceTower.layer n ⊆ congruenceTower.layer (n + 1) := by
-  sorry
-  -- 単調性から直接従う
+  intro n m hm
+  exact congruenceTower.monotone (Nat.le_succ n) hm
 
 end CongruenceHierarchy
 
@@ -634,13 +682,13 @@ noncomputable def quadraticNormTower : StructureTowerMin where
 /-! ### 計算例 -/
 
 example : quadraticNormTower.minLayer (1, 0) = 1 := by
-  sorry  -- N(1) = 1² - 2·0² = 1
+  simp [quadraticNormTower, normAbs, norm, Int.ofNat_eq_coe, Int.floor_coe]
 
 example : quadraticNormTower.minLayer (0, 1) = 2 := by
-  sorry  -- N(√2) = 0² - 2·1² = -2, |N| = 2
+  norm_num [quadraticNormTower, normAbs, norm]
 
 example : quadraticNormTower.minLayer (3, 2) = 1 := by
-  sorry  -- N(3 + 2√2) = 9 - 8 = 1（単数）
+  norm_num [quadraticNormTower, normAbs, norm]
 
 end QuadraticFieldNorm
 
@@ -667,15 +715,8 @@ end QuadraticFieldNorm
 
 namespace CyclotomicExtension
 
-/-- 簡略版：オイラーのφ関数 -/
-def eulerPhi (n : ℕ) : ℕ :=
-  if n = 0 then 0
-  else if n = 1 then 1
-  else if n = 2 then 1
-  else if n = 3 then 2
-  else if n = 4 then 2
-  else if n = 6 then 2
-  else sorry  -- 一般的な実装は複雑
+/-- オイラーのφ関数（mathlib の `Nat.totient` を利用） -/
+def eulerPhi (n : ℕ) : ℕ := Nat.totient n
 
 /-- 円分拡大の次数
 
