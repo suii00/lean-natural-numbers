@@ -1391,7 +1391,7 @@ example : integralExtensionTower.minLayer Q_sqrt2_field = 2 := by
   rfl
 
 /-! ### 整数環の理論 -/
-/-
+
 /-- 整数環の階数は拡大次数と等しい -/
 theorem ring_rank_eq_field_degree :
     ∀ K : NumberField,
@@ -1549,7 +1549,9 @@ noncomputable def ramificationTower :
 
   covering := by
     intro data
-    exact ⟨data.ramification_index, le_refl _⟩
+    refine ⟨data.ramification_index, ?_⟩
+    change data.ramification_index ≤ data.ramification_index
+    exact le_rfl
 
   monotone := by
     intro i j hij data hdata
@@ -1559,7 +1561,8 @@ noncomputable def ramificationTower :
 
   minLayer_mem := by
     intro data
-    exact le_refl _
+    change data.ramification_index ≤ data.ramification_index
+    exact le_rfl
 
   minLayer_minimal := by
     intro data i hi
@@ -1572,7 +1575,7 @@ example : ramificationTower.minLayer Q_sqrt2_p3 = 1 := by
 
 example : ramificationTower.minLayer Q_sqrt2_p2 = 2 := by
   rfl  -- 完全分岐
-
+/-
 /-! ### 分岐理論の定理 -/
 
 /-- 基本等式：efg = [K:ℚ] -/
