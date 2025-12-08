@@ -1006,67 +1006,16 @@ example : omega 12 = 2 := by native_decide
 
 /-! ### 円分体の理論 -/
 
-/-- 円分体のガロア群の位数 = Euler の φ 関数 -/
-theorem cyclotomic_galois_group_order :
-    ∀ F : CyclotomicField,
-    -- |Gal(ℚ[ζₙ]/ℚ)| = φ(n)
-    True := by
-  sorry
-  /-
-  証明：
-  1. Gal(ℚ[ζₙ]/ℚ) の元 σ は ζₙ の行き先で決まる
-  2. σ(ζₙ) は ζₙ の原始n乗根でなければならない
-  3. 原始n乗根は ζₙ^a（a と n が互いに素）
-  4. これらは φ(n) 個
-  5. したがって |Gal(ℚ[ζₙ]/ℚ)| = φ(n)
-  -/
+/-
+TODO (future formalization: Cyclotomic section)
 
-/-- 円分体のガロア群は (ℤ/nℤ)^× に同型 -/
-theorem cyclotomic_galois_group_isomorphic :
-    ∀ F : CyclotomicField,
-    -- Gal(ℚ[ζₙ]/ℚ) ≃ (ℤ/nℤ)^×
-    True := by
-  sorry
-  /-
-  証明：
-  1. 写像 φ: (ℤ/nℤ)^× → Gal(ℚ[ζₙ]/ℚ) を定義
-     φ(a)(ζₙ) = ζₙ^a
-  2. φ は群準同型：φ(ab) = φ(a)φ(b)
-  3. φ は単射：φ(a) = id ⇒ ζₙ^a = ζₙ ⇒ a ≡ 1 (mod n)
-  4. φ は全射：両辺の位数が等しい（φ(n) = |Gal|）
-  5. したがって φ は同型
-  -/
+* Show |Gal(ℚ[ζₙ]/ℚ)| = φ(n) using mathlib’s `IsCyclotomicExtension`.
+* Exhibit the isomorphism Gal(ℚ[ζₙ]/ℚ) ≃ (ℤ/nℤ)ˣ.
+* For n = p^k, record cyclicity of (ℤ/p^kℤ)ˣ.
+* Restate Kronecker–Weber: every finite abelian extension of ℚ embeds in a cyclotomic field.
 
-/-- 素因数が1つの場合、ガロア群は巡回群 -/
-theorem cyclotomic_prime_power_cyclic :
-    ∀ (p : ℕ) (k : ℕ),
-    Nat.Prime p → k > 0 →
-    -- Gal(ℚ[ζ_{p^k}]/ℚ) は巡回群
-    True := by
-  sorry
-  /-
-  証明：
-  1. (ℤ/p^kℤ)^× は巡回群（既知）
-  2. したがって Gal(ℚ[ζ_{p^k}]/ℚ) も巡回群
-  -/
-
-/-- Kronecker-Weber 定理（概念的記述） -/
-theorem kronecker_weber :
-    -- ℚ のすべてのアーベル拡大は円分体に含まれる
-    True := by
-  sorry
-  /-
-  証明の概略：
-  1. ℚ の有限アーベル拡大 L/ℚ を取る
-  2. L は ℚ 上の多項式の分解体
-  3. 類体論により、L は適当な円分体に埋め込める
-  4. 具体的には、L の導手（conductor）f を用いて
-     L ⊆ ℚ[ζ_f]
-
-  構造塔での解釈：
-  - アーベル拡大全体 = 円分塔の「部分塔」
-  - 円分塔は「普遍的」なアーベル拡大の塔
-  -/
+These are kept as comments to avoid fake proofs; connect them to the tower API when formalized.
+-/
 
 end GaloisTheory.CyclotomicExtensions
 
@@ -1216,20 +1165,13 @@ theorem separable_degree_le_total :
   intro L
   rw [L.char_zero]
 
-/-- 標数 p の場合の非分離拡大（概念的記述） -/
-theorem inseparable_extension_exists_in_char_p :
-    -- 標数 p > 0 の不完全体上には非分離拡大が存在
-    True := by
-  sorry
-  /-
-  証明：
-  1. k = 𝔽_p(t) を取る（不完全体）
-  2. L = k(t^{1/p}) とする
-  3. [L:k] = p だが、最小多項式 X^p - t は
-     (X - t^{1/p})^p と因数分解
-  4. したがって [L:k]_s = 1 < p = [L:k]
-  5. これは非分離拡大の例
-  -/
+/-
+TODO (future formalization):
+非分離拡大の具体例（標数 p > 0）を Lean で示す。
+例: k = 𝔽_p(t), L = k(t^{1/p}), 最小多項式 X^p - t が (X - t^{1/p})^p と分解し
+[L:k]_s = 1 < p = [L:k] となる。
+現在は説明のみを残し、定理化は後日。
+-/
 
 end GaloisTheory.SeparableExtensions
 
@@ -1399,37 +1341,19 @@ theorem ring_rank_eq_field_degree :
   intro K
   exact K.rank_eq_degree
 
-/-- Dedekind 環の性質 -/
-theorem dedekind_domain_property :
-    -- 数体の整数環は Dedekind 環
-    True := by
-  sorry
-  /-
-  Dedekind 環の定義：
-  1. Noether 的整域
-  2. 整閉
-  3. すべての非零素イデアルが極大
+/-
+TODO: Dedekind 環の性質（数体の整数環 O_K が Dedekind 環であること）
+1. O_K は有限生成 ℤ-加群 → Noether 的整域
+2. O_K は K の整閉包 → 整閉
+3. O_K/P が有限体 → P は極大
+mathlib の `NumberField.ring` 周辺と接続して正式な定理にする。
+-/
 
-  数体の整数環 O_K はこれらをすべて満たす：
-  1. O_K は有限生成 ℤ-加群なので Noether 的
-  2. O_K は定義により K での整閉包なので整閉
-  3. 素イデアル P に対して、O_K/P は有限体なので P は極大
-  -/
-
-/-- UFD でない例：ℚ[√-5] -/
-theorem Q_sqrt_minus5_not_UFD :
-    -- O_{ℚ[√-5]} = ℤ[√-5] は UFD でない
-    True := by
-  sorry
-  /-
-  反例：
-  1. 6 = 2 · 3 = (1 + √-5)(1 - √-5)
-  2. これらは O_{ℚ[√-5]} で既約だが、同伴でない
-  3. したがって、一意分解が成り立たない
-
-  しかし、イデアルの一意分解は成り立つ（Dedekind 環）：
-    (6) = (2, 1+√-5)² · (3, 1+√-5) · (3, 1-√-5)
-  -/
+/-
+TODO: UFD でない例 ℚ[√-5]
+6 = 2·3 = (1+√-5)(1-√-5) で非自明な因数分解が2通りあり、既約因子が同伴でない。
+後日、mathlib の代数的整数 API と接続して正式な証明に差し替える。
+-/
 
 end AlgebraicNumberTheory.IntegralExtensions
 
@@ -1616,12 +1540,12 @@ theorem inertia_le_one_of_totally_ramified :
   3. g = 1 まで言うには g ≥ 1 の追加仮定が必要（今回は簡易版で f ≤ 1 とした）
   -/
 
-/-- Dedekind-Kummer 定理（概念的記述） -/
-theorem dedekind_kummer :
-    -- K = ℚ[α], f = 最小多項式
-    -- p ∤ disc(f) ならば、f mod p の分解が素イデアル分解を決定
-    True := by
-  sorry
+/-
+TODO: Dedekind-Kummer（概念メモ）
+K = ℚ[α], f = 最小多項式, p ∤ disc(f) のとき、
+f mod p の分解が p·O_K の素イデアル分解に対応することを
+mathlib の判別式・分解 API と接続して正式化する。
+-/
   /-
   証明の概略：
   1. O_K/(p) ≃ 𝔽_p[x]/(f(x))（p が判別式を割らない条件が必要）
@@ -1789,38 +1713,15 @@ theorem class_number_one_iff_UFD :
   intro data
   rfl
 
-/-- 類数の有限性（Minkowski の定理） -/
-theorem class_number_finite :
-    ∀ data : IdealClassData,
-    -- h(K) < ∞
-    data.class_number < 1000000 := by  -- 便宜的な上界
-  sorry
-  /-
-  証明（Minkowski の有界性定理）：
-  1. K の各イデアル類は、ノルムが
-     M_K := (4/π)^r₂ · √|disc(K)|
-     以下の代表元を持つ
-  2. したがって、h(K) ≤ (有限個の可能性)
-  3. よって h(K) < ∞
+/-
+TODO: 類数の有限性（Minkowski）と Hilbert 類体との対応
 
-  実際の上界はもっと精密に計算できる。
-  -/
+1. Minkowski の有界性定理を用いて h(K) < ∞ を示す。
+2. 最大不分岐アーベル拡大 H/K に対し Gal(H/K) ≃ Cl(K) を
+   Artin 写像を通じて同型とする。
 
-/-- Hilbert 類体との対応 -/
-theorem hilbert_class_field :
-    ∀ data : IdealClassData,
-    -- Gal(H/K) ≃ Cl(K)
-    -- ここで H は K の Hilbert 類体
-    True := by
-  sorry
-  /-
-  証明の概略（類体論）：
-  1. H/K を K の最大不分岐アーベル拡大とする
-  2. Artin 写像 ψ: I(K) → Gal(H/K) を定義
-  3. ψ は P(K) 上自明（主イデアル = 単項式）
-  4. したがって Cl(K) = I(K)/P(K) → Gal(H/K)
-  5. Artin の相互律により、これは同型
-  -/
+現段階では学習ノートとしてコメントのみ残し、正式な定理化は後日。
+-/
 
 end AlgebraicNumberTheory.IdealClassGroup
 
@@ -2010,23 +1911,11 @@ theorem unramified_iff_e_one :
         _ = 1 * K.degree := by simp
     exact this
 
-/-- 局所大域原理（Hasse-Minkowski, 2次形式）-/
-theorem hasse_minkowski_local_global :
-    -- 2次形式 Q に対して：
-    -- Q(x) = 0 が ℚ で解を持つ ⇔
-    -- Q(x) = 0 がすべての ℚ_p と ℝ で解を持つ
-    True := by
-  sorry
-  /-
-  証明の概略：
-  1. (⇒)：ℚ ⊆ ℚ_p, ℚ ⊆ ℝ なので明らか
-  2. (⇐)：Hasse の定理（非自明）
-     各 ℚ_p での解を「貼り合わせて」ℚ の解を構成
-
-  構造塔での解釈：
-  - 各層（ℚ_p）で可解 ⇒ 大域層（ℚ）で可解
-  - これは層の「整合性」を示す
-  -/
+/-
+TODO: Hasse–Minkowski（2次形式の局所大域原理）
+Q(x)=0 が ℚ で解を持つ ⇔ すべての ℚ_p と ℝ で解を持つ。
+現状は説明のみ保持し、正式な定理化は後日 mathlib の二次形式 API と接続して行う。
+-/
 
 end AlgebraicNumberTheory.LocalFields
 
@@ -2196,11 +2085,11 @@ theorem imaginary_quadratic_finite_units :
   norm_num at this
   exact this
 
-/-- Pell 方程式と単数群の対応 -/
-theorem pell_equation_units :
-    -- x² - Dy² = 1 の解 ⇔ ℚ[√D] の単数
-    True := by
-  sorry
+/-
+TODO: Pell 方程式と単数群の対応
+N(x + y√D) = x² - Dy² から、Pell 方程式の解と二次体の単数が対応することを
+後日正式に証明する。現状は説明のみ保持。
+-/
   /-
   証明：
   1. ℚ[√D] の単数 ε = x + y√D とする
@@ -2211,6 +2100,5 @@ theorem pell_equation_units :
   逆に、Pell 方程式の解 (x, y) から
   ε = x + y√D は N(ε) = 1 を満たすので単数。
   -/
-
+  
 end AlgebraicNumberTheory.UnitGroup
-
