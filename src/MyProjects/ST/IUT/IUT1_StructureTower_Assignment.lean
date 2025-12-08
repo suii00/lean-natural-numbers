@@ -208,7 +208,12 @@ lemma numDistinctPrimeFactors_one :
 /-- 素数pの素因数個数は1 -/
 lemma numDistinctPrimeFactors_prime (p : ℕ) (hp : Nat.Prime p) :
     numDistinctPrimeFactors ⟨p, hp.pos⟩ = 1 := by
-  sorry
+  classical
+  -- primeFactors of a prime power is the singleton {p}
+  have hpf : (Nat.primeFactors p) = ({p} : Finset ℕ) := by
+    -- use k = 1 case of primeFactors_prime_pow
+    simpa using (Nat.primeFactors_prime_pow (k := 1) (hk := by decide) hp)
+  simp [numDistinctPrimeFactors, hpf]
   /-
   証明戦略：
   1. 素数pの素因数分解は p = p¹
@@ -286,13 +291,31 @@ example : primeFactorTower.minLayer ⟨30, by norm_num⟩ = 3 := by
 /-- Layer 0 は単位元のみ -/
 theorem layer_zero_eq_one :
     primeFactorTower.layer 0 = {⟨1, Nat.one_pos⟩} := by
-  sorry
-  /-
-  証明戦略：
-  1. m ∈ layer 0 ⇔ numDistinctPrimeFactors m ≤ 0
-  2. ⇔ numDistinctPrimeFactors m = 0
-  3. ⇔ m = 1（素因数を持たない正整数は1のみ）
-  -/
+  classical
+  ext m
+  constructor
+  · intro hm
+    -- numDistinctPrimeFactors m ≤ 0 ⇒ card = 0
+    have hzero : (Nat.primeFactors m.val).card = 0 :=
+      Nat.eq_zero_of_le_zero hm
+    have hpfset : Nat.primeFactors m.val = ∅ := Finset.card_eq_zero.mp hzero
+    -- primeFactors = ∅ ⇒ m.val = 0 ∨ 1
+    have hval : m.val = 0 ∨ m.val = 1 :=
+      (Nat.primeFactors_eq_empty (n := m.val)).1 hpfset
+    -- 0 は PosInt ではない
+    have hv1 : m.val = 1 := by
+      cases hval with
+      | inl h0 => cases m.property.ne' h0
+      | inr h1 => exact h1
+    -- 目的の単位元に一致
+    have hm1 : m = ⟨1, Nat.one_pos⟩ := Subtype.ext (by simpa using hv1)
+    simp [primeFactorTower, hm1]
+  · intro hm
+    -- 1 は自明に layer 0 に入る
+    rcases hm with rfl
+    -- goal: numDistinctPrimeFactors 1 ≤ 0
+    change numDistinctPrimeFactors ⟨1, Nat.one_pos⟩ ≤ 0
+    native_decide
 
 /-- Layer 1 には素数の冪が含まれる -/
 theorem prime_power_in_layer_one (p : ℕ) (k : ℕ) (hp : Nat.Prime p) (hk : 0 < k) :
@@ -375,7 +398,13 @@ lemma numDivisors_one : numDivisors ⟨1, Nat.one_pos⟩ = 1 := by
 
 lemma numDivisors_prime (p : ℕ) (hp : Nat.Prime p) :
     numDivisors ⟨p, hp.pos⟩ = 2 := by
-  sorry
+  classical
+  -- divisors of p are an image of range (1+1)
+  have hcard : (Nat.divisors p).card = 2 := by
+    have := congrArg Finset.card (Nat.divisors_prime_pow hp 1)
+    -- divisors (p^1) = range (1+1) mapped, hence card = 2
+    simpa [Nat.pow_one] using this
+  simpa [numDivisors] using hcard
 
 /-- 約数個数による構造塔 -/
 def divisorTower : StructureTowerMin where
@@ -468,7 +497,7 @@ namespace CongruenceHierarchy
 - twoPadicValuation(4) = 2（4 = 2²）
 - twoPadicValuation(12) = 2（12 = 2² × 3）
 -/
-def twoPadicValuation (m : ℤ) : ℕ :=
+def twoPadicValuation (_m : ℤ) : ℕ :=
   -- 簡略化のため定数にしておく（本実装では Nat.find を用いる）
   0
   /-
