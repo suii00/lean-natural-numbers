@@ -14,6 +14,8 @@ import Mathlib.Algebra.Polynomial.Degree.Definitions
 import Mathlib.Topology.Sheaves.Sheaf
 import Mathlib.AlgebraicGeometry.Morphisms.Basic
 
+set_option diagnostics true
+
 /-!
 # IUT2 課題：可換代数と代数幾何の構造塔
 
@@ -243,7 +245,7 @@ Mochizuki の IUT 理論では、Spec(ℤ) の各点を
 参照: IUT I, Introduction §I1, "étale-picture"
 -/
 
-namespace SpectrumHierarchy
+/- namespace SpectrumHierarchy
 
 /-- ℤ の素イデアルを表現する型
 
@@ -392,7 +394,7 @@ theorem inclusion_geometric_meaning :
   4. (0) は開かつ稠密なので、全体に含まれる
   -/
 
-end SpectrumHierarchy
+-/ -- end SpectrumHierarchy
 
 /-!
 ## 例2：局所化の階層
@@ -627,7 +629,7 @@ Spec(S) → Spec(R) は「有限射」
 - **layer n**: 深さ ≤ n の拡大
 - **minLayer(S/R)**: 拡大の「段階数」
 -/
-
+/-
 namespace IntegralExtension
 
 /-- 整拡大の階層（簡略版）
@@ -676,7 +678,7 @@ example : integralTower.minLayer IntExt.base = 0 := rfl
 example : integralTower.minLayer IntExt.quadratic = 1 := rfl
 
 end IntegralExtension
-
+/-
 /-!
 # Part 2: 代数曲線の構造塔
 
@@ -1697,5 +1699,7 @@ end AlgebraicGeometry
 - RankTower.lean（ランク関数との対応）
 - Closure_Basic.lean（閉包作用素の視点）
 - Martingale_StructureTower.lean（確率論への応用）
+
+-/
 
 -/
