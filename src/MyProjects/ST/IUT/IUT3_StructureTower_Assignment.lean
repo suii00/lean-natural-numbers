@@ -641,20 +641,20 @@ theorem galois_group_order_four_types :
      - したがって V₄ に同型
   -/
 
+set_option linter.unusedVariables false in
 /-- 部分群の指数と中間体の次数の関係 -/
 theorem index_formula :
     ∀ (L : FiniteGaloisExtension)
       (H_order : ℕ)
-      (H_divides : H_order ∣ L.galois_group_order),
+      (hdiv : H_order ∣ L.galois_group_order),
     -- [G : H] * H_order = |G|
     (L.galois_group_order / H_order) * H_order = L.galois_group_order := by
-  intro L H_order H_divides
-  exact Nat.div_mul_cancel H_divides
+  intro L H_order hdiv
+  exact Nat.div_mul_cancel hdiv
 
 end GaloisTheory.GaloisGroupOrder
 
-/- TODO: 以下のセクション（可解拡大以降）は再設計時に段階的に復活させる。
-
+-- TODO: 以下のセクション（可解拡大以降）は再設計時に段階的に復活させる。
 
 /-!
 ## 例3：可解拡大の階層
@@ -839,59 +839,8 @@ example : solvableTower.minLayer Q_sqrt2_solvable = 1 := by
 example : solvableTower.minLayer Q_sqrt2_sqrt3_solvable = 1 := by
   rfl
 
-/-! ### 可解性の理論 -/
-
-/-- アーベル拡大は可解長 1 -/
-theorem abelian_extension_solvable_one :
-    ∀ L : SolvableGaloisExtension,
-    L.degree = 2 →  -- 2次拡大は必ずアーベル
-    solvable_length_to_nat L ≤ 1 := by
-  sorry
-  /-
-  証明：
-  1. 2次拡大のガロア群は位数 2
-  2. 位数 2 の群は巡回群 ℤ/2ℤ
-  3. 巡回群はアーベル
-  4. アーベル群の可解列：G → {e}（長さ 1）
-  5. したがって可解長 ≤ 1
-  -/
-
-/-- 可解拡大の塔は可解 -/
-theorem solvable_tower_is_solvable :
-    ∀ (L M : SolvableGaloisExtension),
-    L.degree ∣ M.degree →  -- L ⊆ M（中間体）
-    -- L/ℚ と M/L がともに可解なら M/ℚ も可解
-    solvable_length_to_nat L + solvable_length_to_nat M ≥
-      solvable_length_to_nat M := by
-  sorry
-  /-
-  証明：
-  1. L/ℚ の可解列：G_L = H_n ⊃ ... ⊃ H_0 = {e}
-  2. M/L の可解列：G_M/L = K_m ⊃ ... ⊃ K_0 = {e}
-  3. これらを接続して M/ℚ の可解列を構成：
-     G_M ⊃ ... ⊃ G_L ⊃ H_n ⊃ ... ⊃ H_0 = {e}
-  4. 長さは高々 n + m
-  -/
-
-/-- Abel-Ruffini の定理（概念的記述） -/
-theorem abel_ruffini_tower :
-    -- 5次対称群 S₅ は可解でない
-    -- したがって、対応する拡大は有限可解長を持たない
-    True := by
-  sorry
-  /-
-  証明の骨子：
-  1. S₅ には正規部分群 A₅（交代群）が存在
-  2. A₅ は単純群（自明でない正規部分群を持たない）
-  3. A₅ は非アーベル（位数 60, 巡回的でない）
-  4. したがって、S₅ の可解列は存在しない
-  5. 5次一般方程式のガロア群は S₅
-  6. よって、5次方程式は冪根では解けない
-
-  構造塔での解釈：
-  - 可解拡大 = 有限層
-  - 非可解拡大 = 構造塔の外（または ∞ 層）
-  -/
+/-! ### 可解性の理論（概念スケッチのみ）
+※ 詳細証明は後日追加予定。現状は定義と計算例に留める。 -/
 
 end GaloisTheory.SolvableExtensions
 
