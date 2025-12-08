@@ -1,5 +1,4 @@
-import IUT4_StructureTower_Assignment
-
+import MyProjects.ST.IUT.IUT4_StructureTower_Assignment
 /-!
 # Part 1: 局所類体論の構造塔（5例）
 
@@ -100,7 +99,7 @@ carrier として LocalAbelianExtension を使うのは簡略化。
 実際には、拡大体そのものを carrier とすべき。
 -/
 
-noncomputable def localAbelianExtensionTower : 
+noncomputable def localAbelianExtensionTower :
     StructureTowerMin where
   carrier := LocalAbelianExtension
   Index := ℕ
@@ -172,13 +171,13 @@ def Q5_radical : LocalAbelianExtension where
 ### 構造塔における層の確認
 -/
 
-example : Q5_trivial ∈ localAbelianExtensionTower.layer 0 := by
+example : Q5_trivial ∈ localAbelianExtensionTower.layer (0 : ℕ) := by
   simp [localAbelianExtensionTower, Q5_trivial]
 
-example : Q5_cyclotomic ∈ localAbelianExtensionTower.layer 1 := by
+example : Q5_cyclotomic ∈ localAbelianExtensionTower.layer (1 : ℕ) := by
   simp [localAbelianExtensionTower, Q5_cyclotomic]
 
-example : Q5_radical ∈ localAbelianExtensionTower.layer 4 := by
+example : Q5_radical ∈ localAbelianExtensionTower.layer (4 : ℕ) := by
   simp [localAbelianExtensionTower, Q5_radical]
 
 /-!
@@ -322,7 +321,7 @@ Lubin-Tate理論は、局所類体論の「明示的」構成を与える。
 ℚ のアーベル拡大が円分体で尽くされるのと同様、
 局所体のアーベル拡大がLubin-Tate拡大で尽くされる。
 
-**参照**: 
+**参照**:
 - Lubin-Tate, "Formal complex multiplication in local fields"
 - Washington "Cyclotomic Fields", Chapter 13
 - Mochizuki "IUT I", §3 (formal groups)
@@ -405,10 +404,10 @@ def LT_K2 : LubinTateExtension where
   degree := 20
   degree_pos := by norm_num
 
-example : LT_K1 ∈ lubinTateTower.layer 1 := by
+example : LT_K1 ∈ lubinTateTower.layer (1 : ℕ) := by
   simp [lubinTateTower, LT_K1]
 
-example : LT_K2 ∈ lubinTateTower.layer 2 := by
+example : LT_K2 ∈ lubinTateTower.layer (2 : ℕ) := by
   simp [lubinTateTower, LT_K2]
 
 /-!
@@ -496,7 +495,7 @@ def tate_module_E : PadicGaloisRepresentation where
   min_HT_weight := 0
   is_crystalline := true  -- E が良い還元を持つ場合
 
-example : tate_module_E ∈ padicHodgeTower.layer 0 := by
+example : tate_module_E ∈ padicHodgeTower.layer (0 : ℤ) := by
   simp [padicHodgeTower, tate_module_E]
 
 /-!
@@ -505,7 +504,7 @@ example : tate_module_E ∈ padicHodgeTower.layer 0 := by
 **数学的背景**：
 
 局所Artin写像は、局所体 K に対して同型
-  
+
   art_K: K^× / NL/K(L^×) ≃→ Gal(L/K)^ab
 
 を与える。ここで NL/K はノルム写像。
@@ -546,7 +545,7 @@ example : tate_module_E ∈ padicHodgeTower.layer 0 := by
   T_algebraic（代数側：アーベル拡大）
 
 に対して、構造塔の同型射
-  
+
   art: T_analytic ≃ T_algebraic
 
 が存在する。この同型射は minLayer を保存する：
