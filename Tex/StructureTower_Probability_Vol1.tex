@@ -1,0 +1,235 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% --- パッケージの読み込み ---
+\usepackage{amsmath, amssymb, amsthm, mathrsfs}
+\usepackage{luatexja}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes, backgrounds, positioning, calc, arrows.meta, fit, patterns, decorations.pathreplacing}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+
+% --- ハイパーリンク設定 ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+
+% --- マクロ定義 ---
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\OmegaSpace}{\Omega}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\Expect}{\mathbb{E}}
+\newcommand{\CondExp}[2]{\Expect[#1 \mid #2]}
+\newcommand{\Tau}{\tau}
+\newcommand{\Tower}{\mathcal{T}}
+\newcommand{\Layer}[1]{\mathrm{Layer}_{#1}}
+\newcommand{\MinLayer}{\mathrm{minLayer}}
+
+% --- タイトル情報 ---
+\title{\textbf{構造塔による確率論の再構築：第1版フィルトレーション} \\ \large --- Bourbaki形式主義からマルチンゲールまで ---}
+\author{
+    Lean Code Generation: \textbf{CODEX (OpenAI)} \\
+    TeX Explanation \& Typesetting: \textbf{Gemini (Google)}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、一連のLean 4ファイルに基づき、数学的構造の階層性を抽象化した「構造塔 (Structure Tower)」の理論と、それを基盤とした確率論（特に停止時間とマルチンゲール）の形式化について解説する。Bourbaki流の一般構造から出発し、圏論的な普遍性を持つ構造塔を定義、それを$\sigma$-代数に適用することでフィルトレーションを再解釈し、最終的にマルチンゲールの理論へと接続する一連の流れを体系的に記述する。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =========================================================================
+% Section 1: Bourbaki_Lean_Guide
+% =========================================================================
+\section{Bourbaki流のアプローチと構造の階層}
+\label{sec:bourbaki}
+\textit{Based on: \texttt{Bourbaki\_Lean\_Guide.md}}
+
+本プロジェクトの出発点は、ニコラ・ブルバキの『数学原論』に見られる「母構造」の思想を、現代の定理証明支援系Leanで表現することにある。
+
+\subsection{具体的な対象から抽象的な構造へ}
+数学的対象を個別に扱うのではなく、それらが属する「順序集合 (Poset)」や「階層構造」として捉えることが推奨される。例えば、自然数の初期部分集合 $\{k \in \N \mid k \le n\}$ の族は、単なる集合の集まりではなく、包含関係によって順序付けられた構造をなす。
+
+\subsection{構造塔 (Structure Tower) の萌芽}
+このガイドでは、後の理論の核となる \texttt{StructureTower} の原型が提示されている。これは、順序集合 $I$ で添字付けられた集合族 $(\Layer{i})_{i \in I}$ であり、単調性（$i \le j \implies \Layer{i} \subseteq \Layer{j}$）を満たすものである。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1]
+    \draw[fill=gray!10, draw=gray!50] (0,0) circle (2.5cm);
+    \node at (0, 2.2) {全体空間 $X$};
+    
+    \draw[fill=blue!20, draw=blue!80] (0,0) circle (1.5cm);
+    \node[blue!80] at (0, 1.2) {$\Layer{j}$};
+    
+    \draw[fill=red!20, draw=red!80] (0,0) circle (0.8cm);
+    \node[red!80] at (0, 0) {$\Layer{i}$};
+    
+    \draw[->, thick] (0.5, 0.2) -- (1.2, 0.2);
+    \node at (2.5, 0) {$i \le j$};
+\end{tikzpicture}
+\caption{構造塔の基本イメージ。順序に従って層が拡大していく。}
+\end{figure}
+
+% =========================================================================
+% Section 2: CAT2_complete
+% =========================================================================
+\section{構造塔の圏論的定式化}
+\label{sec:cat2}
+\textit{Based on: \texttt{CAT2\_complete.md}}
+
+前節のアイデアを厳密化し、圏論的な性質（普遍性、直積など）を持つ対象として \texttt{StructureTowerWithMin} を定義する。
+
+\subsection{最小層を持つ構造塔}
+単なる単調な集合族に加え、「各要素が属する最小の層」が一意に定まることを要請する。これにより、構造塔の射の一意性が保証され、圏論的な取り扱いが可能になる。
+
+\begin{definition}[StructureTowerWithMin]
+構造塔とは、以下の要素からなる組である。
+\begin{itemize}
+    \item 基礎集合 $X$ (carrier)
+    \item 添字順序集合 $I$ (Index)
+    \item 層構造 $\Layer{\cdot}: I \to \text{Set } X$
+    \item \textbf{最小層関数} $\MinLayer: X \to I$
+\end{itemize}
+これらは以下の公理を満たす。
+\begin{enumerate}
+    \item \textbf{単調性}: $i \le j \implies \Layer{i} \subseteq \Layer{j}$
+    \item \textbf{被覆性}: 任意の $x$ はある層に含まれる。
+    \item \textbf{最小性}: $x \in \Layer{i} \iff \MinLayer(x) \le i$
+\end{enumerate}
+\end{definition}
+
+\subsection{構造塔の射と圏}
+構造塔の間の射 $(f, \phi): \Tower \to \Tower'$ は、基礎集合の写像 $f: X \to X'$ と添字の写像 $\phi: I \to I'$ の対であり、特に「最小層を保存する」ことが重要である。
+\[ \MinLayer'(f(x)) = \phi(\MinLayer(x)) \]
+この条件により、自由構造塔からの射の一意性（普遍性）が保証され、構造塔の全体は圏をなす。
+
+% =========================================================================
+% Section 3: SigmaAlgebraTower
+% =========================================================================
+\section{$\sigma$-代数とフィルトレーションの構造}
+\label{sec:sigma_algebra}
+\textit{Based on: \texttt{SigmaAlgebraTower.md}}
+
+抽象的な構造塔理論を、測度論・確率論の基礎である $\sigma$-代数に応用する。ここからが確率論への具体的な展開の始まりである。
+
+\subsection{$\sigma$-代数の構造塔}
+標本空間 $\OmegaSpace$ の部分集合 $A$ に対して、「$A$ を可測にする最小の $\sigma$-代数」を考えることができる。これは $\sigma(A)$ と書かれ、構造塔における $\MinLayer(A)$ に相当する。
+\[ \Layer{\F} = \{A \subseteq \OmegaSpace \mid A \in \F\} \]
+ここで添字集合 $I$ は $\sigma$-代数全体の集合（包含関係による順序）である。
+
+\subsection{フィルトレーション (Filtration)}
+確率論におけるフィルトレーション $(\F_n)_{n \in \N}$ は、情報の増大を表す $\sigma$-代数の列である。
+\[ \F_0 \subseteq \F_1 \subseteq \F_2 \subseteq \dots \]
+これは、添字集合を自然数 $\N$ とした構造塔の特別な場合（または構造塔への入力）と見なせる。
+`FiltrationToTower` 関数により、フィルトレーションから「可測事象の階層」としての構造塔が構成される。
+
+\begin{lemma}[情報の単調性]
+フィルトレーションにおいて、時刻 $n$ で可測な事象は、任意の未来 $m \ge n$ においても可測である。
+\end{lemma}
+
+% =========================================================================
+% Section 4: StoppingTime_MinLayer
+% =========================================================================
+\section{停止時間と最小層の対応}
+\label{sec:stopping_time}
+\textit{Based on: \texttt{StoppingTime\_MinLayer.md}}
+
+ここで、確率論の核心的な概念である「停止時間」が、構造塔理論の $\MinLayer$ として自然に解釈できることを示す。
+
+\subsection{停止時間の定義}
+停止時間 $\Tau: \OmegaSpace \to \N$ とは、任意の $n$ について $\{\omega \mid \Tau(\omega) \le n\} \in \F_n$ を満たす確率変数である。
+
+\subsection{構造的解釈}
+フィルトレーション $\F$ から誘導される構造塔 $\Tower_\F$ を考える。標本点 $\omega$ に対して、単集合 $\{\omega\}$ が初めて可測になる（識別可能になる）時刻を考えることができる（離散空間の場合）。
+より一般的に、停止時間 $\Tau$ は、標本空間上の「各点が決定される時刻」を表すランク関数と見なせる。
+
+\begin{theorem}[停止集合と層の一致]
+停止時間 $\Tau$ が定める停止集合 $\{\Tau \le n\}$ は、構造塔の第 $n$ 層そのものである。
+\[ \{\omega \mid \Tau(\omega) \le n\} = \Layer{n}(\Tower_\Tau) \]
+また、$\MinLayer$ 関数は停止時間 $\Tau$ そのものに対応する。
+\end{theorem}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[xscale=1.5, yscale=1]
+    \draw[->] (0,0) -- (4,0) node[right] {時刻 $n$};
+    
+    % Filtration boxes
+    \node[draw, fill=blue!10, minimum width=1cm, minimum height=1cm] at (0,1) {$\F_0$};
+    \node[draw, fill=blue!20, minimum width=1.5cm, minimum height=1.2cm] at (1.2,1.1) {}; \node at (1.2,1.1) {$\F_1$};
+    \node[draw, fill=blue!30, minimum width=2cm, minimum height=1.4cm] at (2.5,1.2) {}; \node at (2.5,1.2) {$\F_2$};
+    
+    % Stopping Time
+    \node[red] at (2, -0.5) {$\Tau(\omega) = 2$};
+    \draw[red, ->, dashed] (2, -0.2) -- (2, 0.8);
+    \node[align=left, font=\footnotesize] at (2, 2.5) {$\omega$ が識別可能に\\なる最小の層};
+\end{tikzpicture}
+\caption{フィルトレーションと停止時間。時間は構造塔の「深さ」に対応する。}
+\end{figure}
+
+\subsection{停止過程 (Stopped Process)}
+確率過程 $X$ を停止時間 $\Tau$ で止めた過程 $X^\Tau$ を定義する。
+\[ X^\Tau_n(\omega) = X_{\min(n, \Tau(\omega))}(\omega) \]
+これは構造塔上での「値の凍結」操作として定式化される。
+
+% =========================================================================
+% Section 5: Martingale_StructureTower
+% =========================================================================
+\section{マルチンゲールと構造的保存則}
+\label{sec:martingale}
+\textit{Based on: \texttt{Martingale\_StructureTower.md}}
+
+最後に、この構造塔の上で定義されるマルチンゲールについて解説する。
+
+\subsection{条件付き期待値とマルチンゲール}
+条件付き期待値 $\CondExp{\cdot}{\F_n}$ は、構造塔の第 $n$ 層への射影（平滑化）と見なせる。
+マルチンゲール $M = (M_n)$ は、この射影に関して不変な過程である。
+\[ \CondExp{M_{n+1}}{\F_n} = M_n \]
+
+\subsection{構造塔上のマルチンゲール定義}
+Leanファイルでは、以下の要素を持つ構造体としてマルチンゲールを定義している。
+\begin{itemize}
+    \item \texttt{filtration}: 基礎となる構造塔（フィルトレーション）
+    \item \texttt{process}: 適合する確率過程
+    \item \texttt{adapted}: 各時刻での強可測性
+    \item \texttt{integrable}: 可積分性
+    \item \texttt{martingale}: マルチンゲール等式
+\end{itemize}
+
+\subsection{停止マルチンゲール}
+停止時間 $\Tau$ で止めたマルチンゲール $M^\Tau$ もまたマルチンゲールになる（有界な場合など）。これは、構造塔の射（停止操作）がマルチンゲールという「構造」を保存することを意味している。この事実は \texttt{stoppedProcess\_martingale\_property\_of\_bdd} として形式化されている。
+
+\section{結論}
+本稿で解説した一連の形式化は、確率論を「解析的な計算」の対象から、「順序構造上の代数的な操作」の対象へと昇華させる試みである。
+\begin{enumerate}
+    \item \textbf{Bourbaki Guide}: 構造の階層化という哲学。
+    \item \textbf{CAT2}: 最小層を持つ構造塔の厳密な定義。
+    \item \textbf{SigmaAlgebra}: 確率論の舞台の構造化。
+    \item \textbf{StoppingTime}: 確率的時間の構造的解釈。
+    \item \textbf{Martingale}: 構造を保存するダイナミクス。
+\end{enumerate}
+このアプローチにより、任意停止定理などの深い結果が、構造の普遍性として自然に理解される道が開かれる。
+
+\end{document}
