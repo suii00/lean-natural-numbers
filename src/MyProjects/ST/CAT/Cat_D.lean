@@ -7,6 +7,8 @@ import Mathlib.Order.Basic
 
 このファイルは構造塔の圏 Cat_D を定義します。
 Cat_D は minLayer と indexMap を持たない「最も薄い」構造塔の圏です。
+「CAT」は Category-theoretic layer の略で、StructureTower を圏として扱うパートを表します。
+Cat_D はその中でも存在量化のみを課す薄いバリアント（Cat_eq, Cat_le などの兄弟が想定される）。
 
 ## 設計思想
 
@@ -231,17 +233,21 @@ Cat_D では map の等式のみで十分。
 @[ext]
 theorem HomD.ext {T T' : TowerD} {f g : T ⟶ᴰ T'}
     (h : f.map = g.map) : f = g := by
-  cases f; cases g
-  cases h
-  rfl
+  -- map が一致した後、map_layer は各 i で Prop の証明なので一意
+  cases f with
+  | mk map₁ layer₁ =>
+    cases g with
+    | mk map₂ layer₂ =>
+      cases h
+      have h₂ : layer₁ = layer₂ := funext (fun _ => Subsingleton.elim _ _)
+      cases h₂
+      rfl
 
-/-- map の簡約
-
-これは定義による等式だが、simp で明示的に使えるようにする。
--/
-@[simp]
-theorem HomD.map_apply {T T' : TowerD} (f : T ⟶ᴰ T') (x : T.carrier) :
-    f.map x = f.map x := rfl
+/-- 使いやすい点wise 版の外延性補題 -/
+@[ext]
+theorem HomD.ext' {T T' : TowerD} {f g : T ⟶ᴰ T'}
+    (h : ∀ x, f.map x = g.map x) : f = g :=
+  HomD.ext (funext h)
 
 namespace HomD
 
@@ -307,6 +313,8 @@ def comp {T T' T'' : TowerD}
 -/
 @[simp]
 theorem id_map (T : TowerD) : (id T).map = _root_.id := rfl
+@[simp] theorem id_map_apply (T : TowerD) (x : T.carrier) :
+    (id T).map x = x := rfl
 
 /-- 合成の簡約
 
@@ -316,6 +324,9 @@ theorem id_map (T : TowerD) : (id T).map = _root_.id := rfl
 theorem comp_map {T T' T'' : TowerD}
     (g : T' ⟶ᴰ T'') (f : T ⟶ᴰ T') :
     (comp g f).map = g.map ∘ f.map := rfl
+@[simp] theorem comp_map_apply {T T' T'' : TowerD}
+    (g : T' ⟶ᴰ T'') (f : T ⟶ᴰ T') (x : T.carrier) :
+    (comp g f).map x = g.map (f.map x) := rfl
 
 end HomD
 
