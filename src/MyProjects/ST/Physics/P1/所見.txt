@@ -1,0 +1,18 @@
+申し訳ありません。時間切れのため、具体的な修正パッチを適用できませんでした。現状の問題点と対応方針だけまとめます。
+
+現状の主なエラー要因
+
+StatisticalMechanics 部分
+LatticePoint に Fintype インスタンスがない → deriving Fintype を追加。
+open Classical がなく、Decidable (∃ …) などが解けていない → imports の後に open Classical を挿入。
+configurationComplexity の if (∀ p, σ p = 0) などで decidable が見つからないのは、上記 Classical で解消する見込み。
+QuantumMechanics / QuantumFieldTheory 部分
+未完成の逆射構成や maxExcitationLevel の非空性証明、Real.abs フィールドアクセスなどで大量エラー。
+方針：この2モデルを丸ごとコメントアウトして docstring だけ残すか、すべて sorry で占位し、必要な [Nonempty …] 前提を付けて型を合わせる。
+簡易にビルドを通すための案
+
+まず StatisticalMechanics だけを残して修正：
+open Classical
+deriving Fintype for LatticePoint
+その後、QuantumMechanics/QuantumFieldTheory セクション全体を /- TODO: ... -/ でコメントアウト（docstringはコメント内に残す）。
+この方針なら短時間でビルドは通ります。続行する準備ができていますので、上記方針で進めてよいか指示いただければ、直ちにパッチを適用します。
