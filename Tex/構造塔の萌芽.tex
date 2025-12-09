@@ -1,0 +1,657 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage[luatex,pdfencoding=auto]{hyperref}
+
+\geometry{left=25mm,right=25mm,top=30mm,bottom=30mm}
+
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\newtheorem{remark}[theorem]{注意}
+
+\title{構造塔の萌芽\\
+——ブルバキスタイル数学のLean形式化——}
+\author{Leanコード生成: CODEX (OpenAI)\\
+TeXファイル生成: Claude Code (Anthropic)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、ブルバキ『数学原論』の精神に基づいて構築された一連のLean 4形式化コードを数学的に解説する。
+特に「構造塔」(StructureTower)という抽象化を軸に、順序構造、代数構造、位相構造から測度論、関数解析まで、
+階層的な数学理論の展開を追う。本文書で扱うLeanファイルは順に
+Bourbaki\_Lean\_Guide、P1、P1\_Extended、P1\_Extended\_Next、P2\_Advanced\_Analysis、
+P3\_Solved\_NoetherianAndGaloisである。
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\section{序論:ブルバキの構造主義と形式化}
+
+\subsection{ブルバキの数学観}
+ブルバキ学派は20世紀数学において「母構造」(structures mères)という概念を中心に据えた。
+これは数学的対象を以下の三つの基本構造から理解する立場である:
+\begin{enumerate}
+\item \textbf{代数的構造}:群、環、体など
+\item \textbf{順序構造}:半順序集合、束、完備束など
+\item \textbf{位相構造}:位相空間、一様空間、距離空間など
+\end{enumerate}
+
+本稿で扱うLeanコードは、この構造主義的視点を型理論と証明支援系という現代的道具で再構成する試みである。
+
+\subsection{構造塔(StructureTower)の導入}
+Bourbaki\_Lean\_Guideで導入される\texttt{StructureTower}は、添字付けられた単調増大集合族を抽象化したものである:
+
+\begin{definition}[構造塔]\label{def:structure-tower}
+前順序集合$\iota$と型$\alpha$に対し、\textbf{構造塔}とは以下のデータからなる:
+\begin{itemize}
+\item 写像 $\text{level}: \iota \to \mathcal{P}(\alpha)$
+\item 単調性: $i \le j \Rightarrow \text{level}(i) \subseteq \text{level}(j)$
+\end{itemize}
+\end{definition}
+
+この構造は以下の図式で表される:
+\begin{equation*}
+\begin{tikzcd}
+\text{level}(i_0) \arrow[r, hook] & \text{level}(i_1) \arrow[r, hook] & \cdots \arrow[r, hook] & \bigcup_{i \in \iota} \text{level}(i)
+\end{tikzcd}
+\end{equation*}
+
+\section{基礎理論(Bourbaki\_Lean\_Guide)}
+
+\subsection{半順序集合と最小上界}
+半順序集合$(E, \le)$において、部分集合$A \subseteq E$の\textbf{最小上界}(supremum)は次の普遍性で特徴づけられる:
+
+\begin{theorem}[最小上界の一意性]\label{thm:supremum-unique}
+$A \subseteq E$の最小上界$s, s'$が存在するならば、$s = s'$である。
+\end{theorem}
+
+\begin{proof}
+$s$が最小上界であることから、$s' \ge a$ for all $a \in A$より$s \le s'$。
+同様に$s' \le s$。したがって反対称律より$s = s'$。
+\end{proof}
+
+Leanでの実装:
+\begin{tcolorbox}
+\texttt{lemma supremum\_unique' \{A : Set α\} \{s s' : α\}\\
+\quad(hs : IsLUB A s) (hs' : IsLUB A s') : s = s'}
+\end{tcolorbox}
+
+\subsection{自然数の初期区間塔}
+構造塔の具体例として、自然数の初期区間を考える:
+
+\begin{example}[自然数初期区間]\label{ex:nat-tower}
+$\text{level}(n) := \{k \in \mathbb{N} \mid k \le n\}$とすると、これは$\mathbb{N}$上の構造塔を成し、
+\[
+\bigcup_{n \in \mathbb{N}} \text{level}(n) = \mathbb{N}
+\]
+が成立する。
+\end{example}
+
+この例は、局所的構造情報(有限初期区間)が大域的性質(全体集合)を復元する典型例である。
+
+\section{集合論的演習(P1)}
+
+P1では、ブルバキ『数学原論』第一巻集合論篇の精神に沿った基礎演習を展開する。
+
+\subsection{束論}
+束$(L, \vee, \wedge)$において、以下の準分配不等式が常に成立する:
+
+\begin{proposition}[準分配性]\label{prop:subdistributive}
+任意の束において、
+\[
+(x \wedge y) \vee (x \wedge z) \le x \wedge (y \vee z)
+\]
+\end{proposition}
+
+分配束ではこれが等号となる:
+
+\begin{theorem}[分配律]\label{thm:distributive}
+分配束において、
+\[
+x \wedge (y \vee z) = (x \wedge y) \vee (x \wedge z)
+\]
+\end{theorem}
+
+可換図式で表すと:
+\begin{equation*}
+\begin{tikzcd}
+x \wedge (y \vee z) \arrow[d, equal] \\
+(x \wedge y) \vee (x \wedge z)
+\end{tikzcd}
+\end{equation*}
+
+\subsection{群の準同型と像}
+群準同型$f: G \to H$に対し、その像$\text{Im}(f) = \{f(g) \mid g \in G\}$は$H$の部分群を成す。
+
+\begin{proposition}[像の部分群性]\label{prop:image-subgroup}
+群準同型$f: G \to H$に対し、
+\begin{enumerate}
+\item $1_H \in \text{Im}(f)$
+\item $h \in \text{Im}(f) \Rightarrow h^{-1} \in \text{Im}(f)$
+\item $h_1, h_2 \in \text{Im}(f) \Rightarrow h_1 h_2 \in \text{Im}(f)$
+\end{enumerate}
+\end{proposition}
+
+\subsection{ハウスドルフ空間のコンパクト部分集合}
+位相空間論における基本定理:
+
+\begin{theorem}[コンパクト集合の閉性]\label{thm:compact-closed}
+ハウスドルフ空間$X$において、コンパクト部分集合$K \subseteq X$は閉集合である。
+\end{theorem}
+
+この定理により、点$x \notin K$とコンパクト集合$K$は互いに素な開近傍で分離できる:
+
+\begin{theorem}[分離補題]\label{thm:separation}
+$X$をハウスドルフ空間、$K \subseteq X$をコンパクト集合、$x \in X \setminus K$とする。
+このとき開集合$U, V$が存在して、
+\[
+x \in U, \quad K \subseteq V, \quad U \cap V = \emptyset
+\]
+\end{theorem}
+
+\section{拡張演習I(P1\_Extended)}
+
+P1\_Extendedでは、順序論、代数、位相のより高度なトピックを扱う。
+
+\subsection{ガロア接続}
+ガロア接続は順序集合間の随伴対を一般化した概念である。
+
+\begin{definition}[ガロア接続]\label{def:galois-connection}
+前順序集合$\alpha, \beta$と単調写像$l: \alpha \to \beta$, $u: \beta \to \alpha$に対し、
+$(l, u)$が\textbf{ガロア接続}であるとは、
+\[
+l(a) \le b \iff a \le u(b) \quad (\forall a \in \alpha, b \in \beta)
+\]
+が成立することをいう。$l$を下随伴、$u$を上随伴と呼ぶ。
+\end{definition}
+
+\begin{theorem}[ガロア接続の合成]\label{thm:galois-composition}
+$(l_1, u_1): \alpha \rightleftarrows \beta$と$(l_2, u_2): \beta \rightleftarrows \gamma$がガロア接続ならば、
+$(l_2 \circ l_1, u_1 \circ u_2): \alpha \rightleftarrows \gamma$もガロア接続である。
+\end{theorem}
+
+図式で表すと:
+\begin{equation*}
+\begin{tikzcd}
+\alpha \arrow[r, shift left=1ex, "l_1"] & \beta \arrow[l, shift left=1ex, "u_1"] \arrow[r, shift left=1ex, "l_2"] & \gamma \arrow[l, shift left=1ex, "u_2"] \\
+\alpha \arrow[rr, shift left=1ex, bend left=20, "l_2 \circ l_1"] & & \gamma \arrow[ll, shift left=1ex, bend left=20, "u_1 \circ u_2"]
+\end{tikzcd}
+\end{equation*}
+
+\subsection{閉包演算子}
+閉包演算子は位相的閉包、代数的閉包、凸閉包などを統一的に扱う抽象概念である。
+
+\begin{definition}[閉包演算子]\label{def:closure-operator}
+半順序集合$\alpha$上の写像$\text{cl}: \alpha \to \alpha$が\textbf{閉包演算子}であるとは、
+\begin{enumerate}
+\item \textbf{単調性}: $x \le y \Rightarrow \text{cl}(x) \le \text{cl}(y)$
+\item \textbf{拡大性}: $x \le \text{cl}(x)$
+\item \textbf{冪等性}: $\text{cl}(\text{cl}(x)) = \text{cl}(x)$
+\end{enumerate}
+を満たすことをいう。
+\end{definition}
+
+\begin{proposition}[閉包と構造塔]\label{prop:closure-tower}
+閉包演算子$\text{cl}$に対し、
+\[
+\text{tower}(x) := \{y \in \alpha \mid y \le \text{cl}(x)\}
+\]
+は構造塔を与える。さらに、
+\[
+\bigcup_{x \in \alpha} \text{tower}(x) = \alpha
+\]
+が成立する。
+\end{proposition}
+
+\subsection{正規部分群と商群}
+群$G$の部分群$N$が\textbf{正規}であるとは、
+\[
+\forall g \in G, \forall n \in N, \quad g^{-1}ng \in N
+\]
+が成立することである。
+
+\begin{theorem}[核の正規性]\label{thm:kernel-normal}
+群準同型$f: G \to H$の核$\ker(f) = \{g \in G \mid f(g) = 1_H\}$は$G$の正規部分群である。
+\end{theorem}
+
+\begin{theorem}[第一同型定理]\label{thm:first-isomorphism}
+群準同型$f: G \to H$に対し、
+\[
+G / \ker(f) \cong \text{Im}(f)
+\]
+が成立する。図式で表すと:
+\begin{equation*}
+\begin{tikzcd}
+G \arrow[r, "f"] \arrow[d, two heads, "\pi"] & H \\
+G/\ker(f) \arrow[ur, dashed, "\cong"] &
+\end{tikzcd}
+\end{equation*}
+\end{theorem}
+
+\subsection{連結性}
+位相空間$X$が\textbf{連結}であるとは、$X = U \sqcup V$($U, V$開、非空)となる分割が存在しないことである。
+
+\begin{theorem}[連結性の同値条件]\label{thm:connected-clopen}
+位相空間$X$が連結である$\iff$ $X$の開かつ閉部分集合は$\emptyset$と$X$のみ。
+\end{theorem}
+
+\begin{theorem}[連続像の連結性]\label{thm:continuous-connected}
+連結空間$X$と連続写像$f: X \to Y$に対し、$f(X) \subseteq Y$は連結である。
+\end{theorem}
+
+\subsection{ウリゾーンの補題}
+正規空間における重要な分離定理:
+
+\begin{theorem}[ウリゾーンの補題]\label{thm:urysohn}
+$X$を正規空間、$A, B \subseteq X$を互いに素な閉集合とする。このとき連続関数$f: X \to [0,1]$が存在して、
+\[
+f(A) = \{0\}, \quad f(B) = \{1\}
+\]
+が成立する。
+\end{theorem}
+
+この定理により、位相的分離性が関数による分離に翻訳される。
+
+\section{拡張演習II(P1\_Extended\_Next)}
+
+P1\_Extended\_Nextでは、環論、ブール代数、フィルター理論、測度論へと視野を広げる。
+
+\subsection{環準同型とイデアル格子}
+可換環$R$において、イデアル全体$\text{Ideal}(R)$は包含関係で束を成す。
+
+\begin{proposition}[イデアル塔]\label{prop:ideal-tower}
+可換環$R$に対し、
+\[
+\text{idealTower}(I) := (I: \text{Set}\ R)
+\]
+は構造塔を与え、
+\[
+\bigcup_{I \in \text{Ideal}(R)} I = R
+\]
+が成立する。
+\end{proposition}
+
+これは「各元はそれを含むイデアルの階層に属する」という直観を形式化している。
+
+\begin{theorem}[環の第一同型定理]\label{thm:ring-first-iso}
+環準同型$f: R \to S$に対し、
+\[
+R / \ker(f) \cong \text{Im}(f)
+\]
+が成立する。図式:
+\begin{equation*}
+\begin{tikzcd}
+R \arrow[r, "f"] \arrow[d, two heads] & S \\
+R/\ker(f) \arrow[ur, dashed, "\cong"] &
+\end{tikzcd}
+\end{equation*}
+\end{theorem}
+
+\subsection{ブール代数と補元}
+ブール代数$B$において、補元$x^c$は$x \vee x^c = \top$かつ$x \wedge x^c = \bot$を満たす。
+
+\begin{proposition}[補元不動点]\label{prop:complement-fixed}
+非自明なブール代数$B$において、$x^c = x$となる元$x$は存在しない。
+\end{proposition}
+
+\begin{proof}
+$x^c = x$と仮定すると、$x \vee x^c = x \vee x = x = \top$より$x = \top$。
+一方$x \wedge x^c = \bot$より$x = \bot$。したがって$\top = \bot$となり矛盾。
+\end{proof}
+
+\subsection{フィルターと構造塔}
+集合$X$上のフィルター$\mathcal{F}$に対し、
+
+\begin{definition}[フィルター塔]\label{def:filter-tower}
+\[
+\text{filterTower}(\mathcal{F})(A) := \{x \in X \mid A \in \mathcal{F} \text{ かつ } x \in A\}
+\]
+は構造塔を与える。
+\end{definition}
+
+フィルターの包含関係が構造塔のレベル関係に対応する:
+\begin{equation*}
+\begin{tikzcd}
+A \subseteq B \in \mathcal{F} \arrow[r, Rightarrow] & \text{level}(A) \subseteq \text{level}(B)
+\end{tikzcd}
+\end{equation*}
+
+\subsection{測度論的構造}
+$\sigma$-代数は可測集合族の抽象化である。
+
+\begin{definition}[$\sigma$-代数]\label{def:sigma-algebra}
+集合$\alpha$上の集合族$\mathcal{A} \subseteq \mathcal{P}(\alpha)$が\textbf{$\sigma$-代数}であるとは、
+\begin{enumerate}
+\item $\emptyset \in \mathcal{A}$
+\item $A \in \mathcal{A} \Rightarrow A^c \in \mathcal{A}$
+\item $(A_n)_{n \in \mathbb{N}} \subseteq \mathcal{A} \Rightarrow \bigcup_{n} A_n \in \mathcal{A}$
+\end{enumerate}
+を満たすことをいう。
+\end{definition}
+
+$\sigma$-代数の間には包含関係で前順序が入り、構造塔を形成する:
+
+\begin{proposition}[可測塔]\label{prop:measurable-tower}
+可測空間$(\alpha, \mathcal{A})$に対し、
+\[
+\text{measurableTower}(\mathcal{A}') := \{x \in \alpha \mid \exists A \in \mathcal{A}', x \in A\}
+\]
+は$\sigma$-代数全体上の構造塔を与える。
+\end{proposition}
+
+\section{高等解析学(P2\_Advanced\_Analysis)}
+
+P2\_Advanced\_Analysisでは、測度論・積分論・関数解析の基本定理を扱う。
+
+\subsection{測度の$\sigma$-加法性}
+測度空間$(\alpha, \mathcal{A}, \mu)$において、
+
+\begin{theorem}[$\sigma$-加法性]\label{thm:sigma-additivity}
+$(A_n)_{n \in \mathbb{N}}$を互いに素な可測集合族とすると、
+\[
+\mu\left(\bigcup_{n=0}^\infty A_n\right) = \sum_{n=0}^\infty \mu(A_n)
+\]
+\end{theorem}
+
+この性質は可算加法性とも呼ばれ、ルベーグ積分の基礎を成す。
+
+\subsection{単調収束定理}
+非負可測関数列の極限と積分の交換:
+
+\begin{theorem}[単調収束定理]\label{thm:monotone-convergence}
+$(f_n)_{n \in \mathbb{N}}$を非負可測関数の単調増加列とすると、
+\[
+\int \sup_{n} f_n \, d\mu = \sup_{n} \int f_n \, d\mu
+\]
+\end{theorem}
+
+この定理により、極限操作と積分操作が可換になる条件が明確化される。
+
+\subsection{優収束定理}
+ルベーグ積分論の核心:
+
+\begin{theorem}[優収束定理]\label{thm:dominated-convergence}
+$(F_n)$をバナッハ空間値可測関数列、$f$をその点ごとの極限とする。
+もし可積分関数$g$が存在して$\|F_n\| \le g$ a.e.ならば、
+\[
+\lim_{n \to \infty} \int F_n \, d\mu = \int f \, d\mu
+\]
+\end{theorem}
+
+図式的には:
+\begin{equation*}
+\begin{tikzcd}
+F_n \arrow[r, "\text{a.e.}"] \arrow[d, "\int"] & f \arrow[d, "\int"] \\
+\int F_n \, d\mu \arrow[r] & \int f \, d\mu
+\end{tikzcd}
+\end{equation*}
+
+\subsection{H\"older不等式}
+$L^p$空間の幾何学:
+
+\begin{theorem}[H\"older不等式]\label{thm:holder}
+$p, q$を共役指数($1/p + 1/q = 1$)とすると、
+\[
+\int |fg| \, d\mu \le \left(\int |f|^p \, d\mu\right)^{1/p} \left(\int |g|^q \, d\mu\right)^{1/q}
+\]
+\end{theorem}
+
+\subsection{Minkowski不等式}
+三角不等式の積分版:
+
+\begin{theorem}[Minkowski不等式]\label{thm:minkowski}
+$p \ge 1$に対し、
+\[
+\left(\int |f+g|^p \, d\mu\right)^{1/p} \le \left(\int |f|^p \, d\mu\right)^{1/p} + \left(\int |g|^p \, d\mu\right)^{1/p}
+\]
+\end{theorem}
+
+これにより$L^p(\mu)$がノルム空間を成すことが示される。
+
+\subsection{Banach-Steinhaus定理}
+一様有界性原理:
+
+\begin{theorem}[Banach-Steinhaus]\label{thm:banach-steinhaus}
+$E$を完備ノルム空間、$(T_i)_{i \in I}$を$E \to F$の連続線形作用素族とする。
+もし各$x \in E$に対し$\sup_i \|T_i(x)\| < \infty$ならば、
+\[
+\sup_{i} \|T_i\| < \infty
+\]
+\end{theorem}
+
+点ごとの有界性から一様有界性が従う強力な定理である。
+
+\subsection{Hahn-Banachの拡張定理}
+連続線形汎関数の拡張:
+
+\begin{theorem}[Hahn-Banach]\label{thm:hahn-banach}
+$E$をノルム空間、$F \subseteq E$を部分空間、$\varphi: F \to \mathbb{R}$を連続線形汎関数とする。
+このとき拡張$\Phi: E \to \mathbb{R}$が存在して、
+\[
+\Phi|_F = \varphi, \quad \|\Phi\| = \|\varphi\|
+\]
+が成立する。
+\end{theorem}
+
+図式:
+\begin{equation*}
+\begin{tikzcd}
+F \arrow[r, hook] \arrow[d, "\varphi"] & E \arrow[dl, dashed, "\Phi"] \\
+\mathbb{R} &
+\end{tikzcd}
+\end{equation*}
+
+\section{ネーター環とガロア理論(P3\_Solved\_NoetherianAndGalois)}
+
+P3では可換環論とガロア理論の高度なトピックを扱う。
+
+\subsection{ネーター環}
+ネーター環は有限生成イデアルのみを持つ環である。
+
+\begin{definition}[ネーター環]\label{def:noetherian}
+可換環$R$が\textbf{ネーター的}であるとは、イデアルの昇鎖
+\[
+I_0 \subseteq I_1 \subseteq I_2 \subseteq \cdots
+\]
+が必ず有限ステップで安定化することをいう。すなわち、
+\[
+\exists N \in \mathbb{N}, \forall n \ge N, \quad I_n = I_N
+\]
+\end{definition}
+
+\begin{theorem}[昇鎖条件と構造塔]\label{thm:acc-tower}
+ネーター環$R$において、単調なイデアル列$(I_n)$に対し、構造塔
+\[
+\text{tower}(n) := (I_n: \text{Set}\ R)
+\]
+の合併は安定化イデアル$I_N$に一致する:
+\[
+\bigcup_{n \in \mathbb{N}} I_n = I_N
+\]
+\end{theorem}
+
+図式で表すと:
+\begin{equation*}
+\begin{tikzcd}
+I_0 \arrow[r, hook] & I_1 \arrow[r, hook] & \cdots \arrow[r, hook] & I_N \arrow[r, equal] & I_{N+1} \arrow[r, equal] & \cdots
+\end{tikzcd}
+\end{equation*}
+
+\begin{theorem}[ネーター環の有限生成性]\label{thm:noetherian-finitely-generated}
+$R$がネーター環ならば、任意のイデアル$I \subseteq R$は有限生成である。すなわち、
+\[
+\exists \{a_1, \ldots, a_n\} \subseteq R, \quad I = (a_1, \ldots, a_n)
+\]
+\end{theorem}
+
+\begin{proof}[証明の概略]
+背理法を用いる。$I$が有限生成でないと仮定すると、無限厳密昇鎖
+\[
+(a_1) \subsetneq (a_1, a_2) \subsetneq (a_1, a_2, a_3) \subsetneq \cdots
+\]
+が構成でき、ネーター性に矛盾する。
+\end{proof}
+
+\subsection{ガロア接続と完備束}
+ガロア接続は閉包演算子を誘導する:
+
+\begin{theorem}[ガロア閉包]\label{thm:galois-closure}
+ガロア接続$(l: \alpha \rightleftarrows \beta: u)$に対し、
+\[
+\text{cl}(x) := u(l(x))
+\]
+は$\alpha$上の閉包演算子を定める。
+\end{theorem}
+
+\begin{proof}
+\begin{enumerate}
+\item 単調性: $l, u$の単調性より従う。
+\item 拡大性: $x \le u(l(x))$はガロア接続の定義より従う。
+\item 冪等性: $u(l(u(l(x)))) = u(l(x))$を示す。
+ガロア接続の性質$u = u \circ l \circ u$より従う。
+\end{enumerate}
+\end{proof}
+
+\begin{theorem}[閉包不動点の完備束]\label{thm:closure-complete-lattice}
+ガロア接続$(l, u)$により誘導される閉包演算子の不動点全体
+\[
+\text{Fix}(\text{cl}) = \{x \in \alpha \mid u(l(x)) = x\}
+\]
+は完備束を成す。
+\end{theorem}
+
+\begin{proposition}[ガロア塔]\label{prop:galois-tower}
+ガロア接続$(l, u)$に対し、
+\[
+\text{galoisTower}(x) := \{y \in \alpha \mid y \le u(l(x))\}
+\]
+は構造塔を与える。
+\end{proposition}
+
+図式で閉包構造を表すと:
+\begin{equation*}
+\begin{tikzcd}
+\alpha \arrow[r, shift left=1ex, "l"] \arrow[loop left, "\text{cl} = u \circ l"] & \beta \arrow[l, shift left=1ex, "u"]
+\end{tikzcd}
+\end{equation*}
+
+\section{結論:構造塔の普遍性}
+
+本稿で見てきたように、「構造塔」という単一の抽象化が、以下の多様な数学的文脈を統一的に記述する:
+
+\begin{enumerate}
+\item \textbf{順序構造}: 最小上界、昇鎖条件、完備束
+\item \textbf{代数構造}: イデアル格子、部分群の階層、商構造
+\item \textbf{位相構造}: 開集合系、閉包演算子、フィルター
+\item \textbf{測度論的構造}: $\sigma$-代数の階層、可測集合族
+\item \textbf{圏論的構造}: ガロア接続、随伴関手
+\end{enumerate}
+
+構造塔の図式的表現:
+\begin{equation*}
+\begin{tikzcd}[column sep=large]
+\text{レベル}_0 \arrow[r, hook, "\text{包含}"] &
+\text{レベル}_1 \arrow[r, hook] &
+\cdots \arrow[r, hook] &
+\text{レベル}_\infty \arrow[r, equal] &
+\bigcup \text{すべてのレベル}
+\end{tikzcd}
+\end{equation*}
+
+ブルバキの構造主義が目指した「母構造」の統一的理解は、型理論と証明支援系によって、
+より精密で検証可能な形で実現されつつある。本稿のLean形式化は、その一里塚である。
+
+\subsection{今後の展望}
+本稿で扱った内容を基礎として、以下の方向への発展が考えられる:
+
+\begin{itemize}
+\item \textbf{層理論}: 構造塔を前層・層の理論と結びつける
+\item \textbf{スペクトル列}: ホモロジー代数における段階的構造
+\item \textbf{フィルター付きコホモロジー}: 代数的位相幾何への応用
+\item \textbf{導来圏}: 三角圏における構造塔の役割
+\end{itemize}
+
+これらはすべて、「階層的に組織された構造の合併が大域的対象を復元する」という
+構造塔の基本思想の具現化である。
+
+\section*{謝辞}
+本稿のLeanコードはCODEX (OpenAI)により生成され、TeXファイルの作成には
+Claude Code (Anthropic)が用いられた。両システムの協働により、
+形式数学と数学的解説の統合が実現した。
+
+\begin{thebibliography}{99}
+\bibitem{bourbaki}
+N. Bourbaki, \textit{Éléments de mathématique}, Hermann, 1939--present.
+
+\bibitem{mathlib}
+The mathlib Community, \textit{The Lean Mathematical Library},
+CPP 2020, pp.~367--381.
+
+\bibitem{leanprover}
+L. de Moura et al., \textit{The Lean Theorem Prover},
+\url{https://leanprover.github.io/}
+
+\bibitem{lattice-theory}
+G. Birkhoff, \textit{Lattice Theory}, 3rd ed., AMS, 1967.
+
+\bibitem{commutative-algebra}
+D. Eisenbud, \textit{Commutative Algebra with a View Toward Algebraic Geometry},
+Springer, 1995.
+
+\bibitem{topology}
+J. Munkres, \textit{Topology}, 2nd ed., Prentice Hall, 2000.
+
+\bibitem{measure-theory}
+P. Halmos, \textit{Measure Theory}, Springer, 1950.
+
+\bibitem{functional-analysis}
+W. Rudin, \textit{Functional Analysis}, 2nd ed., McGraw-Hill, 1991.
+\end{thebibliography}
+
+\appendix
+
+\section{構造塔の形式的定義(Lean 4コード)}
+
+参考のため、StructureTowerの完全なLean定義を再掲する:
+
+\begin{tcolorbox}[title=StructureTowerの定義]
+\begin{verbatim}
+structure StructureTower (ι α : Type*) [Preorder ι] : Type _ where
+  level : ι → Set α
+  monotone_level : ∀ {i j}, i ≤ j → level i ⊆ level j
+
+namespace StructureTower
+  def union (T : StructureTower ι α) : Set α :=
+    ⋃ i, T.level i
+
+  lemma mem_union_of_mem (T : StructureTower ι α)
+      {i : ι} {x : α} (hx : x ∈ T.level i) :
+      x ∈ T.union :=
+    mem_iUnion_of_mem i hx
+
+  lemma union_eq_univ_of_forall_mem
+      (T : StructureTower ι α)
+      (hcover : ∀ x : α, ∃ i : ι, x ∈ T.level i) :
+      T.union = Set.univ := ...
+end StructureTower
+\end{verbatim}
+\end{tcolorbox}
+
+この単純な定義から、本稿で扱った豊かな数学的構造が展開される。
+
+\end{document}
