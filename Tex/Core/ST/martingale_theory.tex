@@ -721,18 +721,74 @@ $\tau, \sigma$がともに$N$で有界ならば:
 % ========================================
 \section{歴史的注記: 幻の初期版フィルトレーション}
 
-本プロジェクトの初期構想では、フィルトレーションの定義に追加の公理を含めることが検討されていた。これは「\textbf{幻の初期版フィルトレーション}」として記録に残る。
+本節では、本書で用いている離散フィルトレーションの定義が、どのような変遷を経て現在の形に落ち着いたかを簡単に記録しておく。
 
-初期案では、以下の性質が考慮されていた:
+\paragraph{0版: 古典的フィルトレーションからの出発.}
+最初期の段階では、確率論の教科書に近い「古典的フィルトレーション」を念頭に置いていた。
+この段階では、構造塔という言葉はまだ前面には現れず、\texttt{Probability.lean} において
 \begin{itemize}
-  \item 各層$\sigma_n$が有限生成であること
-  \item 明示的な可算加法性の要求
-  \item 極限層$\sigma_\infty := \bigcup_{n \in \mathbb{N}} \sigma_n$の存在
+  \item 時間パラメータ $n \in \mathbb{N}$ ごとに事象の族 $\sigma_n \subseteq \mathcal{P}(\Omega)$ を与える
+  \item $m \le n \Rightarrow \sigma_m \subseteq \sigma_n$ という単調性
 \end{itemize}
+といった、ごく標準的なフィルトレーション像が先にあり、
+「これをあとから構造塔の言葉でどう読み替えるか」が裏テーマとして存在していた。
 
-しかし、Bourbaki的な最小主義の精神に則り、最終版では単調性と被覆性のみを要求する形に落ち着いた。測度論的な詳細は、条件付き期待値構造の公理化により抽象化されている。
+\paragraph{第1世代版フィルトレーション: 構造塔への埋め込み.}
+次の段階では、フィルトレーションを構造塔に明示的に埋め込むことを目標とした。
+\texttt{SigmaAlgebraTower} により
+\begin{itemize}
+  \item 各 $\sigma_n$ を層 (layer) とみなす構造塔
+  \item 各事象 $E$ に対して、それが初めて観測される層を最小層 $\minLayer(E)$ として定義
+\end{itemize}
+することで、
+\begin{itemize}
+  \item \texttt{StoppingTime\_MinLayer} における「停止時刻 = 最小層の選択」
+  \item \texttt{Martingale\_StructureTower} におけるマルチンゲールの構造塔的定式化
+\end{itemize}
+へと接続する「第1世代版フィルトレーション」が形成された。
+この世代では、フィルトレーションと構造塔がほぼ同じ重さで扱われている。
 
-この変遷は、形式化における「どこまで公理化し、どこから構成的に示すか」というバランスの重要性を示している。
+\paragraph{初期案として検討された追加公理.}
+第1世代版の設計過程では、現在の \texttt{DiscreteFiltration} よりも強い公理を課す案も一時期検討された。
+具体的には、
+\begin{itemize}
+  \item 各層 $\sigma_n$ が有限生成であること
+  \item 明示的な可算加法性（$\sigma$-代数としての完全な構造）を要求すること
+  \item 極限層 $\sigma_\infty := \bigcup_{n \in \mathbb{N}} \sigma_n$ の存在を前提にすること
+\end{itemize}
+などである。
+これらは、測度論的な議論をそのまま Lean に持ち込むには自然な候補であったが、
+最終的には採用されなかった。
+
+\paragraph{現在版: 単調性と被覆性のみを残す最小主義.}
+本書および最終的な Lean 実装では、離散フィルトレーション \texttt{DiscreteFiltration} の公理は
+\begin{itemize}
+  \item 単調性: $m \le n \Rightarrow \sigma_m \subseteq \sigma_n$
+  \item 被覆性: 任意の事象 $E \subseteq \Omega$ に対して $E \in \sigma_n$ となる $n$ が存在する
+\end{itemize}
+という二つに削ぎ落とした。
+測度論的な詳細（$\sigma$-代数性や可算加法性など）は、
+条件付き期待値構造 \texttt{ConditionalExpectationStructure} とその塔性質に押し込め、
+本論では「層構造」と「最小層」だけを前面に出すという Bourbaki 的な最小主義に従っている。
+
+\paragraph{OST との時間順序: オーパーツ的現象.}
+興味深いことに、有界任意停止定理の抽象版
+\texttt{Level2\_2\_OptionalStopping.lean} における定理
+\texttt{optionalStopping\_bounded} は、
+上記のフィルトレーション設計が完全に固まる前に書かれている。
+すなわち、
+\begin{itemize}
+  \item 抽象的な \texttt{ExpectationStructure} と \texttt{IsMartingale} のみから
+        有界 OST を導く「第2世代のゴール」が
+  \item 第1世代版フィルトレーションや構造塔との接続よりも先に姿を現していた
+\end{itemize}
+という、いわば「オーパーツ」的な時間順序になっている。
+本書で採用している \texttt{DiscreteFiltration} の定義は、
+この抽象 OST を支える基盤として、後から整理し直されたものである。
+
+このように、「幻の初期版フィルトレーション」は
+具体的な Lean ファイルとして確立しなかった設計案や試行錯誤を指す言葉であり、
+最終的な定義は Level 1 の章で述べた単調性＋被覆性の枠組みに落ち着いている。
 
 % ========================================
 \section{まとめ}
