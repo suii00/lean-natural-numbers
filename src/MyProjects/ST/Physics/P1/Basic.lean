@@ -8,6 +8,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Order.Basic
 import Mathlib.Tactic
 
+set_option pp.coercions true
 open Classical
 
 /-!
@@ -325,18 +326,18 @@ lemma maxExcitationLevel_groundState : maxExcitationLevel groundState = 0 := by
     refine ⟨zeroQuantum, by simp [groundState]⟩
   have hmax :
       maxExcitationLevel groundState =
-        (Finset.univ.filter (fun n : Fin maxQuantumNumber => groundState.amplitudes n ≠ 0)).max'
+        ((Finset.univ.filter (fun n : Fin maxQuantumNumber => groundState.amplitudes n ≠ 0)).max'
           (by
             obtain ⟨n, hn⟩ := hex
             refine ⟨n, ?_⟩
             refine Finset.mem_filter.mpr ?_
-            exact ⟨by simp, hn⟩) := by
+            exact ⟨by simp, hn⟩)).val := by
     simp [maxExcitationLevel, hex]
   have hmax' :
       maxExcitationLevel groundState =
         (({zeroQuantum} : Finset (Fin maxQuantumNumber)).max'
           (by
-            exact Finset.singleton_nonempty zeroQuantum) : Fin maxQuantumNumber) := by
+            exact Finset.singleton_nonempty zeroQuantum)).val := by
     have htmp := hmax
     simp [groundState_support] at htmp
     exact htmp
