@@ -172,26 +172,57 @@ def finsetRestrict {n m : ℕ}
 
 
 
-/-- 制限写像が層の濃度を保存する補題 -/
-lemma finsetRestrict_card_le {n m : ℕ} (h : n ≤ m) (S : Finset (Fin m)) :
-    (finsetRestrict h S).card ≤ S.card := by
+/-- 制限写像が層の濃度を保存する（= これ以上増えない）補題 -/
+lemma finsetRestrict_card_le {n m : ℕ} (S : Finset (Fin m)) :
+    (finsetRestrict (n := n) (m := m) S).card ≤ S.card := by
   classical
-  unfold finsetRestrict
-  -- filter → attach → image なので要素数は元以下
-  have hfilter : ((S.filter fun i : Fin m => i.1 < n).attach).card
-      = (S.filter fun i : Fin m => i.1 < n).card := by simp
-  have hfilter_le : (S.filter fun i : Fin m => i.1 < n).card ≤ S.card :=
-    Finset.card_filter_le _ _
-  calc
-    (Finset.card
-        ((S.filter fun i : Fin m => i.1 < n).attach.image
-          (fun i =>
-            let hlt : i.1.val < n := (Finset.mem_filter.1 i.2).2
-            Fin.castLT i.1 hlt))) ≤
-        (S.filter fun i : Fin m => i.1 < n).attach.card := by
-          exact Finset.card_image_le
-    _ = (S.filter fun i : Fin m => i.1 < n).card := by simpa [hfilter]
-    _ ≤ S.card := hfilter_le
+  -- 可読性のため、predicate を名前付きにしておく
+  set p : Fin m → Prop := fun i => (i : ℕ) < n with hp
+
+  -- image の段階：`card (image f) ≤ card` は一般事実
+  have h_image_le :
+      ((S.filter p).attach.image
+        (fun i =>
+          match i with
+          | ⟨x, hx⟩ =>
+            have hlt : (x : ℕ) < n := (Finset.mem_filter.mp hx).2
+            Fin.castLT x hlt)).card
+      ≤ (S.filter p).attach.card :=
+    Finset.card_image_le
+
+  -- attach は card を変えない
+  have h_attach :
+      (S.filter p).attach.card = (S.filter p).card := by
+    simpa using (Finset.card_attach (s := S.filter p))
+
+  -- filter は card を増やさない
+  have h_filter_le :
+      (S.filter p).card ≤ S.card :=
+    Finset.card_filter_le S p
+
+  -- 3つを合成すると、左辺（image）の card ≤ S.card
+  have h_chain :
+      ((S.filter p).attach.image
+        (fun i =>
+          match i with
+          | ⟨x, hx⟩ =>
+            have hlt : (x : ℕ) < n := (Finset.mem_filter.mp hx).2
+            Fin.castLT x hlt)).card
+      ≤ S.card :=
+    calc
+      ((S.filter p).attach.image
+        (fun i =>
+          match i with
+          | ⟨x, hx⟩ =>
+            have hlt : (x : ℕ) < n := (Finset.mem_filter.mp hx).2
+            Fin.castLT x hlt)).card
+        ≤ (S.filter p).attach.card := h_image_le
+      _ = (S.filter p).card := h_attach
+      _ ≤ S.card := h_filter_le
+
+  -- 左辺が `finsetRestrict` の定義そのものなので、書き換えて終了
+  simpa [finsetRestrict, hp] using h_chain
+
 
 /-- 制限写像が誘導する構造塔の射 -/
 def finsetPowerRestrict {n m : ℕ} (h : n ≤ m) :
