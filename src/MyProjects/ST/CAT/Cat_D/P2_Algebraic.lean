@@ -1,8 +1,18 @@
 import MyProjects.ST.CAT.Cat_D
 import Mathlib.Algebra.Group.Subgroup.Defs
+import Mathlib.Algebra.Group.Subgroup.Map
+import Mathlib.Algebra.Group.Subgroup.Basic
 import Mathlib.RingTheory.Ideal.Basic
+import Mathlib.RingTheory.Ideal.Operations
+import Mathlib.RingTheory.PrincipalIdealDomain
 import Mathlib.Algebra.Ring.Defs
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Int.Basic
+import Mathlib.Data.Int.GCD
+import Mathlib.Algebra.EuclideanDomain.Int
+
+instance instIsPrincipalIdealRingInt : IsPrincipalIdealRing ℤ :=
+  EuclideanDomain.to_principal_ideal_domain (R := ℤ)
 
 /-!
 # Cat_D: 代数的応用の完全実装
@@ -53,20 +63,29 @@ open Set Subgroup Ideal
 -/
 
 /-- 部分群が有限集合で生成される -/
-def Subgroup.IsFinGenBy {G : Type*} [Group G] (H : Subgroup G) (S : Finset G) : Prop :=
+def _root_.Subgroup.IsFinGenBy {G : Type*} [Group G] (H : Subgroup G) (S : Finset G) : Prop :=
   H = Subgroup.closure (S : Set G)
 
 /-- 部分群が有限生成である -/
-def Subgroup.IsFinitelyGenerated {G : Type*} [Group G] (H : Subgroup G) : Prop :=
+def _root_.Subgroup.IsFinitelyGenerated {G : Type*} [Group G] (H : Subgroup G) : Prop :=
   ∃ S : Finset G, H.IsFinGenBy S
 
 /-- イデアルが有限集合で生成される -/
-def Ideal.IsFinGenBy {R : Type*} [CommRing R] (I : Ideal R) (S : Finset R) : Prop :=
+def _root_.Ideal.IsFinGenBy {R : Type*} [CommRing R] (I : Ideal R) (S : Finset R) : Prop :=
   I = Ideal.span (S : Set R)
 
 /-- イデアルが有限生成である -/
-def Ideal.IsFinitelyGenerated {R : Type*} [CommRing R] (I : Ideal R) : Prop :=
+def _root_.Ideal.IsFinitelyGenerated {R : Type*} [CommRing R] (I : Ideal R) : Prop :=
   ∃ S : Finset R, I.IsFinGenBy S
+
+/-- `Subgroup.map` と `closure` の交換（再掲） -/
+lemma subgroup_map_closure {G G' : Type*} [Group G] [Group G'] (φ : G →* G') (s : Set G) :
+    (Subgroup.closure s).map φ = Subgroup.closure (φ '' s) :=
+by
+  -- mathlib の証明をそのまま利用
+  simpa using
+    (Set.image_preimage.l_comm_of_u_comm
+      (gc_map_comap φ) (Subgroup.gi G').gc (Subgroup.gi G).gc (fun _ => rfl))
 
 /-!
 ## 例1：部分群の階層構造塔
@@ -112,7 +131,7 @@ def subgroupTower (G : Type*) [Group G]
 /-- 自明な部分群は層0に属する -/
 lemma subgroupTower_bot_in_layer0 (G : Type*) [Group G]
     (hfg : ∀ H : Subgroup G, H.IsFinitelyGenerated) :
-    (⊥ : Subgroup G) ∈ (subgroupTower G hfg).layer 0 := by
+    (⊥ : Subgroup G) ∈ (subgroupTower G hfg).layer (0 : ℕ) := by
   use ∅
   constructor
   · simp
@@ -122,11 +141,11 @@ lemma subgroupTower_bot_in_layer0 (G : Type*) [Group G]
 lemma subgroupTower_cyclic_in_layer1 (G : Type*) [Group G]
     (hfg : ∀ H : Subgroup G, H.IsFinitelyGenerated)
     (g : G) :
-    Subgroup.closure {g} ∈ (subgroupTower G hfg).layer 1 := by
-  use {g}
-  constructor
+    Subgroup.closure {g} ∈ (subgroupTower G hfg).layer (1 : ℕ) := by
+  classical
+  refine ⟨{g}, ?_, ?_⟩
   · simp [Finset.card_singleton]
-  · rfl
+  · simp [Subgroup.IsFinGenBy]
 
 /-!
 ## 例2：Noether環のイデアル階層
@@ -164,7 +183,7 @@ def idealTower (R : Type*) [CommRing R]
 /-- 零イデアルは層0に属する -/
 lemma idealTower_bot_in_layer0 (R : Type*) [CommRing R]
     (hnoether : ∀ I : Ideal R, I.IsFinitelyGenerated) :
-    (⊥ : Ideal R) ∈ (idealTower R hnoether).layer 0 := by
+    (⊥ : Ideal R) ∈ (idealTower R hnoether).layer (0 : ℕ) := by
   use ∅
   constructor
   · simp
@@ -174,18 +193,18 @@ lemma idealTower_bot_in_layer0 (R : Type*) [CommRing R]
 lemma idealTower_principal_in_layer1 (R : Type*) [CommRing R]
     (hnoether : ∀ I : Ideal R, I.IsFinitelyGenerated)
     (r : R) :
-    Ideal.span {r} ∈ (idealTower R hnoether).layer 1 := by
-  use {r}
-  constructor
+    Ideal.span {r} ∈ (idealTower R hnoether).layer (1 : ℕ) := by
+  classical
+  refine ⟨{r}, ?_, ?_⟩
   · simp [Finset.card_singleton]
-  · rfl
+  · simp [Ideal.IsFinGenBy]
 
 /-- 単項イデアル整域（PID）では、すべてのイデアルが層1に属する -/
 lemma idealTower_pid_all_in_layer1 (R : Type*) [CommRing R]
     (hnoether : ∀ I : Ideal R, I.IsFinitelyGenerated)
     (hpid : ∀ I : Ideal R, ∃ r : R, I = Ideal.span {r})
     (I : Ideal R) :
-    I ∈ (idealTower R hnoether).layer 1 := by
+    I ∈ (idealTower R hnoether).layer (1 : ℕ) := by
   obtain ⟨r, hr⟩ := hpid I
   rw [hr]
   exact idealTower_principal_in_layer1 R hnoether r
@@ -205,26 +224,49 @@ lemma idealTower_pid_all_in_layer1 (R : Type*) [CommRing R]
 - したがって、生成元の個数は増えない
 -/
 
-/-- 群準同型による部分群の像 -/
-def Subgroup.map {G G' : Type*} [Group G] [Group G']
-    (φ : G →* G') (H : Subgroup G) : Subgroup G' :=
-  Subgroup.map φ H
-
 /-- 準同型が生成元の個数を保存する（以下）補題 -/
-lemma Subgroup.map_preserves_generation {G G' : Type*} [Group G] [Group G']
+lemma Subgroup.map_preserves_generation {G G' : Type*} [Group G] [Group G'] [DecidableEq G']
     (φ : G →* G') (H : Subgroup G) (S : Finset G)
     (hgen : H.IsFinGenBy S) :
     ∃ S' : Finset G', S'.card ≤ S.card ∧ (H.map φ).IsFinGenBy S' := by
-  -- φ(S) を witness とする
-  use S.image φ.toFun
-  constructor
-  · -- 像の濃度は元の濃度以下
-    exact Finset.card_image_le
-  · -- φ(S) が φ(H) を生成
-    sorry -- 詳細な証明は省略（Subgroup.map_closure を使用）
+  classical
+  -- 生成集合として φ(S) を選ぶ
+  refine ⟨S.image φ, Finset.card_image_le, ?_⟩
+  -- 生成に関する等式を展開
+  dsimp [Subgroup.IsFinGenBy] at hgen ⊢
+  -- hgen : H = closure (S : Set G)
+  have hH : H = Subgroup.closure (S : Set G) := hgen
+  have hmap :
+      (Subgroup.closure (S : Set G)).map φ =
+        Subgroup.closure (φ '' (S : Set G)) :=
+    subgroup_map_closure (φ := φ) (s := (S : Set G))
+  calc
+    H.map φ
+        = (Subgroup.closure (S : Set G)).map φ := by simpa [hH]
+    _ = Subgroup.closure (φ '' (S : Set G)) := hmap
+    _ = Subgroup.closure (S.image φ : Set G') := by
+          -- `Finset.coe_image` converts between image of a Finset and Set.image
+          simpa [Finset.coe_image]
+
+/-- 準同型がイデアル生成元の個数を保存する補題 -/
+lemma Ideal.map_preserves_generation {R R' : Type*} [CommRing R] [CommRing R'] [DecidableEq R']
+    (φ : R →+* R') (I : Ideal R) (S : Finset R)
+    (hgen : I.IsFinGenBy S) :
+    ∃ S' : Finset R', S'.card ≤ S.card ∧ (I.map φ).IsFinGenBy S' := by
+  classical
+  refine ⟨S.image φ, Finset.card_image_le, ?_⟩
+  dsimp [Ideal.IsFinGenBy] at hgen ⊢
+  calc
+    I.map φ
+        = Ideal.span (φ '' (S : Set R)) := by
+            -- hgen : I = Ideal.span (S : Set R)
+            -- map_span : map φ (span S) = span (φ '' S)
+            simpa [hgen, _root_.Ideal.map_span]
+    _ = Ideal.span (S.image φ : Set R') := by
+            simpa [Finset.coe_image]
 
 /-- 群準同型が誘導する部分群階層の射 -/
-def subgroupTowerHom {G G' : Type*} [Group G] [Group G']
+def subgroupTowerHom {G G' : Type*} [Group G] [Group G'] [DecidableEq G']
     (hfg : ∀ H : Subgroup G, H.IsFinitelyGenerated)
     (hfg' : ∀ H : Subgroup G', H.IsFinitelyGenerated)
     (φ : G →* G') :
@@ -249,30 +291,21 @@ def subgroupTowerHom {G G' : Type*} [Group G] [Group G']
 全射準同型の場合に限定するか、または拡大イデアル（extended ideal）を使用する。
 -/
 
-/-- 環準同型によるイデアルの拡大 -/
-def Ideal.comap {R R' : Type*} [CommRing R] [CommRing R']
-    (φ : R →+* R') (I : Ideal R') : Ideal R :=
-  Ideal.comap φ I
-
-/-- 全射準同型によるイデアルの像 -/
-def Ideal.map {R R' : Type*} [CommRing R] [CommRing R']
-    (φ : R →+* R') (I : Ideal R) : Ideal R' :=
-  Ideal.map φ I
-
 /-- 全射準同型が誘導するイデアル階層の射（骨格版） -/
-def idealTowerHom {R R' : Type*} [CommRing R] [CommRing R']
+def idealTowerHom {R R' : Type*} [CommRing R] [CommRing R'] [DecidableEq R']
     (hnoether : ∀ I : Ideal R, I.IsFinitelyGenerated)
     (hnoether' : ∀ I : Ideal R', I.IsFinitelyGenerated)
     (φ : R →+* R')
-    (hsurj : Function.Surjective φ) :
+    (_hsurj : Function.Surjective φ) :
     idealTower R hnoether ⟶ᴰ idealTower R' hnoether' where
   map := fun I => I.map φ
   map_layer := by
     intro n
     use n
     intro I' hI'
-    -- 全射性を使って証明（詳細は省略）
-    sorry
+    rcases hI' with ⟨I, ⟨S, hcard, hgen⟩, rfl⟩
+    rcases Ideal.map_preserves_generation (φ := φ) I S hgen with ⟨S', hcard', hgen'⟩
+    exact ⟨S', le_trans hcard' hcard, hgen'⟩
 
 /-!
 ## 具体例：整数環 ℤ
@@ -285,18 +318,33 @@ section IntegerExamples
 
 /-- ℤ のすべてのイデアルは有限生成 -/
 lemma int_ideals_finitely_generated : ∀ I : Ideal ℤ, I.IsFinitelyGenerated := by
+  classical
   intro I
-  -- ℤ は PID なので、I = (n) for some n
-  sorry -- 詳細は省略
+  haveI : I.IsPrincipal := IsPrincipalIdealRing.principal (R := ℤ) (S := I)
+  -- 生成元を取り出す（typeclass から）
+  let a : ℤ := Submodule.IsPrincipal.generator (S := (I : Ideal ℤ))
+  have hspan : Ideal.span ({a} : Set ℤ) = I := by
+    simpa [a] using (Ideal.span_singleton_generator (R := ℤ) (I := I))
+  have ha : I = Ideal.span ({a} : Set ℤ) := hspan.symm
+  refine ⟨{a}, ?_⟩
+  simpa [Ideal.IsFinGenBy, ha]
 
 /-- ℤ のイデアル構造塔 -/
 def intIdealTower : TowerD :=
   idealTower ℤ int_ideals_finitely_generated
 
 /-- ℤ では、すべての非零イデアルが層1に属する -/
-lemma int_nonzero_ideals_in_layer1 (I : Ideal ℤ) (hI : I ≠ ⊥) :
-    I ∈ intIdealTower.layer 1 := by
-  sorry -- PID の性質を使用
+lemma int_nonzero_ideals_in_layer1 (I : Ideal ℤ) (_hI : I ≠ ⊥) :
+    I ∈ intIdealTower.layer (1 : ℕ) := by
+  classical
+  haveI : I.IsPrincipal := IsPrincipalIdealRing.principal (R := ℤ) (S := I)
+  let a : ℤ := Submodule.IsPrincipal.generator (S := (I : Ideal ℤ))
+  have hspan : Ideal.span ({a} : Set ℤ) = I := by
+    simpa [a] using (Ideal.span_singleton_generator (R := ℤ) (I := I))
+  have ha : I = Ideal.span ({a} : Set ℤ) := hspan.symm
+  refine ⟨{a}, ?_, ?_⟩
+  · simp [Finset.card_singleton]
+  · simpa [Ideal.IsFinGenBy, ha]
 
 end IntegerExamples
 

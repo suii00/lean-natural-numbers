@@ -59,7 +59,7 @@ open Set TopologicalSpace
 -/
 
 /-- 開集合が有限個の基本開集合の和として表現される -/
-def IsFiniteUnionOfBasis {X : Type*} [TopologicalSpace X] 
+def IsFiniteUnionOfBasis {X : Type*} [TopologicalSpace X]
     (B : Set (Set X)) (U : Set X) (n : ℕ) : Prop :=
   ∃ S : Finset (Set X), S.toSet ⊆ B ∧ S.card ≤ n ∧ U = ⋃₀ (S : Set (Set X))
 
@@ -88,14 +88,14 @@ def openSetTower (X : Type*) [TopologicalSpace X]
   carrier := {U : Set X // IsOpen U}
   Index := ℕ
   indexPreorder := inferInstance
-  
+
   layer n := {⟨U, hU⟩ | IsFiniteUnionOfBasis B U n}
-  
+
   covering := by
     intro ⟨U, hU⟩
     obtain ⟨n, hn⟩ := hcover U hU
     exact ⟨n, hn⟩
-  
+
   monotone := by
     intro i j hij ⟨U, hU⟩ hU_layer
     -- layer i ⊆ layer j
@@ -141,7 +141,7 @@ lemma openSetTower_basis_in_layer1 (X : Type*) [TopologicalSpace X]
 -/
 
 /-- 閉包の反復回数 -/
-def closureIterationLevel {X : Type*} [TopologicalSpace X] 
+def closureIterationLevel {X : Type*} [TopologicalSpace X]
     (A : Set X) : ℕ :=
   -- 簡易版：A が閉集合なら 0、そうでなければ 1
   -- （完全版では、closure(A) = A になるまでの回数を計算）
@@ -160,14 +160,14 @@ def closureTower (X : Type*) [TopologicalSpace X]
   carrier := Set X
   Index := ℕ
   indexPreorder := inferInstance
-  
+
   layer n := {A : Set X | closureIterationLevel A ≤ n}
-  
+
   covering := by
     intro A
     use closureIterationLevel A
     exact le_rfl
-  
+
   monotone := by
     intro i j hij A hA
     exact le_trans hA hij
@@ -207,15 +207,15 @@ def finiteOpenSetTower (X : Type*) [TopologicalSpace X] [Fintype X] :
   carrier := {U : Set X // IsOpen U}
   Index := ℕ
   indexPreorder := inferInstance
-  
+
   -- すべての開集合を層 1 に配置（有限なので複雑さは一定）
   layer n := if n ≥ 1 then Set.univ else {⟨∅, isOpen_empty⟩}
-  
+
   covering := by
     intro ⟨U, hU⟩
     use 1
     simp
-  
+
   monotone := by
     intro i j hij
     by_cases hi : i ≥ 1
@@ -306,7 +306,7 @@ lemma discrete_openset_simple [TopologicalSpace X] [DiscreteTopology X] :
   intro ⟨U, hU⟩
   simp [finiteOpenSetTower]
 
-/-- 自明な位相（{∅, X}のみ）では、開集合は2個だけ -/
+/- 自明な位相（{∅, X}のみ）では、開集合は2個だけ -/
 -- 実装は省略（必要に応じて追加）
 
 end DiscreteAndTrivial
@@ -319,7 +319,7 @@ end DiscreteAndTrivial
 
 section RealIntervals
 
-/-- 実数の開区間の構造塔（骨格版）
+/- 実数の開区間の構造塔（骨格版）
 
 開区間を基本開集合として、有限個の開区間の和で表現できる
 開集合を階層化する。
