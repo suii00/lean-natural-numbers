@@ -1,0 +1,617 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+
+% 定理環境
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{example}[theorem]{例}
+\newtheorem{remark}[theorem]{注意}
+
+% 数学記号
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\Z}{\mathbb{Z}}
+\DeclareMathOperator{\Hom}{Hom}
+\DeclareMathOperator{\id}{id}
+\DeclareMathOperator{\card}{card}
+
+\title{構造塔の圏 $\mathbf{Cat}_D$：\\存在量化による柔軟な層保存理論}
+\author{
+  Lean 4 形式化: Codex (OpenAI) \\
+  \LaTeX 解説文書: Claude Code (Anthropic)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔（Structure Tower）の圏論的定式化の一つである $\mathbf{Cat}_D$ を解説する。
+$\mathbf{Cat}_D$ は最小層関数（minLayer）や添字写像（indexMap）を持たない「最も薄い」構造塔の圏であり、
+射の定義に存在量化を用いることで、確率論のフィルトレーション理論、代数的構造の階層、
+位相空間論など、多様な数学的構造を統一的に扱うことができる。
+本稿では、$\mathbf{Cat}_D$ の基本定義、圏構造の証明、および具体例（実数区間の構造塔、
+有限集合の冪集合構造塔、フィルトレーション）を Lean 4 による形式化とともに紹介する。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+\subsection{構造塔とは}
+
+構造塔（Structure Tower）は、Bourbaki の構造理論における「母構造」の階層化を抽象化した概念である。
+直観的には、集合 $X$ に対して、その部分集合の族 $(X_i)_{i \in I}$ が順序集合 $I$ によって添字付けられ、
+以下の性質を満たすものである：
+
+\begin{itemize}
+  \item \textbf{被覆性}：すべての $x \in X$ に対して、$x \in X_i$ となる $i \in I$ が存在する
+  \item \textbf{単調性}：$i \leq j$ ならば $X_i \subseteq X_j$
+\end{itemize}
+
+このような構造は、数学の様々な分野に現れる：
+
+\begin{example}[確率論]
+フィルトレーション $(\mathcal{F}_n)_{n \in \N}$ は、時刻 $n$ までに観測可能な事象の $\sigma$-代数の増大列である。
+$\mathcal{F}_n \subseteq \mathcal{F}_{n+1}$ という単調性が本質的である。
+\end{example}
+
+\begin{example}[線形代数]
+ベクトル空間 $V$ の部分空間の増大列 $V_0 \subseteq V_1 \subseteq \cdots \subseteq V_n = V$ は、
+フィルトレーション（filtration）と呼ばれる構造塔を与える。
+\end{example}
+
+\begin{example}[位相空間]
+位相空間 $X$ において、点 $x$ の近傍系 $\mathcal{U}_x$ を、開集合の大きさで階層化することができる。
+\end{example}
+
+\subsection{なぜ $\mathbf{Cat}_D$ か}
+
+構造塔を圏として定式化する際、いくつかのアプローチが存在する：
+
+\begin{enumerate}
+  \item \textbf{$\mathbf{Cat}_2$}（厳密版）：射は $(f, \varphi)$ の対であり、$f: X \to X'$ と $\varphi: I \to I'$ が
+    最小層関数を保存する。これは普遍性の証明に有用だが、応用では制約が強すぎることがある。
+
+  \item \textbf{$\mathbf{Cat}_D$}（柔軟版）：射は $f: X \to X'$ のみであり、「各層 $X_i$ の像がどこかの層 $X'_j$ に含まれる」
+    という存在量化の条件のみを課す。添字写像 $\varphi$ は明示的に構成せず、その存在のみを要求する。
+\end{enumerate}
+
+$\mathbf{Cat}_D$ の利点は以下の通りである：
+
+\begin{itemize}
+  \item \textbf{柔軟性}：より多くの射が存在し、応用の範囲が広い
+  \item \textbf{自然性}：確率論の可測写像など、「どこかで成立すればよい」条件に対応
+  \item \textbf{簡潔性}：射の等式が $f = g \iff f.map = g.map$ で判定できる
+\end{itemize}
+
+\section{$\mathbf{Cat}_D$ の定義}
+
+\subsection{構造塔（対象）}
+
+\begin{definition}[構造塔]
+\label{def:tower}
+構造塔（Structure Tower）とは、以下のデータからなる：
+\begin{itemize}
+  \item 台集合（carrier）$X$
+  \item 添字集合（Index）$I$ と半順序 $\leq$
+  \item 層写像（layer）$\lambda: I \to \mathcal{P}(X)$
+  \item 被覆性（covering）：$\forall x \in X, \exists i \in I, x \in \lambda(i)$
+  \item 単調性（monotone）：$\forall i, j \in I, i \leq j \Rightarrow \lambda(i) \subseteq \lambda(j)$
+\end{itemize}
+\end{definition}
+
+Lean 4 では以下のように定義される：
+
+\begin{verbatim}
+structure StructureTower where
+  carrier : Type*
+  Index : Type*
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+\end{verbatim}
+
+$\mathbf{Cat}_D$ の対象は、この構造塔そのものである：
+\begin{verbatim}
+abbrev TowerD := StructureTower
+\end{verbatim}
+
+\subsection{射の定義}
+
+\begin{definition}[$\mathbf{Cat}_D$ の射]
+\label{def:hom}
+構造塔 $T = (X, I, \lambda)$ から $T' = (X', I', \lambda')$ への射 $f: T \to T'$ は、
+以下のデータからなる：
+\begin{itemize}
+  \item 台写像 $f.map: X \to X'$
+  \item 層保存条件：$\forall i \in I, \exists j \in I', f({\lambda(i)}) \subseteq \lambda'(j)$
+\end{itemize}
+\end{definition}
+
+Lean 4 での定義：
+
+\begin{verbatim}
+structure HomD (T T' : TowerD) where
+  map : T.carrier → T'.carrier
+  map_layer : ∀ i : T.Index, ∃ j : T'.Index,
+    Set.image map (T.layer i) ⊆ T'.layer j
+\end{verbatim}
+
+\begin{remark}
+層保存条件は、$\mathbf{Cat}_2$ とは異なり、添字写像 $\varphi: I \to I'$ を明示的に構成しない。
+各 $i \in I$ に対して、$j \in I'$ の存在のみを要求する点が本質的である。
+\end{remark}
+
+\subsection{恒等射と合成}
+
+\begin{definition}[恒等射]
+構造塔 $T$ の恒等射 $\id_T: T \to T$ は、$(\id_T).map = \id_X$ で定義される。
+層保存条件は $j := i$ とすることで自明に満たされる。
+\end{definition}
+
+\begin{definition}[射の合成]
+射 $f: T \to T'$ と $g: T' \to T''$ の合成 $g \circ f: T \to T''$ は、
+$(g \circ f).map = g.map \circ f.map$ で定義される。
+層保存条件は以下のように示される：
+
+任意の $i \in I$ に対して、
+\begin{itemize}
+  \item $f$ の層保存により、$\exists j \in I', f(\lambda(i)) \subseteq \lambda'(j)$
+  \item $g$ の層保存により、$\exists k \in I'', g(\lambda'(j)) \subseteq \lambda''(k)$
+  \item したがって、$(g \circ f)(\lambda(i)) = g(f(\lambda(i))) \subseteq g(\lambda'(j)) \subseteq \lambda''(k)$
+\end{itemize}
+\end{definition}
+
+\subsection{圏の公理}
+
+\begin{theorem}[$\mathbf{Cat}_D$ は圏をなす]
+\label{thm:category}
+上記の恒等射と合成により、$\mathbf{Cat}_D$ は圏をなす。すなわち、以下が成り立つ：
+\begin{enumerate}
+  \item $\id_{T'} \circ f = f$（左単位律）
+  \item $f \circ \id_T = f$（右単位律）
+  \item $(h \circ g) \circ f = h \circ (g \circ f)$（結合律）
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+射の等式は、台写像の等式に帰着される（外延性）。
+Lean 4 では、\texttt{ext} タクティックと \texttt{simp} による自動簡約により、
+公理の証明は機械的に行われる。
+\end{proof}
+
+\section{圏論的構造}
+
+\subsection{射の外延性}
+
+\begin{proposition}[射の外延性]
+\label{prop:ext}
+$\mathbf{Cat}_D$ において、射 $f, g: T \to T'$ が等しいことと、
+$f.map = g.map$（台写像として等しい）は同値である。
+\end{proposition}
+
+\begin{proof}
+$\Rightarrow$：自明。
+
+$\Leftarrow$：$f.map = g.map$ とする。$f.map\_layer$ と $g.map\_layer$ は
+ともに命題（Prop）の証明であり、Prop の証明は一意である（proof irrelevance）。
+したがって、$f = g$ が従う。
+\end{proof}
+
+この性質により、$\mathbf{Cat}_D$ の射は「台写像のみで決まる」薄い構造を持つ。
+
+\subsection{忘却関手}
+
+$\mathbf{Cat}_2$（最小層関数を持つ構造塔の圏）から $\mathbf{Cat}_D$ への自然な忘却関手が存在する：
+
+\begin{equation*}
+\begin{tikzcd}
+\mathbf{Cat}_2 \arrow[r, "U"] & \mathbf{Cat}_D
+\end{tikzcd}
+\end{equation*}
+
+対象への作用：最小層関数 $\text{minLayer}$ を忘れる。
+
+射への作用：$(f, \varphi): T \to T'$ を $f: U(T) \to U(T')$ に写す。
+
+\begin{verbatim}
+def ofWithMin (T : StructureTowerWithMin) : TowerD where
+  carrier := T.carrier
+  Index := T.Index
+  indexPreorder := T.indexPreorder
+  layer := T.layer
+  covering := T.covering
+  monotone := T.monotone
+  -- minLayer を忘れる
+\end{verbatim}
+
+\section{具体例}
+
+\subsection{実数区間の構造塔}
+
+\begin{example}[実数区間の構造塔]
+\label{ex:real}
+実数 $\R$ 上で、各層を $\lambda(n) = \{x \in \R \mid x \leq n\}$ で定義すると、
+構造塔 $\mathbf{RealInterval}$ が得られる。
+\end{example}
+
+\begin{itemize}
+  \item 台集合：$X = \R$
+  \item 添字集合：$I = \R$（実数自身を添字とする）
+  \item 層：$\lambda(r) = (-\infty, r]$
+  \item 被覆性：任意の $x \in \R$ に対して、$x \in \lambda(x)$
+  \item 単調性：$r \leq s \Rightarrow (-\infty, r] \subseteq (-\infty, s]$
+\end{itemize}
+
+Lean 4 での定義：
+
+\begin{verbatim}
+def realIntervalTower : TowerD where
+  carrier := ℝ
+  Index := ℝ
+  indexPreorder := (inferInstance : Preorder ℝ)
+  layer n := {x : ℝ | x ≤ n}
+  covering := by
+    intro x
+    refine ⟨x, ?_⟩
+    simp
+  monotone := by
+    intro i j hij x hx
+    exact le_trans hx hij
+\end{verbatim}
+
+\subsection{射の例：平行移動}
+
+実数の平行移動 $x \mapsto x + c$ は、構造塔の射を誘導する。
+
+\begin{proposition}
+$f(x) = x + c$ とすると、$f: \mathbf{RealInterval} \to \mathbf{RealInterval}$ は
+$\mathbf{Cat}_D$ の射である。
+\end{proposition}
+
+\begin{proof}
+層 $\lambda(n) = (-\infty, n]$ に対して、
+\begin{equation*}
+f(\lambda(n)) = \{x + c \mid x \leq n\} = (-\infty, n + c]
+\end{equation*}
+したがって、$j := n + |c|$ とすれば、$f(\lambda(n)) \subseteq \lambda(j)$ が成り立つ
+（$c$ が負の場合も $|c|$ により吸収される）。
+\end{proof}
+
+\subsection{有限集合の冪集合構造塔}
+
+\begin{example}[冪集合の構造塔]
+\label{ex:powerset}
+有限集合 $\text{Fin}(n) = \{0, 1, \ldots, n-1\}$ の部分集合全体を、
+濃度で階層化する構造塔 $\mathbf{PowerTower}(n)$ を定義する。
+\end{example}
+
+\begin{itemize}
+  \item 台集合：$X = \mathcal{P}(\text{Fin}(n))$（有限部分集合の族）
+  \item 添字集合：$I = \N$
+  \item 層：$\lambda(k) = \{S \subseteq \text{Fin}(n) \mid |S| \leq k\}$
+  \item 被覆性：任意の $S \subseteq \text{Fin}(n)$ に対して、$S \in \lambda(|S|)$
+  \item 単調性：$k \leq m \Rightarrow \lambda(k) \subseteq \lambda(m)$
+\end{itemize}
+
+\begin{verbatim}
+def finsetPowerTower (n : ℕ) : TowerD where
+  carrier := Finset (Fin n)
+  Index   := ℕ
+  indexPreorder := inferInstance
+  layer (k : ℕ) := {S : Finset (Fin n) | S.card ≤ k}
+  covering := by
+    intro S
+    refine ⟨S.card, ?_⟩
+    exact (le_rfl : S.card ≤ S.card)
+  monotone := by
+    intro i j hij S hS
+    exact le_trans hS hij
+\end{verbatim}
+
+\subsection{射の例：制限写像}
+
+$n \leq m$ とするとき、部分集合の制限 $S \subseteq \text{Fin}(m) \mapsto S \cap \text{Fin}(n)$ は
+射 $\mathbf{PowerTower}(m) \to \mathbf{PowerTower}(n)$ を誘導する。
+
+\begin{proposition}
+制限写像は濃度を保存する（増やさない）：
+\begin{equation*}
+|S \cap \text{Fin}(n)| \leq |S|
+\end{equation*}
+したがって、$S \in \lambda(k)$ ならば $S \cap \text{Fin}(n) \in \lambda(k)$ である。
+\end{proposition}
+
+\subsection{フィルトレーション構造塔}
+
+確率論において最も重要な例は、$\sigma$-代数のフィルトレーションである。
+
+\begin{example}[簡易フィルトレーション]
+\label{ex:filtration}
+標本空間 $\Omega$ 上の $\sigma$-代数の増大列 $(\mathcal{F}_n)_{n \in \N}$ を考える。
+\end{example}
+
+\begin{itemize}
+  \item 台集合：$X = \mathcal{P}(\Omega)$（事象の全体）
+  \item 添字集合：$I = \N$（時刻）
+  \item 層：$\lambda(n) = \mathcal{F}_n$（時刻 $n$ で観測可能な事象）
+  \item 被覆性：すべての事象がいずれかの時刻で観測可能（完全フィルトレーション）
+  \item 単調性：$\mathcal{F}_n \subseteq \mathcal{F}_{n+1}$
+\end{itemize}
+
+\begin{verbatim}
+structure SimpleFiltration (Ω : Type*) where
+  events : ℕ → Set (Set Ω)
+  events_mono : ∀ {n m}, n ≤ m → events n ⊆ events m
+
+def simpleFiltrationTower (Ω : Type*) (F : SimpleFiltration Ω)
+    (hcover : ∀ A : Set Ω, ∃ n, A ∈ F.events n) : TowerD where
+  carrier := Set Ω
+  Index := ℕ
+  indexPreorder := (inferInstance : Preorder ℕ)
+  layer n := F.events n
+  covering := hcover
+  monotone := F.events_mono
+\end{verbatim}
+
+\subsection{フィルトレーション間の射}
+
+確率空間の射 $f: \Omega \to \Omega'$ は、順像により
+フィルトレーション間の射を誘導する。
+
+\begin{proposition}
+$f: \Omega \to \Omega'$ が各時刻 $n$ に対して
+「$f$ による $\mathcal{F}_n$-可測集合の順像が、ある時刻 $m$ で $\mathcal{F}'_m$-可測」
+を満たすならば、$f$ はフィルトレーション間の射を誘導する。
+\end{proposition}
+
+この条件は、まさに $\mathbf{Cat}_D$ の層保存条件に対応している。
+
+\section{圏論的性質と図式}
+
+\subsection{射の合成の可換性}
+
+$\mathbf{Cat}_D$ において、射の合成は結合的である：
+
+\begin{equation*}
+\begin{tikzcd}
+T \arrow[r, "f"] \arrow[rr, bend left, "h \circ (g \circ f)"{name=U}]
+  \arrow[rr, bend right, "(h \circ g) \circ f"'{name=D}]
+  & T' \arrow[r, "g"]
+  & T'' \arrow[r, "h"]
+  & T'''
+\arrow[phantom, from=U, to=D, "\rotatebox{90}{$=$}"]
+\end{tikzcd}
+\end{equation*}
+
+\subsection{忘却関手の可換図式}
+
+$\mathbf{Cat}_2$ から $\mathbf{Cat}_D$ への忘却関手は、射の合成を保存する：
+
+\begin{equation*}
+\begin{tikzcd}
+T \arrow[r, "{(f, \varphi)}"] \arrow[d, "U"']
+  & T' \arrow[r, "{(g, \psi)}"] \arrow[d, "U"]
+  & T'' \arrow[d, "U"] \\
+U(T) \arrow[r, "f"']
+  & U(T') \arrow[r, "g"']
+  & U(T'')
+\end{tikzcd}
+\end{equation*}
+
+すなわち、$U((g, \psi) \circ (f, \varphi)) = U(g, \psi) \circ U(f, \varphi)$ が成り立つ。
+
+\subsection{層保存の可換性}
+
+射 $f: T \to T'$ において、層の包含関係が保たれることを図式で表現すると：
+
+\begin{equation*}
+\begin{tikzcd}
+\lambda(i) \arrow[r, "f"] \arrow[d, hookrightarrow]
+  & \lambda'(j) \arrow[d, hookrightarrow] \\
+\lambda(i') \arrow[r, "f"]
+  & \lambda'(j')
+\end{tikzcd}
+\end{equation*}
+
+ここで、$i \leq i'$ のとき $\exists j, j'$ で $f(\lambda(i)) \subseteq \lambda'(j)$ かつ
+$f(\lambda(i')) \subseteq \lambda'(j')$ が成り立つ。
+
+\section{応用と展望}
+
+\subsection{確率論への応用}
+
+$\mathbf{Cat}_D$ は、確率論の以下の概念を自然に記述できる：
+
+\begin{enumerate}
+  \item \textbf{フィルトレーション}：情報の時間発展
+  \item \textbf{停止時間}：特定の層に初めて到達する時刻（存在量化が本質的）
+  \item \textbf{適合過程}：各時刻で観測可能な確率過程
+  \item \textbf{条件付き期待値}：層の保存と可測性の関係
+\end{enumerate}
+
+\subsection{代数への応用}
+
+\begin{enumerate}
+  \item \textbf{部分群の階層}：生成元の個数による階層化
+  \item \textbf{イデアルの階層}：ネーター環における有限生成イデアル
+  \item \textbf{ガロア対応}：中間体の順序構造
+\end{enumerate}
+
+\subsection{位相空間への応用}
+
+\begin{enumerate}
+  \item \textbf{開集合の階層}：基本開集合の和による階層化
+  \item \textbf{閉包演算}：閉包の反復による層構造
+  \item \textbf{連結性}：連結成分の階層
+\end{enumerate}
+
+\section{$\mathbf{Cat}_2$ との比較}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+& $\mathbf{Cat}_2$（厳密版） & $\mathbf{Cat}_D$（柔軟版） \\
+\hline
+\hline
+射の定義 & $(f, \varphi): X \to X'$ と $\varphi: I \to I'$ & $f: X \to X'$ のみ \\
+\hline
+層保存条件 & $f(\lambda(i)) \subseteq \lambda'(\varphi(i))$ & $\exists j, f(\lambda(i)) \subseteq \lambda'(j)$ \\
+\hline
+minLayer & 保存を要求 & 不要 \\
+\hline
+射の一意性 & $\varphi$ は minLayer から決定 & 台写像 $f$ のみで決定 \\
+\hline
+応用 & 普遍性、ランク関数 & フィルトレーション、可測性 \\
+\hline
+柔軟性 & 低い（厳密） & 高い（存在量化） \\
+\hline
+\end{tabular}
+\caption{$\mathbf{Cat}_2$ と $\mathbf{Cat}_D$ の比較}
+\end{table}
+
+\section{Lean 4 による形式化の意義}
+
+本稿で紹介した $\mathbf{Cat}_D$ の理論は、すべて Lean 4 で形式的に検証されている。
+形式化により得られる利点は以下の通り：
+
+\begin{enumerate}
+  \item \textbf{厳密性}：すべての証明が機械的に検証され、ギャップがない
+  \item \textbf{再利用性}：一度証明した補題は、他の定理で自動的に利用可能
+  \item \textbf{拡張性}：新しい応用や定理を追加する際、既存の定義と矛盾しないことが保証される
+  \item \textbf{教育的価値}：形式的な定義により、概念の本質が明確になる
+\end{enumerate}
+
+特に、圏の公理（単位律、結合律）の証明が \texttt{ext} と \texttt{simp} により自動化されることは、
+$\mathbf{Cat}_D$ の設計の簡潔性を示している。
+
+\section{結論}
+
+本稿では、構造塔の圏 $\mathbf{Cat}_D$ を、存在量化による層保存条件を用いて定義し、
+その圏論的性質と具体例を紹介した。$\mathbf{Cat}_D$ は、最小層関数や添字写像を持たない
+「最も薄い」構造塔の圏として、確率論のフィルトレーション、代数的構造の階層、
+位相空間論など、多様な数学的構造を統一的に扱うための柔軟な枠組みを提供する。
+
+Lean 4 による形式化により、すべての定義と定理が機械的に検証され、
+今後の理論の拡張（極限と余極限、モナド構造、関手の性質など）への確固たる基盤が確立された。
+
+$\mathbf{Cat}_D$ の理論は、Bourbaki の構造理論の現代的な圏論的解釈として、
+必要十分な一般性を持ちながらも、応用に適した柔軟性を兼ね備えている。
+今後、より多くの具体例と応用が蓄積されることで、構造塔理論の有用性が
+さらに明らかになることが期待される。
+
+\begin{thebibliography}{9}
+
+\bibitem{bourbaki}
+Bourbaki, N.
+\textit{Éléments de mathématique: Théorie des ensembles}.
+Hermann, Paris, 1970.
+
+\bibitem{williams}
+Williams, D.
+\textit{Probability with Martingales}.
+Cambridge University Press, 1991.
+
+\bibitem{maclane}
+Mac Lane, S.
+\textit{Categories for the Working Mathematician}.
+Springer-Verlag, 1971.
+
+\bibitem{lean4}
+de Moura, L., Ullrich, S.
+\textit{The Lean 4 Theorem Prover and Programming Language}.
+In: Platzer, A., Sutcliffe, G. (eds) Automated Deduction -- CADE 28.
+Lecture Notes in Computer Science, vol 12699. Springer, 2021.
+
+\bibitem{mathlib}
+The mathlib Community.
+\textit{The Lean Mathematical Library}.
+In: CPP 2020: Proceedings of the 9th ACM SIGPLAN International Conference
+on Certified Programs and Proofs, pp. 367--381, 2020.
+
+\end{thebibliography}
+
+\appendix
+
+\section{Lean 4 コードの完全版}
+
+本稿で紹介した主要な定義のコードを再掲する。
+
+\subsection{構造塔の定義}
+
+\begin{verbatim}
+structure StructureTower where
+  carrier : Type*
+  Index : Type*
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+
+abbrev TowerD := StructureTower
+\end{verbatim}
+
+\subsection{射の定義}
+
+\begin{verbatim}
+structure HomD (T T' : TowerD) where
+  map : T.carrier → T'.carrier
+  map_layer : ∀ i : T.Index, ∃ j : T'.Index,
+    Set.image map (T.layer i) ⊆ T'.layer j
+
+infixr:10 " ⟶ᴰ " => HomD
+\end{verbatim}
+
+\subsection{圏構造}
+
+\begin{verbatim}
+def HomD.id (T : TowerD) : T ⟶ᴰ T where
+  map := _root_.id
+  map_layer := by
+    intro i
+    use i
+    intro x hx
+    rcases hx with ⟨y, hy, rfl⟩
+    simpa using hy
+
+def HomD.comp {T T' T'' : TowerD}
+    (g : T' ⟶ᴰ T'') (f : T ⟶ᴰ T') : T ⟶ᴰ T'' where
+  map := g.map ∘ f.map
+  map_layer := by
+    intro i
+    obtain ⟨j, hj⟩ := f.map_layer i
+    obtain ⟨k, hk⟩ := g.map_layer j
+    use k
+    intro x hx
+    rcases hx with ⟨y, hy, rfl⟩
+    exact hk ⟨f.map y, hj ⟨y, hy, rfl⟩, rfl⟩
+
+instance : CategoryTheory.Category TowerD where
+  Hom := HomD
+  id := HomD.id
+  comp := fun f g => HomD.comp g f
+  id_comp := by intros; ext; simp
+  comp_id := by intros; ext; simp
+  assoc := by intros; ext; rfl
+\end{verbatim}
+
+\section{謝辞}
+
+本研究は、Lean 4 定理証明支援系および mathlib コミュニティの成果に基づいている。
+Codex (OpenAI) による Lean 4 コードの生成と、Claude Code (Anthropic) による
+本解説文書の作成に感謝する。
+
+\end{document}
