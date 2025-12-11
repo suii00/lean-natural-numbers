@@ -86,9 +86,122 @@ def realIntervalTower : TowerD where
     simp
 
   monotone := by
-    intro i j hij
-    intro x hx
+    intro i j hij x hx
     exact le_trans hx hij
+
+/-!
+### 例2：有限集合の冪集合構造塔（改善版）
+
+濃度による階層化をより明確に定義します。
+-/
+
+open ST  -- TowerD が ST 名前空間なら
+
+/-- 有限集合の冪集合構造塔
+
+Fin n の部分集合を濃度で階層化する。
+layer k = {S : Finset (Fin n) | S.card ≤ k}
+-/
+def finsetPowerTower (n : ℕ) : TowerD where
+  carrier := Finset (Fin n)
+  Index   := ℕ
+  indexPreorder := inferInstance
+
+  -- 各層：濃度が k 以下の部分集合
+  layer (k : ℕ) := {S : Finset (Fin n) | S.card ≤ k}
+
+  -- 被覆性
+  covering := by
+    intro S
+    refine ⟨S.card, ?_⟩
+    exact (le_rfl : S.card ≤ S.card)
+
+  -- 単調性
+  monotone := by
+    intro i j hij S hS
+    exact le_trans hS hij
+
+
+
+/-- 空集合は層0に属する -/
+lemma finsetPowerTower_empty_in_layer0 (n : ℕ) :
+    (∅ : Finset (Fin n)) ∈ (finsetPowerTower n).layer 0 := by
+  simp [finsetPowerTower]
+
+/-- 全体集合は層nに属する -/
+lemma finsetPowerTower_univ_in_layerN (n : ℕ) :
+    Finset.univ ∈ (finsetPowerTower n).layer n := by
+  simp [finsetPowerTower, Finset.card_univ, Fintype.card_fin]
+
+/-- 単集合は層1に属する -/
+lemma finsetPowerTower_singleton_in_layer1 {n : ℕ} (i : Fin n) :
+    ({i} : Finset (Fin n)) ∈ (finsetPowerTower n).layer 1 := by
+  simp [finsetPowerTower, Finset.card_singleton]
+
+
+/-!
+### 射の例2：冪集合間の部分集合制限（完全版）
+-/
+
+/-- 小さい有限集合への制限写像 -/
+def finsetRestrict {n m : ℕ} (h : n ≤ m)
+    (S : Finset (Fin m)) : Finset (Fin n) :=
+  -- まず値が n 未満のものだけを残し、`Fin.castLT` で型を落とす
+  (S.filter (fun i : Fin m => i.1 < n)).attach.image
+    (fun i =>
+      let hlt : i.1.val < n := (Finset.mem_filter.1 i.2).2
+      Fin.castLT i.1 hlt)
+
+/-- 制限写像が層の濃度を保存する補題 -/
+lemma finsetRestrict_card_le {n m : ℕ} (h : n ≤ m) (S : Finset (Fin m)) :
+    (finsetRestrict h S).card ≤ S.card := by
+  classical
+  unfold finsetRestrict
+  -- filter → attach → image なので要素数は元以下
+  have hfilter : ((S.filter fun i : Fin m => i.1 < n).attach).card
+      = (S.filter fun i : Fin m => i.1 < n).card := by simp
+  have hfilter_le : (S.filter fun i : Fin m => i.1 < n).card ≤ S.card :=
+    Finset.card_filter_le _ _
+  calc
+    (Finset.card
+        ((S.filter fun i : Fin m => i.1 < n).attach.image
+          (fun i =>
+            let hlt : i.1.val < n := (Finset.mem_filter.1 i.2).2
+            Fin.castLT i.1 hlt))) ≤
+        (S.filter fun i : Fin m => i.1 < n).attach.card := by
+          exact Finset.card_image_le
+    _ = (S.filter fun i : Fin m => i.1 < n).card := by simpa [hfilter]
+    _ ≤ S.card := hfilter_le
+
+/-- 制限写像が誘導する構造塔の射 -/
+def finsetPowerRestrict {n m : ℕ} (h : n ≤ m) :
+    finsetPowerTower m ⟶ᴰ finsetPowerTower n where
+  map := finsetRestrict h
+  map_layer := by
+    intro k
+    refine ⟨k, ?_⟩
+    intro T hT
+    have hcard := finsetRestrict_card_le h T
+    exact le_trans hcard hT
+
+/-!
+### 実数区間の射：平行移動
+-/
+
+/-- 実数の平行移動 -/
+def realShiftMap (c : ℝ) : ℝ → ℝ := fun x => x + c
+
+/-- 平行移動が誘導する構造塔の射 -/
+def realIntervalShift (c : ℝ) :
+    realIntervalTower ⟶ᴰ realIntervalTower where
+  map := realShiftMap c
+  map_layer := by
+    intro n
+    refine ⟨n + Real.abs c, ?_⟩
+    intro y ⟨x, hx, rfl⟩
+    have : x + c ≤ x + Real.abs c := by nlinarith [abs_nonneg c]
+    have hx' : x ≤ n := hx
+    nlinarith
 
 /-!
 ### 例3：簡易フィルトレーション構造塔
