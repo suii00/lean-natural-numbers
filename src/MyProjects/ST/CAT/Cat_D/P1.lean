@@ -125,8 +125,12 @@ def finsetPowerTower (n : ℕ) : TowerD where
 
 /-- 空集合は層0に属する -/
 lemma finsetPowerTower_empty_in_layer0 (n : ℕ) :
-    (∅ : Finset (Fin n)) ∈ (finsetPowerTower n).layer 0 := by
+    (∅ : Finset (Fin n)) ∈ (finsetPowerTower n).layer (0 : ℕ) := by
+  -- ゴール:
+  --   ∅ ∈ {S : Finset (Fin n) | S.card ≤ 0}
+  -- に展開されるので、S.card = 0 を使って終わる
   simp [finsetPowerTower]
+
 
 /-- 全体集合は層nに属する -/
 lemma finsetPowerTower_univ_in_layerN (n : ℕ) :
@@ -135,8 +139,12 @@ lemma finsetPowerTower_univ_in_layerN (n : ℕ) :
 
 /-- 単集合は層1に属する -/
 lemma finsetPowerTower_singleton_in_layer1 {n : ℕ} (i : Fin n) :
-    ({i} : Finset (Fin n)) ∈ (finsetPowerTower n).layer 1 := by
+    ({i} : Finset (Fin n)) ∈ (finsetPowerTower n).layer (1 : ℕ) := by
+  -- ゴール:
+  --   ({i}.card ≤ 1)
+  -- に展開され、`card_singleton` で 1 に簡約される
   simp [finsetPowerTower, Finset.card_singleton]
+
 
 
 /-!
