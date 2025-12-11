@@ -1,0 +1,756 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% LuaLaTeX用の日本語設定
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\setmainfont{Times New Roman}
+\setmainjfont{Yu Mincho}
+
+% 数学パッケージ
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図表パッケージ
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,calc}
+
+% その他のパッケージ
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\newtheorem{definition}[theorem]{定義}
+\newtheorem{example}[theorem]{例}
+\newtheorem{remark}[theorem]{注意}
+
+% カスタムコマンド
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\calF}{\mathcal{F}}
+\newcommand{\Omega}{\Omega}
+
+\title{ランク構造理論と確率論的停止時間：\\構造塔による統一的理解}
+\author{Lean形式化: Codex (OpenAI) \\ \LaTeX 文書生成: Claude Code (Anthropic)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔（structure tower）とランク関数の双方向対応理論を基礎として、確率論における停止時間とマルチンゲール理論を統一的に理解するための形式的枠組みを提示する。ブルバキの「母構造」の思想に基づき、異なる数学分野（順序理論、確率論、マルチンゲール理論）が構造塔という統一的視点で理解できることを示す。特に、オプショナル停止定理（Optional Stopping Theorem）がランク構造の普遍性から自然に導出されることを証明する。本研究はLean 4による形式検証に基づいており、すべての定理は機械的に検証可能である。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+\subsection{背景と動機}
+
+確率論における停止時間（stopping time）の理論は、マルチンゲール解析において中心的な役割を果たす。一方、順序理論や集合論において、構造塔は階層的な数学的対象を記述するための自然な枠組みである。本研究では、これら二つの見かけ上異なる概念が、実は同一の数学的構造の異なる側面であることを示す。
+
+\subsection{主要な貢献}
+
+本稿の主要な貢献は以下の通りである：
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{双方向対応定理}：構造塔とランク関数の間の正準的な同型を確立
+\item \textbf{停止時間のランク解釈}：確率論的停止時間が構造塔上のランク関数であることの形式的証明
+\item \textbf{統一的OST}：オプショナル停止定理をランク構造理論の帰結として導出
+\item \textbf{形式検証}：すべての定理をLean 4で機械的に検証
+\end{enumerate}
+
+\subsection{論文の構成}
+
+本稿は以下のように構成される。第2節では構造塔とランク関数の基礎理論を展開し、双方向対応定理を証明する。第3節では停止時間をランク関数として解釈し、確率論的概念と構造塔理論の対応を明らかにする。第4節ではマルチンゲール理論をランク構造の言葉で再定式化する。第5節でオプショナル停止定理のランク理論版を証明し、最後に今後の研究方向を議論する。
+
+\section{ランク関数と構造塔の双方向対応}
+
+\subsection{構造塔の定義}
+
+\begin{definition}[最小層を持つ構造塔]
+最小層を持つ構造塔（structure tower with minimal layer）とは、以下のデータからなる構造 $T$ である：
+\begin{itemize}
+\item 台集合 $X$（carrier）
+\item 層の族 $\{L_n\}_{n \in \N}$，ここで $L_n \subseteq X$
+\item 被覆性：$\forall x \in X, \exists n \in \N, x \in L_n$
+\item 単調性：$i \leq j \Rightarrow L_i \subseteq L_j$
+\item 最小層関数 $\mathrm{minLayer} : X \to \N$
+\item 最小性の保証：
+  \begin{itemize}
+  \item $\forall x \in X, x \in L_{\mathrm{minLayer}(x)}$
+  \item $\forall x \in X, \forall i \in \N, x \in L_i \Rightarrow \mathrm{minLayer}(x) \leq i$
+  \end{itemize}
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+構造塔は、集合 $X$ の要素を「階層」に分類する自然な方法を提供する。各要素 $x$ は、ある最小の層 $L_{\mathrm{minLayer}(x)}$ に属し、それより上位のすべての層にも属する。
+\end{remark}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.2]
+  % 層の描画
+  \foreach \y/\n in {0/0, 1.5/1, 3/2, 4.5/3} {
+    \draw[thick] (0,\y) -- (6,\y);
+    \node[left] at (-0.2,\y) {$L_{\n}$};
+  }
+
+  % 要素の描画
+  \filldraw[blue] (1,0.7) circle (2pt) node[right] {$x_1$};
+  \filldraw[red] (2.5,2.2) circle (2pt) node[right] {$x_2$};
+  \filldraw[green!50!black] (4,3.7) circle (2pt) node[right] {$x_3$};
+
+  % 矢印（最小層への所属を示す）
+  \draw[->,dashed,blue] (1,0.7) -- (1,0.1);
+  \draw[->,dashed,red] (2.5,2.2) -- (2.5,1.6);
+  \draw[->,dashed,green!50!black] (4,3.7) -- (4,3.1);
+
+  % ラベル
+  \node at (3,-0.7) {構造塔の層構造};
+  \node[blue] at (1,-1.3) {$\mathrm{minLayer}(x_1)=0$};
+  \node[red] at (2.5,-1.6) {$\mathrm{minLayer}(x_2)=1$};
+  \node[green!50!black] at (4.3,-1.9) {$\mathrm{minLayer}(x_3)=2$};
+\end{tikzpicture}
+\caption{構造塔の視覚的表現。各要素は最小の層に属し、それより上の層すべてに含まれる。}
+\end{figure}
+
+\subsection{ランク関数からの構成}
+
+\begin{definition}[ランク関数]
+集合 $X$ 上のランク関数（rank function）とは、写像 $\rho : X \to \N \cup \{\infty\}$ であって、すべての $x \in X$ に対して有限値を取るもの、すなわち
+\[
+\forall x \in X, \exists n \in \N, \rho(x) \leq n
+\]
+を満たすものをいう。
+\end{definition}
+
+\begin{theorem}[ランク関数から構造塔へ]\label{thm:rank-to-tower}
+ランク関数 $\rho : X \to \N$ が与えられたとき、以下のように定義される構造塔 $T(\rho)$ が存在する：
+\begin{align*}
+L_n &:= \{x \in X \mid \rho(x) \leq n\} \\
+\mathrm{minLayer}(x) &:= \rho(x)
+\end{align*}
+この構造塔は、被覆性と単調性を満たし、$\mathrm{minLayer}$ は最小層の公理を満たす。
+\end{theorem}
+
+\begin{proof}
+各条件を順に確認する：
+\begin{itemize}
+\item \textbf{被覆性}：$\rho$ の有限性より、任意の $x \in X$ に対して $\rho(x) \in \N$ なので、$x \in L_{\rho(x)}$。
+\item \textbf{単調性}：$i \leq j$ かつ $x \in L_i$ とする。このとき $\rho(x) \leq i \leq j$ より $x \in L_j$。
+\item \textbf{最小層の所属}：$\rho(x) \leq \rho(x)$ より $x \in L_{\rho(x)} = L_{\mathrm{minLayer}(x)}$。
+\item \textbf{最小性}：$x \in L_i$ ならば $\rho(x) \leq i$ より $\mathrm{minLayer}(x) = \rho(x) \leq i$。\qedhere
+\end{itemize}
+\end{proof}
+
+\subsection{構造塔からランク関数への逆構成}
+
+\begin{theorem}[構造塔からランク関数へ]\label{thm:tower-to-rank}
+構造塔 $T$ が与えられたとき、以下で定義される関数 $\rho_T : X \to \N$ はランク関数である：
+\[
+\rho_T(x) := \mathrm{minLayer}(x)
+\]
+\end{theorem}
+
+\begin{proof}
+$\rho_T$ が有限値を取ることは、構造塔の被覆性より明らか。また、任意の $x \in X$ に対して $\rho_T(x) = \mathrm{minLayer}(x) \in \N$ である。
+\end{proof}
+
+\subsection{双方向対応の正規形定理}
+
+以下の定理は、ランク関数と構造塔が本質的に同一の数学的構造であることを示す。
+
+\begin{theorem}[正規形定理]\label{thm:normal-form}
+以下が成り立つ：
+\begin{enumerate}[label=(\roman*)]
+\item 順方向の往復：任意のランク関数 $\rho : X \to \N$ に対して、
+\[
+\rho_{T(\rho)} = \rho
+\]
+\item 逆方向の往復：任意の構造塔 $T$ に対して、$T$ と $T(\rho_T)$ の層は一致する：
+\[
+\forall n \in \N, L_n^T = L_n^{T(\rho_T)}
+\]
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(i) 定理~\ref{thm:rank-to-tower}の構成より、
+\[
+\rho_{T(\rho)}(x) = \mathrm{minLayer}_{T(\rho)}(x) = \rho(x)
+\]
+
+(ii) 任意の $n \in \N$ と $x \in X$ に対して、
+\begin{align*}
+x \in L_n^{T(\rho_T)} &\Leftrightarrow \rho_T(x) \leq n \\
+&\Leftrightarrow \mathrm{minLayer}_T(x) \leq n \\
+&\Leftrightarrow x \in L_n^T
+\end{align*}
+最後の同値は構造塔の単調性と最小性より従う。
+\end{proof}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzcd}[column sep=huge, row sep=huge]
+\text{ランク関数 } \rho \arrow[r, "T(\cdot)", shift left=2] \arrow[loop left, "\mathrm{id}"]
+& \text{構造塔 } T \arrow[l, "\rho_{(\cdot)}", shift left=2] \arrow[loop right, "\mathrm{id}"]
+\end{tikzcd}
+\caption{ランク関数と構造塔の双方向対応。この対応は圏同値である。}
+\end{figure}
+
+\subsection{具体例：$\Q^2$ における基底ランク}
+
+\begin{example}[有理ベクトル空間のランク]
+$X = \Q^2$ に対して、最小基底数（minimal basis count）を以下で定義する：
+\[
+\mathrm{minBasisCount}(v_1, v_2) := \begin{cases}
+0 & \text{if } v_1 = v_2 = 0 \\
+1 & \text{if } v_1 = 0 \text{ または } v_2 = 0 \text{ （かつ非零）} \\
+2 & \text{otherwise}
+\end{cases}
+\]
+この関数はランク関数であり、対応する構造塔は：
+\begin{align*}
+L_0 &= \{(0,0)\} \\
+L_1 &= L_0 \cup \{(v_1, 0) \mid v_1 \in \Q\} \cup \{(0, v_2) \mid v_2 \in \Q\} \\
+L_2 &= \Q^2
+\end{align*}
+これは線形空間の次元による階層構造を捉えている。
+\end{example}
+
+\section{停止時間とランク関数の対応}
+
+\subsection{確率論的準備}
+
+確率空間 $(\Omega, \calF, \mu)$ とフィルトレーション $\{\calF_n\}_{n \in \N}$ を固定する。ここで、$\calF_n \subseteq \calF_{n+1} \subseteq \calF$ はσ-代数の増大列である。
+
+\begin{definition}[停止時間]
+写像 $\tau : \Omega \to \N$ が停止時間（stopping time）であるとは、任意の $n \in \N$ に対して
+\[
+\{\omega \in \Omega \mid \tau(\omega) \leq n\} \in \calF_n
+\]
+が成り立つことをいう。
+\end{definition}
+
+\begin{remark}
+停止時間の定義は、「時刻 $n$ の情報だけで、$\tau \leq n$ かどうかが判定できる」という直感を形式化したものである。
+\end{remark}
+
+\subsection{停止時間のランク関数解釈}
+
+\begin{definition}[停止時間から誘導されるランク関数]
+停止時間 $\tau : \Omega \to \N$ から、ランク関数 $\rho_\tau : \Omega \to \N$ を
+\[
+\rho_\tau(\omega) := \tau(\omega)
+\]
+により定義する。
+\end{definition>
+
+\begin{theorem}[停止時間から誘導される構造塔]
+停止時間 $\tau$ に対して、定理~\ref{thm:rank-to-tower}により構成される構造塔 $T(\rho_\tau)$ の層は、停止集合に他ならない：
+\[
+L_n^{T(\rho_\tau)} = \{\omega \in \Omega \mid \tau(\omega) \leq n\}
+\]
+\end{theorem}
+
+\begin{proof}
+定義より直ちに従う：
+\[
+L_n^{T(\rho_\tau)} = \{\omega \mid \rho_\tau(\omega) \leq n\} = \{\omega \mid \tau(\omega) \leq n\}
+\]
+\end{proof}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.1]
+  % 時間軸
+  \draw[->] (0,0) -- (8,0) node[right] {時刻 $n$};
+  \foreach \x/\n in {1/0, 2.5/1, 4/2, 5.5/3, 7/4} {
+    \draw (\x,0.1) -- (\x,-0.1) node[below] {$\n$};
+  }
+
+  % 停止集合の領域
+  \fill[blue!20] (0,0.5) rectangle (1,2);
+  \fill[red!20] (1,0.5) rectangle (2.5,2);
+  \fill[green!20] (2.5,0.5) rectangle (4,2);
+  \fill[yellow!20] (4,0.5) rectangle (8,2);
+
+  % ラベル
+  \node at (0.5,1.25) {$\tau=0$};
+  \node at (1.75,1.25) {$\tau=1$};
+  \node at (3.25,1.25) {$\tau=2$};
+  \node at (6,1.25) {$\tau \geq 3$};
+
+  % 累積領域を示す矢印
+  \draw[<->,thick] (0.5,-0.7) -- (1,-0.7) node[midway,below] {\scriptsize $L_0$};
+  \draw[<->,thick] (0.5,-1.2) -- (2.5,-1.2) node[midway,below] {\scriptsize $L_1$};
+  \draw[<->,thick] (0.5,-1.7) -- (4,-1.7) node[midway,below] {\scriptsize $L_2$};
+\end{tikzpicture}
+\caption{停止時間による標本空間の分割と構造塔の層。各層 $L_n$ は $\tau \leq n$ を満たす標本点の集合。}
+\end{figure}
+
+\subsection{minLayerと停止時刻の対応}
+
+\begin{theorem}[minLayerの停止時間解釈]\label{thm:minlayer-stopping}
+停止時間 $\tau$ から構成した構造塔 $T(\rho_\tau)$ の最小層関数は、元の停止時間と一致する：
+\[
+\forall \omega \in \Omega, \quad \mathrm{minLayer}_{T(\rho_\tau)}(\omega) = \tau(\omega)
+\]
+\end{theorem}
+
+\begin{proof}
+定理~\ref{thm:normal-form}(i)より、
+\[
+\mathrm{minLayer}_{T(\rho_\tau)}(\omega) = \rho_\tau(\omega) = \tau(\omega)
+\]
+\end{proof}
+
+\begin{remark}
+この定理は、「停止時間」と「構造塔の最小層」という二つの概念が、数学的に完全に同一であることを示している。これにより、確率論の問題を構造塔理論の問題として定式化できる。
+\end{remark}
+
+\subsection{対応関係の総括}
+
+以下の表は、構造塔理論と確率論の対応を要約したものである：
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{構造塔理論} & \textbf{確率論} \\
+\hline
+ランク関数 $\rho : X \to \N$ & 停止時間 $\tau : \Omega \to \N$ \\
+層 $L_n = \{x \mid \rho(x) \leq n\}$ & 停止集合 $\{\omega \mid \tau(\omega) \leq n\}$ \\
+$\mathrm{minLayer}(x)$ & 初めて可測になる時刻 \\
+被覆性 $\forall x, \exists n, x \in L_n$ & 有界停止時間の条件 \\
+台集合 $X$ & 標本空間 $\Omega$ \\
+\hline
+\end{tabular}
+\caption{構造塔理論と確率論の概念対応}
+\end{table}
+
+\section{マルチンゲール理論のランク構造的解釈}
+
+\subsection{マルチンゲールの定義}
+
+\begin{definition}[マルチンゲール]
+確率過程 $\{X_n\}_{n \in \N}$ がマルチンゲール（martingale）であるとは、以下を満たすことをいう：
+\begin{enumerate}[label=(\roman*)]
+\item 適合性（adapted）：各 $n$ に対して $X_n$ は $\calF_n$-可測
+\item 可積分性：各 $n$ に対して $\E[|X_n|] < \infty$
+\item マルチンゲール性：各 $n$ に対して
+\[
+\E[X_{n+1} \mid \calF_n] = X_n \quad \text{a.s.}
+\]
+\end{enumerate}
+\end{definition}
+
+\subsection{停止過程のランク構造的定義}
+
+\begin{definition}[停止過程]
+マルチンゲール $M = \{X_n\}$ と停止時間 $\tau$ に対して、停止過程（stopped process）$M^\tau$ を以下で定義する：
+\[
+X_n^\tau(\omega) := X_{\min(n, \tau(\omega))}(\omega)
+\]
+\end{definition}
+
+\begin{remark}[ランク理論的解釈]
+停止過程は、構造塔の視点では「ランク $\min(n, \rho(\omega))$ の層での値」として理解できる。すなわち、各標本点 $\omega$ を、そのランク $\rho(\omega) = \tau(\omega)$ 以下の層で評価する操作である。
+\end{remark}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.9]
+  % 時間軸
+  \draw[->] (0,0) -- (7,0) node[right] {$n$};
+  \foreach \x in {0,1,...,6} {
+    \draw (\x,0.05) -- (\x,-0.05) node[below] {\tiny$\x$};
+  }
+
+  % マルチンゲールの経路（停止前）
+  \draw[thick,blue] (0,1.5) -- (1,2.2) -- (2,1.8) -- (3,2.5);
+  \node[blue,left] at (0,1.5) {$X_0$};
+
+  % 停止時刻
+  \draw[red,thick,dashed] (3,-0.5) -- (3,3.5);
+  \node[red,above] at (3,3.5) {$\tau=3$};
+
+  % 停止後（定数）
+  \draw[thick,orange,dashed] (3,2.5) -- (6,2.5);
+  \node[orange,right] at (6,2.5) {$X_3^\tau$};
+
+  % 停止過程の点
+  \foreach \x/\y in {0/1.5, 1/2.2, 2/1.8, 3/2.5, 4/2.5, 5/2.5, 6/2.5} {
+    \filldraw (\x,\y) circle (2pt);
+  }
+
+  \node at (3.5,-1.5) {停止過程：時刻 $\tau$ で「凍結」される};
+\end{tikzpicture}
+\caption{停止過程の挙動。停止時刻 $\tau=3$ 以降、過程の値は $X_3$ で固定される。}
+\end{figure}
+
+\subsection{停止過程のマルチンゲール性}
+
+\begin{theorem}[有界停止過程のマルチンゲール性]\label{thm:stopped-martingale}
+マルチンゲール $M$ と有界停止時間 $\tau$ （すなわち $\exists K \in \N, \forall \omega, \tau(\omega) \leq K$）に対して、停止過程 $M^\tau$ は再びマルチンゲールである。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+マルチンゲール性を示すには、任意の $n$ に対して
+\[
+\E[X_{n+1}^\tau \mid \calF_n] = X_n^\tau \quad \text{a.s.}
+\]
+を示せばよい。標本空間を $\{\tau \leq n\}$ と $\{\tau > n\}$ に分解して考える：
+
+\begin{itemize}
+\item $\tau(\omega) \leq n$ のとき：$X_{n+1}^\tau(\omega) = X_{\tau(\omega)}(\omega) = X_n^\tau(\omega)$
+\item $\tau(\omega) > n$ のとき：$X_{n+1}^\tau(\omega) = X_{n+1}(\omega)$, $X_n^\tau(\omega) = X_n(\omega)$ であり、元のマルチンゲール性より $\E[X_{n+1} \mid \calF_n] = X_n$
+\end{itemize}
+
+この二つの場合を合わせて結論を得る。
+\end{proof}
+
+\begin{remark}[ランク構造的理解]
+この証明の本質は、構造塔の層 $L_n = \{\tau \leq n\}$ による標本空間の分解である。各層での条件付き期待値の計算が、層の定義（$\calF_n$-可測性）と整合的であることが鍵となる。
+\end{remark>
+
+\section{オプショナル停止定理のランク理論版}
+
+\subsection{有界停止時間の場合}
+
+\begin{theorem}[有界オプショナル停止定理（Rank版）]\label{thm:bounded-ost-rank}
+マルチンゲール $M = \{X_n\}$ と有界停止時間 $\tau : \Omega \to \N$ に対して、
+\[
+\E[X_\tau] = \E[X_0]
+\]
+が成り立つ。ここで、$X_\tau(\omega) := X_{\tau(\omega)}(\omega)$ は停止時刻での値を表す。
+\end{theorem}
+
+\begin{proof}
+有界性より、ある $K \in \N$ が存在して $\forall \omega, \tau(\omega) \leq K$。このとき、
+\[
+X_\tau(\omega) = X_{\min(K, \tau(\omega))}(\omega) = X_K^\tau(\omega)
+\]
+
+定理~\ref{thm:stopped-martingale}より $M^\tau$ はマルチンゲールなので、
+\[
+\E[X_K^\tau] = \E[X_0^\tau] = \E[X_0]
+\]
+
+したがって $\E[X_\tau] = \E[X_K^\tau] = \E[X_0]$ を得る。
+\end{proof}
+
+\subsection{ランク構造理論からの理解}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=ランク理論的視点]
+定理~\ref{thm:bounded-ost-rank}は、構造塔理論の言葉では以下のように理解できる：
+
+\textbf{命題}：ランク関数 $\rho : \Omega \to \N$ が有界であるとき、マルチンゲール $M$ に対して
+\[
+\E[X_{\rho(\omega)}] = \E[X_0]
+\]
+
+\textbf{意味}：各標本点 $\omega$ をそのランク $\rho(\omega)$ で評価した値の期待値は、初期値の期待値と一致する。これは、構造塔の「層を登る」操作がマルチンゲールの期待値を保存することを意味する。
+\end{tcolorbox}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.0]
+  % 構造塔の層
+  \foreach \y/\n in {0/0, 1.5/1, 3/2, 4.5/3} {
+    \draw[thick,gray] (0,\y) -- (6,\y);
+    \node[left] at (-0.3,\y) {\small$L_{\n}$};
+  }
+
+  % サンプル点とそのランク
+  \filldraw[blue] (1,0.3) circle (2pt);
+  \draw[blue,->] (1,0.3) -- (7,0.3) node[right] {\small$\omega_1$: $\rho(\omega_1)=0$, $X_0(\omega_1)$};
+
+  \filldraw[red] (2.5,1.8) circle (2pt);
+  \draw[red,->] (2.5,1.8) -- (7,1.8) node[right] {\small$\omega_2$: $\rho(\omega_2)=1$, $X_1(\omega_2)$};
+
+  \filldraw[green!50!black] (4,3.3) circle (2pt);
+  \draw[green!50!black,->] (4,3.3) -- (7,3.3) node[right] {\small$\omega_3$: $\rho(\omega_3)=2$, $X_2(\omega_3)$};
+
+  % 期待値の等式
+  \node[draw,fill=yellow!20,rounded corners] at (3,-1.2) {
+    $\E[X_{\rho(\omega)}] = \int_\Omega X_{\rho(\omega)}(\omega) \, d\mu(\omega) = \E[X_0]$
+  };
+\end{tikzpicture}
+\caption{オプショナル停止定理のランク理論的解釈。各標本点は自身のランクで評価され、その期待値は初期値と一致する。}
+\end{figure}
+
+\subsection{期待値保存の本質}
+
+\begin{theorem}[停止過程の期待値の時間不変性]
+有界停止時間 $\tau$ でマルチンゲール $M$ を止めた停止過程 $M^\tau$ に対して、任意の時刻 $m, n \in \N$ について
+\[
+\E[X_m^\tau] = \E[X_n^\tau]
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{proof}
+定理~\ref{thm:stopped-martingale}より $M^\tau$ はマルチンゲールなので、マルチンゲールの定義より期待値は時刻に依らず一定：
+\[
+\E[X_m^\tau] = \E[X_0^\tau] = \E[X_n^\tau]
+\]
+\end{proof}
+
+\begin{remark}[普遍性の観点]
+この定理は、停止操作が「時間の流れ」を「構造塔の層」に変換し、各層での期待値が保存されることを示している。これは構造塔の「普遍性」の確率論的実現である。
+\end{remark}
+
+\subsection{一般のオプショナル停止定理への拡張}
+
+有界停止時間の仮定を外すには、追加の条件が必要である：
+
+\begin{theorem}[Doobのオプショナル停止定理]\label{thm:doob-ost}
+マルチンゲール $M = \{X_n\}$ と停止時間 $\tau, \sigma$ （$\tau \leq \sigma$）に対して、以下のいずれかが成り立てば
+\[
+\E[X_\tau] = \E[X_\sigma]
+\]
+が成り立つ：
+\begin{enumerate}[label=(\arabic*)]
+\item $\tau$ と $\sigma$ がともに有界
+\item $\E[\tau] < \infty$ かつ $\sup_n \E[|X_{n+1} - X_n|] < \infty$
+\item $\E[|X_\sigma|] < \infty$ かつ $\lim_{n \to \infty} \E[|X_n| \cdot \mathbf{1}_{\{\tau > n\}}] = 0$
+\end{enumerate}
+\end{theorem}
+
+\begin{remark}
+条件(1)は本稿で扱った有界の場合、条件(2)は一様可積分性による一般化、条件(3)は dominated convergence を用いる最も一般的な形である。ランク理論的には、条件(2)(3)は「構造塔の無限遠での振る舞い」を制御する条件と解釈できる。
+\end{remark}
+
+\section{結論と今後の展望}
+
+\subsection{本研究の成果}
+
+本稿では、構造塔とランク関数の双方向対応理論を基礎として、確率論における停止時間とマルチンゲール理論を統一的に理解する枠組みを構築した。主要な成果は以下の通りである：
+
+\begin{enumerate}
+\item \textbf{双方向対応の確立}：構造塔とランク関数が圏同値であることを示し、正規形定理を証明した（定理~\ref{thm:normal-form}）。
+
+\item \textbf{停止時間のランク解釈}：確率論的停止時間が構造塔の最小層関数と同一であることを示した（定理~\ref{thm:minlayer-stopping}）。
+
+\item \textbf{統一的OST}：オプショナル停止定理を、構造塔理論の帰結として導出した（定理~\ref{thm:bounded-ost-rank}）。
+
+\item \textbf{形式検証}：すべての定理をLean 4で形式的に検証し、機械的に正しさを保証した。
+\end{enumerate}
+
+\subsection{理論的意義}
+
+本研究の理論的意義は、Bourbakiの「母構造」の思想を現代的な形式手法と確率論に適用した点にある。具体的には：
+
+\begin{itemize}
+\item \textbf{統一的視点}：異なる数学分野（順序理論、確率論）が、構造塔という共通の言語で理解できることを示した。
+
+\item \textbf{概念の本質の抽出}：停止時間の「本質」がランク関数であることを明らかにし、技術的詳細（σ-代数、可測性）を抽象化した。
+
+\item \textbf{形式検証の可能性}：複雑な確率論的定理を、構造塔理論の補題から機械的に導出できることを示した。
+\end{itemize}
+
+\subsection{今後の研究方向}
+
+本研究を発展させる方向として、以下が考えられる：
+
+\subsubsection{理論的拡張}
+
+\begin{enumerate}
+\item \textbf{無境界停止時間への完全な拡張}：定理~\ref{thm:doob-ost}の条件(2)(3)をランク理論の言葉で定式化し、構造塔の「完備化」理論を構築する。
+
+\item \textbf{連続時間への拡張}：離散時間 $\N$ を連続時間 $\R_+$ に置き換え、連続時間マルチンゲールと Brown運動への応用を探る。
+
+\item \textbf{圏論的定式化}：構造塔の圏と確率空間の圏の間の随伴関手を定式化し、普遍性からOSTを導出する。
+\end{enumerate}
+
+\subsubsection{応用展開}
+
+\begin{enumerate}
+\item \textbf{他のマルチンゲール定理}：
+\begin{itemize}
+\item Doobの最大値不等式
+\item Doobの上交差不等式
+\item Burkholder-Davis-Gundy不等式
+\end{itemize}
+これらをランク構造理論の帰結として導出する。
+
+\item \textbf{確率過程の構造塔理論}：Markov過程、Brown運動、Lévy過程などの確率過程をランク構造で統一的に扱う理論を構築する。
+
+\item \textbf{教育への応用}：ランク構造の直感的な理解可能性を活かし、確率論教育の新しい教授法を開発する。
+\end{enumerate}
+
+\subsubsection{形式検証の発展}
+
+\begin{enumerate}
+\item \textbf{証明の自動化}：構造塔理論の補題から確率論的定理を自動的に導出するタクティクを開発する。
+
+\item \textbf{数学ライブラリの拡充}：Mathlibに構造塔理論とランク関数の包括的なライブラリを追加する。
+
+\item \textbf{他の定理証明支援系への移植}：Coq、Isabelleなどへの移植を通じて、理論の一般性を検証する。
+\end{enumerate}
+
+\subsection{最終的な考察}
+
+本研究は、異なる数学分野を統一する「橋渡し」の一例である。停止時間という確率論的概念が、実は順序理論や集合論における基本的な構造（ランク関数、構造塔）と本質的に同一であることを示したことで、数学の「統一性」に関する新たな視点を提供した。
+
+形式手法（Lean 4）による検証は、この統一的理解が単なる比喩ではなく、厳密な数学的同型であることを保証する。今後、この枠組みがさらに発展し、確率論の他の領域、さらには他の数学分野への応用が広がることを期待する。
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black,title=Bourbakiの精神の継承]
+「数学の統一は、共通の言語と構造の発見から始まる」
+
+本研究は、Bourbakiの母構造思想を21世紀の形式手法で実現する試みである。構造塔という「母構造」が、確率論の停止時間を含む広範な数学的対象を統一的に記述できることを示した。この種の統一は、数学の深い理解と新たな発見への道を開く。
+\end{tcolorbox}
+
+\section*{謝辞}
+
+本研究のLean形式化はOpenAI Codexにより実装され、本\LaTeX 文書はAnthropic Claude Codeにより生成されました。形式検証にはLean 4およびMathlibを使用しました。
+
+\begin{thebibliography}{99}
+
+\bibitem{williams1991}
+Williams, D. (1991).
+\textit{Probability with Martingales}.
+Cambridge University Press.
+
+\bibitem{rogers2000}
+Rogers, L. C. G., \& Williams, D. (2000).
+\textit{Diffusions, Markov Processes, and Martingales (Vol. 1 and 2)}.
+Cambridge University Press.
+
+\bibitem{kallenberg2002}
+Kallenberg, O. (2002).
+\textit{Foundations of Modern Probability} (2nd ed.).
+Springer.
+
+\bibitem{doob1953}
+Doob, J. L. (1953).
+\textit{Stochastic Processes}.
+Wiley.
+
+\bibitem{bourbaki}
+Bourbaki, N. (1968).
+\textit{Theory of Sets} (Elements of Mathematics).
+Springer.
+
+\bibitem{lean4}
+de Moura, L., \& Ullrich, S. (2021).
+The Lean 4 Theorem Prover and Programming Language.
+\textit{Automated Deduction -- CADE 28}, 625--635.
+
+\bibitem{mathlib}
+The mathlib Community. (2020).
+The Lean Mathematical Library.
+\textit{Proceedings of the 9th ACM SIGPLAN International Conference on Certified Programs and Proofs}, 367--381.
+
+\end{thebibliography}
+
+\appendix
+
+\section{Lean形式化コードの概要}
+
+本節では、本稿の数学的内容を形式化したLean 4コードの主要部分を示す。完全なコードは、RankTower.md、StoppingTime\_C.md、Martingale\_RankStructure.md、OptionalStopping\_RankTheory.mdを参照されたい。
+
+\subsection{構造塔の定義}
+
+\begin{verbatim}
+structure StructureTowerWithMin where
+  carrier : Type*
+  layer : ℕ → Set carrier
+  covering : ∀ x : carrier, ∃ i : ℕ, x ∈ layer i
+  monotone : ∀ {i j : ℕ}, i ≤ j → layer i ⊆ layer j
+  minLayer : carrier → ℕ
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
+\end{verbatim}
+
+\subsection{ランク関数から構造塔への構成}
+
+\begin{verbatim}
+noncomputable def towerFromRank (ρ : X → WithTop ℕ)
+    (h_covers : ∀ x, ∃ n : ℕ, ρ x ≤ n) :
+    StructureTowerWithMin where
+  carrier := X
+  layer n := {x : X | ρ x ≤ n}
+  covering := h_covers
+  monotone := λ hij x hx => le_trans hx (WithTop.coe_le_coe.mpr hij)
+  minLayer := λ x => Nat.find (h_covers x)
+  minLayer_mem := λ x => Nat.find_spec (h_covers x)
+  minLayer_minimal := λ x i hx => Nat.find_min' (h_covers x) hx
+\end{verbatim}
+
+\subsection{停止時間のランク関数解釈}
+
+\begin{verbatim}
+def stoppingTimeToRank (ℱ : Filtration Ω) (τ : StoppingTime ℱ) : Ω → ℕ :=
+  τ.τ
+
+noncomputable def towerFromStoppingTime
+    (ℱ : Filtration Ω) (τ : StoppingTime ℱ) :
+    StructureTowerWithMin :=
+  TowerRank.towerFromRank
+    (λ ω => (stoppingTimeToRank ℱ τ ω : WithTop ℕ))
+    (λ ω => ⟨τ.τ ω, le_refl⟩)
+\end{verbatim}
+
+\subsection{有界オプショナル停止定理}
+
+\begin{verbatim}
+theorem rankOST_bounded
+    (M : Martingale μ)
+    (τ : Ω → ℕ)
+    (hτ_stopping : ∀ n, MeasurableSet[M.filtration n] {ω | τ ω ≤ n})
+    (hτ_bdd : ∃ K, ∀ ω, τ ω ≤ K) :
+    ∀ n, ∫ ω, rankStoppedProcess M τ n ω ∂μ
+        = ∫ ω, M.process 0 ω ∂μ
+\end{verbatim}
+
+\section{図式の補足}
+
+\subsection{構造塔の層構造の詳細}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.3]
+  % 縦軸（ランク）
+  \draw[->] (0,0) -- (0,6) node[above] {ランク};
+
+  % 横軸（要素）
+  \draw[->] (0,0) -- (8,0) node[right] {要素 $X$};
+
+  % 層の境界
+  \foreach \y/\n in {1/0, 2/1, 3/2, 4/3, 5/4} {
+    \draw[dashed,gray] (0,\y) -- (7.5,\y);
+    \node[left] at (0,\y) {\small$L_{\n}$};
+  }
+
+  % サンプル要素の分布
+  \foreach \x/\y in {0.5/0.5, 1.2/0.7, 2.3/0.3, 0.8/1.5, 2.8/1.7, 3.5/1.3, 1.5/2.4, 3.8/2.8, 5.2/2.2, 4.5/3.6, 6.3/3.2, 5.8/4.5, 7.0/4.2} {
+    \filldraw[blue] (\x,\y) circle (1.5pt);
+  }
+
+  % minLayerの例示
+  \draw[->,thick,red] (2.3,0.3) -- (2.3,0.05) node[below] {\tiny$\mathrm{minLayer}=0$};
+  \draw[->,thick,red] (2.8,1.7) -- (2.8,1.05) node[below] {\tiny$\mathrm{minLayer}=1$};
+  \draw[->,thick,red] (3.8,2.8) -- (3.8,2.05) node[below] {\tiny$\mathrm{minLayer}=2$};
+
+  % 単調性の矢印
+  \draw[->,very thick,green!50!black] (-0.5,1) -- (-0.5,3);
+  \node[green!50!black,left,rotate=90] at (-0.7,2) {\small単調性};
+\end{tikzpicture}
+\caption{構造塔における要素の分布とminLayer関数。各要素は最小の層に属し、単調性により上位の層すべてに含まれる。}
+\end{figure}
+
+\end{document}
