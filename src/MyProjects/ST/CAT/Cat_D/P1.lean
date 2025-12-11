@@ -151,14 +151,26 @@ lemma finsetPowerTower_singleton_in_layer1 {n : ℕ} (i : Fin n) :
 ### 射の例2：冪集合間の部分集合制限（完全版）
 -/
 
-/-- 小さい有限集合への制限写像 -/
-def finsetRestrict {n m : ℕ} (h : n ≤ m)
+/-- 小さい有限集合への制限写像
+
+`S : Finset (Fin m)` のうち、値が `n` 未満の要素だけを取り出し、
+添字を `Fin n` に落とした有限集合を返す。
+-/
+def finsetRestrict {n m : ℕ}
     (S : Finset (Fin m)) : Finset (Fin n) :=
-  -- まず値が n 未満のものだけを残し、`Fin.castLT` で型を落とす
-  (S.filter (fun i : Fin m => i.1 < n)).attach.image
+  -- まず値が `n` 未満のものだけを残す
+  (S.filter (fun i : Fin m => (i : ℕ) < n)).attach.image
+    -- その上で、`Fin.castLT` により `Fin m` → `Fin n` にキャスト
     (fun i =>
-      let hlt : i.1.val < n := (Finset.mem_filter.1 i.2).2
-      Fin.castLT i.1 hlt)
+      match i with
+      | ⟨x, hx⟩ =>
+        -- ここで x : Fin m, hx : x ∈ S.filter ...
+        have hlt : (x : ℕ) < n :=
+          (Finset.mem_filter.mp hx).2
+        -- x : Fin m かつ (x : ℕ) < n から Fin n に落とす
+        Fin.castLT x hlt)
+
+
 
 /-- 制限写像が層の濃度を保存する補題 -/
 lemma finsetRestrict_card_le {n m : ℕ} (h : n ≤ m) (S : Finset (Fin m)) :
