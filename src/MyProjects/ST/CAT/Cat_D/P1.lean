@@ -89,6 +89,7 @@ def realIntervalTower : TowerD where
     intro i j hij x hx
     exact le_trans hx hij
 
+
 /-!
 ### 例2：有限集合の冪集合構造塔（改善版）
 
@@ -265,18 +266,41 @@ def finsetPowerRestrict {n m : ℕ} (h : n ≤ m) :
 /-- 実数の平行移動 -/
 def realShiftMap (c : ℝ) : ℝ → ℝ := fun x => x + c
 
-/-- 平行移動が誘導する構造塔の射 -/
+/-- 平行移動が誘導する構造塔の射
+
+`realIntervalTower.layer n = { x : ℝ | x ≤ n }` とする。
+-/
 def realIntervalShift (c : ℝ) :
     realIntervalTower ⟶ᴰ realIntervalTower where
-  map := realShiftMap c
+  map := realShiftMap c          -- x ↦ x + c
   map_layer := by
-    intro n
-    refine ⟨n + Real.abs c, ?_⟩
-    intro y ⟨x, hx, rfl⟩
-    have : x + c ≤ x + Real.abs c := by nlinarith [abs_nonneg c]
+    classical
+    -- ここで「添字 n を ℝ として導入」するのがポイント
+    intro (n : ℝ)
+    -- ゴールを「ℝ 上の具体的な塔」の形に書き換える
+    change
+      ∃ j : ℝ,
+        realShiftMap c '' {x : ℝ | x ≤ n}
+          ⊆ {x : ℝ | x ≤ j}
+    -- 層 n を層 (n + |c|) に送る
+    refine ⟨n + |c|, ?_⟩
+    intro y hy
+    -- hy : y ∈ realShiftMap c '' {x | x ≤ n}
+    rcases hy with ⟨x, hx, rfl⟩
+    -- hx : x ≤ n
+    -- ゴールは (x + c) ≤ n + |c|
+    change x + c ≤ n + |c|
     have hx' : x ≤ n := hx
-    nlinarith
 
+    -- 1. c ≤ |c| なので x + c ≤ x + |c|
+    have h1 : c ≤ |c| := le_abs_self c
+    have h2 : x + c ≤ x + |c| := add_le_add_left h1 x
+
+    -- 2. x ≤ n なので x + |c| ≤ n + |c|
+    have h3 : x + |c| ≤ n + |c| := add_le_add_right hx' _
+
+    -- 3. 連鎖して x + c ≤ n + |c|
+    exact le_trans h2 h3
 /-!
 ### 例3：簡易フィルトレーション構造塔
 
