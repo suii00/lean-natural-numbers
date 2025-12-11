@@ -227,13 +227,36 @@ lemma finsetRestrict_card_le {n m : ℕ} (S : Finset (Fin m)) :
 /-- 制限写像が誘導する構造塔の射 -/
 def finsetPowerRestrict {n m : ℕ} (h : n ≤ m) :
     finsetPowerTower m ⟶ᴰ finsetPowerTower n where
-  map := finsetRestrict h
+  -- carrier レベルの写像
+  map := finsetRestrict (n := n) (m := m)
+  -- 層の対応：layer k → layer k
   map_layer := by
+    classical
     intro k
+    -- ここでは単純に「層 k → 層 k」で十分なので k をそのまま選ぶ
     refine ⟨k, ?_⟩
+    -- ゴール：
+    --   Set.image map (layer k) ⊆ layer k
     intro T hT
-    have hcard := finsetRestrict_card_le h T
-    exact le_trans hcard hT
+    -- hT : T ∈ Set.image map ((finsetPowerTower m).layer k)
+    -- これを展開して、元の集合 S と T = map S を取り出す
+    rcases hT with ⟨S, hS_layer, rfl⟩
+    -- ここからのゴールは
+    --   finsetRestrict S ∈ (finsetPowerTower n).layer k
+    -- layer の定義を展開すると
+    --   (finsetRestrict S).card ≤ k
+    change (finsetRestrict (n := n) (m := m) S).card ≤ k
+    -- 制限写像で要素数は増えない
+    have hcard :
+        (finsetRestrict (n := n) (m := m) S).card ≤ S.card :=
+      finsetRestrict_card_le (n := n) (m := m) S
+    -- hS_layer : S ∈ (finsetPowerTower m).layer k
+    -- layer の定義より
+    --   hS_layer : S.card ≤ k
+    have hS_card : S.card ≤ k := hS_layer
+    -- 連鎖: card(map S) ≤ card S ≤ k
+    exact le_trans hcard hS_card
+
 
 /-!
 ### 実数区間の射：平行移動
