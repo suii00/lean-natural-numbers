@@ -59,9 +59,9 @@ open Set TopologicalSpace
 -/
 
 /-- 開集合が有限個の基本開集合の和として表現される -/
-def IsFiniteUnionOfBasis {X : Type*} [TopologicalSpace X]
+def IsFiniteUnionOfBasis {X : Type*} [TopologicalSpace X] 
     (B : Set (Set X)) (U : Set X) (n : ℕ) : Prop :=
-  ∃ S : Finset (Set X), S.toSet ⊆ B ∧ S.card ≤ n ∧ U = ⋃₀ (S : Set (Set X))
+  ∃ S : Finset (Set X), (S : Set (Set X)) ⊆ B ∧ S.card ≤ n ∧ U = ⋃₀ (S : Set (Set X))
 
 /-!
 ## 例1：開集合の階層（第二可算空間）
@@ -82,7 +82,7 @@ def IsFiniteUnionOfBasis {X : Type*} [TopologicalSpace X]
 -/
 def openSetTower (X : Type*) [TopologicalSpace X]
     (B : Set (Set X))
-    (hbasis : IsTopologicalBasis B)
+    (_hbasis : IsTopologicalBasis B)
     (hcover : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis B U n) :
     TowerD where
   carrier := {U : Set X // IsOpen U}
@@ -110,7 +110,7 @@ def openSetTower (X : Type*) [TopologicalSpace X]
 lemma openSetTower_empty_in_layer0 (X : Type*) [TopologicalSpace X]
     (B : Set (Set X)) (hbasis : IsTopologicalBasis B)
     (hcover : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis B U n) :
-    ⟨∅, isOpen_empty⟩ ∈ (openSetTower X B hbasis hcover).layer 0 := by
+    ⟨∅, isOpen_empty⟩ ∈ (openSetTower X B hbasis hcover).layer (0 : ℕ) := by
   use ∅
   constructor
   · simp
@@ -123,7 +123,7 @@ lemma openSetTower_basis_in_layer1 (X : Type*) [TopologicalSpace X]
     (B : Set (Set X)) (hbasis : IsTopologicalBasis B)
     (hcover : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis B U n)
     (U : Set X) (hU : U ∈ B) :
-    ⟨U, hbasis.isOpen hU⟩ ∈ (openSetTower X B hbasis hcover).layer 1 := by
+    ⟨U, hbasis.isOpen hU⟩ ∈ (openSetTower X B hbasis hcover).layer (1 : ℕ) := by
   use {U}
   constructor
   · intro V hV
@@ -141,11 +141,13 @@ lemma openSetTower_basis_in_layer1 (X : Type*) [TopologicalSpace X]
 -/
 
 /-- 閉包の反復回数 -/
-def closureIterationLevel {X : Type*} [TopologicalSpace X]
+noncomputable def closureIterationLevel {X : Type*} [TopologicalSpace X] 
     (A : Set X) : ℕ :=
   -- 簡易版：A が閉集合なら 0、そうでなければ 1
   -- （完全版では、closure(A) = A になるまでの回数を計算）
-  if IsClosed A then 0 else 1
+  by
+    classical
+    exact if IsClosed A then 0 else 1
 
 /-- 閉包演算の構造塔（簡易版）
 
@@ -154,7 +156,7 @@ def closureIterationLevel {X : Type*} [TopologicalSpace X]
 - 各集合が有限回で閉じることの保証
 が必要。ここでは教育的な簡易版を提供。
 -/
-def closureTower (X : Type*) [TopologicalSpace X]
+noncomputable def closureTower (X : Type*) [TopologicalSpace X]
     (hfinite : ∀ A : Set X, ∃ n, (closure^[n]) A = (closure^[n+1]) A) :
     TowerD where
   carrier := Set X
@@ -166,7 +168,7 @@ def closureTower (X : Type*) [TopologicalSpace X]
   covering := by
     intro A
     use closureIterationLevel A
-    exact le_rfl
+    exact Nat.le_refl _
 
   monotone := by
     intro i j hij A hA
@@ -180,14 +182,15 @@ def closureTower (X : Type*) [TopologicalSpace X]
 lemma closureTower_closed_in_layer0 (X : Type*) [TopologicalSpace X]
     (hfinite : ∀ A : Set X, ∃ n, (closure^[n]) A = (closure^[n+1]) A)
     (A : Set X) (hA : IsClosed A) :
-    A ∈ (closureTower X hfinite).layer 0 := by
+    A ∈ (closureTower X hfinite).layer (0 : ℕ) := by
+  classical
   simp [closureTower, closureIterationLevel, hA]
 
 /-- 開集合の補集合は層0に属する -/
 lemma closureTower_compl_open_in_layer0 (X : Type*) [TopologicalSpace X]
     (hfinite : ∀ A : Set X, ∃ n, (closure^[n]) A = (closure^[n+1]) A)
     (U : Set X) (hU : IsOpen U) :
-    Uᶜ ∈ (closureTower X hfinite).layer 0 := by
+    Uᶜ ∈ (closureTower X hfinite).layer (0 : ℕ) := by
   apply closureTower_closed_in_layer0
   exact hU.isClosed_compl
 
@@ -217,24 +220,25 @@ def finiteOpenSetTower (X : Type*) [TopologicalSpace X] [Fintype X] :
     simp
 
   monotone := by
+    classical
     intro i j hij
+    -- `layer` を定義で展開
+    change
+      (if i ≥ 1 then (Set.univ : Set {U : Set X // IsOpen U})
+       else {⟨∅, isOpen_empty⟩})
+        ⊆
+      (if j ≥ 1 then (Set.univ : Set {U : Set X // IsOpen U})
+       else {⟨∅, isOpen_empty⟩})
     by_cases hi : i ≥ 1
-    · -- i ≥ 1 ならば layer i = univ
-      simp [hi]
+    · have hj : j ≥ 1 := le_trans hi hij
+      simp [hi, hj]
+    · have hi0 : i = 0 := by omega
+      subst hi0
       by_cases hj : j ≥ 1
       · simp [hj]
-      · -- j < 1 かつ i ≥ 1 は hij : i ≤ j に矛盾
-        omega
-    · -- i < 1 すなわち i = 0
-      have hi0 : i = 0 := by omega
-      simp [hi, hi0]
-      intro U hU
-      by_cases hj : j ≥ 1
-      · simp [hj]
-      · -- j = 0
-        have hj0 : j = 0 := by omega
-        simp [hj, hj0]
-        exact hU
+      · have hj0 : j = 0 := by omega
+        subst hj0
+        simp
 
 /-!
 ## 射の例：連続写像が誘導する構造塔の射
@@ -267,6 +271,7 @@ def openSetTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
     use n
     intro ⟨U, hU⟩ hU_layer
     -- U = f⁻¹(V) for some V ∈ layer n
+    -- TODO: 基底の逆像が有限和に分解できることを形式化する
     sorry -- 詳細な証明は省略
 
 /-!
@@ -288,6 +293,7 @@ def closureTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
     use n
     intro B hB
     -- f '' A の閉包レベルが n 以下であることを示す
+    -- TODO: 連続写像が閉包反復レベルを増やさないことを証明する
     sorry -- 詳細な証明は省略
 
 /-!
@@ -302,9 +308,10 @@ variable (X : Type*) [Fintype X]
 
 /-- 離散空間の開集合は有限型ならすべて層1 -/
 lemma discrete_openset_simple [TopologicalSpace X] [DiscreteTopology X] :
-    ∀ U : {U : Set X // IsOpen U}, U ∈ (finiteOpenSetTower X).layer 1 := by
+    ∀ U : {U : Set X // IsOpen U}, U ∈ (finiteOpenSetTower X).layer (1 : ℕ) := by
   intro ⟨U, hU⟩
-  simp [finiteOpenSetTower]
+  have h1 : (1 : ℕ) ≥ 1 := by decide
+  simp [finiteOpenSetTower, h1]
 
 /- 自明な位相（{∅, X}のみ）では、開集合は2個だけ -/
 -- 実装は省略（必要に応じて追加）
