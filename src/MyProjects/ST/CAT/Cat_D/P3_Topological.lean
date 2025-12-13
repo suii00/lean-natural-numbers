@@ -135,6 +135,21 @@ def PreimageBasisBound
     (f : X → Y) (k : ℕ) : Prop :=
   ∀ V, V ∈ BY → IsFiniteUnionOfBasis BX (f ⁻¹' V) k
 
+/-- (`k = 1`) 基底要素の逆像が基底要素に入るなら、一様上界 `PreimageBasisBound` が得られる。 -/
+lemma PreimageBasisBound.of_preimageBasis
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (f : X → Y)
+    (hpre : ∀ V, V ∈ BY → f ⁻¹' V ∈ BX) :
+    PreimageBasisBound BX BY f (1 : ℕ) := by
+  intro V hV
+  refine ⟨{f ⁻¹' V}, ?_, ?_, ?_⟩
+  · intro W hW
+    have hW' : W = f ⁻¹' V := by simpa using hW
+    simpa [hW'] using hpre V hV
+  · simp
+  · simp [Set.sUnion_singleton]
+
 open Set
 
 /-- `BY` の要素 `n` 個の有限和の逆像は、`BX` の要素高々 `n*k` 個の有限和で表せる。 -/
@@ -218,6 +233,17 @@ lemma IsFiniteUnionOfBasis.preimage_mul
         simpa using hVS
       have hxU : f x ∈ U := by simpa [hUeq] using hxSU
       simpa [Set.mem_preimage] using hxU
+
+/-- テスト：`k = 1` の場合、`preimage_mul` から個数が増えないことが再現できる。 -/
+example {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (f : X → Y)
+    (hpre : ∀ V, V ∈ BY → f ⁻¹' V ∈ BX)
+    {U : Set Y} {n : ℕ} (hU : IsFiniteUnionOfBasis BY U n) :
+    IsFiniteUnionOfBasis BX (f ⁻¹' U) n := by
+  simpa using
+    (IsFiniteUnionOfBasis.preimage_mul BX BY f (U := U) (n := n) (k := 1) hU
+      (PreimageBasisBound.of_preimageBasis BX BY f hpre))
 
 /-!
 ## 例1：開集合の階層（第二可算空間）
@@ -430,6 +456,88 @@ def openSetTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
     intro U' hU'
     rcases hU' with ⟨U, hU, rfl⟩
     exact IsFiniteUnionOfBasis.preimage_of_preimageBasis BX BY f hpre (by simpa using hU)
+
+/-- 連続写像が誘導する開集合階層の射（uniform bound 版）
+
+`PreimageBasisBound BX BY f k`（基底 1 個の逆像が高々 `k` 個の基底和、しかも一様）
+を仮定すると、`layer n` の逆像が `layer (n*k)` に入ることが従う。
+-/
+def openSetTowerHom_mul {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (hbasisX : IsTopologicalBasis BX) (hbasisY : IsTopologicalBasis BY)
+    (hcoverX : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis BX U n)
+    (hcoverY : ∀ U : Set Y, IsOpen U → ∃ n, IsFiniteUnionOfBasis BY U n)
+    (f : X → Y) (hf : Continuous f)
+    (k : ℕ) (hpre : PreimageBasisBound BX BY f k) :
+    openSetTower Y BY hbasisY hcoverY ⟶ᴰ openSetTower X BX hbasisX hcoverX where
+  map := fun ⟨V, hV⟩ => ⟨f ⁻¹' V, hf.isOpen_preimage V hV⟩
+  map_layer := by
+    intro n
+    change ℕ at n
+    refine ⟨n * k, ?_⟩
+    intro U' hU'
+    rcases hU' with ⟨U, hU, rfl⟩
+    exact IsFiniteUnionOfBasis.preimage_mul BX BY f (by simpa using hU) hpre
+
+/-!
+### 世界(B)：一様上界が無いと `map_layer` が壊れる
+
+`openSetTower` の `layer 1` には `BY` の基底要素が含まれるので、
+`map := preimage` を持つ Cat_D の射が存在するなら
+`map_layer 1` から「基底 1 個の逆像に対する一様上界」が必ず抽出できる。
+-/
+
+/-- `map := preimage` を持つ Cat_D 射が存在すると、`BY` の基底要素の逆像に一様上界が存在する。 -/
+theorem exists_preimageBasisBound_of_exists_preimageHom
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (hbasisX : IsTopologicalBasis BX) (hbasisY : IsTopologicalBasis BY)
+    (hcoverX : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis BX U n)
+    (hcoverY : ∀ U : Set Y, IsOpen U → ∃ n, IsFiniteUnionOfBasis BY U n)
+    (f : X → Y) (hf : Continuous f)
+    (F : openSetTower Y BY hbasisY hcoverY ⟶ᴰ openSetTower X BX hbasisX hcoverX)
+    (hF :
+      F.map =
+        (fun ⟨V, hV⟩ => ⟨f ⁻¹' V, hf.isOpen_preimage V hV⟩)) :
+    ∃ k, PreimageBasisBound BX BY f k := by
+  classical
+  obtain ⟨j, hj⟩ := F.map_layer (1 : ℕ)
+  refine ⟨j, ?_⟩
+  intro V hV
+  have hV_layer :
+      ⟨V, hbasisY.isOpen hV⟩ ∈ (openSetTower Y BY hbasisY hcoverY).layer (1 : ℕ) :=
+    openSetTower_basis_in_layer1 Y BY hbasisY hcoverY V hV
+  have hImg :
+      F.map ⟨V, hbasisY.isOpen hV⟩ ∈ (openSetTower X BX hbasisX hcoverX).layer j := by
+    apply hj
+    exact ⟨⟨V, hbasisY.isOpen hV⟩, hV_layer, rfl⟩
+  have hMapPoint :
+      F.map ⟨V, hbasisY.isOpen hV⟩ =
+        ⟨f ⁻¹' V, hf.isOpen_preimage V (hbasisY.isOpen hV)⟩ := by
+    simpa [hF]
+  have :
+      ⟨f ⁻¹' V, hf.isOpen_preimage V (hbasisY.isOpen hV)⟩ ∈
+        (openSetTower X BX hbasisX hcoverX).layer j := by
+    simpa [hMapPoint] using hImg
+  simpa using this
+
+/-- 一様上界が存在しないなら、`map := preimage` で Cat_D の射は作れない。 -/
+theorem not_exists_preimageHom_of_unbounded
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (hbasisX : IsTopologicalBasis BX) (hbasisY : IsTopologicalBasis BY)
+    (hcoverX : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis BX U n)
+    (hcoverY : ∀ U : Set Y, IsOpen U → ∃ n, IsFiniteUnionOfBasis BY U n)
+    (f : X → Y) (hf : Continuous f)
+    (hunbounded : ∀ k, ∃ V, V ∈ BY ∧ ¬ IsFiniteUnionOfBasis BX (f ⁻¹' V) k) :
+    ¬ ∃ (F : openSetTower Y BY hbasisY hcoverY ⟶ᴰ openSetTower X BX hbasisX hcoverX),
+        F.map = (fun ⟨V, hV⟩ => ⟨f ⁻¹' V, hf.isOpen_preimage V hV⟩) := by
+  intro h
+  rcases h with ⟨F, hF⟩
+  obtain ⟨k, hk⟩ :=
+    exists_preimageBasisBound_of_exists_preimageHom BX BY hbasisX hbasisY hcoverX hcoverY f hf F hF
+  rcases hunbounded k with ⟨V, hVBY, hkneg⟩
+  exact hkneg (hk V hVBY)
 
 /-!
 ### 閉包階層の射

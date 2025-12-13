@@ -7,6 +7,16 @@
 
 以下、そのまま Lean で観測できる“最小核”を提示します（あなたの `IsFiniteUnionOfBasis` 定義に合わせます）。
 
+## ✅ Lean 実装（build 通過）
+
+この文書で述べる「最小核」は、`src/MyProjects/ST/CAT/Cat_D/P3_Topological.lean` に **`sorry` なしで実装済**です（`lake build MyProjects.ST.CAT.Cat_D.P3_Topological`）。
+
+- `PreimageBasisBound`
+- `IsFiniteUnionOfBasis.preimage_mul`（card 見積りは `Finset.card_biUnion_le_card_mul`）
+- `openSetTowerHom_mul`（`bound n = n*k`）
+- `exists_preimageBasisBound_of_exists_preimageHom`（世界(B)の「一様上界の強制」）
+- `not_exists_preimageHom_of_unbounded`（世界(B)の対偶：一様上界が無いと射が作れない）
+
 ---
 
 ## 0. 前提：あなたの有限基底和
@@ -39,116 +49,14 @@ def PreimageBasisBound
 
 この補題があれば、`map_layer` は **`use n*k`** で終わります。
 
+Lean で **実際にビルドが通る**証明は、上のとおり `P3_Topological.lean` に実装しました。
+コードとして観測したい場合は、まず次の 2 本を参照してください：
+
 ```lean
-open Set
-
-lemma IsFiniteUnionOfBasis.preimage_mul
-    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
-    (BX : Set (Set X)) (BY : Set (Set Y))
-    (f : X → Y) {U : Set Y} {n k : ℕ}
-    (hU : IsFiniteUnionOfBasis BY U n)
-    (hpre : PreimageBasisBound BX BY f k) :
-    IsFiniteUnionOfBasis BX (f ⁻¹' U) (n * k) := by
-  classical
-  rcases hU with ⟨S, hSB, hcard, hUeq⟩
-  -- S : Finset (Set Y), S ⊆ BY, card S ≤ n, U = ⋃₀ S
-
-  -- 各 V∈S に対し、f⁻¹(V) を BX の ≤k 和で表す witness を choice で固定
-  let g : Set Y → Finset (Set X) := fun V =>
-    if hV : V ∈ (S : Set (Set Y)) then
-      Classical.choose (hpre V (hSB hV))
-    else
-      ∅
-
-  have g_sub : ∀ V, V ∈ S → ((g V : Set (Set X)) ⊆ BX) := by
-    intro V hVS W hW
-    have hV : V ∈ (S : Set (Set Y)) := by simpa using hVS
-    have : (g V : Set (Set X)) = (Classical.choose (hpre V (hSB hV)) : Finset (Set X)) := by
-      simp [g, hV]
-    -- choose の第1条件
-    have hchoose :
-        ((Classical.choose (hpre V (hSB hV)) : Finset (Set X)) : Set (Set X)) ⊆ BX :=
-      (Classical.choose_spec (hpre V (hSB hV))).1
-    simpa [this] using hchoose hW
-
-  have g_card : ∀ V, V ∈ S → (g V).card ≤ k := by
-    intro V hVS
-    have hV : V ∈ (S : Set (Set Y)) := by simpa using hVS
-    -- choose の第2条件
-    have hchoose : (Classical.choose (hpre V (hSB hV)) : Finset (Set X)).card ≤ k :=
-      (Classical.choose_spec (hpre V (hSB hV))).2.1
-    simpa [g, hV] using hchoose
-
-  have g_eq : ∀ V, V ∈ S → (f ⁻¹' V) = ⋃₀ (g V : Set (Set X)) := by
-    intro V hVS
-    have hV : V ∈ (S : Set (Set Y)) := by simpa using hVS
-    -- choose の第3条件
-    have hchoose :
-        (f ⁻¹' V) = ⋃₀ ((Classical.choose (hpre V (hSB hV)) : Finset (Set X)) : Set (Set X)) :=
-      (Classical.choose_spec (hpre V (hSB hV))).2.2
-    simpa [g, hV] using hchoose
-
-  -- 全部を束ねた Finset
-  let T : Finset (Set X) := S.bind g
-
-  refine ⟨T, ?_, ?_, ?_⟩
-  · -- T ⊆ BX
-    intro W hW
-    rcases Finset.mem_bind.mp hW with ⟨V, hVS, hWg⟩
-    exact g_sub V hVS hWg
-  · -- card T ≤ n*k（粗い上界でよい）
-    -- ここは「bind の card は和で上から抑えられる」→「各項 ≤k」→「S.card*k」→「n*k」
-    -- 手元のライブラリにある補題（例: card_bind_le）を使うか、induction で自前実装してください。
-    -- 観測の本質は “一様 k を使って n*k が出る” ところです。
-    have : T.card ≤ S.card * k := by
-      -- TODO: Finset.induction_on S で証明
-      admit
-    exact le_trans this (by
-      -- S.card ≤ n から S.card*k ≤ n*k
-      exact Nat.mul_le_mul_right k hcard)
-  · -- f⁻¹(U) = ⋃₀ T
-    ext x
-    constructor
-    · intro hx
-      have hxU : f x ∈ U := by simpa [Set.mem_preimage] using hx
-      have : f x ∈ ⋃₀ (S : Set (Set Y)) := by simpa [hUeq] using hxU
-      rcases Set.mem_sUnion.mp this with ⟨V, hV, hxV⟩
-      have hVS : V ∈ S := by simpa using hV
-      -- x ∈ f⁻¹(V) なので、g_eq で T 側へ落とす
-      have : x ∈ ⋃₀ (g V : Set (Set X)) := by
-        simpa [Set.mem_preimage] using (by
-          -- hxV : f x ∈ V
-          -- よって x ∈ f⁻¹(V)
-          exact hxV)
-      -- g V のどれかに入るので bind に入る
-      rcases Set.mem_sUnion.mp (by simpa [g_eq V hVS] using this) with ⟨W, hW, hxW⟩
-      apply Set.mem_sUnion.mpr
-      refine ⟨W, ?_, hxW⟩
-      -- W ∈ T
-      have : W ∈ T := Finset.mem_bind.mpr ⟨V, hVS, by simpa using hW⟩
-      simpa using this
-    · intro hx
-      rcases Set.mem_sUnion.mp hx with ⟨W, hW, hxW⟩
-      rcases Finset.mem_bind.mp (by simpa using hW) with ⟨V, hVS, hWg⟩
-      -- x ∈ W ⊆ ⋃₀ g V = f⁻¹(V) から f x ∈ V ⊆ ⋃₀ S = U
-      have : x ∈ ⋃₀ (g V : Set (Set X)) := Set.mem_sUnion.mpr ⟨W, by simpa using hWg, hxW⟩
-      have : x ∈ f ⁻¹' V := by simpa [g_eq V hVS] using this
-      have : f x ∈ V := by simpa [Set.mem_preimage] using this
-      have : f x ∈ ⋃₀ (S : Set (Set Y)) := Set.mem_sUnion.mpr ⟨V, by simpa using hVS, this⟩
-      have : f x ∈ U := by simpa [hUeq] using this
-      simpa [Set.mem_preimage] using this
+-- src/MyProjects/ST/CAT/Cat_D/P3_Topological.lean
+def PreimageBasisBound ...
+lemma IsFiniteUnionOfBasis.preimage_mul ...
 ```
-
-上の `admit` は **card の見積もり**だけです。ここは
-
-* `Finset.induction_on S` と `card_union_le`、`Nat.mul_succ` を使って自前で埋められます（概念的にもまさに「一様 k の積」）。
-
-この補題が埋まれば、`openSetTowerHom` の `map_layer` は
-
-* `intro n; refine ⟨n*k, ...⟩`
-* `rcases` して `preimage_mul` を当てる
-
-で `sorry` なしになります。
 
 ---
 
@@ -170,6 +78,14 @@ lemma IsFiniteUnionOfBasis.preimage_mul
 > `map := preimage` を持つ CatD の射は存在し得ない。
 
 このロジックは Lean でも短く書けます（`map_layer 1` を `V` に適用して矛盾）。
+
+Lean 実装は `P3_Topological.lean` の次の定理で観測できます：
+
+```lean
+-- src/MyProjects/ST/CAT/Cat_D/P3_Topological.lean
+theorem exists_preimageBasisBound_of_exists_preimageHom ...
+theorem not_exists_preimageHom_of_unbounded ...
+```
 
 ---
 
