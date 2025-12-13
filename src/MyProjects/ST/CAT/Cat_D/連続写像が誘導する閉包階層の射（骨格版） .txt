@@ -1,0 +1,72 @@
+/-- 連続写像が誘導する閉包階層の射（骨格版） -/
+def closureTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+(hfiniteX : ∀ A : Set X, ∃ n, (closure^[n]) A = (closure^[n+1]) A)
+(hfiniteY : ∀ A : Set Y, ∃ n, (closure^[n]) A = (closure^[n+1]) A)
+(f : X → Y) (hf : Continuous f) :
+closureTower X hfiniteX ⟶ᴰ closureTower Y hfiniteY where
+map := fun A => f '' A
+map_layer := by
+intro n
+use n
+intro B hB
+-- f '' A の閉包レベルが n 以下であることを示す
+-- TODO: 連続写像が閉包反復レベルを増やさないことを証明する
+sorry -- 詳細な証明は省略
+
+こっちのsorryを埋めるには何が必要ですか
+
+
+この sorry を埋めるために必要なことは、まず「何を示すべきか」を展開して見ると分かります。
+
+ゴールの正体
+map_layer のゴールは
+
+任意の n : ℕ に対し、ある j : ℕ を選んで
+Set.image (fun A => f '' A) ((closureTower X …).layer n) ⊆ (closureTower Y …).layer j
+を示すことです。今のコードは j := n を選んでいるので、結局
+
+B = f '' A かつ closureIterationLevel A ≤ n なら
+closureIterationLevel B ≤ n
+を示す必要があります。
+
+今の closureIterationLevel だと何が起きるか
+closureIterationLevel は簡易版で
+
+IsClosed A なら 0、そうでなければ 1
+なので、常に closureIterationLevel B ≤ 1 が成り立ちます。
+
+n ≥ 1 の場合：
+closureIterationLevel B ≤ 1 ≤ n で自動的に OK。
+n = 0 の場合：
+closureIterationLevel A ≤ 0 から A は閉集合。
+そこで f '' A が閉集合であること を示さないといけません。
+しかし一般の連続写像では
+「閉集合の像が閉集合」 は成り立ちません。
+だから j := n のままだと、n=0 ケースが詰まります。
+
+埋めるための選択肢
+
+Cat_D の弱さを活かして witness を変える（追加仮定なし）
+j := max n 1 あるいは常に j := 1 とすれば、
+closureIterationLevel B ≤ 1 ≤ j で全 n に対して通ります。
+これは Cat_D の「各層ごとに ∃j でよい」という精神に合致します。
+
+j := n を維持したいなら仮定を強くする
+n=0 を通すために、例えば
+
+f が closed map（閉集合を閉集合に送る）
+あるいは X コンパクトかつ Y Hausdorff で f 連続（このとき閉集合の像は閉）
+あるいは f が homeomorphism / embedding など
+のような追加条件が必要です。
+（将来）本格版の closureIterationLevel にするなら
+簡易版を捨てて「閉包反復で安定する最小回数」を定義する場合、
+少なくとも
+
+hf.image_closure_subset_closure_image
+（f '' closure A ⊆ closure (f '' A)）
+を使った反復（帰納）で
+f '' (closure^[k] A) ⊆ closure^[k] (f '' A) を示し、
+その上で「レベルが増えない／増えても上から抑えられる」ような評価補題が必要になります。
+それでも一般には j := n での厳密保存は期待できないので、∃j を使うのが自然です。
+要するに、今のまま use n を維持するには閉集合像が閉になる追加仮定が必要、
+追加仮定なしで埋めるなら use (max n 1) などに変更するのが最短、ということです。

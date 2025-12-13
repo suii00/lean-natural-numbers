@@ -1,0 +1,70 @@
+開集合階層の射
+連続写像 f : X → Y は、開集合の階層に射を誘導する。
+
+数学的内容：
+
+f⁻¹(V) が X の開集合（連続性）
+V が基本開集合 n 個の和なら、f⁻¹(V) も（同じ個数以下で）表現可能
+-/
+/-- 連続写像が誘導する開集合階層の射（骨格版）
+
+注意：完全な証明には、逆像が基本開集合の和を保存する詳細な議論が必要。
+-/
+def openSetTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+(BX : Set (Set X)) (BY : Set (Set Y))
+(hbasisX : IsTopologicalBasis BX) (hbasisY : IsTopologicalBasis BY)
+(hcoverX : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis BX U n)
+(hcoverY : ∀ U : Set Y, IsOpen U → ∃ n, IsFiniteUnionOfBasis BY U n)
+(f : X → Y) (hf : Continuous f) :
+openSetTower Y BY hbasisY hcoverY ⟶ᴰ openSetTower X BX hbasisX hcoverX where
+map := fun ⟨V, hV⟩ => ⟨f ⁻¹' V, hf.isOpen_preimage V hV⟩
+map_layer := by
+intro n
+use n
+intro ⟨U, hU⟩ hU_layer
+-- U = f⁻¹(V) for some V ∈ layer n
+-- TODO: 基底の逆像が有限和に分解できることを形式化する
+sorry -- 詳細な証明は省略
+
+こちらのsorryを埋めるときには何が必要か教えて下さい
+
+
+この sorry を埋めるには、**追加の仮定（基底と写像の相性）**と、いくつかの mathlib 補題が必要です。
+
+1. 数学的に何が足りないか
+map_layer のゴールを展開すると：
+
+U ∈ layer n（= U が BY の基底集合 ≤ n 個の和）なら
+f ⁻¹' U ∈ layer j（= f ⁻¹' U が BX の基底集合 ≤ j 個の和）
+を n だけに依存する一つの j で一様に示す必要があります。
+しかし連続性だけでは
+V ∈ BY のとき f ⁻¹' V が BX の元（あるいは固定個数の BX の和）になるとは限りません。
+ここが最大の不足点です。
+
+典型的に必要な追加仮定はどれかです：
+
+(最短で強い仮定)
+hpre : ∀ V, V ∈ BY → f ⁻¹' V ∈ BX
+（BY の基底の逆像が BX の基底に入る）
+(少し弱いが一般的)
+∃ k, ∀ V ∈ BY, IsFiniteUnionOfBasis BX (f ⁻¹' V) k
+（BY の基底 1 個の逆像が BX の基底 ≤ k 個の有限和で書ける、しかも k は一様）
+これがあれば、U が BY の基底 ≤ n 個の和なら、
+f ⁻¹' U は BX の基底 ≤ n·k 個の和で書けるので j := n·k を取れます。
+この一様な上界がないと、Cat_D の map_layer を満たすとは限らず、一般には偽です。
+
+2. Lean で使う主要補題
+上の仮定のもとで証明するには、だいたい次が要ります：
+
+逆像が和を保つ：preimage_sUnion
+f ⁻¹' (⋃₀ S) = ⋃ t ∈ S, f ⁻¹' t
+Finset から Set への変換：Finset.coe_image / Finset.mem_image
+枚数評価：Finset.card_image_le、（k>1 の場合は Finset の biUnion と card の加法評価）
+IsFiniteUnionOfBasis の定義展開と simp。
+3. 実装上の注意
+sorry を外すときは、map_layer の骨格も
+intro U' hU' で Set.image の元から元の U と表現 Finset を取り出す形に直す必要があります
+（P2_Algebraic.lean の map_layer と同じパターン）。
+
+要約すると、「基底の逆像が BX で有限・一様に制御できる」という追加仮定と、
+preimage_sUnion などの集合論的補題があれば埋められます。

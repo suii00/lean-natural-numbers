@@ -290,11 +290,17 @@ def closureTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
   map := fun A => f '' A
   map_layer := by
     intro n
-    use n
+    -- In the simplified `closureIterationLevel`, values are always in `{0,1}`.
+    -- Hence we take a uniform upper bound, as permitted by Cat_D's existential layer condition.
+    refine ⟨Nat.max n 1, ?_⟩
     intro B hB
-    -- f '' A の閉包レベルが n 以下であることを示す
-    -- TODO: 連続写像が閉包反復レベルを増やさないことを証明する
-    sorry -- 詳細な証明は省略
+    classical
+    -- `hf` will be essential for a full iteration-based notion; in this simplified version it is unused.
+    have _ := hf
+    rcases hB with ⟨A, _hA, rfl⟩
+    have h1 : closureIterationLevel (f '' A) ≤ (1 : ℕ) := by
+      by_cases hclosed : IsClosed (f '' A) <;> simp [closureIterationLevel, hclosed]
+    exact le_trans h1 (Nat.le_max_right n 1)
 
 /-!
 ## 具体例：離散空間と自明な位相
