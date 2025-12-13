@@ -64,6 +64,58 @@ def IsFiniteUnionOfBasis {X : Type*} [TopologicalSpace X]
   ∃ S : Finset (Set X), (S : Set (Set X)) ⊆ B ∧ S.card ≤ n ∧ U = ⋃₀ (S : Set (Set X))
 
 /-!
+## 補助補題：有限基底和の逆像
+
+`openSetTowerHom` で `map_layer` を `sorry` なしにするためには、
+基底要素の逆像が（指定した基底の中に）入るという仮定が本質的になる。
+-/
+
+open Set
+
+/-- 基底要素の逆像が基底要素になる、という仮定の下で
+有限基底和の逆像も有限基底和（個数は増えない）になる。 -/
+lemma IsFiniteUnionOfBasis.preimage_of_preimageBasis
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (f : X → Y)
+    (hpre : ∀ V, V ∈ BY → f ⁻¹' V ∈ BX)
+    {U : Set Y} {n : ℕ}
+    (hU : IsFiniteUnionOfBasis BY U n) :
+    IsFiniteUnionOfBasis BX (f ⁻¹' U) n := by
+  classical
+  rcases hU with ⟨S, hSB, hcard, hUeq⟩
+  refine ⟨S.image (fun V => f ⁻¹' V), ?_, ?_, ?_⟩
+  · intro W hW
+    rcases Finset.mem_image.mp (by simpa using hW) with ⟨V, hVS, rfl⟩
+    exact hpre V (hSB (by simpa using hVS))
+  · have : (S.image (fun V => f ⁻¹' V)).card ≤ S.card := by
+      simpa using (Finset.card_image_le : _)
+    exact le_trans this hcard
+  · ext x
+    constructor
+    · intro hx
+      have hxU : f x ∈ U := by simpa [Set.mem_preimage] using hx
+      have hxSU : f x ∈ ⋃₀ (S : Set (Set Y)) := by simpa [hUeq] using hxU
+      rcases Set.mem_sUnion.mp hxSU with ⟨V, hV, hxV⟩
+      apply Set.mem_sUnion.mpr
+      refine ⟨f ⁻¹' V, ?_, ?_⟩
+      · have hVS : V ∈ S := by simpa using hV
+        have : f ⁻¹' V ∈ S.image (fun V => f ⁻¹' V) :=
+          Finset.mem_image.mpr ⟨V, hVS, rfl⟩
+        simpa using this
+      · simpa [Set.mem_preimage] using hxV
+    · intro hx
+      rcases Set.mem_sUnion.mp hx with ⟨W, hW, hxW⟩
+      rcases Finset.mem_image.mp (by simpa using hW) with ⟨V, hVS, rfl⟩
+      have hxV : f x ∈ V := by simpa [Set.mem_preimage] using hxW
+      have hxSU : f x ∈ ⋃₀ (S : Set (Set Y)) := by
+        apply Set.mem_sUnion.mpr
+        refine ⟨V, ?_, hxV⟩
+        simpa using hVS
+      have hxU : f x ∈ U := by simpa [hUeq] using hxSU
+      simpa [Set.mem_preimage] using hxU
+
+/-!
 ## 例1：開集合の階層（第二可算空間）
 
 第二可算空間では、可算な基本開集合族が存在する。
@@ -256,23 +308,24 @@ def finiteOpenSetTower (X : Type*) [TopologicalSpace X] [Fintype X] :
 
 /-- 連続写像が誘導する開集合階層の射（骨格版）
 
-**注意**：完全な証明には、逆像が基本開集合の和を保存する詳細な議論が必要。
+**注意**：`j := n` のまま `map_layer` を示すには、
+基底要素の逆像が指定した基底に入る、という追加仮定が本質的に必要。
 -/
 def openSetTowerHom {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
     (BX : Set (Set X)) (BY : Set (Set Y))
     (hbasisX : IsTopologicalBasis BX) (hbasisY : IsTopologicalBasis BY)
     (hcoverX : ∀ U : Set X, IsOpen U → ∃ n, IsFiniteUnionOfBasis BX U n)
     (hcoverY : ∀ U : Set Y, IsOpen U → ∃ n, IsFiniteUnionOfBasis BY U n)
-    (f : X → Y) (hf : Continuous f) :
+    (f : X → Y) (hf : Continuous f)
+    (hpre : ∀ V, V ∈ BY → f ⁻¹' V ∈ BX) :
     openSetTower Y BY hbasisY hcoverY ⟶ᴰ openSetTower X BX hbasisX hcoverX where
   map := fun ⟨V, hV⟩ => ⟨f ⁻¹' V, hf.isOpen_preimage V hV⟩
   map_layer := by
     intro n
-    use n
-    intro ⟨U, hU⟩ hU_layer
-    -- U = f⁻¹(V) for some V ∈ layer n
-    -- TODO: 基底の逆像が有限和に分解できることを形式化する
-    sorry -- 詳細な証明は省略
+    refine ⟨n, ?_⟩
+    intro U' hU'
+    rcases hU' with ⟨U, hU, rfl⟩
+    exact IsFiniteUnionOfBasis.preimage_of_preimageBasis BX BY f hpre (by simpa using hU)
 
 /-!
 ### 閉包階層の射

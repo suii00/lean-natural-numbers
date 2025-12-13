@@ -70,3 +70,11 @@ f '' (closure^[k] A) ⊆ closure^[k] (f '' A) を示し、
 それでも一般には j := n での厳密保存は期待できないので、∃j を使うのが自然です。
 要するに、今のまま use n を維持するには閉集合像が閉になる追加仮定が必要、
 追加仮定なしで埋めるなら use (max n 1) などに変更するのが最短、ということです。
+
+
+
+closureTowerHom の sorry を埋めるのに本質的に必要なのは、あなたが書いた通り「j の取り方」です。いまの closureIterationLevel は簡易版なので、追加仮定なしなら j := Nat.max n 1 が最短になります。
+
+実装は src/MyProjects/ST/CAT/Cat_D/P3_Topological.lean (line 285) の map_layer を、j := Nat.max n 1 に変更して sorry を除去しました（closureIterationLevel (f '' A) ≤ 1 を場合分けで示すだけ）。
+j := n を維持したいなら、n=0 で「閉集合の像が閉」を保証する追加仮定（closed map / X compact & Y Hausdorff など）が必要です。
+動作確認: lake build MyProjects.ST.CAT.Cat_D.P3_Topological は通っています。
