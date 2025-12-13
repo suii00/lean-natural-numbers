@@ -3,6 +3,8 @@ import Mathlib.Topology.Basic
 import Mathlib.Topology.Bases
 import Mathlib.Topology.Order
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finset.Union
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Order.Basic
 
 /-!
@@ -108,6 +110,108 @@ lemma IsFiniteUnionOfBasis.preimage_of_preimageBasis
       rcases Set.mem_sUnion.mp hx with ⟨W, hW, hxW⟩
       rcases Finset.mem_image.mp (by simpa using hW) with ⟨V, hVS, rfl⟩
       have hxV : f x ∈ V := by simpa [Set.mem_preimage] using hxW
+      have hxSU : f x ∈ ⋃₀ (S : Set (Set Y)) := by
+        apply Set.mem_sUnion.mpr
+        refine ⟨V, ?_, hxV⟩
+        simpa using hVS
+      have hxU : f x ∈ U := by simpa [hUeq] using hxSU
+      simpa [Set.mem_preimage] using hxU
+
+/-!
+### 補助補題：一様上界（uniform bound）と逆像の複雑度
+
+Cat_D の `map_layer` は「各層の像が *どこかの層* に入る」という存在量化であり、
+連続性そのものよりも「複雑度が一様に上から抑えられる」ことが本質になる。
+
+ここでは、
+`BY` の基底要素 1 個の逆像が `BX` の基底高々 `k` 個の有限和で表せる（しかも一様）
+という仮定から、`n` 個の有限基底和の逆像が高々 `n*k` 個で表せることを示す。
+-/
+
+/-- `BY` の基底要素 1 個の逆像が、`BX` の基底高々 `k` 個の有限和で表せる（しかも一様） -/
+def PreimageBasisBound
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (f : X → Y) (k : ℕ) : Prop :=
+  ∀ V, V ∈ BY → IsFiniteUnionOfBasis BX (f ⁻¹' V) k
+
+open Set
+
+/-- `BY` の要素 `n` 個の有限和の逆像は、`BX` の要素高々 `n*k` 個の有限和で表せる。 -/
+lemma IsFiniteUnionOfBasis.preimage_mul
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y]
+    (BX : Set (Set X)) (BY : Set (Set Y))
+    (f : X → Y) {U : Set Y} {n k : ℕ}
+    (hU : IsFiniteUnionOfBasis BY U n)
+    (hpre : PreimageBasisBound BX BY f k) :
+    IsFiniteUnionOfBasis BX (f ⁻¹' U) (n * k) := by
+  classical
+  rcases hU with ⟨S, hSB, hcard, hUeq⟩
+
+  -- Choice of witnesses for each `V ∈ BY` (only used for `V ∈ S`).
+  let g : Set Y → Finset (Set X) := fun V =>
+    if hV : V ∈ BY then Classical.choose (hpre V hV) else ∅
+
+  have g_sub : ∀ V, V ∈ BY → ((g V : Set (Set X)) ⊆ BX) := by
+    intro V hV
+    simpa [g, hV] using (Classical.choose_spec (hpre V hV)).1
+
+  have g_card : ∀ V, V ∈ BY → (g V).card ≤ k := by
+    intro V hV
+    simpa [g, hV] using (Classical.choose_spec (hpre V hV)).2.1
+
+  have g_eq : ∀ V, V ∈ BY → (f ⁻¹' V) = ⋃₀ (g V : Set (Set X)) := by
+    intro V hV
+    simpa [g, hV] using (Classical.choose_spec (hpre V hV)).2.2
+
+  -- Bundle all witnesses.
+  let T : Finset (Set X) := S.biUnion g
+
+  refine ⟨T, ?_, ?_, ?_⟩
+  · -- T ⊆ BX
+    intro W hW
+    rcases (Finset.mem_biUnion.mp (by simpa [T] using hW)) with ⟨V, hVS, hWg⟩
+    have hV : V ∈ BY := hSB (by simpa using hVS)
+    exact g_sub V hV (by simpa using hWg)
+  · -- card T ≤ n*k
+    have hTk : T.card ≤ S.card * k := by
+      have hEach : ∀ V ∈ S, (g V).card ≤ k := by
+        intro V hVS
+        have hV : V ∈ BY := hSB (by simpa using hVS)
+        exact g_card V hV
+      simpa [T] using (Finset.card_biUnion_le_card_mul S g k hEach)
+    have hSk : S.card * k ≤ n * k := Nat.mul_le_mul_right k hcard
+    exact le_trans hTk hSk
+  · -- f⁻¹(U) = ⋃₀ T
+    ext x
+    constructor
+    · intro hx
+      have hxU : f x ∈ U := by simpa [Set.mem_preimage] using hx
+      have hxSU : f x ∈ ⋃₀ (S : Set (Set Y)) := by simpa [hUeq] using hxU
+      rcases Set.mem_sUnion.mp hxSU with ⟨V, hV, hxV⟩
+      have hVS : V ∈ S := by simpa using hV
+      have hVBY : V ∈ BY := hSB (by simpa using hVS)
+      have hxpre : x ∈ f ⁻¹' V := by simpa [Set.mem_preimage] using hxV
+      have hxg : x ∈ ⋃₀ (g V : Set (Set X)) := by simpa [g_eq V hVBY] using hxpre
+      rcases Set.mem_sUnion.mp hxg with ⟨W, hW, hxW⟩
+      apply Set.mem_sUnion.mpr
+      refine ⟨W, ?_, hxW⟩
+      have hWT : W ∈ T := by
+        apply Finset.mem_biUnion.mpr
+        refine ⟨V, hVS, ?_⟩
+        simpa using hW
+      simpa using hWT
+    · intro hx
+      rcases Set.mem_sUnion.mp hx with ⟨W, hW, hxW⟩
+      have hWT : W ∈ T := by simpa using hW
+      rcases (Finset.mem_biUnion.mp (by simpa [T] using hWT)) with ⟨V, hVS, hWg⟩
+      have hVBY : V ∈ BY := hSB (by simpa using hVS)
+      have hxg : x ∈ ⋃₀ (g V : Set (Set X)) := by
+        apply Set.mem_sUnion.mpr
+        refine ⟨W, ?_, hxW⟩
+        simpa using hWg
+      have hxpre : x ∈ f ⁻¹' V := by simpa [g_eq V hVBY] using hxg
+      have hxV : f x ∈ V := by simpa [Set.mem_preimage] using hxpre
       have hxSU : f x ∈ ⋃₀ (S : Set (Set Y)) := by
         apply Set.mem_sUnion.mpr
         refine ⟨V, ?_, hxV⟩
