@@ -17,4 +17,4 @@ layer (i, j) := (Sum.inl '' T₁.layer i) ∪ (Sum.inr '' T₂.layer j)
 と置くと、(i₁, j₁) ≤ (i₂, j₂) から
 T₁.layer i₁ ⊆ T₁.layer i₂ と T₂.layer j₁ ⊆ T₂.layer j₂ がそれぞれ使えて、∪ の単調性で全体も自動的に単調になります。
 つまり「無理な cross-包含を要求しないように、二次元の層（bifiltration）に持ち上げる」のが Prod 版の本質です。
-ただし重要な注意として、これは monotone の sorry を消すには強力ですが、一般に Cat_D の意味での“余積（普遍性）”まで自動で付いてくるわけではないので、そこで coprodTower₂D のように別名で切り出す判断になります。
+ただし重要な注意として、これは monotone の sorry を消すには強力ですが、一般に Cat_D の意味での“余積（普遍性）”まで自動で付いてくるわけではないので、そこで sumCarrierTower2D のように別名で切り出す判断になります。

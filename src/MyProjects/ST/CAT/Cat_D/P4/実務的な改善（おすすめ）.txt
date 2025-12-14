@@ -21,3 +21,6 @@ Index := Prod 版は「余積」というより **“同時進行パラメータ
 まず covering のために片側要素にも反対側の添字が要るので、最低でも [Nonempty T₁.Index] [Nonempty T₂.Index]（あるいは [Inhabited ...]）系が必要になりがちです。
 さらに普遍射で左右から出る上界 j₁, j₂ を 1 つにまとめる必要があり、ターゲット側に「上に押し上げられる」構造（例：SemilatticeSup や Directed）が必要になります。
 実務的には、今の coprod（Sum・disjoint order）を本命にし、Prod 版は coprodTower₂D などに改名＋必要仮定を明示して別枠にする、が理論が崩れにくいです。必要ならこちらでその設計（最小仮定の切り出し）まで整理して Lean に落とします。
+
+
+Index := Prod 版を残すなら、名前を例えば sumCarrierTower2D のようにして「同時進行パラメータで層を管理する構成」であることを明示し、さらに必要なら
