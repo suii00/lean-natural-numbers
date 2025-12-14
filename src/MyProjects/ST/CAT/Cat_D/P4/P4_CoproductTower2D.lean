@@ -1,7 +1,7 @@
 import MyProjects.ST.CAT.Cat_D.P4.P4_Categorical
 
 /-!
-# P4_CoproductProd: `Index := Prod` による「2次元」余積塔
+# P4_CoproductTower2D: `Index := Prod` による「2次元」余積塔
 
 このファイルは `P4_Categorical.lean` の定義（`TowerD`, `HomD` など）を再利用し、
 台集合が直和 `T₁.carrier ⊕ T₂.carrier` で、添字が直積 `T₁.Index × T₂.Index` の
@@ -26,7 +26,7 @@ import MyProjects.ST.CAT.Cat_D.P4.P4_Categorical
 namespace ST
 namespace TowerD
 
-section CoproductProd
+section CoproductTower2D
 
 /-- `Index := Prod` 版の「2次元」余積塔
 
@@ -84,7 +84,7 @@ def inj₂₂D (T₁ T₂ : TowerD) [Inhabited T₁.Index] [Inhabited T₂.Index
     rcases hy with ⟨b, hb, rfl⟩
     exact Or.inr ⟨b, hb, rfl⟩
 
-end CoproductProd
+end CoproductTower2D
 
 section Examples
 
@@ -101,4 +101,3 @@ end Examples
 
 end TowerD
 end ST
-
