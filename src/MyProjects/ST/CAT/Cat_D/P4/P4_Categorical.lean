@@ -64,7 +64,7 @@ HomEq ⊆ HomLe ⊆ HomD
 
 - **余積** `T₁ ⊕ T₂`: 「構造の和」
   - carrier = T₁.carrier ⊕ T₂.carrier
-  - Index = T₁.Index ⊕ T₂.Index（辞書式順序）
+  - Index = T₁.Index ⊕ T₂.Index（直和＝cross 比較なし）
   - layer (Sum.inl i) = inl '' (layer₁ i)
 
 ## 参考文献
@@ -535,7 +535,7 @@ end Product
 
 T₁ と T₂ の余積 T₁ ⊕ T₂ は:
 - carrier = T₁.carrier ⊕ T₂.carrier
-- Index = T₁.Index ⊕ T₂.Index（辞書式順序）
+- Index = T₁.Index ⊕ T₂.Index（直和＝cross 比較なし）
 - layer (Sum.inl i) = Sum.inl '' (layer₁ i)
 - layer (Sum.inr j) = Sum.inr '' (layer₂ j)
 
@@ -549,13 +549,14 @@ T₁ と T₂ の余積 T₁ ⊕ T₂ は:
 section Coproduct
 
 /-!
-**辞書式順序の定義**
+**直和（disjoint sum）順序の定義**
 
-Sum.inl i < Sum.inl j ⟺ i < j
-Sum.inl i < Sum.inr j （常に真）
-Sum.inr i < Sum.inr j ⟺ i < j
+- `Sum.inl a ≤ Sum.inl b` は `a ≤ b` で比較する。
+- `Sum.inr a ≤ Sum.inr b` は `a ≤ b` で比較する。
+- `Sum.inl _ ≤ Sum.inr _` と `Sum.inr _ ≤ Sum.inl _` は常に `False`（cross-variant 比較なし）。
 
-これにより、T₁ の層は常に T₂ の層より「下」に来る。
+この選択により、層が互いに交わらない `Sum.inl '' _` と `Sum.inr '' _` の間で、
+不自然な単調性を要求して破綻することを避ける。
 -/
 
 instance sumPreorder {α β : Type*} [Preorder α] [Preorder β] :
@@ -713,6 +714,46 @@ theorem coprodUniversal_unique {T T₁ T₂ : TowerD}
     have := congrArg HomD.map h₂
     exact congrFun this x₂
 
+/-!
+## `CategoryTheory.Limits` としての余積
+
+ここまでの `coprodUniversal` / `coprodUniversal_unique` は “手書きの普遍性” だが、
+mathlib の `BinaryCofan` / `IsColimit` にも接続しておく。
+-/
+
+open CategoryTheory.Limits
+
+/-- The `BinaryCofan` exhibiting `coprod` as a coproduct in `TowerD`. -/
+def coprodCofan (T₁ T₂ : TowerD.{u, v}) : BinaryCofan T₁ T₂ :=
+  BinaryCofan.mk (P := (T₁ ⊕ᴰ T₂))
+    (inj₁ T₁ T₂ : T₁ ⟶ (T₁ ⊕ᴰ T₂))
+    (inj₂ T₁ T₂ : T₂ ⟶ (T₁ ⊕ᴰ T₂))
+
+/-- `coprodCofan` is a colimit cocone (so `coprod` is a categorical coproduct). -/
+def coprodIsColimit (T₁ T₂ : TowerD.{u, v}) : IsColimit (coprodCofan (T₁ := T₁) (T₂ := T₂)) := by
+  refine (BinaryCofan.IsColimit.mk (s := coprodCofan (T₁ := T₁) (T₂ := T₂))
+    (desc := fun {T} (f : T₁ ⟶ T) (g : T₂ ⟶ T) =>
+      (coprodUniversal (T := T) (T₁ := T₁) (T₂ := T₂) f g))
+    (hd₁ := ?_)
+    (hd₂ := ?_)
+    (uniq := ?_))
+  · intro T f g
+    simpa [coprodCofan] using (coprodUniversal_inj₁ (T := T) (T₁ := T₁) (T₂ := T₂) f g)
+  · intro T f g
+    simpa [coprodCofan] using (coprodUniversal_inj₂ (T := T) (T₁ := T₁) (T₂ := T₂) f g)
+  · intro T f g m hm1 hm2
+    have h1' : HomD.comp m (inj₁ T₁ T₂) = f := by
+      simpa [coprodCofan] using hm1
+    have h2' : HomD.comp m (inj₂ T₁ T₂) = g := by
+      simpa [coprodCofan] using hm2
+    simpa using (coprodUniversal_unique (T := T) (T₁ := T₁) (T₂ := T₂) f g m h1' h2')
+
+instance (T₁ T₂ : TowerD.{u, v}) : HasBinaryCoproduct T₁ T₂ := by
+  -- `HasBinaryCoproduct X Y` is `HasColimit (pair X Y)`.
+  dsimp [HasBinaryCoproduct]
+  refine HasColimit.mk' ?_
+  refine ⟨⟨(coprodCofan (T₁ := T₁) (T₂ := T₂)), (coprodIsColimit (T₁ := T₁) (T₂ := T₂))⟩⟩
+
 end Coproduct
 
 /-!
@@ -822,6 +863,10 @@ example : Sum.inl 3 ∈ (natTower ⊕ᴰ vec2QTower).layer (Sum.inl 5) := by
 inj₁(5) = Sum.inl 5
 -/
 example : (inj₁ natTower vec2QTower).map 5 = Sum.inl 5 := rfl
+
+/-- `coprod` が `CategoryTheory.Limits` の意味で余積になっていることの確認 -/
+example : CategoryTheory.Limits.IsColimit (coprodCofan (T₁ := natTower) (T₂ := vec2QTower)) :=
+  coprodIsColimit (T₁ := natTower) (T₂ := vec2QTower)
 
 end Examples
 
