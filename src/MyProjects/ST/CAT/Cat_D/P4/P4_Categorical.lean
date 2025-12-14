@@ -388,9 +388,9 @@ lemma homLeToHomD_eq_iff_map_eq {T T' : TowerD} {f g : HomLe T T'} :
     homLeToHomD f = homLeToHomD g ↔ f.map = g.map := by
   constructor
   · intro h
-    exact congrArg HomD.map h
+    simpa [homLeToHomD] using congrArg HomD.map h
   · intro h
-    apply HomD.ext
+    ext1
     simpa [homLeToHomD] using h
 
 end InclusionFunctors
@@ -814,15 +814,13 @@ P1.lean や CAT2_complete.lean で定義されたものと同等。
 
  example : homLeId_natTower ≠ homLeSucc_natTower := by
    intro h
-   have hindex : homLeId_natTower.indexMap = homLeSucc_natTower.indexMap :=
-     congrArg HomLe.indexMap h
    have h0 : homLeId_natTower.indexMap 0 = homLeSucc_natTower.indexMap 0 :=
-     congrArg (fun φ => φ 0) hindex
-   have h01 : (0 : ℕ) = 1 := by
+     congrArg (fun φ => φ 0) (congrArg HomLe.indexMap h)
+   have : (0 : ℕ) = 1 := by
      have h0' := h0
      dsimp [homLeId_natTower, homLeSucc_natTower] at h0'
      exact h0'
-   exact Nat.zero_ne_one h01
+   exact Nat.zero_ne_one this
 
  example : homLeToHomD homLeId_natTower = homLeToHomD homLeSucc_natTower := by
    exact (homLeToHomD_eq_iff_map_eq (f := homLeId_natTower) (g := homLeSucc_natTower)).2 rfl
