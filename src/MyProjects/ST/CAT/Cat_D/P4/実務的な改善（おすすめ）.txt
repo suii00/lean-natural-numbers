@@ -1,0 +1,23 @@
+実務的な改善（おすすめ）
+
+一般性を落とさず「余積」を取りたいなら、Index := Sum（cross 比較なし）版を本命にするのが安全です（0 も max も要りません）。
+
+Index := Prod 版を残すなら、名前を例えば coprodTower₂D のようにして「同時進行パラメータで層を管理する構成」であることを明示し、さらに必要なら
+
+([Zero T₁.Index] [Zero T₂.Index]) や
+
+ターゲット側に SemilatticeSup 等
+を型クラス仮定として表に出すのが、後で理論が崩れません。
+
+必要なら、あなたの MyProjects.ST.CAT.Cat_D 側の HomD.map_layer の定義（Set.image 版か、点ごとの版か）に合わせて、「この普遍射は本当に一般に通る／通らない」を、最小の追加仮定まで落として整理します。
+
+どう思うか意見を聞かせてほしいです
+
+
+賛成です。Cat_D（HomD.map_layer : ∀ i, ∃ j, image ⊆ layer j）の設計だと、**「余積」本命は Index := Sum（cross 比較なし）**が一番きれいで安全です。
+
+Index := Sum（inl と inr を比較しない）なら、層が最初から分離しているので monotone も普遍射の map_layer も 場合分けだけで完結し、追加仮定が要りません（Bourbaki 的に素直）。
+Index := Prod 版は「余積」というより **“同時進行パラメータで管理する二重次数付きの和”**で、一般にはそのまま余積の普遍性にはなりません。
+まず covering のために片側要素にも反対側の添字が要るので、最低でも [Nonempty T₁.Index] [Nonempty T₂.Index]（あるいは [Inhabited ...]）系が必要になりがちです。
+さらに普遍射で左右から出る上界 j₁, j₂ を 1 つにまとめる必要があり、ターゲット側に「上に押し上げられる」構造（例：SemilatticeSup や Directed）が必要になります。
+実務的には、今の coprod（Sum・disjoint order）を本命にし、Prod 版は coprodTower₂D などに改名＋必要仮定を明示して別枠にする、が理論が崩れにくいです。必要ならこちらでその設計（最小仮定の切り出し）まで整理して Lean に落とします。

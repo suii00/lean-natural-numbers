@@ -1,0 +1,25 @@
+現在のdef coprodについて解説してください
+
+
+coprod は「2 つの構造塔 T₁, T₂ : TowerD から、新しい構造塔 T₁ ⊕ᴰ T₂ を“直和（disjoint union）”として作る定義」です（P4/P4_Categorical.lean (line 586)）。
+
+台集合（carrier）：T₁.carrier ⊕ T₂.carrier
+要素は Sum.inl x（x : T₁.carrier）か Sum.inr y（y : T₂.carrier）のどちらか、という「タグ付きの和集合」です。P4/P4_Categorical.lean (line 587)
+
+添字集合（Index）：T₁.Index ⊕ T₂.Index
+どちらの塔の層番号かもタグで区別します。P4/P4_Categorical.lean (line 588)
+
+添字の順序（indexPreorder）：sumPreorder
+現在の sumPreorder は「同じタグ同士だけ比較し、inl と inr の“交差比較”は常に False」です（＝別世界の層は比較しない）。P4/P4_Categorical.lean (line 561)
+
+層（layer）：
+
+layer (Sum.inl i) = Sum.inl '' (T₁.layer i)
+layer (Sum.inr j) = Sum.inr '' (T₂.layer j)
+つまり「T₁ 側の層は Sum.inl で埋め込み、T₂ 側は Sum.inr で埋め込む」だけで、層は最初から互いに交わりません。P4/P4_Categorical.lean (line 590)
+被覆（covering）：x : carrier を inl x₁ / inr x₂ に場合分けして、それぞれ T₁.covering / T₂.covering を使い、対応するタグ付き層に入ることを示します。P4/P4_Categorical.lean (line 593)
+
+単調性（monotone）：i ≤ j のとき layer i ⊆ layer j を示す部分。
+sumPreorder が交差比較を False にしているので、Sum.inl ≤ Sum.inr や Sum.inr ≤ Sum.inl はそもそも起きず（cases hij で矛盾閉じ）、残る inl≤inl と inr≤inr だけが T₁.monotone / T₂.monotone に還元されます。P4/P4_Categorical.lean (line 604)
+
+要するに、Bourbaki 流に言えば「直和集合に層構造を“タグ付き像（image）”で移植し、比較（≤）は同じ側の添字にだけ許す」設計で、以前の Sum.inl i ≤ Sum.inr j を真にする設計だと単調性が壊れる点を避けています。
