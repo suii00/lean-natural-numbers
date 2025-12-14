@@ -559,7 +559,7 @@ section Coproduct
 不自然な単調性を要求して破綻することを避ける。
 -/
 
-instance sumPreorder {α β : Type*} [Preorder α] [Preorder β] :
+def sumPreorder {α β : Type*} [Preorder α] [Preorder β] :
     Preorder (α ⊕ β) where
   le := fun x y => match x, y with
     | Sum.inl a, Sum.inl b => a ≤ b

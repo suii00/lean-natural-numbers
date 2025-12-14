@@ -1,0 +1,95 @@
+確認です以下と合致しますか
+
+sumPreorder（cross 比較なし）を用意する
+TowerD が indexPreorder : Preorder Index をフィールドで持つ前提で、次をどこか（P4_Categorical など）に置きます。
+
+/-- I ⊕ J 上の preorder：同側だけ比較し、cross は比較不能（False）。 -/
+def sumPreorder {I J : Type*} [Preorder I] [Preorder J] : Preorder (I ⊕ J) where
+le a b :=
+match a, b with
+| Sum.inl i, Sum.inl i' => i ≤ i'
+| Sum.inr j, Sum.inr j' => j ≤ j'
+| _, _ => False
+le_refl := by
+intro a; cases a <;> simp
+le_trans := by
+intro a b c hab hbc
+cases a <;> cases b <;> cases c <;> simp at hab hbc ⊢
+· exact le_trans hab hbc
+· exact le_trans hab hbc
+
+ポイント：
+
+Sum.inl _ ≤ Sum.inr _ と Sum.inr _ ≤ Sum.inl _ が 定義で False になるので、後で cases hij が正当化されます。
+
+coprod の定義を Index := T₁.Index ⊕ T₂.Index にする
+あなたが貼っている版がその完成形です。既存の Index := Prod 版からの差分としては、主に次の置換になります。
+
+置換点（Prod → Sum）
+
+Index := T₁.Index × T₂.Index
+→ Index := T₁.Index ⊕ T₂.Index
+
+indexPreorder := prodPreorder（等）
+→ indexPreorder := sumPreorder
+
+layer (i,j) := (inl '' …) ∪ (inr '' …)
+→ layer (inl i) := inl '' … / layer (inr j) := inr '' …
+
+monotone は 4 ケース（inl/inl, inl/inr, inr/inl, inr/inr）にして、cross は cases hij
+
+完成形（あなたのコードをそのまま再掲）：
+
+def coprod (T₁ T₂ : TowerD) : TowerD where
+carrier := T₁.carrier ⊕ T₂.carrier
+Index := T₁.Index ⊕ T₂.Index
+indexPreorder := sumPreorder
+layer := fun idx => match idx with
+| Sum.inl i => Sum.inl '' (T₁.layer i)
+| Sum.inr j => Sum.inr '' (T₂.layer j)
+covering := by
+intro x
+cases x with
+| inl x₁ =>
+obtain ⟨i, hi⟩ := T₁.covering x₁
+refine ⟨Sum.inl i, ?⟩
+exact ⟨x₁, hi, rfl⟩
+| inr x₂ =>
+obtain ⟨j, hj⟩ := T₂.covering x₂
+refine ⟨Sum.inr j, ?⟩
+exact ⟨x₂, hj, rfl⟩
+monotone := by
+intro i j hij
+cases i <;> cases j
+· -- inl ≤ inl
+intro x hx
+rcases hx with ⟨a, ha, rfl⟩
+exact ⟨a, T₁.monotone hij ha, rfl⟩
+· -- inl ≤ inr : False
+cases hij
+· -- inr ≤ inl : False
+cases hij
+· -- inr ≤ inr
+intro y hy
+rcases hy with ⟨b, hb, rfl⟩
+exact ⟨b, T₂.monotone hij hb, rfl⟩
+
+notation:35 T₁ " ⊕ᴰ " T₂ => coprod T₁ T₂
+
+既存の “Prod 版” がある場合の注意（壊れやすい箇所）
+Index := Prod 版に合わせて inj₁ / inj₂ / desc（普遍射）を書いている場合、そこは次のように修正が必要です。
+
+注入：(i,0) のような埋め込みではなく、inl i / inr j に変える
+
+貼り合わせ（desc）：map_layer は cases idx で左右それぞれの射の map_layer をそのまま使う（max 等は不要）
+
+
+はい、提示している 1)〜3) とこちらの実装は合致しています（いまの coprod は「余積」を安全に実現するために cross 比較なし を採用しています）。
+
+sumPreorder（cross 比較なし）
+こちらでは def ではなく instance sumPreorder ですが、中身は同じで Sum.inl _ ≤ Sum.inr _ / Sum.inr _ ≤ Sum.inl _ が定義で False になっています。P4/P4_Categorical.lean (line 562)
+coprod の定義（Index := Sum）
+Index := T₁.Index ⊕ T₂.Index、indexPreorder := sumPreorder、layer は inl/inr の像、monotone は 4 ケースで cross は cases hij、という形で一致しています。P4/P4_Categorical.lean (line 587)
+inj/desc（普遍射）の修正点
+inj₁/inj₂ は inl i/inr j に対応し、coprodUniversal.map_layer は cases idx で左右それぞれの map_layer をそのまま使っており、max 等は不要、という点も一致です。P4/P4_Categorical.lean (line 627) と P4/P4_Categorical.lean (line 658)
+加えて「余積に出来ますか」の意味（mathlib の IsColimit/HasBinaryCoproduct）まで含めて、coprodCofan/coprodIsColimit/HasBinaryCoproduct も載せています。P4/P4_Categorical.lean (line 727)
