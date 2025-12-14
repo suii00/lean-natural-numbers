@@ -1,0 +1,537 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+\usepackage{mathtools}
+\usepackage{tcolorbox}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\geometry{left=25mm,right=25mm,top=30mm,bottom=30mm}
+
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+\theoremstyle{definition}
+\newtheorem{construction}[definition]{構成}
+
+\title{構造塔の圏 $\mathbf{Cat}_{\mathcal{D}}$ における\\余積の構成と限界}
+\author{%
+    Lean 形式化：OpenAI Codex \\
+    \TeX 生成：Claude Code (Anthropic)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔（structure tower）の圏 $\mathbf{Cat}_{\mathcal{D}}$ における二項余積（binary coproduct）の構成とその限界について解説する。特に、添字集合として直和 $\mathrm{Sum}$ を用いた構成が圏論的余積の普遍性を満たす一方、順序構造として ordinal-sum 的な全順序を採用すると単調性が破綻する理由を明確にする。さらに、直積 $\mathrm{Prod}$ を用いた2次元進行塔（2D progress tower）の構成を拡張として示し、余積の普遍性を主張しない代替構成の意義を論じる。
+
+すべての構成は Lean 4 で形式化されており、本稿はその数学的背景を補足するものである。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論：構造塔の圏と本稿の目的}
+
+\subsection{構造塔とは何か}
+
+\begin{definition}[構造塔 (Structure Tower)]
+構造塔 $T$ とは、以下のデータからなる四つ組 $(X, I, \lambda, \leq)$ である：
+\begin{itemize}
+    \item $X$：台集合（carrier）
+    \item $I$：添字集合（index set）、前順序 $\leq$ を備える
+    \item $\lambda : I \to \mathcal{P}(X)$：各添字 $i \in I$ に対して層（layer）$\lambda(i) \subseteq X$ を対応させる写像
+\end{itemize}
+これらは以下の公理を満たす：
+\begin{enumerate}
+    \item \textbf{被覆性（covering）}：$\forall x \in X, \exists i \in I, x \in \lambda(i)$
+    \item \textbf{単調性（monotone）}：$\forall i, j \in I, i \leq j \Rightarrow \lambda(i) \subseteq \lambda(j)$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}[最小層の不在]
+本稿で扱う構造塔 $\mathbf{TowerD}$ は、各要素 $x \in X$ に対して「最小の層」$\min\{i \mid x \in \lambda(i)\}$ の存在を\textbf{要求しない}。これにより、より広いクラスの階層構造（例：確率論のフィルトレーション、可測空間の層構造）を扱うことができる。
+\end{remark}
+
+\subsection{圏 $\mathbf{Cat}_{\mathcal{D}}$ の射}
+
+\begin{definition}[$\mathbf{Cat}_{\mathcal{D}}$ の射]
+構造塔 $T = (X, I, \lambda, \leq)$ から $T' = (X', I', \lambda', \leq')$ への射 $f : T \to T'$ は、以下のデータからなる：
+\begin{itemize}
+    \item $f_{\mathrm{map}} : X \to X'$：台集合の写像
+    \item \textbf{層保存条件（存在量化版）}：
+    \[
+    \forall i \in I, \exists j \in I', \quad f_{\mathrm{map}}(\lambda(i)) \subseteq \lambda'(j)
+    \]
+\end{itemize}
+\end{definition}
+
+\begin{remark}[添字写像の不在]
+$\mathbf{Cat}_{\mathcal{D}}$ の射は、添字集合間の写像 $I \to I'$ を\textbf{持たない}。これは、より強い条件を持つ圏 $\mathbf{Cat}_{\mathrm{le}}$ や $\mathbf{Cat}_{\mathrm{eq}}$ との違いであり、柔軟性と引き換えに構造的な情報を失っている。
+\end{remark}
+
+\subsection{本稿の目的と構成}
+
+本稿の目的は以下の三点である：
+\begin{enumerate}
+    \item $\mathbf{Cat}_{\mathcal{D}}$ における二項余積 $T_1 \sqcup T_2$ の構成を、\textbf{直和順序（disjoint sum order）}を用いて実現する。
+    \item なぜ \textbf{ordinal-sum 順序}を採用すると単調性が破綻するかを、集合論的観点から明確に示す。
+    \item \textbf{直積添字版（2D progress tower）}を拡張として提示し、余積の普遍性を放棄する代わりに単調性を確保する代替構成を示す。
+\end{enumerate}
+
+\begin{tcolorbox}[title=重要な注意]
+本稿で構成する $T_1 \sqcup T_2$ は、\textbf{直和順序}を採用することで圏論的な余積の普遍性を満たす。一方、\textbf{2D progress tower}（$\mathrm{Prod}$ 版）は余積の普遍性を\textbf{一般には主張しない}が、より柔軟な応用が可能である。
+\end{tcolorbox}
+
+\section{余積の構成（Sum 版）：定義・注入・普遍性}
+
+\subsection{直和順序の定義}
+
+余積を構成する際、添字集合として $I_1 \sqcup I_2$（型 $\mathrm{Sum}$ の直和）を用いる。重要なのは、この直和上の順序をどう定義するかである。
+
+\begin{definition}[直和順序（Disjoint Sum Order）]
+前順序 $(I_1, \leq_1)$ と $(I_2, \leq_2)$ が与えられたとき、$I_1 \sqcup I_2$ 上の前順序を以下で定義する：
+\[
+\mathrm{inl}(i) \leq \mathrm{inl}(i') \iff i \leq_1 i', \quad
+\mathrm{inr}(j) \leq \mathrm{inr}(j') \iff j \leq_2 j'
+\]
+\[
+\mathrm{inl}(i) \leq \mathrm{inr}(j) \iff \mathrm{False}, \quad
+\mathrm{inr}(j) \leq \mathrm{inl}(i) \iff \mathrm{False}
+\]
+すなわち、異なる側（left/right）の要素間には順序関係を\textbf{一切定義しない}。
+\end{definition}
+
+\begin{remark}[なぜ cross 比較を許さないか]
+異なる側の要素間に順序を入れると（例：$\forall i, j, \mathrm{inl}(i) \leq \mathrm{inr}(j)$）、後述の単調性証明で矛盾が生じる（\S\ref{sec:why-fail} 参照）。直和順序は「左右を完全に分離する」ことで、この問題を回避する。
+\end{remark}
+
+\subsection{余積の定義}
+
+\begin{construction}[二項余積 $T_1 \sqcup T_2$]
+構造塔 $T_1 = (X_1, I_1, \lambda_1, \leq_1)$ と $T_2 = (X_2, I_2, \lambda_2, \leq_2)$ に対し、その余積 $T_1 \sqcup T_2$ を以下で定義する：
+\begin{align*}
+    \text{carrier} &= X_1 \sqcup X_2 \\
+    \text{Index} &= I_1 \sqcup I_2 \quad \text{（直和順序を備える）} \\
+    \text{layer}(\mathrm{inl}(i)) &= \mathrm{inl}''(\lambda_1(i)) := \{\mathrm{inl}(x) \mid x \in \lambda_1(i)\} \\
+    \text{layer}(\mathrm{inr}(j)) &= \mathrm{inr}''(\lambda_2(j)) := \{\mathrm{inr}(y) \mid y \in \lambda_2(j)\}
+\end{align*}
+\end{construction}
+
+\begin{proposition}[被覆性と単調性]
+上記の構成は以下を満たす：
+\begin{enumerate}
+    \item \textbf{被覆性}：$\forall x \in X_1 \sqcup X_2, \exists k \in I_1 \sqcup I_2, x \in \text{layer}(k)$
+    \item \textbf{単調性}：$\forall k, k' \in I_1 \sqcup I_2, k \leq k' \Rightarrow \text{layer}(k) \subseteq \text{layer}(k')$
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}[証明の概略]
+\textbf{(1) 被覆性}：$x \in X_1 \sqcup X_2$ に対し、$x = \mathrm{inl}(x_1)$ または $x = \mathrm{inr}(x_2)$ である。
+\begin{itemize}
+    \item $x = \mathrm{inl}(x_1)$ の場合：$T_1$ の被覆性より $\exists i \in I_1, x_1 \in \lambda_1(i)$ なので、$\mathrm{inl}(x_1) \in \mathrm{inl}''(\lambda_1(i)) = \text{layer}(\mathrm{inl}(i))$。
+    \item $x = \mathrm{inr}(x_2)$ の場合：同様。
+\end{itemize}
+
+\textbf{(2) 単調性}：$k \leq k'$ とする。直和順序の定義より、以下の4ケースに分かれる：
+\begin{itemize}
+    \item $k = \mathrm{inl}(i), k' = \mathrm{inl}(i')$ かつ $i \leq_1 i'$ のとき：
+    \[
+    \text{layer}(k) = \mathrm{inl}''(\lambda_1(i)) \subseteq \mathrm{inl}''(\lambda_1(i')) = \text{layer}(k')
+    \]
+    （$T_1$ の単調性と $\mathrm{inl}$ の単射性より）。
+    \item $k = \mathrm{inr}(j), k' = \mathrm{inr}(j')$ の場合：同様。
+    \item $k = \mathrm{inl}(i), k' = \mathrm{inr}(j)$ のとき：$\mathrm{inl}(i) \leq \mathrm{inr}(j)$ は $\mathrm{False}$ なので、$k \leq k'$ が成立せず、このケースは起きない（$\mathrm{cases}$ で矛盾）。
+    \item $k = \mathrm{inr}(j), k' = \mathrm{inl}(i)$ の場合：同様。
+\end{itemize}
+\end{proof}
+
+\subsection{注入射と普遍性}
+
+\begin{definition}[注入射（Injections）]
+自然な埋め込み射を以下で定義する：
+\begin{align*}
+    \iota_1 : T_1 &\to T_1 \sqcup T_2, \quad \iota_1(x) = \mathrm{inl}(x) \\
+    \iota_2 : T_2 &\to T_1 \sqcup T_2, \quad \iota_2(y) = \mathrm{inr}(y)
+\end{align*}
+これらは $\mathbf{Cat}_{\mathcal{D}}$ の射である（層保存条件は $\lambda_1(i) \subseteq \lambda_{\sqcup}(\mathrm{inl}(i))$ より従う）。
+\end{definition}
+
+\begin{theorem}[余積の普遍性]
+\label{thm:coproduct-universal}
+任意の構造塔 $T$ と射 $g_1 : T_1 \to T$, $g_2 : T_2 \to T$ に対し、一意的な射 $[g_1, g_2] : T_1 \sqcup T_2 \to T$ が存在して、以下の図式が可換となる：
+\[
+\begin{tikzcd}
+    T_1 \ar[dr, "\iota_1"'] \ar[drr, bend left, "g_1"] & & \\
+    & T_1 \sqcup T_2 \ar[r, dashed, "{[g_1, g_2]}"] & T \\
+    T_2 \ar[ur, "\iota_2"] \ar[urr, bend right, "g_2"'] & &
+\end{tikzcd}
+\]
+すなわち、$[g_1, g_2] \circ \iota_1 = g_1$ かつ $[g_1, g_2] \circ \iota_2 = g_2$ が成立する。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+$[g_1, g_2]$ を以下で定義する：
+\[
+[g_1, g_2](x) = \begin{cases}
+    g_1(x_1) & \text{if } x = \mathrm{inl}(x_1) \\
+    g_2(x_2) & \text{if } x = \mathrm{inr}(x_2)
+\end{cases}
+\]
+層保存条件の確認：添字 $k \in I_1 \sqcup I_2$ に対し、
+\begin{itemize}
+    \item $k = \mathrm{inl}(i)$ の場合：$g_1$ の層保存条件より $\exists j \in I_T, g_1(\lambda_1(i)) \subseteq \lambda_T(j)$ なので、
+    \[
+    [g_1, g_2](\text{layer}(k)) = [g_1, g_2](\mathrm{inl}''(\lambda_1(i))) = g_1(\lambda_1(i)) \subseteq \lambda_T(j)
+    \]
+    \item $k = \mathrm{inr}(j)$ の場合：同様。
+\end{itemize}
+可換性と一意性は定義から直ちに従う。
+\end{proof}
+
+\begin{remark}[mathlib の \texttt{IsColimit} との整合性]
+上記の普遍性は、Lean の \texttt{CategoryTheory.Limits} ライブラリにおける \texttt{IsColimit} と整合する。実装では \texttt{coprodCofan} と \texttt{coprodIsColimit} により、$T_1 \sqcup T_2$ が圏論的な余極限（colimit）であることを示している。
+\end{remark}
+
+\section{なぜ ordinal-sum 順序では破綻するか}
+\label{sec:why-fail}
+
+\subsection{ordinal-sum 順序の定義}
+
+余積の添字として $I_1 \sqcup I_2$ を用いる際、以下のような「全順序的な」順序を考えることができる：
+
+\begin{definition}[ordinal-sum 順序（破綻する例）]
+\[
+\mathrm{inl}(i) \leq \mathrm{inl}(i') \iff i \leq_1 i', \quad
+\mathrm{inr}(j) \leq \mathrm{inr}(j') \iff j \leq_2 j'
+\]
+\[
+\mathrm{inl}(i) \leq \mathrm{inr}(j) \iff \mathrm{True} \quad \text{（常に成立）}
+\]
+\[
+\mathrm{inr}(j) \leq \mathrm{inl}(i) \iff \mathrm{False}
+\]
+すなわち、「左側の要素はすべて右側の要素より小さい」という順序である。
+\end{definition}
+
+\subsection{単調性の破綻}
+
+\begin{proposition}[ordinal-sum では単調性が成立しない]
+上記の ordinal-sum 順序を採用し、層を
+\[
+\text{layer}(\mathrm{inl}(i)) = \mathrm{inl}''(\lambda_1(i)), \quad
+\text{layer}(\mathrm{inr}(j)) = \mathrm{inr}''(\lambda_2(j))
+\]
+と定義すると、単調性
+\[
+\mathrm{inl}(i) \leq \mathrm{inr}(j) \Rightarrow \text{layer}(\mathrm{inl}(i)) \subseteq \text{layer}(\mathrm{inr}(j))
+\]
+が\textbf{一般に成立しない}。
+\end{proposition}
+
+\begin{proof}
+ordinal-sum 順序では、任意の $i \in I_1, j \in I_2$ に対して $\mathrm{inl}(i) \leq \mathrm{inr}(j)$ が成立する。したがって、単調性は
+\[
+\mathrm{inl}''(\lambda_1(i)) \subseteq \mathrm{inr}''(\lambda_2(j))
+\]
+を要求する。
+
+しかし、$\mathrm{inl}''(\lambda_1(i))$ は $\mathrm{inl}(x)$ 形の要素のみを含み、$\mathrm{inr}''(\lambda_2(j))$ は $\mathrm{inr}(y)$ 形の要素のみを含む。$\mathrm{inl}$ と $\mathrm{inr}$ は異なるコンストラクタなので、集合論的に
+\[
+\mathrm{inl}''(\lambda_1(i)) \cap \mathrm{inr}''(\lambda_2(j)) = \emptyset
+\]
+である。したがって、$\mathrm{inl}''(\lambda_1(i)) \subseteq \mathrm{inr}''(\lambda_2(j))$ が成立するのは、$\lambda_1(i) = \emptyset$ のときのみである。
+
+一般の構造塔では $\lambda_1(i) \neq \emptyset$ であるため、単調性は\textbf{偽}である。
+\end{proof}
+
+\begin{remark}[sorry の正体]
+Lean の実装で \texttt{sorry} が残っていた箇所は、まさにこの「集合論的に成立しない包含関係」を証明しようとしていた。これは証明不可能であり、\textbf{構成自体が誤り}であることを示している。
+\end{remark}
+
+\subsection{不可能性の明文化}
+
+\begin{tcolorbox}[title=定理（非形式的）]
+添字集合として $I_1 \sqcup I_2$ を用い、層を
+\[
+\text{layer}(\mathrm{inl}(i)) = \mathrm{inl}''(\lambda_1(i)), \quad
+\text{layer}(\mathrm{inr}(j)) = \mathrm{inr}''(\lambda_2(j))
+\]
+と定義するとき、以下は両立しない：
+\begin{enumerate}
+    \item ordinal-sum 順序（$\mathrm{inl}(i) \leq \mathrm{inr}(j)$ が常に成立）を採用する。
+    \item 単調性 $k \leq k' \Rightarrow \text{layer}(k) \subseteq \text{layer}(k')$ が成立する。
+    \item $T_1, T_2$ が非自明な層（$\lambda_1(i) \neq \emptyset$ など）を持つ。
+\end{enumerate}
+\end{tcolorbox}
+
+したがって、余積を構成するには以下のいずれかを選ぶ必要がある：
+\begin{itemize}
+    \item \textbf{直和順序を採用}（本稿の Sum 版、\S2）：cross 比較を禁止して単調性を確保。
+    \item \textbf{層の定義を変更}（次節の Prod 版、\S4）：添字を $I_1 \times I_2$ にして、層を $\mathrm{inl}''(\lambda_1(i)) \cup \mathrm{inr}''(\lambda_2(j))$ と定義。
+\end{itemize}
+
+\section{Extension：2D Progress Tower（Prod 版）}
+
+\subsection{動機：余積の普遍性を放棄する}
+
+Sum 版の余積は圏論的に正しいが、添字が「左右に完全分離」されているため、「両側の進行度を同時に追跡する」ような応用には不向きである。例えば：
+\begin{itemize}
+    \item 二つの確率過程の同時フィルトレーション（$\sigma$-代数の対）
+    \item 二つの計算過程の並行進行（両方の資源使用量を追跡）
+    \item 二つの階層構造の「積」（両方の複雑度を独立に管理）
+\end{itemize}
+
+こうした場合、添字を $I_1 \times I_2$ とし、層を
+\[
+\text{layer}(i, j) = \mathrm{inl}''(\lambda_1(i)) \cup \mathrm{inr}''(\lambda_2(j))
+\]
+と定義する方が自然である。これを \textbf{2D progress tower}（2次元進行塔）と呼ぶ。
+
+\subsection{構成}
+
+\begin{construction}[2D Progress Tower]
+構造塔 $T_1 = (X_1, I_1, \lambda_1, \leq_1)$ と $T_2 = (X_2, I_2, \lambda_2, \leq_2)$ に対し、以下を定義する：
+\begin{align*}
+    \text{carrier} &= X_1 \sqcup X_2 \\
+    \text{Index} &= I_1 \times I_2 \quad \text{（直積順序：$(i_1, j_1) \leq (i_2, j_2) \iff i_1 \leq_1 i_2 \land j_1 \leq_2 j_2$）} \\
+    \text{layer}(i, j) &= \mathrm{inl}''(\lambda_1(i)) \cup \mathrm{inr}''(\lambda_2(j))
+\end{align*}
+\end{construction}
+
+\begin{proposition}[被覆性と単調性]
+上記の構成は以下を満たす：
+\begin{enumerate}
+    \item \textbf{被覆性}：$I_1, I_2$ が inhabited なら成立（反対側の添字を $\mathrm{default}$ で埋める）。
+    \item \textbf{単調性}：$(i_1, j_1) \leq (i_2, j_2)$ ならば、
+    \[
+    \mathrm{inl}''(\lambda_1(i_1)) \cup \mathrm{inr}''(\lambda_2(j_1)) \subseteq \mathrm{inl}''(\lambda_1(i_2)) \cup \mathrm{inr}''(\lambda_2(j_2))
+    \]
+    （$T_1, T_2$ の単調性と $\cup$ の単調性より）。
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+\textbf{(1) 被覆性}：$x \in X_1 \sqcup X_2$ に対し、
+\begin{itemize}
+    \item $x = \mathrm{inl}(x_1)$ の場合：$\exists i \in I_1, x_1 \in \lambda_1(i)$ なので、$(i, \mathrm{default}) \in I_1 \times I_2$ に対し、
+    \[
+    x = \mathrm{inl}(x_1) \in \mathrm{inl}''(\lambda_1(i)) \subseteq \text{layer}(i, \mathrm{default})
+    \]
+    \item $x = \mathrm{inr}(x_2)$ の場合：同様に $(\mathrm{default}, j)$ を取る。
+\end{itemize}
+
+\textbf{(2) 単調性}：$(i_1, j_1) \leq (i_2, j_2)$ より $i_1 \leq_1 i_2$ かつ $j_1 \leq_2 j_2$ なので、
+\[
+\lambda_1(i_1) \subseteq \lambda_1(i_2), \quad \lambda_2(j_1) \subseteq \lambda_2(j_2)
+\]
+したがって、
+\[
+\mathrm{inl}''(\lambda_1(i_1)) \subseteq \mathrm{inl}''(\lambda_1(i_2)), \quad
+\mathrm{inr}''(\lambda_2(j_1)) \subseteq \mathrm{inr}''(\lambda_2(j_2))
+\]
+よって、
+\[
+\text{layer}(i_1, j_1) = \mathrm{inl}''(\lambda_1(i_1)) \cup \mathrm{inr}''(\lambda_2(j_1)) \subseteq \mathrm{inl}''(\lambda_1(i_2)) \cup \mathrm{inr}''(\lambda_2(j_2)) = \text{layer}(i_2, j_2)
+\]
+\end{proof}
+
+\subsection{なぜ余積の普遍性を主張しないか}
+
+\begin{remark}[余積ではない理由]
+2D progress tower は、注入射
+\[
+\iota_1 : T_1 \to T_{\sqcup 2D}, \quad \iota_1(x) = \mathrm{inl}(x), \quad \text{witness: } (i, \mathrm{default})
+\]
+\[
+\iota_2 : T_2 \to T_{\sqcup 2D}, \quad \iota_2(y) = \mathrm{inr}(y), \quad \text{witness: } (\mathrm{default}, j)
+\]
+を持つが、普遍性（定理 \ref{thm:coproduct-universal}）の証明で問題が生じる。
+
+具体的には、任意の射 $g_1 : T_1 \to T$, $g_2 : T_2 \to T$ から $[g_1, g_2] : T_{\sqcup 2D} \to T$ を構成する際、添字 $(i, j) \in I_1 \times I_2$ に対して
+\[
+[g_1, g_2](\text{layer}(i, j)) = [g_1, g_2](\mathrm{inl}''(\lambda_1(i)) \cup \mathrm{inr}''(\lambda_2(j)))
+\]
+が「ある一つの層 $\lambda_T(k)$ に含まれる」ことを示す必要がある。しかし、$g_1$ と $g_2$ の witness がそれぞれ異なる $k_1, k_2 \in I_T$ を与えるため、$T$ の添字に\textbf{上限（sup）や最大値（max）の構造}がない限り、一般には証明できない。
+\end{remark}
+
+\begin{tcolorbox}[title=重要な結論]
+2D progress tower は以下の特徴を持つ：
+\begin{itemize}
+    \item[$\checkmark$] 単調性と被覆性を満たす正当な構造塔である。
+    \item[$\checkmark$] 両側の進行度を独立に追跡できる（応用上有用）。
+    \item[$\times$] 一般には余積の普遍性を満たさない（$T$ に sup が必要）。
+\end{itemize}
+したがって、「余積ではないが有用な構成」として、別名 \texttt{sumCarrierTower2D} で定義される。
+\end{tcolorbox}
+
+\subsection{追加仮定による普遍性の回復（展望）}
+
+もし目標となる構造塔 $T$ の添字集合 $I_T$ が以下の性質を持つなら、2D progress tower からの射の構成が可能になる：
+
+\begin{definition}[上限を持つ前順序]
+前順序 $(I, \leq)$ が\textbf{有限上限を持つ}とは、任意の $i, j \in I$ に対して、$i \sqcup j := \sup\{i, j\}$ が存在することである。
+\end{definition}
+
+\begin{proposition}[条件付き普遍性]
+$I_T$ が有限上限を持つとき、2D progress tower から $T$ への射は以下で構成できる：
+\[
+k := k_1 \sqcup k_2 \quad \text{（$k_1$ は $g_1$ の witness、$k_2$ は $g_2$ の witness）}
+\]
+とすれば、$T$ の単調性より
+\[
+[g_1, g_2](\text{layer}(i, j)) \subseteq \lambda_T(k_1) \cup \lambda_T(k_2) \subseteq \lambda_T(k_1 \sqcup k_2)
+\]
+\end{proposition}
+
+このように、\textbf{追加仮定を明示的に隔離}することで、Bourbaki 流の「まず構成を示し、後から条件を追加する」スタイルが実現される。
+
+\section{包含関手と射の階層}
+
+\subsection{圏の階層構造}
+
+構造塔の射には、以下の三つの強さのレベルがある：
+
+\begin{center}
+\begin{tikzcd}
+    \mathbf{Cat}_{\mathrm{eq}} \ar[r, hook] & \mathbf{Cat}_{\mathrm{le}} \ar[r, hook] & \mathbf{Cat}_{\mathcal{D}}
+\end{tikzcd}
+\end{center}
+
+\begin{itemize}
+    \item $\mathbf{Cat}_{\mathrm{eq}}$：射は $(f, \phi)$ で、$f : X \to X'$ と $\phi : I \to I'$ がともに\textbf{全単射}。
+    \item $\mathbf{Cat}_{\mathrm{le}}$：射は $(f, \phi)$ で、$\phi$ が\textbf{順序保存}（monotone）かつ $f(\lambda(i)) \subseteq \lambda'(\phi(i))$。
+    \item $\mathbf{Cat}_{\mathcal{D}}$：射は $f$ のみで、$\forall i, \exists j, f(\lambda(i)) \subseteq \lambda'(j)$（存在量化）。
+\end{itemize}
+
+\subsection{忘却と包含}
+
+\begin{definition}[HomLe から HomD への変換]
+$\mathbf{Cat}_{\mathrm{le}}$ の射 $(f, \phi)$ から、$\phi$ の情報を忘れて $\mathbf{Cat}_{\mathcal{D}}$ の射 $f$ を得る写像を
+\[
+\mathrm{forget} : \mathbf{Cat}_{\mathrm{le}} \to \mathbf{Cat}_{\mathcal{D}}
+\]
+と書く。これは\textbf{忘却関手}（forgetful functor）である。
+\end{definition}
+
+\begin{remark}
+$\mathrm{forget}$ は忠実（faithful）だが、充満（full）ではない。すなわち、$\mathbf{Cat}_{\mathcal{D}}$ の射の中には、$\mathbf{Cat}_{\mathrm{le}}$ に「持ち上げ」できないものが存在する。
+\end{remark}
+
+\section{まとめと今後の展望}
+
+\subsection{本稿の成果}
+
+本稿では、構造塔の圏 $\mathbf{Cat}_{\mathcal{D}}$ における余積の構成を二つの観点から論じた：
+
+\begin{enumerate}
+    \item \textbf{Sum 版（直和順序）}：圏論的に正しい余積。cross 比較を禁止することで単調性を確保。
+    \item \textbf{Prod 版（2D progress tower）}：余積の普遍性は一般に主張しないが、両側の進行度を独立に追跡できる柔軟な構成。
+\end{enumerate}
+
+また、ordinal-sum 順序が単調性を破壊する理由を、集合論的な観点から明確にした。これは、Lean で \texttt{sorry} が残っていた箇所が「証明不可能」であることの数学的証明である。
+
+\subsection{Bourbaki の精神}
+
+本稿の構成は、以下の Bourbaki の原則に従っている：
+
+\begin{itemize}
+    \item \textbf{構成の優先}：まず集合論的構成を示し、後から圏論的性質（普遍性）を検証する。
+    \item \textbf{仮定の明示}：余積の普遍性が成立するための条件（直和順序、sup の存在など）を明確に隔離する。
+    \item \textbf{階層性の尊重}：射の強さ（$\mathrm{eq}, \mathrm{le}, \mathcal{D}$）に応じた構造の違いを体系的に整理する。
+\end{itemize}
+
+\subsection{今後の課題}
+
+以下の問題が未解決である：
+
+\begin{enumerate}
+    \item \textbf{2D progress tower の普遍性の完全な特徴付け}：どのような $T$ に対して普遍射が構成可能か？
+    \item \textbf{無限余積への拡張}：任意の族 $\{T_i\}_{i \in I}$ に対する $\coprod_i T_i$ の構成。
+    \item \textbf{引き戻し（pullback）の実装}：$\mathbf{Cat}_{\mathcal{D}}$ は完備（complete）か？
+    \item \textbf{随伴関手の構成}：忘却関手の左随伴として、「自由構造塔」が存在するか？
+\end{enumerate}
+
+\subsection{Lean 形式化の意義}
+
+本稿で論じたすべての構成は、Lean 4 で形式的に検証されている。特に、以下の点が重要である：
+
+\begin{itemize}
+    \item \textbf{不可能性の証明}：ordinal-sum の破綻は、単に「証明できない」だけでなく、「矛盾を導く」ことが機械的に確認されている。
+    \item \textbf{普遍性の厳密な検証}：mathlib の \texttt{IsColimit} により、Sum 版が圏論的に正しい余積であることが保証されている。
+    \item \textbf{型レベルの区別}：Sum 版と Prod 版は異なる型として実装されており、混同が防がれている。
+\end{itemize}
+
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}
+\end{center}
+
+\begin{center}
+\textit{構造塔理論は、Bourbaki の階層的数学観を\\現代の型理論と圏論で再構成する試みである。}
+\end{center}
+
+\appendix
+
+\section{図式一覧}
+
+\subsection{余積の普遍性（Sum 版）}
+
+\[
+\begin{tikzcd}[row sep=large, column sep=large]
+    T_1 \ar[d, "\iota_1"'] \ar[ddr, bend left=20, "g_1"] & \\
+    T_1 \sqcup T_2 \ar[dr, dashed, "{[g_1, g_2]}"] & \\
+    T_2 \ar[u, "\iota_2"] \ar[r, bend right=20, "g_2"'] & T
+\end{tikzcd}
+\]
+
+\subsection{包含関手の図式}
+
+\[
+\begin{tikzcd}[row sep=small]
+    \mathbf{Cat}_{\mathrm{eq}} \ar[d, hook, "\text{forget } \phi \text{ bijection}"] \\
+    \mathbf{Cat}_{\mathrm{le}} \ar[d, hook, "\text{forget } \phi"] \\
+    \mathbf{Cat}_{\mathcal{D}}
+\end{tikzcd}
+\]
+
+\subsection{直積と余積の対称性}
+
+\[
+\begin{tikzcd}[row sep=large, column sep=huge]
+    T_1 \times T_2 \ar[r, "\pi_1"] \ar[d, "\pi_2"'] & T_1 \\
+    T_2 &
+\end{tikzcd}
+\qquad
+\begin{tikzcd}[row sep=large, column sep=huge]
+    T_1 \ar[r, "\iota_1"] \ar[d] & T_1 \sqcup T_2 \\
+    & T_2 \ar[u, "\iota_2"']
+\end{tikzcd}
+\]
+
+\section{Lean コードの対応表}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{数学的概念} & \textbf{Lean 定義} \\ \hline
+構造塔 & \texttt{StructureTower} \\
+$\mathbf{Cat}_{\mathcal{D}}$ の射 & \texttt{HomD} \\
+余積（Sum 版） & \texttt{coprod} \\
+2D progress tower & \texttt{sumCarrierTower2D} \\
+直和順序 & \texttt{sumPreorder} \\
+注入射 & \texttt{inj₁}, \texttt{inj₂} \\
+普遍射 & \texttt{coprodUniversal} \\
+普遍性の証明 & \texttt{coprodIsColimit} \\ \hline
+\end{tabular}
+\caption{数学的記法と Lean コードの対応}
+\end{table}
+
+\end{document}

@@ -3,7 +3,10 @@ import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Order.Basic
 import Mathlib.Combinatorics.SimpleGraph.Basic
+import Mathlib.Combinatorics.SimpleGraph.Connectivity.Connected
+import Mathlib.Data.ENat.Basic
 import Mathlib.Data.Nat.Lattice
+import Mathlib.Data.Rat.Init
 
 /-!
 # P5_Applications: 構造塔の高度な応用例
@@ -94,7 +97,7 @@ instance instIndexPreorder (T : TowerD) : Preorder T.Index :=
 
 section Reachability
 
-/-- 有限頂点集合を持つ単純グラフ
+/- 有限頂点集合を持つ単純グラフ
 
 Mathlib の SimpleGraph を使用。
 -/
@@ -104,11 +107,14 @@ variable {V : Type u} [DecidableEq V] [Fintype V]
 
 連結でない場合は ⊤ (無限大) を返す。
 -/
-noncomputable def distance (G : SimpleGraph V) (s : V) (v : V) : ℕ∞ :=
-  if h : G.Reachable s v then
-    Nat.find h
-  else
-    ⊤
+noncomputable def distance (G : SimpleGraph V) (s : V) (v : V) : ℕ∞ := by
+  classical
+  by_cases h : G.Reachable s v
+  · have hex : ∃ n : ℕ, ∃ w : G.Walk s v, w.length = n := by
+      rcases h with ⟨w⟩
+      exact ⟨w.length, w, rfl⟩
+    exact (Nat.find hex : ℕ∞)
+  · exact ⊤
 
 /-- 到達可能性による構造塔
 
@@ -119,23 +125,15 @@ noncomputable def distance (G : SimpleGraph V) (s : V) (v : V) : ℕ∞ :=
 -/
 noncomputable def reachabilityTower (G : SimpleGraph V) (s : V) : TowerD where
   carrier := V
-  Index := ℕ
+  Index := ℕ∞
   layer := fun n => {v : V | distance G s v ≤ n}
   covering := by
     intro v
-    -- s 自身は距離 0
-    by_cases h : G.Reachable s v
-    · have ⟨n, hn⟩ := h
-      use n
-      simp [distance, h]
-      sorry -- Nat.find の性質から従う
-    · -- 到達不可能な場合は layer ⊤ に属する（概念的）
-      -- 有限グラフでは常に有限距離で到達可能とする
-      sorry
+    refine ⟨distance G s v, ?_⟩
+    simp
   monotone := by
     intro i j hij v hv
-    simp [distance] at hv ⊢
-    exact le_trans hv (WithTop.coe_le_coe.mpr hij)
+    exact le_trans hv hij
 
 /-!
 **具体例：線グラフ**
@@ -168,9 +166,11 @@ def lineGraph5 : SimpleGraph (Fin 5) where
     cases h <;> simp [*]
   loopless := by
     intro i h
-    cases h <;> omega
+    rcases h with h | h
+    · exact Nat.add_one_ne_self i.val h
+    · exact Nat.add_one_ne_self i.val h
 
-example : TowerD := reachabilityTower lineGraph5 0
+noncomputable example : TowerD := reachabilityTower lineGraph5 0
 
 /-!
 **具体例：完全グラフ**
@@ -187,9 +187,11 @@ example : TowerD := reachabilityTower lineGraph5 0
 def completeGraph (n : ℕ) : SimpleGraph (Fin n) where
   Adj := fun i j => i ≠ j
   symm := fun _ _ => Ne.symm
-  loopless := fun _ => id
+  loopless := by
+    intro i
+    simp
 
-example : TowerD := reachabilityTower (completeGraph 10) 0
+noncomputable example : TowerD := reachabilityTower (completeGraph 10) 0
 
 /-!
 **構造塔の射の例：グラフ準同型**
@@ -265,7 +267,7 @@ def cbRank (n : ℕ) (i : Fin (2*n)) : ℕ :=
 
 layer k = {i ∈ Fin (2n) | cbRank(i) ≤ k}
 -/
-def cantorBendixsonTower (n : ℕ) : TowerD where
+@[reducible] def cantorBendixsonTower (n : ℕ) : TowerD where
   carrier := Fin (2*n)
   Index := ℕ
   layer := fun k => {i : Fin (2*n) | cbRank n i ≤ k}
@@ -290,7 +292,6 @@ example : (0 : Fin 6) ∈ (cantorBendixsonTower 3).layer 0 := by
 /-- 階数 2 の点は layer 2 に属する -/
 example : (4 : Fin 6) ∈ (cantorBendixsonTower 3).layer 2 := by
   simp [cantorBendixsonTower, cbRank]
-  decide
 
 /-!
 **理論的意義**:
@@ -374,7 +375,7 @@ def algebraicDegree : AlgebraicNumber → ℕ
 
 layer n = {α | deg(α) ≤ n}
 -/
-def algebraicNumberTower : TowerD where
+@[reducible] def algebraicNumberTower : TowerD where
   carrier := AlgebraicNumber
   Index := ℕ
   layer := fun n => {α : AlgebraicNumber | algebraicDegree α ≤ n}
@@ -387,7 +388,7 @@ def algebraicNumberTower : TowerD where
     simp at hα ⊢
     exact le_trans hα hij
 
-/-- 具体的な計算例 -/
+/- 具体的な計算例 -/
 
 /-- 有理数は layer 1 に属する -/
 example : rational 3 ∈ algebraicNumberTower.layer 1 := by
@@ -400,7 +401,6 @@ example : sqrt2 ∈ algebraicNumberTower.layer 2 := by
 /-- √2 は layer 1 に属さない -/
 example : sqrt2 ∉ algebraicNumberTower.layer 1 := by
   simp [algebraicNumberTower, algebraicDegree]
-  decide
 
 /-- ∛2 は layer 3 に属する -/
 example : cbrt2 ∈ algebraicNumberTower.layer 3 := by
@@ -490,7 +490,7 @@ structure Simplex where
 
 実際のホモロジー的次元は複体の大域的構造に依存する。
 -/
-def homologicalDimensionTower : TowerD where
+@[reducible] def homologicalDimensionTower : TowerD where
   carrier := Simplex
   Index := ℕ
   layer := fun n => {σ : Simplex | σ.dimension ≤ n}
@@ -694,7 +694,7 @@ end ST
 
 ### 完全性
 - すべての例で構造塔の公理を満たすことを証明
-- sorry は理論的に困難な部分のみ（距離関数の性質など）
+- 未証明のまま残さずビルドが通る形にしている
 
 ### 教育的価値
 - 具体的な計算例を豊富に含む

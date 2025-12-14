@@ -1,0 +1,463 @@
+\documentclass[a4paper,11pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\geometry{margin=25mm}
+
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+\title{構造塔の圏論的性質と2次元構造塔\\
+  \Large P4\_Categorical および P4\_SumCarrierTower2D の数学的解説}
+\author{Claude Code (Anthropic) により生成 \\
+  \small Lean形式化コードは Codex (OpenAI) により生成}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、構造塔（structure tower）の圏論的性質を詳細に解説する。
+第1部では、構造塔の圏 Cat\_D における忘却関手、包含関手、直積、余積といった基本的な圏論的構成を扱う（P4\_Categorical.lean）。
+第2部では、台集合が直和で添字集合が直積である2次元構造塔の構成を解説する（P4\_SumCarrierTower2D.lean）。
+これらの構成は Bourbaki の構造理論を圏論的に再解釈したものであり、
+異なる数学的構造を統一的に扱う枠組みを提供する。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+\subsection{構造塔の基本定義}
+
+構造塔（Structure Tower）は、集合上の階層構造を形式化する概念である。
+
+\begin{definition}[構造塔]
+構造塔 $T$ は以下の要素からなる：
+\begin{itemize}
+  \item $X$：台集合（carrier）
+  \item $I$：添字集合（Index）、前順序集合
+  \item $\mathrm{layer} : I \to \mathcal{P}(X)$：層関数
+  \item 被覆性（covering）：$\forall x \in X, \exists i \in I, x \in \mathrm{layer}(i)$
+  \item 単調性（monotone）：$i \leq j \Rightarrow \mathrm{layer}(i) \subseteq \mathrm{layer}(j)$
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+構造塔には3つの変種がある：
+\begin{itemize}
+  \item \textbf{Cat\_D}：射は $\mathrm{map}: X \to X'$ のみ、層保存は存在量化
+  \item \textbf{Cat\_le}：射は $(\mathrm{map}, \mathrm{indexMap})$ の対、$\mathrm{indexMap}$ は単調
+  \item \textbf{Cat\_eq}：Cat\_le の射でさらに両方が全単射
+\end{itemize}
+包含関係：$\mathrm{HomEq} \subseteq \mathrm{HomLe} \subseteq \mathrm{HomD}$
+\end{remark}
+
+\subsection{本稿の構成}
+
+\begin{itemize}
+  \item 第2節：忘却関手と包含関手の定義と性質
+  \item 第3節：直積の構成と普遍性
+  \item 第4節：余積の構成と普遍性
+  \item 第5節：2次元構造塔（Index が Prod の場合）
+  \item 第6節：まとめと今後の課題
+\end{itemize}
+
+\section{忘却関手と包含関手（P4\_Categorical 第1部）}
+
+\subsection{忘却関手}
+
+構造塔から台集合や添字集合への「構造を忘れる」操作を関手として形式化する。
+
+\begin{definition}[台集合への忘却関手]
+関手 $U : \mathrm{Cat}_D \to \mathrm{Type}$ を以下で定義する：
+\begin{itemize}
+  \item 対象：$U(T) = T.\mathrm{carrier}$
+  \item 射：$U(f : T \to_{D} T') = f.\mathrm{map} : X \to X'$
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+この関手は忠実（faithful）である。すなわち、異なる射は異なる写像に対応する。
+しかし、完全忠実（fully faithful）ではない：任意の写像 $X \to X'$ が層保存条件を満たすとは限らない。
+\end{remark}
+
+\subsection{包含関手}
+
+射の条件の階層に沿った包含関手を定義する。
+
+\begin{definition}[包含関手]
+以下の変換関数を定義する：
+\begin{align*}
+  \mathrm{homLeToHomD} &: \mathrm{HomLe}(T, T') \to \mathrm{HomD}(T, T') \\
+  \mathrm{homEqToHomLe} &: \mathrm{HomEq}(T, T') \to \mathrm{HomLe}(T, T')
+\end{align*}
+\end{definition}
+
+\begin{proposition}
+包含関手は忠実である。すなわち、
+\[
+f \neq g \Rightarrow \mathrm{homLeToHomD}(f) \neq \mathrm{homLeToHomD}(g)
+\]
+\end{proposition}
+
+\begin{proof}
+$\mathrm{HomD}$ の射は $\mathrm{map}$ のみで決まり、$\mathrm{HomLe}$ の射も $\mathrm{map}$ の情報を保存するため。
+\end{proof}
+
+以下の可換図式が成立する：
+\[
+\begin{tikzcd}
+\mathrm{HomEq}(T, T') \arrow[r, "\mathrm{homEqToHomLe}"] \arrow[rr, bend right, "\mathrm{homEqToHomD}"']
+  & \mathrm{HomLe}(T, T') \arrow[r, "\mathrm{homLeToHomD}"]
+  & \mathrm{HomD}(T, T')
+\end{tikzcd}
+\]
+
+\section{直積の構成（P4\_Categorical 第2部）}
+
+\subsection{直積の定義}
+
+二つの構造塔 $T_1, T_2$ の直積 $T_1 \times T_2$ を構成する。
+
+\begin{definition}[構造塔の直積]
+$T_1 \times^D T_2$ を以下で定義する：
+\begin{itemize}
+  \item carrier：$X_1 \times X_2$
+  \item Index：$I_1 \times I_2$（直積順序）
+  \item layer：$\mathrm{layer}(i, j) = \mathrm{layer}_1(i) \times \mathrm{layer}_2(j)$
+\end{itemize}
+\end{definition}
+
+\begin{proposition}[直積の被覆性と単調性]
+$T_1 \times^D T_2$ は構造塔である。
+\end{proposition}
+
+\begin{proof}
+\textbf{被覆性}：任意の $(x_1, x_2) \in X_1 \times X_2$ に対して、
+$x_1 \in \mathrm{layer}_1(i)$ かつ $x_2 \in \mathrm{layer}_2(j)$ となる $i, j$ が存在するから、
+$(x_1, x_2) \in \mathrm{layer}(i, j)$。
+
+\textbf{単調性}：$(i_1, j_1) \leq (i_2, j_2)$ すなわち $i_1 \leq i_2 \land j_1 \leq j_2$ のとき、
+$\mathrm{layer}_1(i_1) \subseteq \mathrm{layer}_1(i_2)$ かつ $\mathrm{layer}_2(j_1) \subseteq \mathrm{layer}_2(j_2)$
+より、$\mathrm{layer}(i_1, j_1) \subseteq \mathrm{layer}(i_2, j_2)$。
+\end{proof}
+
+\subsection{射影と普遍性}
+
+\begin{definition}[射影射]
+以下の射を定義する：
+\begin{align*}
+  \pi_1 &: T_1 \times^D T_2 \to_D T_1, \quad (x, y) \mapsto x \\
+  \pi_2 &: T_1 \times^D T_2 \to_D T_2, \quad (x, y) \mapsto y
+\end{align*}
+\end{definition}
+
+\begin{theorem}[直積の普遍性]
+任意の構造塔 $T$ と射 $f_1 : T \to_D T_1$, $f_2 : T \to_D T_2$ に対して、
+一意的な射 $\langle f_1, f_2 \rangle : T \to_D T_1 \times^D T_2$ が存在して、
+以下の図式が可換になる：
+\[
+\begin{tikzcd}
+  & T \arrow[ld, "f_1"'] \arrow[rd, "f_2"] \arrow[d, dashed, "{\langle f_1, f_2 \rangle}"] & \\
+T_1 & T_1 \times^D T_2 \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & T_2
+\end{tikzcd}
+\]
+すなわち、$\pi_1 \circ \langle f_1, f_2 \rangle = f_1$ かつ $\pi_2 \circ \langle f_1, f_2 \rangle = f_2$。
+\end{theorem}
+
+\begin{proof}
+\textbf{存在性}：$\langle f_1, f_2 \rangle$ を $x \mapsto (f_1(x), f_2(x))$ で定義する。
+層保存条件は、$x \in \mathrm{layer}(i)$ に対して、
+$f_1(x) \in \mathrm{layer}_1(j_1)$ かつ $f_2(x) \in \mathrm{layer}_2(j_2)$ となる $j_1, j_2$ が存在するから、
+$(f_1(x), f_2(x)) \in \mathrm{layer}(j_1, j_2)$。
+
+\textbf{一意性}：$\pi_1 \circ g = f_1$ かつ $\pi_2 \circ g = f_2$ を満たす $g$ について、
+$g(x) = (g(x)_1, g(x)_2) = (\pi_1(g(x)), \pi_2(g(x))) = (f_1(x), f_2(x))$
+より、$g = \langle f_1, f_2 \rangle$。
+\end{proof}
+
+\section{余積の構成（P4\_Categorical 第3部）}
+
+\subsection{直和順序}
+
+余積を定義するには、$I_1 \oplus I_2$ 上の順序が必要である。
+
+\begin{definition}[直和順序]
+$I_1 \oplus I_2$ 上の順序を以下で定義する：
+\begin{align*}
+  \mathrm{inl}(a) \leq \mathrm{inl}(b) &\Leftrightarrow a \leq b \\
+  \mathrm{inr}(a) \leq \mathrm{inr}(b) &\Leftrightarrow a \leq b \\
+  \mathrm{inl}(\_) \leq \mathrm{inr}(\_) &\Leftrightarrow \bot \\
+  \mathrm{inr}(\_) \leq \mathrm{inl}(\_) &\Leftrightarrow \bot
+\end{align*}
+\end{definition}
+
+\begin{remark}
+この定義により、異なる variant 間での比較は常に偽となる。
+これは層の単調性を保証するために必要である（$\mathrm{inl}$ の像と $\mathrm{inr}$ の像は交わらない）。
+\end{remark}
+
+\subsection{余積の定義}
+
+\begin{definition}[構造塔の余積]
+$T_1 \oplus^D T_2$ を以下で定義する：
+\begin{itemize}
+  \item carrier：$X_1 \oplus X_2$
+  \item Index：$I_1 \oplus I_2$（直和順序）
+  \item layer：
+  \[
+  \mathrm{layer}(\mathrm{idx}) = \begin{cases}
+    \mathrm{inl}''(\mathrm{layer}_1(i)) & \text{if } \mathrm{idx} = \mathrm{inl}(i) \\
+    \mathrm{inr}''(\mathrm{layer}_2(j)) & \text{if } \mathrm{idx} = \mathrm{inr}(j)
+  \end{cases}
+  \]
+\end{itemize}
+ここで、$\mathrm{inl}''(S) = \{\mathrm{inl}(x) \mid x \in S\}$ は像集合を表す。
+\end{definition}
+
+\subsection{埋め込みと普遍性}
+
+\begin{definition}[埋め込み射]
+以下の射を定義する：
+\begin{align*}
+  \iota_1 &: T_1 \to_D T_1 \oplus^D T_2, \quad x \mapsto \mathrm{inl}(x) \\
+  \iota_2 &: T_2 \to_D T_1 \oplus^D T_2, \quad y \mapsto \mathrm{inr}(y)
+\end{align*}
+\end{definition}
+
+\begin{theorem}[余積の普遍性]
+任意の構造塔 $T$ と射 $g_1 : T_1 \to_D T$, $g_2 : T_2 \to_D T$ に対して、
+一意的な射 $[g_1, g_2] : T_1 \oplus^D T_2 \to_D T$ が存在して、
+以下の図式が可換になる：
+\[
+\begin{tikzcd}
+T_1 \arrow[r, "\iota_1"] \arrow[rd, "g_1"'] & T_1 \oplus^D T_2 \arrow[d, dashed, "{[g_1, g_2]}"] & T_2 \arrow[l, "\iota_2"'] \arrow[ld, "g_2"] \\
+  & T &
+\end{tikzcd}
+\]
+すなわち、$[g_1, g_2] \circ \iota_1 = g_1$ かつ $[g_1, g_2] \circ \iota_2 = g_2$。
+\end{theorem}
+
+\begin{proof}
+\textbf{存在性}：$[g_1, g_2]$ を以下で定義する：
+\[
+[g_1, g_2](x) = \begin{cases}
+  g_1(x_1) & \text{if } x = \mathrm{inl}(x_1) \\
+  g_2(x_2) & \text{if } x = \mathrm{inr}(x_2)
+\end{cases}
+\]
+層保存条件は、各成分の層保存から従う。
+
+\textbf{一意性}：可換性条件より、$h(\mathrm{inl}(x)) = g_1(x)$ および $h(\mathrm{inr}(y)) = g_2(y)$
+が任意の $x, y$ で成立するため、$h = [g_1, g_2]$。
+\end{proof}
+
+\subsection{圏論的余積としての特徴付け}
+
+\begin{theorem}
+$\mathrm{coprod}$ は mathlib の $\mathrm{BinaryCofan}$ / $\mathrm{IsColimit}$ の意味で余積である。
+\end{theorem}
+
+\begin{proof}
+定義 $\mathrm{coprodCofan}$ と補題 $\mathrm{coprodIsColimit}$ により、
+$\mathrm{coprod}$ は圏 $\mathrm{Cat}_D$ における余極限（colimit）である。
+\end{proof}
+
+\section{2次元構造塔（P4\_SumCarrierTower2D）}
+
+\subsection{動機と定義}
+
+直積と余積のハイブリッドとして、台集合が直和で添字集合が直積である構造を考える。
+
+\begin{definition}[2次元構造塔]
+$T_1 \oplus_2^D T_2$ を以下で定義する（$I_1, I_2$ は Inhabited と仮定）：
+\begin{itemize}
+  \item carrier：$X_1 \oplus X_2$
+  \item Index：$I_1 \times I_2$（直積順序）
+  \item layer：
+  \[
+  \mathrm{layer}(i, j) = \mathrm{inl}''(\mathrm{layer}_1(i)) \cup \mathrm{inr}''(\mathrm{layer}_2(j))
+  \]
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+この構造は、左右の複雑度を独立に追跡する。
+層 $(i, j)$ は「左側の複雑度 $i$ 以下」と「右側の複雑度 $j$ 以下」の要素の和集合である。
+\end{remark}
+
+\subsection{被覆性と単調性}
+
+\begin{proposition}
+$T_1 \oplus_2^D T_2$ は構造塔である。
+\end{proposition}
+
+\begin{proof}
+\textbf{被覆性}：$\mathrm{inl}(x_1) \in X_1 \oplus X_2$ に対して、
+$x_1 \in \mathrm{layer}_1(i)$ となる $i$ を取り、$(i, \mathrm{default})$ とする。
+$\mathrm{inr}(x_2)$ の場合も同様に $(\mathrm{default}, j)$ とする。
+
+\textbf{単調性}：$(i_1, j_1) \leq (i_2, j_2)$ のとき、
+$\mathrm{layer}_1(i_1) \subseteq \mathrm{layer}_1(i_2)$ および $\mathrm{layer}_2(j_1) \subseteq \mathrm{layer}_2(j_2)$
+より、層の和集合も包含関係を保つ。
+\end{proof}
+
+\subsection{埋め込み射}
+
+\begin{definition}[2次元構造塔への埋め込み]
+以下の射を定義する：
+\begin{align*}
+  \iota_1^{2D} &: T_1 \to_D T_1 \oplus_2^D T_2, \quad x \mapsto \mathrm{inl}(x) \\
+  \iota_2^{2D} &: T_2 \to_D T_1 \oplus_2^D T_2, \quad y \mapsto \mathrm{inr}(y)
+\end{align*}
+$\iota_1^{2D}$ の indexMap の witness は $(i, \mathrm{default})$、
+$\iota_2^{2D}$ は $(\mathrm{default}, j)$ を用いる。
+\end{definition}
+
+\subsection{普遍性について}
+
+\begin{remark}
+$\oplus_2^D$ は一般に余積の普遍性を \textbf{満たさない}。
+
+理由：射 $[g_1, g_2] : T_1 \oplus_2^D T_2 \to_D T$ を構成する際、
+層保存条件 $\mathrm{map}(\mathrm{layer}(i, j)) \subseteq \mathrm{layer}(k)$ を満たす
+単一の $k$ を選ぶ必要があるが、これは $g_1$ と $g_2$ の層保存条件から来る
+2つの添字の上界を取る操作に対応する。
+
+一般の前順序集合では二項上界（binary sup）が存在するとは限らないため、
+普遍性は成立しない。
+
+Bourbaki 的アプローチでは、まず集合論的構成を示し、普遍性は追加の公理の下で別途証明する。
+\end{remark}
+
+\subsection{直積・余積との比較}
+
+以下の表に3つの構成を比較する：
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+構成 & carrier & Index & 層の定義 \\
+\hline
+直積 $\times^D$ & $X_1 \times X_2$ & $I_1 \times I_2$ & $\mathrm{layer}_1(i) \times \mathrm{layer}_2(j)$ \\
+余積 $\oplus^D$ & $X_1 \oplus X_2$ & $I_1 \oplus I_2$ & $\mathrm{inl}''(\mathrm{layer}_1) \sqcup \mathrm{inr}''(\mathrm{layer}_2)$ \\
+2次元 $\oplus_2^D$ & $X_1 \oplus X_2$ & $I_1 \times I_2$ & $\mathrm{inl}''(\mathrm{layer}_1(i)) \cup \mathrm{inr}''(\mathrm{layer}_2(j))$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\begin{example}[自然数構造塔の2次元和]
+$\mathrm{natTower} \oplus_2^D \mathrm{natTower}$ の層 $(m, n)$ は：
+\[
+\mathrm{layer}(m, n) = \{\mathrm{inl}(k) \mid k \leq m\} \cup \{\mathrm{inr}(k) \mid k \leq n\}
+\]
+これは「左側の自然数 $\leq m$」と「右側の自然数 $\leq n$」の和集合である。
+\end{example}
+
+\section{まとめと今後の展望}
+
+\subsection{本稿の成果}
+
+本稿では以下を詳述した：
+\begin{enumerate}
+  \item 構造塔の圏 Cat\_D における忘却関手と包含関手
+  \item 直積の構成とその普遍性の証明
+  \item 余積の構成とその普遍性の証明（直和順序を用いた実装）
+  \item 2次元構造塔（carrier が Sum、Index が Prod）の構成
+  \item 各構成の具体例と層の特徴付け
+\end{enumerate}
+
+\subsection{実装上の工夫}
+
+\begin{itemize}
+  \item \textbf{直和順序}：異なる variant 間の比較を常に偽とすることで、
+    層の単調性を保証
+  \item \textbf{Inhabited 仮定}：2次元構造塔の被覆性証明で、
+    反対側の添字を埋めるために使用
+  \item \textbf{mathlib 互換性}：$\mathrm{BinaryCofan}$ / $\mathrm{IsColimit}$ として
+    余積を特徴付け
+\end{itemize}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+  \item \textbf{等化子・余等化子}：極限の完全性を示す
+  \item \textbf{引き戻し（Pullback）}：より複雑な極限の構成
+  \item \textbf{随伴関手}：忘却関手の左随伴としての自由構造塔
+  \item \textbf{2次元構造塔の普遍性}：二項上界を持つ場合の特徴付け
+  \item \textbf{高次圏構造}：2-圏としての Cat\_D の性質
+  \item \textbf{具体例の拡充}：確率論、代数、位相空間への応用
+\end{enumerate}
+
+\subsection{Bourbaki の精神}
+
+本実装は Bourbaki の構造理論を圏論的に再解釈したものである：
+\begin{itemize}
+  \item \textbf{階層性}：射の条件による圏の階層（Cat\_eq $\subseteq$ Cat\_le $\subseteq$ Cat\_D）
+  \item \textbf{普遍性}：極限・余極限による構造の特徴付け
+  \item \textbf{構成性}：小さな部品（関手、自然変換）から大きな構造を組み立てる
+\end{itemize}
+
+構造塔理論は、代数、位相、順序といった異なる数学的構造を統一的に扱う
+Bourbaki の思想の現代的実現である。
+
+\section*{付録：可換図式のまとめ}
+
+\subsection*{直積の普遍性}
+
+\[
+\begin{tikzcd}[row sep=large, column sep=large]
+  & T \arrow[ld, "f_1"'] \arrow[rd, "f_2"] \arrow[d, dashed, "{\exists! \langle f_1, f_2 \rangle}"] & \\
+T_1 & T_1 \times^D T_2 \arrow[l, "\pi_1"] \arrow[r, "\pi_2"'] & T_2
+\end{tikzcd}
+\]
+
+\subsection*{余積の普遍性}
+
+\[
+\begin{tikzcd}[row sep=large, column sep=large]
+T_1 \arrow[r, "\iota_1"] \arrow[rd, "g_1"'] & T_1 \oplus^D T_2 \arrow[d, dashed, "{\exists! [g_1, g_2]}"] & T_2 \arrow[l, "\iota_2"'] \arrow[ld, "g_2"] \\
+  & T &
+\end{tikzcd}
+\]
+
+\subsection*{包含関手の図式}
+
+\[
+\begin{tikzcd}[column sep=large]
+\mathrm{HomEq}(T, T') \arrow[r, hookrightarrow] \arrow[rr, bend right=20, hookrightarrow, "{\mathrm{homEqToHomD}}"']
+  & \mathrm{HomLe}(T, T') \arrow[r, hookrightarrow]
+  & \mathrm{HomD}(T, T')
+\end{tikzcd}
+\]
+
+\subsection*{忘却関手}
+
+\[
+\begin{tikzcd}[row sep=large]
+\mathrm{Cat}_D \arrow[r, "U"] & \mathrm{Type} \\
+T \arrow[r, mapsto] & T.\mathrm{carrier} \\
+(f : T \to T') \arrow[r, mapsto] & f.\mathrm{map}
+\end{tikzcd}
+\]
+
+\section*{参考文献}
+
+\begin{itemize}
+  \item Mac Lane, S. \textit{Categories for the Working Mathematician}, 2nd ed., Springer, 1998.
+  \item Awodey, S. \textit{Category Theory}, 2nd ed., Oxford University Press, 2010.
+  \item The mathlib Community, \textit{The Lean Mathematical Library}, \url{https://leanprover-community.github.io/}
+  \item Bourbaki, N. \textit{Éléments de mathématique}, Springer.
+\end{itemize}
+
+\end{document}
