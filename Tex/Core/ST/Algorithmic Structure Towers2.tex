@@ -1,0 +1,339 @@
+% !TeX program = lualatex
+\documentclass[11pt]{article}
+
+% --- LuaLaTeX setup ---
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\setmainfont{Latin Modern Roman}
+\setmathfont{Latin Modern Math}
+
+% --- Math & layout ---
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{microtype}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+% --- Figures / diagrams ---
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,cd}
+
+% --- Links ---
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+
+% --- Tables & lists ---
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+% --- Code (Lean snippets) ---
+\usepackage{listings}
+\usepackage{xcolor}
+\lstdefinelanguage{Lean}{
+  keywords={import,namespace,structure,def,abbrev,where,by,fun,forall,variable,
+  theorem,lemma,instance,noncomputable,open,scoped,section,end,match,with},
+  sensitive=true,
+  morecomment=[l]{--},
+  morecomment=[s]{/-}{-/},
+  morestring=[b]"
+}
+\lstset{
+  language=Lean,
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{black!20},
+  breaklines=true
+}
+
+% --- Title data ---
+\title{\bfseries Algorithmic Structure Towers:\\Unifying Bourbaki's Structuralism and Computable Martingale Theory in Lean 4}
+\author{
+  su\\
+  \small Independent Researcher
+  \thanks{Author statement: The \LaTeX\ source of this manuscript was generated with assistance from ChatGPT (OpenAI). The accompanying Lean~4 codebase was generated with assistance from Codex (OpenAI) and iteratively refined by the author.}
+}
+\date{December 2025}
+
+% --- Helpers ---
+\newcommand{\Cat}{\mathbf{Cat}}
+\newcommand{\Set}{\mathbf{Set}}
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\QQ}{\mathbb{Q}}
+\newcommand{\EE}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\layer}{\mathsf{layer}}
+\newcommand{\minLayer}{\mathsf{minLayer}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present \emph{Algorithmic Structure Towers}, a Lean~4 formalization program that reconstructs Bourbaki-style structuralism as a towered notion of structure, equipped with a canonical \emph{minimal-layer selector} \texttt{minLayer}. This categorical reconstruction is then specialized to a discrete, fully computable probability theory, culminating in a constructive Optional Stopping Theorem (OST) for martingales defined over finite sample spaces with exact rational arithmetic.
+
+The key conceptual insight is that \emph{stopping times emerge as minimal layers}: events of the form $\{\tau \le t\}$ are precisely ``layer-$t$'' objects, while $\minLayer$ provides a canonical time of first appearance (``first measurable time'') for information. By restricting to finite carriers, decidable predicates, and $\QQ$-valued expectations, definitions and evaluations coincide: the same objects that are proved in Lean are executable via \texttt{\#eval}. We describe the categorical infrastructure (strict morphisms vs.\ order-preserving morphisms), the five-layer computable probability stack, and the telescoping-based proof architecture for OST.
+\end{abstract}
+
+\section{Introduction}
+Bourbaki's structuralism advocated a unifying viewpoint: mathematics is the study of \emph{structures} and their \emph{structure-preserving morphisms}. In modern formal verification, type theory and proof assistants provide an opportunity to make this program precise, compositional, and machine-checkable.
+
+A recurring obstacle in probabilistic formalization is \emph{computability}: classical measure-theoretic probability rests on infinite $\sigma$-algebras, real-valued integrals, and nonconstructive existence principles. These features are mathematically powerful but often misaligned with executable verification goals. In contrast, many applications in algorithmic randomness, computable probability, and certified probabilistic algorithms demand that probabilistic reasoning be \emph{computationally faithful}.
+
+This paper proposes a synthesis:
+\begin{itemize}[leftmargin=1.2em]
+\item A \emph{Structure Tower} formalism (inspired by Bourbaki) that captures ``structures appearing in layers'' with a canonical \texttt{minLayer}.
+\item A categorical stratification of morphisms, separating strict structure preservation from weaker, order-preserving/upper-bound preservation.
+\item A discrete probability theory built as a tower instance, with stopping times and filtrations arising naturally.
+\item A fully computable martingale theory over finite spaces and $\QQ$, culminating in a constructive OST whose statements can be validated by computation.
+\end{itemize}
+
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=1.2em]
+\item A Lean~4 implementation of \texttt{StructureTowerWithMin} and its category-theoretic core (objects, morphisms, universality, products).
+\item A conceptual and formal bridge from filtrations to towers; in particular, stopping-time measurability events $\{\tau\le n\}$ correspond to tower layers, and ``first measurable time'' is definable via \texttt{minLayer}.
+\item A computable martingale/OST stack for finite sample spaces with exact rational expectations, emphasizing \emph{definition-execution coincidence}.
+\item An implementation status report (line counts, modules, and known limitations) suitable for project auditing and roadmap planning.
+\end{enumerate}
+
+\section{Theory: The Structure Tower}
+\subsection{Definition}
+A \emph{Structure Tower with Minimal Layer} is a carrier equipped with an indexed family of layers, together with a distinguished minimal layer for each element. In Lean, this is packaged as a structure:
+\begin{lstlisting}
+structure StructureTowerWithMin where
+  carrier : Type u
+  Index   : Type v
+  [indexPreorder : Preorder Index]
+  layer : Index → Set carrier
+  covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+  monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+  minLayer : carrier → Index
+  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+  minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
+\end{lstlisting}
+
+This matches the axiomatic presentation: covering and monotonicity impose a filtered hierarchy, while \texttt{minLayer} resolves the ambiguity of multi-layer membership by selecting the smallest layer containing each element.
+
+\subsection{Why \texttt{minLayer} matters}
+Because layers are monotone, elements typically belong to many layers. Without a canonical choice, morphism definitions can become underconstrained. The \texttt{minLayer} selector is introduced to make the ``essential layer'' functorial and to force uniqueness of the induced index mapping in the strict category: informally, the condition $\minLayer(f(x)) = \varphi(\minLayer(x))$ pins down $\varphi$ from $f$ and the tower data.
+
+\subsection{Morphisms: strict vs.\ order-preserving vs.\ existential}
+The project distinguishes three morphism strengths, reflecting the amount of layer information preserved:
+
+\paragraph{(i) Cat\_D: existential layer preservation (minimal constraints).}
+In \texttt{Cat\_D}, a morphism only specifies a carrier map, and the layer condition is existential: for each source layer $i$ there exists a target layer $j$ such that images of layer-$i$ land inside layer-$j$. This is designed to model ``there exists some time bound'' transformations, common in probabilistic measurability arguments.
+
+\paragraph{(ii) Cat\_le: explicit monotone index map (order-preserving).}
+In \texttt{Cat\_le}, a morphism includes an explicit monotone index map $\varphi$ and a corresponding layer-preserving condition:
+\begin{lstlisting}
+structure HomLe (T T' : TowerD) where
+  map : T.carrier → T'.carrier
+  indexMap : T.Index → T'.Index
+  indexMap_mono : Monotone indexMap
+  layer_preserving : ∀ (i : T.Index) (x : T.carrier),
+    x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+\end{lstlisting}
+
+This corresponds to time-change or rescaling maps in filtrations: the index map records how ``time'' is transformed.
+
+\paragraph{(iii) Cat2: strict minimal-layer preservation (canonical structure maps).}
+In the strictest category (``Cat2'' in the project), morphisms preserve minimal layers, making the induced index map \emph{determined} by $f$ and the \texttt{minLayer} selectors. This is the closest formal analogue of Bourbaki's strict structure-preserving morphisms.
+
+\subsection{A categorical ladder}
+The categories form a conceptual ladder:
+\[
+\text{Cat2 (strict)} \longrightarrow \text{Cat\_le (order-preserving)} \longrightarrow \text{Cat\_D (existential)}.
+\]
+Each arrow is a ``forgetful'' move, weakening preservation axioms to increase flexibility. This ladder is useful in probability: strict preservation is often too strong for measurable maps, whereas order-preserving or existential preservation matches how bounds are propagated.
+
+\subsection{Concrete examples and computability}
+A major design principle is \emph{decidable layer membership}. For instance, a list-length tower uses length as the minimal layer and admits \texttt{\#eval}-level computation of \texttt{minLayer} and membership tests. The same pattern is repeated for integers (absolute value), finite sets (cardinality), and other structures.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=10mm,
+  box/.style={draw, rounded corners, inner sep=6pt},
+  arr/.style={-Latex}
+]
+\node[box] (X) {$X$ (carrier)};
+\node[box, right=25mm of X] (I) {$I$ (index preorder)};
+\node[box, below=10mm of X] (L) {$\layer : I \to \mathcal{P}(X)$};
+\node[box, below=10mm of I] (mL) {$\minLayer : X \to I$};
+
+\draw[arr] (I) -- node[above] {indexes} (L);
+\draw[arr] (X) -- node[left] {elements} (L);
+\draw[arr] (X) -- node[above] {select} (mL);
+\draw[arr] (mL) -- node[right] {soundness/minimality} (I);
+
+\node[below=12mm of L, align=left] (axioms) {
+\begin{minipage}{0.85\linewidth}
+\small
+\textbf{Axioms:} covering $\forall x\,\exists i: x\in \layer(i)$;\;
+monotone $i\le j \Rightarrow \layer(i)\subseteq \layer(j)$;\;
+\texttt{minLayer\_mem} and \texttt{minLayer\_minimal}.
+\end{minipage}
+};
+\end{tikzpicture}
+\caption{Structure tower data and the role of \texttt{minLayer}.}
+\label{fig:tower}
+\end{figure}
+
+\section{Application: Computable Martingales}
+\subsection{A five-layer computable probability stack}
+The probability development is organized as a towered refinement:
+\begin{enumerate}[leftmargin=1.2em]
+\item \textbf{DecidableEvents:} finite sample spaces with decidable events.
+\item \textbf{DecidableAlgebra:} finite Boolean algebras of observable events.
+\item \textbf{DecidableFiltration:} increasing families of algebras/observable information.
+\item \textbf{ComputableStoppingTime:} stopping times as computable functions with executable combinators (\texttt{const/min/max}, boundedness).
+\item \textbf{AlgorithmicMartingale + OST:} $\QQ$-valued expectations, martingale definitions, stopped processes, and a constructive OST proved in Lean with no \texttt{sorry}.
+\end{enumerate}
+
+The restrictions are deliberate: by using finite carriers and rational arithmetic, expectations reduce to finite sums, and the theory supports direct computation (\texttt{\#eval}) that matches proved lemmas.
+
+\subsection{Filtrations as towers}
+A filtration $\{\mathcal{F}_n\}_{n\in\NN}$ is a monotone growth of information. This is precisely a structure tower on the carrier $\Set(\Omega)$, where ``layer $n$'' means ``measurable at time $n$''.
+
+\begin{lstlisting}
+noncomputable def FiltrationToTower (ℱ : SigmaAlgebraFiltrationWithCovers (Ω := Ω)) :
+    StructureTowerMin (Set Ω) ℕ where
+  layer n := {A : Set Ω | MeasurableSet (ℱ.base.𝓕 n) A}
+  ...
+  minLayer := fun A => Nat.find (ℱ.covers A)
+\end{lstlisting}
+
+Thus, filtrations become a canonical instance of the structure tower pattern.
+
+\subsection{Stopping times as minimal layers}
+In the towered viewpoint, a stopping time is determined by the measurability of the events $\{\tau \le n\}$. Conversely, \texttt{minLayer} on sets captures the first time information becomes available.
+
+A particularly crisp connection is ``first measurable time'' for a singleton $\{\omega\}$:
+\begin{lstlisting}
+noncomputable def firstMeasurableTime (ℱ : Filtration Ω) (ω : Ω) : ℕ :=
+  (towerOf ℱ).minLayer {ω}
+\end{lstlisting}
+This provides:
+\begin{itemize}[leftmargin=1.2em]
+\item \emph{soundness:} $\{\omega\}$ is measurable at $\texttt{firstMeasurableTime}\,(\omega)$;
+\item \emph{minimality:} if $\{\omega\}$ is measurable at time $n$, then $\texttt{firstMeasurableTime}\,(\omega)\le n$.
+\end{itemize}
+
+This is precisely the tower axiom specialized to filtration measurability, and it operationalizes the slogan:
+\[
+\text{``stopping / information revelation''} \;\equiv\; \text{``minimal layer appearance''}.
+\]
+
+\subsection{Minimal core strategy (computational faithfulness)}
+The implementation follows a minimal-core strategy:
+\begin{itemize}[leftmargin=1.2em]
+\item define probability mass functions and expectations as finite sums;
+\item define martingales using a computable criterion (expectation preservation) in the core;
+\item build stopped processes and show OST by telescoping decomposition;
+\item keep everything $\QQ$-valued so that evaluation is exact.
+\end{itemize}
+
+The project reports a 164-line minimal core for the essential objects and a full OST development of approximately 1460 lines (including auxiliary lemmas).
+
+\section{Main Result: Optional Stopping Theorem}
+\subsection{Statement (discrete, computable form)}
+Let $(M_n)_{n\in\NN}$ be a $\QQ$-valued martingale on a finite probability space, and let $\tau$ be a bounded computable stopping time. Then the stopped process $M^\tau_n := M_{\min(\tau,n)}$ satisfies an optional stopping theorem of the form
+\[
+\EE[M^\tau_N] = \EE[M_0]
+\quad\text{(or equivalently }\EE[M^\tau_N]=\EE[M^\tau_0]\text{)}
+\]
+under the boundedness and integrability hypotheses ensured by finiteness.
+
+\subsection{Proof architecture: telescoping and cancellation}
+The proof is organized in four steps.
+\begin{enumerate}[leftmargin=1.2em]
+\item \textbf{Pathwise telescoping:} write $M^\tau_N - M^\tau_0$ as a finite sum of increments.
+\item \textbf{Lift to expectation:} exchange expectation and finite sum (justified by finiteness).
+\item \textbf{Increment annihilation:} show each expected increment is $0$ via the martingale condition (in the computable core: expectation preservation; in the stronger classical development: conditional expectation).
+\item \textbf{Conclude OST:} the total expected difference vanishes.
+\end{enumerate}
+
+A key local lemma expresses the stopped increment as either $0$ or the original increment (indicator form):
+\[
+M^\tau_{n+1}(\omega)-M^\tau_n(\omega)
+=
+\mathbf{1}_{\{\tau(\omega)>n\}} \cdot \bigl(M_{n+1}(\omega)-M_n(\omega)\bigr),
+\]
+which is the exact combinatorial form enabling telescoping.
+
+\subsection{Executable validation via \texttt{\#eval}}
+Because all primitives (events, expectations, stopping time combinators) are computable in the finite $\QQ$-setting, one can instantiate:
+\begin{itemize}[leftmargin=1.2em]
+\item a concrete finite space (e.g.\ coin flips);
+\item a bounded computable stopping time built from \texttt{const/min/max};
+\item a martingale process defined by explicit rational functions;
+\end{itemize}
+and obtain numerical confirmation that matches the proved theorem.
+
+\section{Implementation Status, Quantitative Metrics, and Open Issues}
+\subsection{Module inventory (high level)}
+The project comprises:
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Structure tower core:} category instance, universal constructions (free tower, products).
+\item \textbf{Decidable structure tower examples:} integers/lists/finite sets/polynomials/strings, emphasizing decidable layer membership and computation.
+\item \textbf{Filtration and stopping-time bridge:} filtration-to-tower construction and minimal-layer interpretations.
+\item \textbf{Martingale/OST:} a minimal computable core and an extended proof development for OST.
+\end{itemize}
+
+\subsection{Line counts (reported)}
+\begin{center}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Component & Lines & Notes\\
+\midrule
+AlgorithmicMartingaleCore.lean & 164 & Minimal PMF/expectation/martingale core\\
+AlgorithmicMartingale.lean & $\sim$1460 & Full OST development, no \texttt{sorry}\\
+CAT2\_complete.lean & (multi) & Category instance + universality + products\\
+ComputableStoppingTime.lean & (multi) & Computable combinators + examples\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Known limitations and roadmap}
+The following issues are explicitly identified for future strengthening:
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Adaptedness simplification:} in the minimal computable core, adaptedness is currently simplified (placeholder) rather than a full measurability-by-layer predicate.
+\item \textbf{Conditional expectation:} upgrading the martingale definition to the classical $\EE[M_{n+1}\mid \mathcal{F}_n]=M_n$ requires atom-level constructions and computable conditional expectations.
+\item \textbf{Polynomial degree computability:} some Lean degree functions are noncomputable, limiting \texttt{\#eval} on polynomial towers.
+\item \textbf{Full filtration-as-tower instance:} completing the end-to-end computation of \texttt{minLayer} for filtration events (beyond existence proofs) is a natural next step.
+\end{itemize}
+
+\section{Conclusion}
+Algorithmic Structure Towers provide a single formal interface that:
+\begin{itemize}[leftmargin=1.2em]
+\item captures Bourbaki's layered structural viewpoint as a type-theoretic object with a canonical minimal layer,
+\item supports a categorical stratification of morphisms tuned to application needs,
+\item and yields a computable probability theory in which stopping times and martingales arise naturally as tower-level phenomena.
+\end{itemize}
+
+The resulting Lean~4 development demonstrates that a constructive, executable Optional Stopping Theorem can coexist with a conceptually broad, Bourbaki-inspired structural framework. The long-term direction is to extend the categorical infrastructure (limits/adjunctions/monads) and enrich the probability layer with computable conditional expectations and further martingale inequalities.
+
+\section*{Acknowledgments}
+We thank the Lean community and mathlib contributors for the foundational library ecosystem. We also record tool provenance: this \LaTeX\ manuscript was generated with assistance from ChatGPT (OpenAI); the Lean~4 codebase was generated with assistance from Codex (OpenAI) and iteratively refined by the author.
+
+\begin{thebibliography}{9}
+
+\bibitem{bourbaki}
+Nicolas Bourbaki.
+\newblock \emph{\'{E}l\'{e}ments de math\'{e}matique: Th\'{e}orie des ensembles}.
+\newblock Hermann, Paris.
+
+\bibitem{maclane}
+Saunders Mac~Lane.
+\newblock \emph{Categories for the Working Mathematician}.
+\newblock Springer, 2nd edition, 1998.
+
+\bibitem{mathlib}
+The mathlib Community.
+\newblock The Lean Mathematical Library (mathlib4).
+\newblock \url{https://github.com/leanprover-community/mathlib4}.
+
+\end{thebibliography}
+
+\end{document}
+

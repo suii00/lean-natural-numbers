@@ -1,0 +1,62 @@
+/-- 二つの構造塔の余積
+
+層の定義:
+
+layer (Sum.inl i) = {Sum.inl x | x ∈ layer₁ i}
+layer (Sum.inr j) = {Sum.inr y | y ∈ layer₂ j}
+直感:
+「両方の構造を別々に保持する」
+-/
+def coprod (T₁ T₂ : TowerD) : TowerD where
+carrier := T₁.carrier ⊕ T₂.carrier
+Index := T₁.Index ⊕ T₂.Index
+indexPreorder := sumPreorder
+layer := fun idx => match idx with
+| Sum.inl i => Sum.inl '' (T₁.layer i)
+| Sum.inr j => Sum.inr '' (T₂.layer j)
+covering := by
+intro x
+cases x with
+| inl x₁ =>
+obtain ⟨i, hi⟩ := T₁.covering x₁
+use Sum.inl i
+exact ⟨x₁, hi, rfl⟩
+| inr x₂ =>
+obtain ⟨j, hj⟩ := T₂.covering x₂
+use Sum.inr j
+exact ⟨x₂, hj, rfl⟩
+monotone := by
+intro i j hij
+cases i <;> cases j
+· -- Sum.inl i ≤ Sum.inl j
+intro x hx
+rcases hx with ⟨a, ha, rfl⟩
+exact ⟨a, T₁.monotone hij ha, rfl⟩
+· -- Sum.inl i ≤ Sum.inr j (常に真)
+intro x hx
+rcases hx with ⟨a, ha, rfl⟩
+-- ここでは層が異なるため、包含関係は成立しない
+-- 実際、Sum.inl の像は Sum.inr の層に含まれない
+sorry
+· -- Sum.inr i ≤ Sum.inl j (False)
+simp at hij
+· -- Sum.inr i ≤ Sum.inr j
+intro y hy
+rcases hy with ⟨b, hb, rfl⟩
+exact ⟨b, T₂.monotone hij hb, rfl⟩
+
+このsorryを埋めるのは不可能ですか
+
+
+一般には不可能です（その sumPreorder が Sum.inl i ≤ Sum.inr j を常に True にしている限り）。
+
+理由は集合論的に即座で、
+
+左辺 layer (Sum.inl i) = Sum.inl '' (T₁.layer i) は Sum.inl _ 形の要素だけ
+右辺 layer (Sum.inr j) = Sum.inr '' (T₂.layer j) は Sum.inr _ 形の要素だけ
+なので、Sum.inl '' S ⊆ Sum.inr '' T が成り立つには Sum.inl '' S = ∅（つまり S = ∅） が必要です。TowerD.covering がある以上、全ての層が空なら T₁.carrier 自体が空になってしまい、通常の非自明な例では成立しません。
+
+従って sorry を外すには設計を変える必要があり、最短はあなたのファイルでも採った方法で
+
+Sum.inl _ ≤ Sum.inr _ := False / Sum.inr _ ≤ Sum.inl _ := False
+という 直和（disjoint union）順序にして、この分岐自体を cases hij で潰す、です。

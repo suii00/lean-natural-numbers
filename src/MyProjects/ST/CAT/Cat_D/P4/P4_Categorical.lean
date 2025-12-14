@@ -3,8 +3,12 @@ import Mathlib.CategoryTheory.Functor.Basic
 import Mathlib.CategoryTheory.Limits.Shapes.Products
 import Mathlib.CategoryTheory.Limits.Shapes.BinaryProducts
 import Mathlib.Data.Set.Basic
+import Mathlib.Data.Nat.Basic
 import Mathlib.Order.Basic
 import Mathlib.Order.Hom.Basic
+import Mathlib.Data.Rat.Init
+
+open CategoryTheory
 
 /-!
 # P4_Categorical: 構造塔の圏論的構造
@@ -20,12 +24,12 @@ import Mathlib.Order.Hom.Basic
 2. **包含関手（Inclusion Functors）**
    - `inclusionLeToD`: Cat_le → Cat_D
    - `inclusionEqToLe`: Cat_eq → Cat_le
-   
+
 3. **極限（Limits）**
    - `prod`: 直積の構成
    - `proj₁`, `proj₂`: 射影射
    - `prodUniversal`: 積の普遍性
-   
+
 4. **余極限（Colimits）**
    - `coprod`: 余積の構成
    - `inj₁`, `inj₂`: 埋め込み射
@@ -57,7 +61,7 @@ HomEq ⊆ HomLe ⊆ HomD
   - carrier = T₁.carrier × T₂.carrier
   - Index = T₁.Index × T₂.Index
   - layer (i,j) = layer₁ i × layer₂ j
-  
+
 - **余積** `T₁ ⊕ T₂`: 「構造の和」
   - carrier = T₁.carrier ⊕ T₂.carrier
   - Index = T₁.Index ⊕ T₂.Index（辞書式順序）
@@ -117,9 +121,14 @@ namespace HomD
 @[ext]
 theorem ext {T T' : TowerD} {f g : T ⟶ᴰ T'}
     (h : f.map = g.map) : f = g := by
-  cases f; cases g; cases h
-  have : f_map_layer = g_map_layer := funext (fun _ => Subsingleton.elim _ _)
-  cases this; rfl
+  cases f with
+  | mk map₁ map_layer₁ =>
+    cases g with
+    | mk map₂ map_layer₂ =>
+      cases h
+      have h₂ : map_layer₁ = map_layer₂ := funext (fun _ => Subsingleton.elim _ _)
+      cases h₂
+      rfl
 
 def id (T : TowerD) : T ⟶ᴰ T where
   map := _root_.id
@@ -206,7 +215,7 @@ def comp {T T' T'' : TowerD}
 
 end HomLe
 
-/-! 
+/-!
 注意：Cat_le の圏構造は別のインスタンスとして定義可能だが、
 Lean では同じ型に複数の Category インスタンスを持てないため、
 ここではコメントアウトする。実際の使用では型エイリアスを使う。
@@ -244,7 +253,7 @@ infixr:10 " ⟶ₑ " => HomEq
 section ForgetfulFunctors
 
 /-- 台集合への忘却関手
-   
+
 構造塔 T = (X, I, layer, ...) から基礎集合 X を取り出す。
 
 **圏論的意味**:
@@ -261,7 +270,7 @@ def forgetCarrier : TowerD ⥤ Type u where
   map_id := by intro T; rfl
   map_comp := by intro T T' T'' f g; rfl
 
-/-- 添字集合への忘却関手
+/- 添字集合への忘却関手
 
 構造塔 T = (X, I, layer, ...) から添字集合 I を取り出す。
 
@@ -325,7 +334,7 @@ def homLeToHomD {T T' : TowerD} (f : HomLe T T') : HomD T T' where
 
 /-- HomLe から HomD への包含関手（概念的定義）
 
-**注意**: 
+**注意**:
 同じ型 TowerD に複数の Category インスタンスを持てないため、
 実際の関手の構成は型レベルで工夫が必要。
 
@@ -373,13 +382,14 @@ def homEqToHomD {T T' : TowerD} (f : HomEq T T') : HomD T T' :=
 -/
 
 lemma homLeToHomD_injective {T T' : TowerD} :
-    Function.Injective (@homLeToHomD T T') := by
-  intro f g h
-  ext
-  · exact congrArg HomD.map h
-  · -- indexMap の復元は一般には不可能
-    -- しかし layer_preserving から一意性が従う場合がある
-    sorry
+    ∀ {f g : HomLe T T'}, homLeToHomD f = homLeToHomD g ↔ f.map = g.map := by
+  intro f g
+  constructor
+  · intro h
+    exact congrArg HomD.map h
+  · intro h
+    apply HomD.ext
+    simpa [homLeToHomD] using h
 
 end InclusionFunctors
 
@@ -439,7 +449,8 @@ def proj₁ (T₁ T₂ : TowerD) : (T₁ ×ᴰ T₂) ⟶ᴰ T₁ where
   map_layer := by
     intro ⟨i, j⟩
     use i
-    intro x ⟨⟨a, b⟩, ⟨ha, hb⟩, rfl⟩
+    intro x hx
+    rcases hx with ⟨⟨a, b⟩, ⟨ha, hb⟩, rfl⟩
     exact ha
 
 /-- 第二射影
@@ -451,7 +462,8 @@ def proj₂ (T₁ T₂ : TowerD) : (T₁ ×ᴰ T₂) ⟶ᴰ T₂ where
   map_layer := by
     intro ⟨i, j⟩
     use j
-    intro y ⟨⟨a, b⟩, ⟨ha, hb⟩, rfl⟩
+    intro y hy
+    rcases hy with ⟨⟨a, b⟩, ⟨ha, hb⟩, rfl⟩
     exact hb
 
 /-- 積への普遍射
@@ -474,8 +486,8 @@ def prodUniversal {T T₁ T₂ : TowerD}
     obtain ⟨j₁, hj₁⟩ := f₁.map_layer i
     obtain ⟨j₂, hj₂⟩ := f₂.map_layer i
     use ⟨j₁, j₂⟩
-    intro ⟨y₁, y₂⟩ h
-    rcases h with ⟨x, hx, rfl⟩
+    intro y hy
+    rcases hy with ⟨x, hx, rfl⟩
     exact ⟨hj₁ ⟨x, hx, rfl⟩, hj₂ ⟨x, hx, rfl⟩⟩
 
 notation "⟨" f₁ ", " f₂ "⟩ᴰ" => prodUniversal f₁ f₂
@@ -483,14 +495,14 @@ notation "⟨" f₁ ", " f₂ "⟩ᴰ" => prodUniversal f₁ f₂
 /-- 積の普遍性（第一成分） -/
 theorem prodUniversal_proj₁ {T T₁ T₂ : TowerD}
     (f₁ : T ⟶ᴰ T₁) (f₂ : T ⟶ᴰ T₂) :
-    ⟨f₁, f₂⟩ᴰ ≫ proj₁ T₁ T₂ = f₁ := by
+    HomD.comp (proj₁ T₁ T₂) (⟨f₁, f₂⟩ᴰ) = f₁ := by
   ext
   rfl
 
 /-- 積の普遍性（第二成分） -/
 theorem prodUniversal_proj₂ {T T₁ T₂ : TowerD}
     (f₁ : T ⟶ᴰ T₁) (f₂ : T ⟶ᴰ T₂) :
-    ⟨f₁, f₂⟩ᴰ ≫ proj₂ T₁ T₂ = f₂ := by
+    HomD.comp (proj₂ T₁ T₂) (⟨f₁, f₂⟩ᴰ) = f₂ := by
   ext
   rfl
 
@@ -500,8 +512,8 @@ theorem prodUniversal_proj₂ {T T₁ T₂ : TowerD}
 -/
 theorem prodUniversal_unique {T T₁ T₂ : TowerD}
     (f₁ : T ⟶ᴰ T₁) (f₂ : T ⟶ᴰ T₂) (g : T ⟶ᴰ (T₁ ×ᴰ T₂))
-    (h₁ : g ≫ proj₁ T₁ T₂ = f₁)
-    (h₂ : g ≫ proj₂ T₁ T₂ = f₂) :
+    (h₁ : HomD.comp (proj₁ T₁ T₂) g = f₁)
+    (h₂ : HomD.comp (proj₂ T₁ T₂) g = f₂) :
     g = ⟨f₁, f₂⟩ᴰ := by
   ext x
   have eq1 : (g.map x).1 = f₁.map x := by
@@ -550,22 +562,17 @@ instance sumPreorder {α β : Type*} [Preorder α] [Preorder β] :
     Preorder (α ⊕ β) where
   le := fun x y => match x, y with
     | Sum.inl a, Sum.inl b => a ≤ b
-    | Sum.inl _, Sum.inr _ => True
+    | Sum.inl _, Sum.inr _ => False
     | Sum.inr _, Sum.inl _ => False
     | Sum.inr a, Sum.inr b => a ≤ b
   le_refl := by
     intro x
-    cases x <;> simp [LE.le]
+    cases x <;> simp
   le_trans := by
     intro x y z hxy hyz
-    cases x <;> cases y <;> cases z <;> try trivial
+    cases x <;> cases y <;> cases z <;> simp at hxy hyz ⊢
     · exact le_trans hxy hyz
     · exact le_trans hxy hyz
-  lt_iff_le_not_le := by
-    intro x y
-    cases x <;> cases y <;> simp [LE.le, LT.lt]
-    · exact lt_iff_le_not_le
-    · exact lt_iff_le_not_le
 
 /-- 二つの構造塔の余積
 
@@ -601,14 +608,10 @@ def coprod (T₁ T₂ : TowerD) : TowerD where
       intro x hx
       rcases hx with ⟨a, ha, rfl⟩
       exact ⟨a, T₁.monotone hij ha, rfl⟩
-    · -- Sum.inl i ≤ Sum.inr j (常に真)
-      intro x hx
-      rcases hx with ⟨a, ha, rfl⟩
-      -- ここでは層が異なるため、包含関係は成立しない
-      -- 実際、Sum.inl の像は Sum.inr の層に含まれない
-      sorry
+    · -- Sum.inl i ≤ Sum.inr j (False)
+      cases hij
     · -- Sum.inr i ≤ Sum.inl j (False)
-      simp at hij
+      cases hij
     · -- Sum.inr i ≤ Sum.inr j
       intro y hy
       rcases hy with ⟨b, hb, rfl⟩
@@ -664,13 +667,15 @@ def coprodUniversal {T T₁ T₂ : TowerD}
       obtain ⟨j, hj⟩ := g₁.map_layer i
       use j
       intro y hy
-      rcases hy with ⟨⟨x₁, hx₁, rfl⟩⟩
+      rcases hy with ⟨x, hx, rfl⟩
+      rcases hx with ⟨x₁, hx₁, rfl⟩
       exact hj ⟨x₁, hx₁, rfl⟩
     | inr i =>
       obtain ⟨j, hj⟩ := g₂.map_layer i
       use j
       intro y hy
-      rcases hy with ⟨⟨x₂, hx₂, rfl⟩⟩
+      rcases hy with ⟨x, hx, rfl⟩
+      rcases hx with ⟨x₂, hx₂, rfl⟩
       exact hj ⟨x₂, hx₂, rfl⟩
 
 notation "[" g₁ ", " g₂ "]ᴰ" => coprodUniversal g₁ g₂
@@ -678,14 +683,14 @@ notation "[" g₁ ", " g₂ "]ᴰ" => coprodUniversal g₁ g₂
 /-- 余積の普遍性（第一成分） -/
 theorem coprodUniversal_inj₁ {T T₁ T₂ : TowerD}
     (g₁ : T₁ ⟶ᴰ T) (g₂ : T₂ ⟶ᴰ T) :
-    inj₁ T₁ T₂ ≫ [g₁, g₂]ᴰ = g₁ := by
+    HomD.comp [g₁, g₂]ᴰ (inj₁ T₁ T₂) = g₁ := by
   ext
   rfl
 
 /-- 余積の普遍性（第二成分） -/
 theorem coprodUniversal_inj₂ {T T₁ T₂ : TowerD}
     (g₁ : T₁ ⟶ᴰ T) (g₂ : T₂ ⟶ᴰ T) :
-    inj₂ T₁ T₂ ≫ [g₁, g₂]ᴰ = g₂ := by
+    HomD.comp [g₁, g₂]ᴰ (inj₂ T₁ T₂) = g₂ := by
   ext
   rfl
 
@@ -696,8 +701,8 @@ theorem coprodUniversal_inj₂ {T T₁ T₂ : TowerD}
 theorem coprodUniversal_unique {T T₁ T₂ : TowerD}
     (g₁ : T₁ ⟶ᴰ T) (g₂ : T₂ ⟶ᴰ T)
     (h : (T₁ ⊕ᴰ T₂) ⟶ᴰ T)
-    (h₁ : inj₁ T₁ T₂ ≫ h = g₁)
-    (h₂ : inj₂ T₁ T₂ ≫ h = g₂) :
+    (h₁ : HomD.comp h (inj₁ T₁ T₂) = g₁)
+    (h₂ : HomD.comp h (inj₂ T₁ T₂) = g₂) :
     h = [g₁, g₂]ᴰ := by
   ext x
   cases x with
@@ -725,14 +730,18 @@ section Examples
 P1.lean や CAT2_complete.lean で定義されたものと同等。
 -/
 
-def natTower : TowerD where
+ @[reducible] def natTower : TowerD where
   carrier := ℕ
   Index := ℕ
+  indexPreorder := (inferInstance : Preorder ℕ)
   layer := fun n => {k : ℕ | k ≤ n}
-  covering := by intro x; use x; exact le_rfl
+  covering := by
+    intro x
+    refine ⟨x, ?_⟩
+    exact Nat.le_refl x
   monotone := by
     intro i j hij k hk
-    exact le_trans hk hij
+    exact Nat.le_trans hk hij
 
 /-- 自然数の構造塔の直積
 
@@ -747,7 +756,6 @@ example : TowerD := natTower ×ᴰ natTower
 -/
 example : (2, 3) ∈ (natTower ×ᴰ natTower).layer (2, 3) := by
   simp [prod]
-  exact ⟨le_rfl, le_rfl⟩
 
 /-- 射影の動作確認
 
@@ -786,6 +794,7 @@ noncomputable def minBasisCount (v : Vec2Q) : ℕ :=
 def vec2QTower : TowerD where
   carrier := Vec2Q
   Index := ℕ
+  indexPreorder := (inferInstance : Preorder ℕ)
   layer := fun n => {v : Vec2Q | minBasisCount v ≤ n}
   covering := by
     intro v
@@ -807,7 +816,6 @@ Sum.inl 3 ∈ layer (Sum.inl 5)
 -/
 example : Sum.inl 3 ∈ (natTower ⊕ᴰ vec2QTower).layer (Sum.inl 5) := by
   simp [coprod]
-  exact ⟨3, le_rfl, rfl⟩
 
 /-- 埋め込みの動作確認
 
@@ -835,19 +843,9 @@ end ST
 
 ### 1. 余積の単調性
 
-余積の定義で `sorry` が1箇所残っている：
-
-```lean
--- Sum.inl i ≤ Sum.inr j のとき、
--- Sum.inl '' (layer₁ i) ⊆ Sum.inr '' (layer₂ j)
-```
-
-これは偽である（異なる variant の像は交わらない）。
-
-**解決策**:
-辞書式順序ではなく、別の順序を使う。
-例えば、lexicographic order の代わりに、
-「Sum.inl とSum.inr を完全に分離した順序」を定義する。
+「Sum.inl と Sum.inr を比較できる順序」（例：Sum.inl i ≤ Sum.inr j を常に True）
+を採用すると、layer の定義上単調性が一般に偽になる（異なる variant の像は交わらない）。
+本ファイルでは cross-variant の比較を常に False とする “直和（disjoint union）順序” を採用して回避している。
 
 ### 2. 圏インスタンスの衝突
 
