@@ -1,0 +1,510 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{geometry}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\geometry{margin=25mm}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% tcolorboxの設定
+\tcbuselibrary{theorems}
+\newtcolorbox{mainbox}[1][]{
+  colback=blue!5!white,
+  colframe=blue!75!black,
+  fonttitle=\bfseries,
+  #1
+}
+
+\newtcolorbox{keybox}[1][]{
+  colback=red!5!white,
+  colframe=red!75!black,
+  fonttitle=\bfseries,
+  #1
+}
+
+% コマンド定義
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\catD}{\mathsf{Cat}_D}
+\newcommand{\Hom}{\mathrm{Hom}}
+\newcommand{\Tower}{\mathrm{Tower}}
+
+\title{構造塔の圏 $\catD$ における位相的応用の数学的解説}
+\author{%
+  Lean実装：Codex (OpenAI) \\
+  \TeX 解説：Claude Code (Anthropic)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、構造塔の圏$\catD$（Cat\_D）の位相的応用を数学的に解説する。
+特に、第二可算位相空間における開集合の階層構造、閉包演算の反復による階層、
+および連続写像が誘導する構造塔の射について詳述する。
+また、逆像の複雑度に関する一様上界の理論を展開し、
+$\catD$の射の存在と一様上界の関係を明らかにする。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+\subsection{構造塔の圏$\catD$とは}
+
+構造塔の圏$\catD$は、以下のデータからなる構造塔を対象とする圏である：
+
+\begin{definition}[構造塔 TowerD]
+構造塔とは、以下のデータからなる：
+\begin{itemize}
+  \item 台集合 $C$（carrier）
+  \item 半順序集合 $I$（Index）
+  \item 層関数 $\mathrm{layer} : I \to \mathcal{P}(C)$
+  \item 被覆性：$\forall x \in C, \exists i \in I, x \in \mathrm{layer}(i)$
+  \item 単調性：$i \leq j \Rightarrow \mathrm{layer}(i) \subseteq \mathrm{layer}(j)$
+\end{itemize}
+\end{definition}
+
+\begin{definition}[$\catD$の射]
+構造塔 $(C, I, \mathrm{layer})$ から $(C', I', \mathrm{layer}')$ への$\catD$の射は、
+写像 $f: C \to C'$ であって、以下の層保存条件を満たすもの：
+\[
+\forall i \in I, \exists j \in I', \quad f(\mathrm{layer}(i)) \subseteq \mathrm{layer}'(j)
+\]
+\end{definition}
+
+\begin{keybox}[title=Cat\_Dの特徴]
+\begin{itemize}
+  \item 射は写像$f$のみで定義され、indexMapの明示的構成は不要
+  \item 層保存条件は存在量化：「どこかの層に入ればよい」
+  \item minLayer（最小層）の明示的構成が不要
+  \item より広いクラスの構造を自然に扱える
+\end{itemize}
+\end{keybox}
+
+\subsection{位相的応用の動機}
+
+位相空間論において、開集合や閉包演算の「複雑さ」を測定する自然な方法として、
+構造塔の枠組みが有効である：
+
+\begin{enumerate}
+  \item \textbf{開集合の複雑さ}：基本開集合の個数で測定
+  \item \textbf{閉包の反復}：閉包演算の反復回数で測定
+  \item \textbf{連続写像の性質}：層構造の保存として表現
+\end{enumerate}
+
+\section{開集合の階層}
+
+\subsection{第二可算空間と基本開集合}
+
+\begin{definition}[第二可算空間]
+位相空間$X$が\textbf{第二可算}であるとは、
+可算な基本開集合族$B$が存在して、
+任意の開集合が$B$の元の（可算）和集合として表現できることをいう。
+\end{definition}
+
+\begin{definition}[有限基底和]
+開集合$U$が$n$個以下の基本開集合の有限和として表現されるとき、
+$\mathrm{IsFiniteUnionOfBasis}(B, U, n)$と書く：
+\[
+\exists S \subseteq B, \quad |S| \leq n, \quad U = \bigcup_{V \in S} V
+\]
+\end{definition}
+
+\subsection{開集合の構造塔}
+
+第二可算空間$X$上で、開集合を基本開集合の個数で階層化する：
+
+\begin{definition}[openSetTower]
+第二可算空間$X$に対して、開集合の構造塔を以下で定義する：
+\begin{itemize}
+  \item 台集合：$C = \{U \subseteq X \mid U \text{ は開集合}\}$
+  \item 添字集合：$I = \N$
+  \item 層関数：$\mathrm{layer}(n) = \{U \mid \mathrm{IsFiniteUnionOfBasis}(B, U, n)\}$
+\end{itemize}
+\end{definition}
+
+\begin{mainbox}[title=開集合階層の図式]
+\begin{center}
+\begin{tikzpicture}
+  \node at (0,0) {$\mathrm{layer}(0)$};
+  \node at (0,1) {$\mathrm{layer}(1)$};
+  \node at (0,2) {$\mathrm{layer}(2)$};
+  \node at (0,3) {$\vdots$};
+  \node at (0,4) {$\mathrm{layer}(n)$};
+
+  \draw[->] (-0.5,0.2) -- (-0.5,0.8);
+  \draw[->] (-0.5,1.2) -- (-0.5,1.8);
+  \draw[->] (-0.5,2.2) -- (-0.5,2.8);
+  \draw[->] (-0.5,3.2) -- (-0.5,3.8);
+
+  \node[right] at (1.5,0) {$\{\emptyset\}$};
+  \node[right] at (1.5,1) {基本開集合};
+  \node[right] at (1.5,2) {基本開集合2個の和};
+  \node[right] at (1.5,4) {基本開集合$n$個の和};
+\end{tikzpicture}
+\end{center}
+\end{mainbox}
+
+\begin{proposition}[基本性質]
+開集合の構造塔について、以下が成り立つ：
+\begin{enumerate}
+  \item $\emptyset \in \mathrm{layer}(0)$（空集合は層0）
+  \item $V \in B \Rightarrow V \in \mathrm{layer}(1)$（基本開集合は層1）
+  \item $n \leq m \Rightarrow \mathrm{layer}(n) \subseteq \mathrm{layer}(m)$（単調性）
+\end{enumerate}
+\end{proposition}
+
+\section{連続写像と逆像の複雑度}
+
+\subsection{逆像による層保存}
+
+連続写像$f: X \to Y$は、開集合の階層構造を保存するか？
+これは逆像$f^{-1}$の振る舞いに依存する。
+
+\begin{lemma}[逆像の有限基底和]\label{lem:preimage-basis}
+$f: X \to Y$を連続写像とし、$B_X, B_Y$をそれぞれの基本開集合族とする。
+もし$\forall V \in B_Y, f^{-1}(V) \in B_X$ならば、
+\[
+\mathrm{IsFiniteUnionOfBasis}(B_Y, U, n) \Rightarrow \mathrm{IsFiniteUnionOfBasis}(B_X, f^{-1}(U), n)
+\]
+\end{lemma}
+
+\begin{proof}[証明の概略]
+$U = \bigcup_{i=1}^n V_i$（$V_i \in B_Y$）とする。このとき、
+\[
+f^{-1}(U) = f^{-1}\left(\bigcup_{i=1}^n V_i\right) = \bigcup_{i=1}^n f^{-1}(V_i)
+\]
+仮定より各$f^{-1}(V_i) \in B_X$なので、$f^{-1}(U)$は高々$n$個の基本開集合の和。
+\end{proof}
+
+\subsection{一様上界の理論}
+
+補題\ref{lem:preimage-basis}は「個数が保存される」理想的な場合であるが、
+一般には基底要素の逆像が複数の基底要素の和になる場合がある。
+
+\begin{definition}[一様上界 PreimageBasisBound]
+写像$f: X \to Y$が\textbf{一様上界$k$を持つ}とは、
+\[
+\forall V \in B_Y, \quad \mathrm{IsFiniteUnionOfBasis}(B_X, f^{-1}(V), k)
+\]
+が成り立つことをいう。記号的には$\mathrm{PreimageBasisBound}(B_X, B_Y, f, k)$と書く。
+\end{definition}
+
+\begin{theorem}[逆像の複雑度の乗法的増大]\label{thm:preimage-mul}
+$\mathrm{PreimageBasisBound}(B_X, B_Y, f, k)$ならば、
+\[
+\mathrm{IsFiniteUnionOfBasis}(B_Y, U, n) \Rightarrow \mathrm{IsFiniteUnionOfBasis}(B_X, f^{-1}(U), n \cdot k)
+\]
+\end{theorem}
+
+\begin{proof}[証明の概略]
+$U = \bigcup_{i=1}^n V_i$とする。各$V_i$に対して、
+\[
+f^{-1}(V_i) = \bigcup_{j=1}^{k_i} W_{i,j}, \quad W_{i,j} \in B_X, \quad k_i \leq k
+\]
+よって、
+\[
+f^{-1}(U) = \bigcup_{i=1}^n \bigcup_{j=1}^{k_i} W_{i,j}
+\]
+は高々$n \cdot k$個の基本開集合の和。
+\end{proof}
+
+\begin{mainbox}[title=複雑度の増大の図式]
+\begin{center}
+\begin{tikzcd}
+  \text{layer}_Y(n) \arrow[r, "f^{-1}"] \arrow[d, phantom, "\subseteq"]
+    & \text{layer}_X(n \cdot k) \arrow[d, phantom, "\subseteq"] \\
+  \{U \mid |U| \leq n\} \arrow[r, "f^{-1}"]
+    & \{V \mid |V| \leq n \cdot k\}
+\end{tikzcd}
+\end{center}
+\textbf{解釈}：$f^{-1}$は複雑度を最大$k$倍に増大させる
+\end{mainbox}
+
+\section{$\catD$の射としての連続写像}
+
+\subsection{射の構成}
+
+\begin{theorem}[openSetTowerHom]
+連続写像$f: X \to Y$が$\forall V \in B_Y, f^{-1}(V) \in B_X$を満たすならば、
+$f$は構造塔の射
+\[
+f_* : \mathrm{openSetTower}(Y, B_Y) \longrightarrow \mathrm{openSetTower}(X, B_X)
+\]
+を誘導する。
+\end{theorem}
+
+\begin{proof}
+写像は$f_*(V) = f^{-1}(V)$で定義する。層保存条件は補題\ref{lem:preimage-basis}より、
+\[
+\forall n \in \N, \exists j = n, \quad f_*(\mathrm{layer}_Y(n)) \subseteq \mathrm{layer}_X(j)
+\]
+\end{proof}
+
+\begin{theorem}[openSetTowerHom\_mul（一様上界版）]
+連続写像$f: X \to Y$が$\mathrm{PreimageBasisBound}(B_X, B_Y, f, k)$を満たすならば、
+$f$は構造塔の射を誘導する。ただし、$\mathrm{layer}_Y(n)$は$\mathrm{layer}_X(n \cdot k)$に写される。
+\end{theorem}
+
+\subsection{一様上界と射の存在の同値性}
+
+逆に、$\catD$の射が存在するならば、一様上界が存在する：
+
+\begin{theorem}[射の存在から一様上界へ]\label{thm:hom-to-bound}
+$f: X \to Y$を連続写像とし、
+$F: \mathrm{openSetTower}(Y, B_Y) \to \mathrm{openSetTower}(X, B_X)$を$\catD$の射で
+$F = f^{-1}$を満たすものとする。
+このとき、ある$k \in \N$が存在して、
+\[
+\mathrm{PreimageBasisBound}(B_X, B_Y, f, k)
+\]
+が成り立つ。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+$F$の層保存条件より、
+\[
+\exists j, \quad F(\mathrm{layer}_Y(1)) \subseteq \mathrm{layer}_X(j)
+\]
+$\mathrm{layer}_Y(1)$には全ての基本開集合$V \in B_Y$が含まれる。
+よって$k := j$とすれば、任意の$V \in B_Y$に対して、
+\[
+f^{-1}(V) = F(V) \in \mathrm{layer}_X(k)
+\]
+すなわち$\mathrm{IsFiniteUnionOfBasis}(B_X, f^{-1}(V), k)$。
+\end{proof}
+
+\begin{keybox}[title=射の存在と一様上界の同値性]
+\begin{center}
+\begin{tikzcd}
+  \text{$\catD$の射の存在} \arrow[r, Leftrightarrow, "\text{定理\ref{thm:hom-to-bound}}"]
+    & \text{一様上界の存在}
+\end{tikzcd}
+\end{center}
+\textbf{帰結}：一様上界が存在しない連続写像は、$\catD$の射を誘導しない。
+これは$\catD$が「複雑度の制御可能性」を本質とすることを示す。
+\end{keybox}
+
+\begin{theorem}[非有界性からの不存在]\label{thm:unbounded}
+もし任意の$k$に対して、ある$V \in B_Y$が存在して、
+\[
+\neg \mathrm{IsFiniteUnionOfBasis}(B_X, f^{-1}(V), k)
+\]
+ならば、$f^{-1}$に対応する$\catD$の射は存在しない。
+\end{theorem}
+
+\section{閉包演算の階層}
+
+\subsection{閉包の反復}
+
+集合$A \subseteq X$に対して、閉包演算$\overline{(-)}$を反復する：
+\[
+A^{(0)} = A, \quad A^{(n+1)} = \overline{A^{(n)}}
+\]
+
+\begin{definition}[closureIterationLevel]
+集合$A$の\textbf{閉包反復レベル}を以下で定義する（簡易版）：
+\[
+\mathrm{closureIterationLevel}(A) =
+\begin{cases}
+  0 & \text{if } A \text{ は閉集合} \\
+  1 & \text{otherwise}
+\end{cases}
+\]
+完全版では、$A^{(n)} = A^{(n+1)}$となる最小の$n$を取る。
+\end{definition}
+
+\begin{definition}[closureTower]
+閉包演算の構造塔：
+\begin{itemize}
+  \item 台集合：$C = \mathcal{P}(X)$（$X$の部分集合全体）
+  \item 添字集合：$I = \N$
+  \item 層関数：$\mathrm{layer}(n) = \{A \mid \mathrm{closureIterationLevel}(A) \leq n\}$
+\end{itemize}
+\end{definition}
+
+\begin{proposition}
+閉集合は層0に属する：
+\[
+\text{$A$が閉集合} \Rightarrow A \in \mathrm{layer}(0)
+\]
+\end{proposition}
+
+\subsection{連続写像と閉包階層の射}
+
+連続写像$f: X \to Y$は、閉包演算と「ほぼ」可換である：
+\[
+f(\overline{A}) \subseteq \overline{f(A)}
+\]
+
+\begin{theorem}[closureTowerHom]
+連続写像$f: X \to Y$は、閉包階層の射
+\[
+f: \mathrm{closureTower}(X) \longrightarrow \mathrm{closureTower}(Y)
+\]
+を誘導する。ただし、写像は$f_*(A) = f(A)$（像）で定義される。
+\end{theorem}
+
+\section{有限位相空間の場合}
+
+有限型$X$（Fintype $X$）では、開集合の全体も有限である。
+
+\begin{definition}[finiteOpenSetTower]
+有限型$X$上の開集合の構造塔：
+\[
+\mathrm{layer}(n) =
+\begin{cases}
+  \{\emptyset\} & \text{if } n = 0 \\
+  \text{全ての開集合} & \text{if } n \geq 1
+\end{cases}
+\]
+\end{definition}
+
+\begin{remark}
+有限型では、複雑さの概念が退化する。
+すべての開集合が層1に入るため、階層構造は本質的に2段階のみ。
+\end{remark}
+
+\section{図式による全体像}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+  % 構造塔の図
+  \node[draw, rectangle, minimum width=3cm, minimum height=1cm] (T1) at (0,0) {$\mathrm{openSetTower}(X)$};
+  \node[draw, rectangle, minimum width=3cm, minimum height=1cm] (T2) at (5,0) {$\mathrm{openSetTower}(Y)$};
+
+  \draw[->, thick] (T2) -- (T1) node[midway, above] {$f^{-1}$};
+
+  % 層の展開
+  \node at (0,-1.5) {$\vdots$};
+  \node[draw, ellipse, minimum width=2cm] (L12) at (0,-2) {$\mathrm{layer}(2)$};
+  \node[draw, ellipse, minimum width=1.5cm] (L11) at (0,-3) {$\mathrm{layer}(1)$};
+  \node[draw, ellipse, minimum width=1cm] (L10) at (0,-4) {$\mathrm{layer}(0)$};
+
+  \node at (5,-1.5) {$\vdots$};
+  \node[draw, ellipse, minimum width=2cm] (L22) at (5,-2) {$\mathrm{layer}(2)$};
+  \node[draw, ellipse, minimum width=1.5cm] (L21) at (5,-3) {$\mathrm{layer}(1)$};
+  \node[draw, ellipse, minimum width=1cm] (L20) at (5,-4) {$\mathrm{layer}(0)$};
+
+  % 射の振る舞い
+  \draw[->, dashed, red, thick] (L21) -- (L11) node[midway, above, sloped, font=\small] {$k=1$の場合};
+  \draw[->, dashed, blue, thick] (L21) to[bend right=20] (L12) node[midway, below, sloped, font=\small] {$k>1$の場合};
+
+\end{tikzpicture}
+\end{center}
+
+\textbf{図の解釈}：
+\begin{itemize}
+  \item 連続写像$f: X \to Y$は逆像$f^{-1}$を通じて構造塔の射を誘導
+  \item 一様上界$k=1$なら層は保存される（赤線）
+  \item $k>1$なら層は「上がる」（青線）：複雑度の増大
+\end{itemize}
+
+\section{まとめと今後の展望}
+
+\subsection{本稿の成果}
+
+\begin{enumerate}
+  \item 第二可算位相空間における開集合の階層構造を$\catD$で形式化
+  \item 連続写像による逆像の複雑度の理論を確立
+  \item 一様上界と$\catD$の射の存在の同値性を証明
+  \item 閉包演算の階層構造を導入
+\end{enumerate}
+
+\subsection{$\catD$の位相論における意義}
+
+\begin{keybox}[title=Cat\_Dの本質]
+$\catD$は「複雑度の制御可能性」を本質とする。
+射の存在は、写像が階層構造を（一様に）保存することを意味する。
+これは、単なる連続性よりも強い条件であり、
+位相空間の「計算論的複雑度」を反映する。
+\end{keybox}
+
+\subsection{今後の拡張}
+
+\begin{itemize}
+  \item \textbf{コンパクト性}：コンパクト空間では有限被覆が常に存在し、
+        階層構造が有限で安定する
+  \item \textbf{分離公理}：Hausdorff空間などでの階層構造の性質
+  \item \textbf{位相的次元論}：被覆次元と階層の関係
+  \item \textbf{Cantor-Bendixson階数}：閉包演算の超限反復
+  \item \textbf{確率論}：$\sigma$-代数の階層と開集合の階層の双対性
+\end{itemize}
+
+\section*{謝辞}
+
+本稿のLean 4実装はCodex (OpenAI)により生成され、
+\LaTeX による数学的解説はClaude Code (Anthropic)により作成された。
+構造塔の圏$\catD$の理論的枠組みは、mathlibの位相空間論に基づいている。
+
+\begin{thebibliography}{99}
+\bibitem{catd}
+\texttt{Cat\_D.lean}: 構造塔の圏の基本定義
+
+\bibitem{p1}
+\texttt{P1.lean}: 確率論的応用の骨格
+
+\bibitem{bourbaki}
+\texttt{Bourbaki\_Lean\_Guide.lean}: 実装パターンのガイド
+
+\bibitem{mathlib-topology}
+\texttt{Mathlib.Topology}: Lean 4 mathlibの位相空間論
+
+\end{thebibliography}
+
+\appendix
+
+\section{Lean実装のコード例}
+
+Leanでの開集合の構造塔の定義：
+
+\begin{verbatim}
+def openSetTower (X : Type*) [TopologicalSpace X]
+    (B : Set (Set X))
+    (hbasis : IsTopologicalBasis B)
+    (hcover : ∀ U : Set X, IsOpen U →
+              ∃ n, IsFiniteUnionOfBasis B U n) :
+    TowerD where
+  carrier := {U : Set X // IsOpen U}
+  Index := ℕ
+  indexPreorder := inferInstance
+  layer n := {⟨U, hU⟩ | IsFiniteUnionOfBasis B U n}
+  covering := ...
+  monotone := ...
+\end{verbatim}
+
+\section{一様上界の存在例}
+
+\begin{example}[一様上界$k=1$の場合]
+$f: \R \to \R$を恒等写像とし、$B = \{(a,b) \mid a < b\}$（開区間全体）を基底とする。
+このとき、任意の開区間$(a,b)$に対して、
+\[
+f^{-1}((a,b)) = (a,b) \in B
+\]
+よって$\mathrm{PreimageBasisBound}(B, B, f, 1)$が成り立つ。
+\end{example}
+
+\begin{example}[一様上界が存在しない場合]
+適切な位相空間と写像を構成すれば、
+任意の$k$に対して$k$個以上の基底要素を必要とする逆像が存在する場合がある。
+このような写像は$\catD$の射を誘導しない（定理\ref{thm:unbounded}）。
+\end{example}
+
+\end{document}

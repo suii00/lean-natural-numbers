@@ -1,0 +1,185 @@
+\documentclass{ltjsarticle}
+\usepackage{luatexja}
+\usepackage[haranoaji]{luatexja-preset}
+
+% Add because main language is not English
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+% --- PACKAGES FOR MATH & DIAGRAMS ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{shapes, positioning, arrows.meta, decorations.pathreplacing, backgrounds}
+
+% --- THEOREM ENVIRONMENTS ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{remark}[definition]{注釈}
+
+% --- METADATA ---
+\title{\textbf{Cat\_Dの位相幾何学的応用：構造塔による空間の階層化}\\
+\large Lean 4による実装 \texttt{P3\_Topological.lean} の数学的解説}
+\author{
+    \textbf{TeX生成}: Gemini (Google) \\
+    \textbf{Lean実装}: Codex (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、形式化数学ライブラリ \texttt{MyProjects.ST.CAT.Cat\_D} における位相空間論への応用について解説する。特に、第二可算空間における開集合の複雑性に基づく階層構造（Open Set Tower）と、閉包演算の反復に基づく階層構造（Closure Tower）に焦点を当て、連続写像がこれらの階層構造の間にもたらす射の性質について、提供されたLeanコードに基づき数学的に定式化する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+提供されたLeanコード \texttt{P3\_Topological.lean} は、抽象的な階層構造（Tower）を扱うカテゴリ \texttt{Cat\_D} を、具体的な位相空間論に応用したものである。
+主なアイデアは、位相空間 $X$ の部分集合族（開集合や閉集合など）に対し、ある種の「複雑さ」や「生成ステップ」を表す自然数 $n \in \mathbb{N}$ を割り当て、その構造を保存する写像を研究することにある。
+
+\section{開集合の階層 (Open Set Tower)}
+
+\subsection{定義と直観}
+第二可算空間（Second Countable Space）、あるいはより一般に可算基底を持つ位相空間において、任意の開集合は基底の和集合として表される。計算機科学的な観点、あるいは有限近似の観点からは、「いくつの基底を使えばその開集合を表現できるか」は重要な指標となる。
+
+\begin{definition}[有限基底和]
+位相空間 $X$ とその開基底 $\mathcal{B}$ を考える。開集合 $U \subseteq X$ が \textbf{レベル $n$ の有限基底和} であるとは、以下を満たすことである。
+\[
+\exists \mathcal{S} \subseteq \mathcal{B}, \quad |\mathcal{S}| \le n \quad \text{かつ} \quad U = \bigcup_{V \in \mathcal{S}} V
+\]
+Leanコード内では \texttt{IsFiniteUnionOfBasis} として定義されている。
+\end{definition}
+
+\begin{definition}[開集合構造塔]
+$(X, \mathcal{B})$ に対する \textbf{開集合構造塔 (Open Set Tower)} とは、以下の階層構造を持つオブジェクトである。
+\begin{itemize}
+    \item \textbf{台集合}: $\text{Carrier} = \{ U \subseteq X \mid U \text{ is Open} \}$
+    \item \textbf{層 (Layer)}: 第 $n$ 層 $L_n$ は、高々 $n$ 個の基底の和で表される開集合全体。
+\end{itemize}
+\[
+L_n = \{ U \in \text{Open}(X) \mid \exists \{V_1, \dots, V_k\} \subseteq \mathcal{B}, k \le n, U = \bigcup_{i=1}^k V_i \}
+\]
+\end{definition}
+
+この定義により、空集合は $L_0$ に（0個の和）、基本開集合自体は $L_1$ に属することになる。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.8]
+    % Draw the tower
+    \draw[thick, fill=blue!5] (-4,0) -- (4,0) -- (3,6) -- (-3,6) -- cycle;
+    
+    % Layers
+    \draw[dashed] (-3.8, 1) -- (3.8, 1);
+    \draw[dashed] (-3.6, 2) -- (3.6, 2);
+    \draw[dashed] (-3.4, 3) -- (3.4, 3);
+    
+    % Labels
+    \node at (0, 0.5) {$L_0 = \{\emptyset\}$};
+    \node at (0, 1.5) {$L_1 = \mathcal{B}$ (基底)};
+    \node at (0, 2.5) {$L_2 = \{V_1 \cup V_2 \mid V_i \in \mathcal{B}\}$};
+    \node at (0, 4.5) {$\vdots$};
+    \node at (0, 5.5) {$L_n$ (複雑さ $n$)};
+    
+    \node[right] at (4, 3) {\textbf{Open Set Tower}};
+\end{tikzpicture}
+\caption{開集合の階層構造のイメージ}
+\end{figure}
+
+\subsection{連続写像と一様有界性}
+
+位相空間の間の連続写像 $f: X \to Y$ は開集合の逆像を開集合に写すが、階層構造（基底の個数）を保つとは限らない。Leanコードでは、この問題に対して「一様上界 (Uniform Bound)」という概念を導入して解決している。
+
+\begin{definition}[逆像の基底被覆数に関する一様上界]
+$X, Y$ をそれぞれ基底 $\mathcal{B}_X, \mathcal{B}_Y$ を持つ空間とし、$f: X \to Y$ を連続写像とする。
+ある定数 $k \in \mathbb{N}$ が存在して、任意の $V \in \mathcal{B}_Y$ に対し、$f^{-1}(V)$ が $\mathcal{B}_X$ の高々 $k$ 個の元の和で表されるとき、$f$ は \textbf{基底に関して $k$-有界} であるという。
+Leanコード内の \texttt{PreimageBasisBound} に対応する。
+\end{definition}
+
+\begin{theorem}[積の法則]
+もし $f$ が基底に関して $k$-有界であるならば、任意の $U \in L_n(Y)$ に対して
+\[
+f^{-1}(U) \in L_{n \times k}(X)
+\]
+が成り立つ。すなわち、複雑さは高々 $k$ 倍にしかならない。
+\end{theorem}
+
+\begin{proof}[証明の概略]
+$U \in L_n(Y)$ とする。定義より $U = \bigcup_{i=1}^m V_i$ ($V_i \in \mathcal{B}_Y, m \le n$) と書ける。
+逆像をとると、
+\[
+f^{-1}(U) = f^{-1}\left(\bigcup_{i=1}^m V_i\right) = \bigcup_{i=1}^m f^{-1}(V_i)
+\]
+仮定より、各 $f^{-1}(V_i)$ は高々 $k$ 個の $\mathcal{B}_X$ の元の和である。
+したがって、全体として $f^{-1}(U)$ は高々 $m \times k \le n \times k$ 個の基底の和となる。
+\end{proof}
+
+この定理により、連続写像 $f$ は \texttt{Cat\_D} における射（Tower Morphism）を誘導する。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+    % Space Y
+    \node (Y) at (0,0) [cylinder, shape border rotate=90, draw, minimum height=4cm, minimum width=2cm, fill=yellow!10] {};
+    \node at (0,-2.5) {Space $Y$ (Tower $T_Y$)};
+    \node at (0, 1) {$U \in L_n$};
+    
+    % Space X
+    \node (X) at (8,0) [cylinder, shape border rotate=90, draw, minimum height=4cm, minimum width=2cm, fill=blue!10] {};
+    \node at (8,-2.5) {Space $X$ (Tower $T_X$)};
+    \node at (8, 1) {$f^{-1}(U) \in L_{n \times k}$};
+    
+    % Map
+    \draw[->, thick] (Y) -- (X) node[midway, above] {$f^{-1}$ (Map)};
+    \draw[->, thick, dashed, bend right] (0.5, 1) to node[below] {複雑さの拡大 $\times k$} (7.5, 1);
+
+    % Basis expansion visual
+    \node[draw, rectangle, fill=white, inner sep=2pt] at (0, -1) {\small $V \in \mathcal{B}_Y$};
+    \node[draw, rectangle, fill=white, inner sep=2pt] at (8, -1) {\small $\bigcup_{j=1}^k W_j, W_j \in \mathcal{B}_X$};
+    
+    % Mapping arrow for basis
+    \draw[|->] (1.2, -1) -- (5.5, -1);
+\end{tikzpicture}
+\caption{写像による階層の移動と係数 $k$}
+\end{figure}
+
+\section{閉包演算の階層 (Closure Tower)}
+
+\subsection{閉包の反復}
+もう一つの応用例として、閉包演算（Closure）の反復による階層化が実装されている。
+通常、位相空間の部分集合 $A$ に対し、$\text{cl}(A) = A$ （閉集合）であれば演算は停止するが、一般の集合に対しては閉包をとる操作によって集合が変化する。
+
+Leanコードでは、以下の反復列を考えている。
+\begin{align*}
+    A^{(0)} &= A \\
+    A^{(i+1)} &= \text{cl}(A^{(i)})
+\end{align*}
+
+\begin{definition}[閉包反復レベル]
+集合 $A$ の閉包反復レベル (Closure Iteration Level) とは、この反復列が安定する（あるいは閉集合になる）までの最小ステップ数である。
+\end{definition}
+
+実装されている \texttt{closureTower} では、教育的な簡易版として以下の2層構造が示唆されている（完全版では順序数やCantor-Bendixsonランクへの拡張が視野にある）。
+\begin{itemize}
+    \item $L_0$: 既に閉集合であるもの（$\text{cl}(A) = A$）。
+    \item $L_n$: $n$ 回の閉包操作で安定するもの。
+\end{itemize}
+
+連続写像 $f: X \to Y$ は $f(\text{cl}(A)) \subseteq \text{cl}(f(A))$ という性質を持つため、閉包構造塔の間の射についても考察されている。
+
+\section{結論}
+\texttt{P3\_Topological.lean} は、位相空間論における「基底の個数」や「閉包の回数」といった離散的な数値を \texttt{Cat\_D} の構造塔として捉え直す試みである。
+特に \texttt{IsFiniteUnionOfBasis.preimage\_mul} （補題：有限基底和の逆像）は、連続写像がこの構造塔の射となるための十分条件（一様有界性）を明確にしており、計算機科学的なリソース制約付き位相幾何学の基礎をなすものである。
+
+\end{document}

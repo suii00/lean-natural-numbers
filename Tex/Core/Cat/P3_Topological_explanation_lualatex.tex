@@ -1,0 +1,307 @@
+% !TEX program = lualatex
+% P3_Topological.md の数学的解説（LuaLaTeX想定）
+
+\documentclass[a4paper,11pt]{article}
+
+% --- Japanese (LuaLaTeX) ---
+\usepackage[haranoaji]{luatexja-preset}
+
+% --- Math / Theorems ---
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+
+% --- Diagrams ---
+\usepackage{tikz-cd}
+
+% --- Misc ---
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\usepackage{geometry}
+\geometry{margin=25mm}
+
+% --- theorem env (Japanese labels) ---
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{remark}[definition]{注意}
+\newtheorem{example}[definition]{例}
+
+\title{Cat\_D による位相的応用（P3\_Topological）の数学的解説}
+\author{ChatGPT（本TeXファイル生成）\\Codex (OpenAI)（元Leanファイル生成）}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿は、Lean 4（mathlib）上のファイル \texttt{P3\_Topological.md} に実装された
+「\textbf{構造塔（tower）}」およびその圏 \textbf{Cat\_D} を、位相空間論の具体例として読み解く。
+中心となる題材は、
+(i) 開集合を「有限個の基底要素の和」で測る \texttt{openSetTower} と、
+(ii) 閉包演算の反復段数（簡易版）で測る \texttt{closureTower} である。
+特に Cat\_D の射が本質的に「\textbf{複雑度の一様上界}」を要求する点を、
+\texttt{PreimageBasisBound} と \texttt{openSetTowerHom\_mul} を通じて明確化する。
+\end{abstract}
+
+\tableofcontents
+
+\section{前提：構造塔と Cat\_D}
+
+\subsection{構造塔（TowerD）の概念}
+Lean では \texttt{TowerD} として、概ね次のデータを持つ「層付き集合」が導入されている：
+\begin{itemize}
+  \item 台集合（carrier）$X$
+  \item 添字（Index）$(I,\le)$：前順序集合
+  \item 各層 $X_i \subseteq X$（\texttt{layer i}）
+  \item 被覆性（\texttt{covering}）：任意の $x\in X$ に対し $\exists i,\ x\in X_i$
+  \item 単調性（\texttt{monotone}）：$i\le j \Rightarrow X_i\subseteq X_j$
+\end{itemize}
+
+\begin{remark}
+被覆性により、すべての元は「十分高い層」に現れる。
+単調性により、層は「複雑度が高いほど集合が大きい」という向きで成長する。
+\end{remark}
+
+\subsection{Cat\_D の射：存在量化による層の保存}
+Cat\_D（Lean では \texttt{T ⟶ᴰ T'}）の射は、直感的には
+「台集合の関数 $f:X\to Y$ が層構造を壊しすぎない」ことを要求する。
+重要なのは、層の整合性が \emph{存在量化} で与えられる点である：
+
+\begin{definition}[Cat\_D の射の要点]
+$T=(X,(X_i)_{i\in I})$ と $T'=(Y,(Y_j)_{j\in J})$ に対し、
+$f:T\to T'$ が Cat\_D の射であるとは、各 $i\in I$ について
+\[
+\exists j\in J,\quad f(X_i)\subseteq Y_j
+\]
+が成り立つこと（Lean の \texttt{map\_layer}）を含む、という構造である。
+\end{definition}
+
+この「$\exists j$」は、位相や可測性のような解析的構造において
+\textbf{一様な複雑度上界}を抽出する装置として働く（後述）。
+
+\section{開集合の階層：\texttt{openSetTower}}
+
+\subsection{有限個の基底の和としての表示}
+位相空間 $(X,\mathcal{T})$ と基底 $B\subseteq \mathcal{T}$ を固定し、
+\textbf{開集合 $U$ が基底要素の有限個の和で表せる}ことを次で表す：
+
+\begin{definition}[\texttt{IsFiniteUnionOfBasis}]
+$B\subseteq \mathcal{P}(X)$、$U\subseteq X$、$n\in\mathbb{N}$ に対し
+\[
+\mathrm{IsFiniteUnionOfBasis}(B,U,n)
+\]
+とは、
+ある有限集合 $S\subseteq B$ が存在して
+\[
+|S|\le n,\qquad U=\bigcup_{V\in S} V
+\]
+が成り立つことを表す（Lean では \texttt{Finset} を用いる）。
+\end{definition}
+
+\begin{remark}
+一般の第二可算空間では、開集合は基底の\textbf{可算}和で表されるのが標準である。
+本ファイルは議論を簡潔にするため、
+「任意の開集合が有限和で表せ、しかも要素数に上界がある」という仮定
+\[
+\forall U\ (\mathrm{IsOpen}(U)\Rightarrow \exists n\ \mathrm{IsFiniteUnionOfBasis}(B,U,n))
+\]
+（Lean の \texttt{hcover}）を置いている。
+\end{remark}
+
+\subsection{開集合タワーの定義}
+\texttt{openSetTower} は「開集合 $U$ の複雑さ＝必要な基底要素数の上界」として層を切る：
+
+\begin{definition}[\texttt{openSetTower} の数学的内容]
+台集合を開集合全体
+\[
+\mathrm{Open}(X)=\{U\subseteq X\mid U\in\mathcal{T}\}
+\]
+とみなし（Lean では \texttt{\{U : Set X // IsOpen U\}}）、
+層を
+\[
+\mathrm{layer}(n)=\{U\in \mathrm{Open}(X)\mid \mathrm{IsFiniteUnionOfBasis}(B,U,n)\}
+\]
+で定義する。
+単調性は $n\le m\Rightarrow \mathrm{layer}(n)\subseteq\mathrm{layer}(m)$ から従う。
+被覆性は上の \texttt{hcover} 仮定により従う。
+\end{definition}
+
+ファイルには基本的な性質として、空集合や基底要素の層への所属が示される（内容は次の通り）：
+\begin{lemma}[空集合は層0]
+$\emptyset \in \mathrm{layer}(0)$。
+\end{lemma}
+\begin{lemma}[基底要素は層1]
+$U\in B$ なら $U\in \mathrm{layer}(1)$。
+\end{lemma}
+
+\subsection{連続写像が誘導する射（逆像）}
+連続写像 $f:X\to Y$ は、逆像により開集合を開集合へ送る：
+\[
+f^{-1}:\mathrm{Open}(Y)\longrightarrow \mathrm{Open}(X).
+\]
+ファイルの \texttt{openSetTowerHom} は、これを Cat\_D の射として実装する。
+
+\begin{proposition}[\texttt{openSetTowerHom} の要件（層を同じ番号で保つ）]
+$BY$ を $Y$ の基底、$BX$ を $X$ の基底とする。
+\[
+(\forall V\in BY,\ f^{-1}(V)\in BX)
+\]
+が成り立つとき、逆像は層を「同じ $n$」で保つ：
+\[
+U\in \mathrm{layer}_Y(n)\ \Rightarrow\ f^{-1}(U)\in \mathrm{layer}_X(n).
+\]
+\end{proposition}
+
+この関係は次の可換図式で表せる（開集合は逆向きに動く）：
+\[
+\begin{tikzcd}
+X \arrow[r,"f"] & Y \\
+\mathrm{Open}(X) & \mathrm{Open}(Y) \arrow[l,"f^{-1}"']
+\end{tikzcd}
+\]
+さらに層付き構造としては
+\[
+\begin{tikzcd}
+\mathrm{openSetTower}(Y) \arrow[r, dashed, "f^{-1}"] & \mathrm{openSetTower}(X)
+\end{tikzcd}
+\]
+（dashed は「Cat\_D の射としての構造を伴う」意図）となる。
+
+\begin{remark}
+連続性（開集合の逆像が開集合）だけでは、
+「基底の有限和」という\textbf{具体的な表示}が保存されない。
+そのため上の命題のような追加仮定が本質的になる、というのが
+ファイル中の注意書きの数学的意味である。
+\end{remark}
+
+\section{一様上界と複雑度：\texttt{PreimageBasisBound} と \texttt{openSetTowerHom\_mul}}
+
+\subsection{基底1個の逆像の「一様上界」}
+ファイルは Cat\_D の本質を次の仮定で抽出する：
+
+\begin{definition}[\texttt{PreimageBasisBound}]
+$k\in\mathbb{N}$ に対し
+\[
+\mathrm{PreimageBasisBound}(BX,BY,f,k)
+\]
+とは、任意の基底要素 $V\in BY$ について
+\[
+f^{-1}(V)=\bigcup_{W\in S_V} W,\qquad S_V\subseteq BX,\quad |S_V|\le k
+\]
+が成り立つこと（しかも $k$ が \textbf{一様}）をいう。
+\end{definition}
+
+\begin{remark}
+特に $k=1$ は「基底要素の逆像が基底要素に入る」という強い状況である。
+ファイルには「この強い状況から \texttt{PreimageBasisBound(...,1)} を得る」補題がある。
+\end{remark}
+
+\subsection{$n$ 個の有限和の逆像は高々 $nk$ 個}
+一様上界があると、有限和が線形に増える：
+
+\begin{lemma}[\texttt{IsFiniteUnionOfBasis.preimage\_mul}]
+$U$ が $BY$ の要素 $n$ 個の和なら、$f^{-1}(U)$ は $BX$ の要素高々 $n\cdot k$ 個の和で表せる。
+\end{lemma}
+
+\begin{remark}
+Lean 実装では、各 $V$ に対する証人の有限集合を古典的選択で取り、
+それらを \texttt{biUnion} で束ねて全体の上界 $n\cdot k$ を得る、という構図になっている。
+\end{remark}
+
+\subsection{層の上界が $n\mapsto n\cdot k$ へ}
+上の補題を使うと、逆像は
+\[
+\mathrm{layer}_Y(n)\ \Rightarrow\ \mathrm{layer}_X(n\cdot k)
+\]
+を満たし、Cat\_D の射 \texttt{openSetTowerHom\_mul} が得られる。
+
+\begin{proposition}[\texttt{openSetTowerHom\_mul}]
+\texttt{PreimageBasisBound(...,k)} を仮定すると、
+逆像は Cat\_D の射として
+$\mathrm{layer}(n)$ を $\mathrm{layer}(n\cdot k)$ に送る。
+\end{proposition}
+
+\subsection{「世界(B)」：一様上界が無いと \texttt{map\_layer} が壊れる}
+ファイルのコメント「世界(B)」は、次の含意を明確化している：
+
+\begin{theorem}[\texttt{exists\_preimageBasisBound\_of\_exists\_preimageHom} の趣旨]
+もし \textbf{逆像そのもの}を \texttt{map} とする Cat\_D の射
+\[
+F:\mathrm{openSetTower}(Y)\to \mathrm{openSetTower}(X)
+\]
+が存在するなら、そこから
+\[
+\exists k,\ \mathrm{PreimageBasisBound}(BX,BY,f,k)
+\]
+が \textbf{必ず抽出できる}。
+\end{theorem}
+
+\begin{remark}
+直観的には、層1には「基底要素」が入っている。
+Cat\_D の \texttt{map\_layer 1} は「層1をどこかの層 $j$ に送る」と主張するため、
+その $j$ が「基底1個の逆像の複雑度上界（しかも一様）」として読める、という構造になっている。
+\end{remark}
+
+\section{閉包演算の階層：\texttt{closureTower}（簡易版）}
+
+\subsection{閉包反復回数という複雑度}
+閉包 $\overline{A}=\mathrm{closure}(A)$ を反復して
+\[
+A^{(0)}=A,\qquad A^{(n+1)}=\overline{A^{(n)}}
+\]
+とする。
+一般には $\overline{A}=A$（閉集合）になるまでの最小 $n$ を ``閉包段数'' とみなせる。
+本ファイルでは教育的簡約として
+
+\begin{definition}[\texttt{closureIterationLevel}（簡易版）]
+\[
+\mathrm{closureIterationLevel}(A)=
+\begin{cases}
+0 & (A\ \text{が閉集合})\\
+1 & (\text{それ以外})
+\end{cases}
+\]
+と定義している。
+（完全版では「$\overline{A^{(n)}}=A^{(n)}$ になるまでの回数」を意図している、というコメントがある。）
+\end{definition}
+
+\subsection{閉包タワー}
+この段数により、$\mathcal{P}(X)$ を層分解する：
+
+\begin{definition}[\texttt{closureTower}]
+台集合を $\mathcal{P}(X)$ とし、
+\[
+\mathrm{layer}(n)=\{A\subseteq X\mid \mathrm{closureIterationLevel}(A)\le n\}
+\]
+で層を定義する。
+被覆性は $n=\mathrm{closureIterationLevel}(A)$ を取ればよい。
+\end{definition}
+
+簡易版でも次の性質がファイルにある：
+\begin{lemma}[閉集合は層0]
+$A$ が閉集合なら $A\in \mathrm{layer}(0)$。
+\end{lemma}
+\begin{lemma}[開集合の補集合は層0]
+$U$ が開集合なら $U^{c}\in \mathrm{layer}(0)$。
+\end{lemma}
+
+\section{有限位相空間の簡約例：\texttt{finiteOpenSetTower}}
+ファイルには「有限型の位相空間では扱いやすい」という観点から、
+開集合階層をさらに単純化した例（\texttt{finiteOpenSetTower}）が含まれる。
+典型的な意図は、
+\[
+\mathrm{layer}(0)=\{\emptyset\},\qquad \mathrm{layer}(n)=\mathrm{Open}(X)\ (n\ge 1)
+\]
+のように、有限性のもとで「複雑度が一定（飽和する）」状況を模型化することである。
+
+\section{まとめ}
+\texttt{P3\_Topological.md} の主張は、次の3点に要約できる：
+\begin{itemize}
+  \item \textbf{開集合の複雑度}：基底要素の有限和で層を作る（\texttt{openSetTower}）。
+  \item \textbf{閉包の複雑度}：閉包反復段数（簡易版）で層を作る（\texttt{closureTower}）。
+  \item \textbf{Cat\_D の射の本質}：連続性そのものより、\textbf{一様な複雑度上界}が重要。
+        その可視化が \texttt{PreimageBasisBound} と「世界(B)」の議論である。
+\end{itemize}
+
+\end{document}
