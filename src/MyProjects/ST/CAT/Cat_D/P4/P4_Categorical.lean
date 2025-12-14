@@ -376,14 +376,16 @@ def homEqToHomD {T T' : TowerD} (f : HomEq T T') : HomD T T' :=
 /-!
 **包含関手の性質**
 
-補題: 包含関手は忠実（faithful）である。
+`HomLe` の射は `indexMap` を **データとして** 持つため、
+`homLeToHomD` は一般には忠実（faithful）ではない：
+同じ `map` を持つ異なる `HomLe` が同一の `HomD` に写り得る。
 
-つまり、異なる HomLe の射は異なる HomD の射に写される。
+一方で `HomD` の射は `map` で一意に定まる（`HomD.ext`）ので、
+`homLeToHomD f = homLeToHomD g` は「`f.map = g.map`」と同値になる。
 -/
 
-lemma homLeToHomD_injective {T T' : TowerD} :
-    ∀ {f g : HomLe T T'}, homLeToHomD f = homLeToHomD g ↔ f.map = g.map := by
-  intro f g
+lemma homLeToHomD_eq_iff_map_eq {T T' : TowerD} {f g : HomLe T T'} :
+    homLeToHomD f = homLeToHomD g ↔ f.map = g.map := by
   constructor
   · intro h
     exact congrArg HomD.map h
@@ -783,6 +785,47 @@ P1.lean や CAT2_complete.lean で定義されたものと同等。
   monotone := by
     intro i j hij k hk
     exact Nat.le_trans hk hij
+
+ /-!
+ `homLeToHomD` が一般に忠実でないことの最小例。
+
+ `natTower ⟶ₗₑ natTower` では、同じ `map := id` でも
+ `indexMap := id` と `indexMap := Nat.succ` のように別のデータを入れられる。
+ しかし `homLeToHomD` は `indexMap` を捨てるので像は一致する。
+ -/
+
+ def homLeId_natTower : HomLe natTower natTower where
+   map := _root_.id
+   indexMap := _root_.id
+   indexMap_mono := by intro a b hab; exact hab
+   layer_preserving := by
+     intro i x hx
+     simpa using hx
+
+ def homLeSucc_natTower : HomLe natTower natTower where
+   map := _root_.id
+   indexMap := Nat.succ
+   indexMap_mono := by
+     intro a b hab
+     exact Nat.succ_le_succ hab
+   layer_preserving := by
+     intro i x hx
+     exact Nat.le_trans hx (Nat.le_succ i)
+
+ example : homLeId_natTower ≠ homLeSucc_natTower := by
+   intro h
+   have hindex : homLeId_natTower.indexMap = homLeSucc_natTower.indexMap :=
+     congrArg HomLe.indexMap h
+   have h0 : homLeId_natTower.indexMap 0 = homLeSucc_natTower.indexMap 0 :=
+     congrArg (fun φ => φ 0) hindex
+   have h01 : (0 : ℕ) = 1 := by
+     have h0' := h0
+     dsimp [homLeId_natTower, homLeSucc_natTower] at h0'
+     exact h0'
+   exact Nat.zero_ne_one h01
+
+ example : homLeToHomD homLeId_natTower = homLeToHomD homLeSucc_natTower := by
+   exact (homLeToHomD_eq_iff_map_eq (f := homLeId_natTower) (g := homLeSucc_natTower)).2 rfl
 
 /-- 自然数の構造塔の直積
 
