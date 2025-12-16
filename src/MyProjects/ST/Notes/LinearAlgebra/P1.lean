@@ -127,6 +127,15 @@ noncomputable def linearSpanTower : SimpleTowerWithMin where
     intro v i hv
     exact hv
 
+-- TODO: Student exercises below intentionally contain `sorry` placeholders; replace them with proofs.
+
+/-! ### Sanity checks -/
+
+/-- `Vec2Q.zero` belongs to layer `0`. -/
+example : Vec2Q.zero ∈ linearSpanTower.layer (0 : ℕ) := by
+  change minBasisCount Vec2Q.zero ≤ (0 : ℕ)
+  simp [Vec2Q.zero, minBasisCount]
+
 /-! ## 演習問題 -/
 
 /-! ### 基本レベル（Exercise 1-3） -/
@@ -196,7 +205,7 @@ lemma minBasisCount_general (a b : ℚ) (ha : a ≠ 0) (hb : b ≠ 0) :
 ヒント: linearSpanTower.monotone を使用します。
 -/
 theorem layer_0_subset_layer_1 :
-    linearSpanTower.layer 0 ⊆ linearSpanTower.layer 1 := by
+    linearSpanTower.layer (0 : ℕ) ⊆ linearSpanTower.layer (1 : ℕ) := by
   sorry
 
 /-- **Exercise 8**: 層 0 の完全な特徴付け
@@ -205,7 +214,7 @@ theorem layer_0_subset_layer_1 :
 ヒント: v ∈ layer 0 ⇔ minBasisCount(v) ≤ 0 ⇔ minBasisCount(v) = 0
 -/
 theorem layer_0_characterization :
-    linearSpanTower.layer 0 = {Vec2Q.zero} := by
+    linearSpanTower.layer (0 : ℕ) = {Vec2Q.zero} := by
   sorry
 
 /-- **Exercise 9**: 層 1 の特徴付け
@@ -214,7 +223,7 @@ theorem layer_0_characterization :
 ヒント: v ∈ layer 1 ⇔ v.1 = 0 または v.2 = 0
 -/
 theorem layer_1_characterization :
-    linearSpanTower.layer 1 = {v : Vec2Q | v.1 = 0 ∨ v.2 = 0} := by
+    linearSpanTower.layer (1 : ℕ) = {v : Vec2Q | v.1 = 0 ∨ v.2 = 0} := by
   sorry
 
 /-- **Exercise 10**: スカラー倍は minLayer を保存する
@@ -286,6 +295,7 @@ noncomputable def linearSpanTower3 : SimpleTowerWithMin where
   minLayer := minBasisCount3
   minLayer_mem := by
     intro v
+    show minBasisCount3 v ≤ minBasisCount3 v
     exact le_rfl
   minLayer_minimal := by
     intro v i hv
