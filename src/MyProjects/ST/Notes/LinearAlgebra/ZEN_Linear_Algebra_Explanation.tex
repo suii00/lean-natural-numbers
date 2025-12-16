@@ -1,0 +1,178 @@
+\documentclass[judge=standard,11pt]{jlreq}
+
+% --- パッケージの読み込み ---
+\usepackage{luatexja}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% --- TikZの設定 ---
+\usetikzlibrary{calc, patterns, positioning, arrows.meta}
+
+% --- 定理環境の設定 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{exercise}[definition]{演習}
+
+% --- マクロ定義 ---
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\VecQ}{\Q^2}
+\newcommand{\minBasisCount}{\text{minBasisCount}}
+\newcommand{\layer}{\text{layer}}
+
+% --- 文書情報 ---
+\title{ZEN大学「線形代数1」構造塔演習課題\\ 数学的解説と構造塔の視覚化}
+\author{Lean Code Generation: Codex (OpenAI) \\ TeX Explanation Generation: Gemini (Google)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4によって記述された「構造塔（Structure Tower）」の概念を用いた線形代数の演習課題について数学的に解説します。
+2次元有理ベクトル空間 $\Q^2$ 上に定義された「最小基底数」という概念を通じて、ベクトル空間がどのように階層化（Stratification）されるかを可視化し、その代数的性質を明らかにします。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+提供されたLeanファイルは、線形代数の基礎的な概念（ベクトル、加法、スカラー倍）を、「構造塔（Structure Tower）」という新しい視点から再構成する演習課題です。
+通常の線形代数では、ベクトル空間全体を一様に扱いますが、ここでは個々のベクトルが持つ「複雑さ」に着目し、空間を階層的な集合の列（タワー）として捉えます。
+
+\section{基本定義：2次元有理ベクトル空間}
+
+\subsection{ベクトルの定義}
+Leanコード内では、ベクトル空間の基礎となる集合 `Vec2Q` が有理数の直積として定義されています。
+
+\[ \text{Vec2Q} := \Q \times \Q = \{ (a, b) \mid a, b \in \Q \} \]
+
+\subsection{演算}
+この空間には以下の自然な演算が定義されています。
+
+\begin{definition}[加法とスカラー倍]
+任意の $v = (v_1, v_2), w = (w_1, w_2) \in \VecQ$ およびスカラー $r \in \Q$ に対して：
+\begin{itemize}
+    \item 加法: $v + w = (v_1 + w_1, v_2 + w_2)$
+    \item スカラー倍: $r \cdot v = (r v_1, r v_2)$
+\end{itemize}
+\end{definition}
+
+これらは `Exercise 1-3` において、可換性、単位元の存在、分配法則などのベクトル空間の公理を満たすことが確認されます。
+
+\section{最小基底数と構造塔}
+
+本課題の核心は `minBasisCount` という関数です。これは数学的には「$L_0$ノルム（非ゼロ成分の個数）」に相当する概念を、標準基底に関して定義したものです。
+
+\subsection{最小基底数の定義}
+ベクトル $v = (a, b) \in \VecQ$ に対して、自然数値を返す関数 $\minBasisCount(v)$ は以下のように定義されます。
+
+\[
+\minBasisCount(v) = 
+\begin{cases} 
+0 & \text{if } a = 0 \land b = 0 \\
+1 & \text{if } (a = 0 \lor b = 0) \land \neg(a = 0 \land b = 0) \\
+2 & \text{otherwise (i.e., } a \neq 0 \land b \neq 0)
+\end{cases}
+\]
+
+直感的には、そのベクトルを標準基底 $\{e_1, e_2\}$ の線形結合で表すために、\textbf{「最低何個の基底が必要か」}を表しています。
+
+\subsection{層（Layer）の構造}
+構造塔 `linearSpanTower` は、この関数を用いて空間 $\VecQ$ を部分集合の列 $L_0 \subseteq L_1 \subseteq L_2$ に分解します。ここで第 $n$ 層 $L_n$ は以下のように定義されます。
+
+\[ L_n = \{ v \in \VecQ \mid \minBasisCount(v) \le n \} \]
+
+各層の幾何学的な意味は以下の通りです。
+
+\begin{itemize}
+    \item \textbf{第0層 ($L_0$)}: 原点のみ。
+    \[ L_0 = \{ (0,0) \} \]
+    \item \textbf{第1層 ($L_1$)}: 座標軸上の点全体（原点含む）。つまり、$x$軸と$y$軸の和集合。
+    \[ L_1 = \{ (a, 0) \mid a \in \Q \} \cup \{ (0, b) \mid b \in \Q \} \]
+    \item \textbf{第2層 ($L_2$)}: 平面全体。
+    \[ L_2 = \VecQ \]
+\end{itemize}
+
+\section{構造塔の可視化}
+
+この構造塔の概念を図示します。第1層 $L_1$ が空間全体 $L_2$ の中で「十字型」の部分集合を形成している様子が見て取れます。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=2]
+    % Draw background grid
+    \draw[step=0.5,gray!15,very thin] (-2.2,-2.2) grid (2.2,2.2);
+
+    % Define Layer 2 (The whole plane - represented by background implies generic points)
+    \node at (1.5, 1.5) {\textcolor{gray}{$L_2 \setminus L_1$ (一般の位置)}};
+    \fill[blue!10, opacity=0.5] (1,1) circle (0.1); 
+    \node[right, blue] at (1.1,1) {$\minBasisCount = 2$};
+
+    % Draw Layer 1 (Axes)
+    \draw[very thick, orange, ->] (-2.2, 0) -- (2.2, 0) node[right] {$x$};
+    \draw[very thick, orange, ->] (0, -2.2) -- (0, 2.2) node[above] {$y$};
+    \node[orange] at (1.5, 0.2) {$L_1 \setminus L_0$};
+    
+    % Draw Layer 0 (Origin)
+    \fill[red] (0,0) circle (0.08);
+    \node[below left, red] at (0,0) {$L_0$ (原点)};
+
+    % Legend
+    \matrix [draw, below left] at (current bounding box.north east) {
+        \node [red] {$\bullet$}; & \node {\small $L_0$: ゼロベクトル (0)}; \\
+        \draw [thick, orange] (-0.3,0) -- (0.3,0); & \node {\small $L_1$: 軸上のベクトル (1)}; \\
+        \fill [blue!10] (-0.3,-0.1) rectangle (0.3,0.1); & \node {\small $L_2$: 一般のベクトル (2)}; \\
+    };
+\end{tikzpicture}
+\caption{2次元有理ベクトル空間における構造塔の可視化。
+赤点は層0、オレンジの線は層1、それ以外の領域は層2に属する。}
+\end{figure}
+
+\section{演習問題の解説}
+
+Leanファイルに含まれる演習問題は、この構造塔の性質を順を追って証明するものです。
+
+\subsection{中級レベル（Exercise 4-6）}
+ここでは `minBasisCount` の具体的な計算を行います。
+\begin{itemize}
+    \item \textbf{Exercise 4}: 原点は $L_0$ に属する。
+    \item \textbf{Exercise 5, 6}: 軸上の点と一般の点で値が異なることを確認し、定義が幾何学的直感と一致することを保証します。
+\end{itemize}
+
+\subsection{応用レベル（Exercise 7-10）}
+構造塔の包含関係とその代数的性質を扱います。
+
+\begin{theorem}[Exercise 7: 単調性]
+\[ L_0 \subseteq L_1 \]
+\end{theorem}
+これは $0 \le 1$ から直ちに従いますが、幾何学的には「原点は座標軸の一部である」ことを意味します。
+
+\begin{theorem}[Exercise 10: スカラー倍の保存性]
+非ゼロスカラー $r \neq 0$ に対して、
+\[ \minBasisCount(r \cdot v) = \minBasisCount(v) \]
+\end{theorem}
+この定理は非常に重要です。これは、ベクトルをスカラー倍（拡大縮小）しても、それが属する「層」は変わらないことを示しています。つまり、軸上のベクトルを何倍しても軸上のままであり、軸上にないベクトルを何倍しても軸上には移動しないことを保証します。
+これにより、スカラー倍という操作が構造塔の構造を保つ「射（morphism）」であることが分かります。
+
+\section{発展：ベクトル加法と複雑性の増大}
+
+発展課題（Challenge 2）にある不等式
+\[ \minBasisCount(v + w) \le \max(\minBasisCount(v), \minBasisCount(w)) + 1 \]
+は、ベクトルの加法によって複雑さがどのように増大するかを示唆しています。
+
+例えば、$v=(1,0) \in L_1$ と $w=(0,1) \in L_1$ を足すと、
+\[ v + w = (1,1) \in L_2 \]
+となり、階層が $1$ から $2$ へと上がります。これは線形独立なベクトルを足し合わせることで、より高い次元（あるいは複雑さ）を持つベクトルが生成されるプロセスを数式化したものです。
+
+\section{まとめ}
+本演習課題は、単なる計算練習を超えて、ベクトル空間に「疎性（sparsity）」に基づいたフィルトレーション（層構造）を導入する試みです。
+これは、より高度な数学（代数幾何学における層や、最適化理論におけるスパースモデリング）への入り口となる概念的な枠組みを提供しています。
+
+\end{document}

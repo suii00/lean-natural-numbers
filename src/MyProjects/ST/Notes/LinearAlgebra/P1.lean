@@ -333,12 +333,16 @@ theorem layer_ge_2_is_full (n : ℕ) (hn : n ≥ 2) :
     simpa [linearSpanTower] using this
 
 /-- **Challenge 2**: ベクトル加法と minBasisCount
-
+ 
 一般に、minBasisCount(v + w) ≤ max(minBasisCount(v), minBasisCount(w)) + 1
 が成り立つことを示してください。
-
+ 
 ヒント: これは線形独立性の性質を反映しています。
 -/
+theorem minBasisCount_add_le_corrected (v w : Vec2Q) :
+    minBasisCount (Vec2Q.add v w) ≤ 2 := by
+  exact minBasisCount_le_two _
+
 theorem minBasisCount_add_le (v w : Vec2Q) :
     minBasisCount (Vec2Q.add v w) ≤
     max (minBasisCount v) (minBasisCount w) + 1 := by
@@ -367,10 +371,29 @@ theorem minBasisCount_add_le (v w : Vec2Q) :
       simpa [Nat.succ_eq_add_one] using Nat.succ_le_succ hone
     exact le_trans hv htwo
 
+theorem minBasisCount_add_le_original (v w : Vec2Q) :
+    minBasisCount (Vec2Q.add v w) ≤
+    max (minBasisCount v) (minBasisCount w) + 1 := by
+  simpa using minBasisCount_add_le v w
+
 /-! ## 補助定義：3次元への拡張 -/
 
-/-- 3次元有理ベクトル空間（発展課題用） -/
+/-- 3次元有理ベクトル空間（発展課題用）
+
+注意: Lean では `ℚ × ℚ × ℚ` は `ℚ × (ℚ × ℚ)` と解釈されるため、
+`v : Vec3Q` に対して
+* `v.1`   = 第1成分
+* `v.2.1` = 第2成分
+* `v.2.2` = 第3成分
+となります。
+-/
 def Vec3Q : Type := ℚ × ℚ × ℚ
+
+/-- `Vec3Q` をより明示的にした構造体版（読みやすさ優先） -/
+structure Vec3Q_explicit where
+  x : ℚ
+  y : ℚ
+  z : ℚ
 
 /-- Vec3Q の最小基底数
 3次元への自然な拡張
@@ -380,6 +403,44 @@ noncomputable def minBasisCount3 (v : Vec3Q) : ℕ :=
   else if (v.1 = 0 ∧ v.2.1 = 0) ∨ (v.1 = 0 ∧ v.2.2 = 0) ∨ (v.2.1 = 0 ∧ v.2.2 = 0) then 1
   else if v.1 = 0 ∨ v.2.1 = 0 ∨ v.2.2 = 0 then 2
   else 3
+
+/-- Vec3Q の最小基底数（改善版）
+非零成分の個数を直接数える実装で、意図が明確。 -/
+noncomputable def minBasisCount3_v2 (v : Vec3Q) : ℕ :=
+  let c1 := if v.1 ≠ 0 then 1 else 0
+  let c2 := if v.2.1 ≠ 0 then 1 else 0
+  let c3 := if v.2.2 ≠ 0 then 1 else 0
+  c1 + c2 + c3
+
+lemma minBasisCount3_eq_v2 (v : Vec3Q) :
+    minBasisCount3 v = minBasisCount3_v2 v := by
+  rcases v with ⟨a, b, c⟩
+  by_cases ha : a = 0
+  · by_cases hb : b = 0
+    · by_cases hc : c = 0
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+    · by_cases hc : c = 0
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+  · by_cases hb : b = 0
+    · by_cases hc : c = 0
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+    · by_cases hc : c = 0
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+      · simp [minBasisCount3, minBasisCount3_v2, ha, hb, hc]
+
+example : minBasisCount3_v2 ((1 : ℚ), (0 : ℚ), (0 : ℚ)) = 1 := by
+  simp [minBasisCount3_v2]
+
+example : minBasisCount3 ((1 : ℚ), (0 : ℚ), (0 : ℚ)) = 1 := by
+  simp [minBasisCount3]
+
+example :
+    minBasisCount3 ((1 : ℚ), (0 : ℚ), (0 : ℚ)) =
+      minBasisCount3_v2 ((1 : ℚ), (0 : ℚ), (0 : ℚ)) := by
+  simpa using minBasisCount3_eq_v2 ((1 : ℚ), (0 : ℚ), (0 : ℚ))
 
 /-- **Challenge 3**: 3次元構造塔の構成
 
