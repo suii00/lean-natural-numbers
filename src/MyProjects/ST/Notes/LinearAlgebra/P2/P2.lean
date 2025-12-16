@@ -44,7 +44,7 @@ ZEN大学のシラバスに対応：
 2. `LinearMapTower`: 線型写像による構造塔の射
 3. Concrete Examples: Vec2Q, Vec3Q（具体例）
 4. Fundamental Theorems: 基底と次元の構造塔的解釈
-5. Applications: Gram-Schmidt、固有空間の階層
+
 
 -/
 
@@ -295,6 +295,16 @@ example (T : VectorSpaceTower) (i j : T.Index) : i ≤ j → T.layer i ⊆ T.lay
 /-- Axis vectors have minimal basis count `1` in `Vec3Q`. -/
 example : minBasisCount3 ((1 : ℚ), (0 : ℚ), (0 : ℚ)) = 1 := by
   simp [minBasisCount3]
+
+/-- Regression tests for `minBasisCount2` on concrete vectors. -/
+example : minBasisCount2 ((0 : ℚ), (0 : ℚ)) = 0 := by
+  simp [minBasisCount2]
+
+example : minBasisCount2 ((1 : ℚ), (0 : ℚ)) = 1 := by
+  simp [minBasisCount2]
+
+example : minBasisCount2 ((1 : ℚ), (1 : ℚ)) = 2 := by
+  simp [minBasisCount2]
 
 /-!
 ### Concrete Instances / 具体例の構成
@@ -758,6 +768,26 @@ noncomputable def projectionFirstCoord :
     | succ m =>
       simpa [vec2QTower, hm, Nat.min_eq_right (Nat.succ_le_succ (Nat.zero_le m))] using hxmap
 
+/-! ### Morphism usage tests (regression) -/
+
+example (r : ℚ) (hr : r ≠ 0) (i : ℕ) (v : Vec2Q) (hv : v ∈ vec2QTower.layer i) :
+    (scalarMultMorphism r hr).map v ∈ vec2QTower.layer ((scalarMultMorphism r hr).indexMap i) := by
+  exact (scalarMultMorphism r hr).layer_preserving i v hv
+
+example (r : ℚ) (hr : r ≠ 0) (v : Vec2Q) :
+    vec2QTower.minLayer ((scalarMultMorphism r hr).map v) ≤
+      (scalarMultMorphism r hr).indexMap (vec2QTower.minLayer v) := by
+  exact (scalarMultMorphism r hr).minLayer_preserving v
+
+example (i : ℕ) (v : Vec2Q) (hv : v ∈ vec2QTower.layer i) :
+    projectionFirstCoord.map v ∈ vec2QTower.layer (projectionFirstCoord.indexMap i) := by
+  exact projectionFirstCoord.layer_preserving i v hv
+
+example (v : Vec2Q) :
+    vec2QTower.minLayer (projectionFirstCoord.map v) ≤
+      projectionFirstCoord.indexMap (vec2QTower.minLayer v) := by
+  exact projectionFirstCoord.minLayer_preserving v
+
 /-!
 ## Part 5: Linear Algebra 1 Concepts
 ## 第5部：線形代数1の概念
@@ -902,93 +932,6 @@ theorem dimension_eq_max_minLayer_Vec2Q :
     rw [Nat.sSup_def hf_bdd]
     exact (Nat.find_spec hf_bdd) 2 hmem
 
-/-!
-### Gram-Schmidt Orthogonalization as Layer Construction
-### 層構成としてのGram-Schmidt直交化
-
-The Gram-Schmidt process builds an orthogonal basis incrementally,
-which naturally corresponds to a structure tower.
-
-Gram-Schmidt過程は直交基底を段階的に構築するため、
-構造塔に自然に対応する。
-
-Interpretation:
-- Layer 0: {0}
-- Layer 1: span{u₁} (first orthogonal vector)
-- Layer 2: span{u₁, u₂} (first two orthogonal vectors)
-- ...
-
-This is TODO for future implementation.
-これは将来の実装のためのTODO。
--/
-
-/--
-Gram-Schmidt tower structure (sketch)
-
-入力: 線型独立なベクトル列 {v₁, v₂, ..., vₙ}
-出力: 直交ベクトル列 {u₁, u₂, ..., uₙ} の構造塔
-
-層の定義:
-- layer k = span{u₁, ..., uₖ}
-
-この構造により、Gram-Schmidt過程が構造塔の層構成として理解できる。
-
-証明方針:
-1. 各ステップでの直交性を保証
-2. 層の単調性は構成から自動的
-3. minLayerは各uₖが追加される層番号
-
-Implementation note:
-完全な実装には内積構造が必要。
-現在の有理数ベクトル空間で実装可能だが、複雑なため省略。
--/
-axiom gramSchmidtTower : VectorSpaceTower
-
-/-!
-## Part 6: Linear Algebra 2 Concepts
-## 第6部:線形代数2の概念
-
-Advanced topics:
-- Eigenspaces as structure tower
-- Diagonalization as tower isomorphism
-- Singular Value Decomposition (SVD) structure
--/
-
-/-!
-### Eigenspace Tower / 固有空間の構造塔
-
-For a linear map T: V → V, the eigenspaces form a natural tower:
-- Layer 0: {0}
-- Layer 1: Eigenspace for λ₁
-- Layer 2: Eigenspace for λ₁ ⊕ Eigenspace for λ₂
-- ...
-
-This generalizes the usual direct sum decomposition.
-これは通常の直和分解を一般化する。
--/
-
-/--
-Eigenspace tower structure (type signature)
-
-Mathematical construction:
-固有値 λ₁, λ₂, ..., λₙ に対して、
-  layer k = ⨁ᵢ₌₁ᵏ E_λᵢ
-と定義する。
-
-Key property:
-T is diagonalizable ⇔ the eigenspace tower covers V
-Tが対角化可能 ⇔ 固有空間の構造塔がVを被覆
-
-証明方針:
-1. 各固有空間の直和として層を定義
-2. 被覆性 = 対角化可能性
-3. minLayer(v) = v が属する最小の固有空間の次元
-
-Implementation note:
-これは抽象的なため、完全な実装は高度。
-ここでは型シグネチャと性質のみを記述。
--/
-axiom EigenspaceTower : Type → VectorSpaceTower
 
 /--
 Diagonalization as structure tower isomorphism
