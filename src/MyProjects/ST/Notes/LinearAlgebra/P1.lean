@@ -75,6 +75,31 @@ noncomputable def minBasisCount (v : Vec2Q) : ℕ :=
   else if v.1 = 0 ∨ v.2 = 0 then 1
   else 2
 
+lemma minBasisCount_eq_zero_iff (v : Vec2Q) :
+    minBasisCount v = 0 ↔ v = Vec2Q.zero := by
+  constructor
+  · intro h
+    rcases v with ⟨a, b⟩
+    unfold minBasisCount at h
+    by_cases h0 : a = 0 ∧ b = 0
+    · exact Prod.ext h0.1 h0.2
+    · have h' : (if a = 0 ∨ b = 0 then 1 else 2) = 0 := by
+        simpa [h0] using h
+      by_cases h1 : a = 0 ∨ b = 0
+      · simp [h1] at h'
+      · simp [h1] at h'
+  · intro hv
+    subst hv
+    simp [Vec2Q.zero, minBasisCount]
+
+lemma minBasisCount_le_two (v : Vec2Q) : minBasisCount v ≤ 2 := by
+  unfold minBasisCount
+  by_cases h0 : v.1 = 0 ∧ v.2 = 0
+  · simp [h0]
+  · by_cases h1 : v.1 = 0 ∨ v.2 = 0
+    · simp [h0, h1]
+    · simp [h0, h1]
+
 /-! ## 第3部：構造塔の定義（完全実装済み） -/
 
 /-- 構造塔の簡易版定義
@@ -127,8 +152,6 @@ noncomputable def linearSpanTower : SimpleTowerWithMin where
     intro v i hv
     exact hv
 
--- TODO: Student exercises below intentionally contain `sorry` placeholders; replace them with proofs.
-
 /-! ### Sanity checks -/
 
 /-- `Vec2Q.zero` belongs to layer `0`. -/
@@ -147,7 +170,9 @@ example : Vec2Q.zero ∈ linearSpanTower.layer (0 : ℕ) := by
 -/
 lemma vec_add_comm (v w : Vec2Q) :
     Vec2Q.add v w = Vec2Q.add w v := by
-  sorry
+  rcases v with ⟨a, b⟩
+  rcases w with ⟨c, d⟩
+  apply Prod.ext <;> simp [Vec2Q.add, add_comm]
 
 /-- **Exercise 2**: 零ベクトルは加法の単位元
 
@@ -156,7 +181,8 @@ lemma vec_add_comm (v w : Vec2Q) :
 -/
 lemma vec_add_zero (v : Vec2Q) :
     Vec2Q.add v Vec2Q.zero = v := by
-  sorry
+  rcases v with ⟨a, b⟩
+  apply Prod.ext <;> simp [Vec2Q.add, Vec2Q.zero]
 
 /-- **Exercise 3**: スカラー倍の分配法則
 
@@ -166,7 +192,9 @@ lemma vec_add_zero (v : Vec2Q) :
 lemma smul_add_distrib (r : ℚ) (v w : Vec2Q) :
     Vec2Q.smul r (Vec2Q.add v w) =
     Vec2Q.add (Vec2Q.smul r v) (Vec2Q.smul r w) := by
-  sorry
+  rcases v with ⟨a, b⟩
+  rcases w with ⟨c, d⟩
+  apply Prod.ext <;> simp [Vec2Q.add, Vec2Q.smul, mul_add]
 
 /-! ### 中級レベル（Exercise 4-6） -/
 
@@ -177,7 +205,7 @@ lemma smul_add_distrib (r : ℚ) (v w : Vec2Q) :
 -/
 lemma minBasisCount_zero :
     minBasisCount Vec2Q.zero = 0 := by
-  sorry
+  simp [Vec2Q.zero, minBasisCount]
 
 /-- **Exercise 5**: x軸上のベクトルの最小基底数
 
@@ -186,7 +214,7 @@ a ≠ 0 のとき、ベクトル (a, 0) の最小基底数が 1 であること�
 -/
 lemma minBasisCount_x_axis (a : ℚ) (ha : a ≠ 0) :
     minBasisCount (a, 0) = 1 := by
-  sorry
+  simp [minBasisCount, ha]
 
 /-- **Exercise 6**: 一般位置のベクトルの最小基底数
 
@@ -195,7 +223,7 @@ a ≠ 0 かつ b ≠ 0 のとき、ベクトル (a, b) の最小基底数が 2 �
 -/
 lemma minBasisCount_general (a b : ℚ) (ha : a ≠ 0) (hb : b ≠ 0) :
     minBasisCount (a, b) = 2 := by
-  sorry
+  simp [minBasisCount, ha, hb]
 
 /-! ### 応用レベル（Exercise 7-10） -/
 
@@ -206,7 +234,8 @@ lemma minBasisCount_general (a b : ℚ) (ha : a ≠ 0) (hb : b ≠ 0) :
 -/
 theorem layer_0_subset_layer_1 :
     linearSpanTower.layer (0 : ℕ) ⊆ linearSpanTower.layer (1 : ℕ) := by
-  sorry
+  simpa using
+    linearSpanTower.monotone (i := (0 : ℕ)) (j := (1 : ℕ)) (Nat.zero_le 1)
 
 /-- **Exercise 8**: 層 0 の完全な特徴付け
 
@@ -215,7 +244,18 @@ theorem layer_0_subset_layer_1 :
 -/
 theorem layer_0_characterization :
     linearSpanTower.layer (0 : ℕ) = {Vec2Q.zero} := by
-  sorry
+  ext v
+  constructor
+  · intro hv
+    have hv0 : minBasisCount v ≤ (0 : ℕ) := by
+      simpa [linearSpanTower] using hv
+    have hv_eq : v = Vec2Q.zero :=
+      (minBasisCount_eq_zero_iff v).1 (Nat.eq_zero_of_le_zero hv0)
+    simpa using hv_eq
+  · intro hv
+    have hv_eq : v = Vec2Q.zero := by simpa using hv
+    subst hv_eq
+    simp [linearSpanTower, Vec2Q.zero, minBasisCount]
 
 /-- **Exercise 9**: 層 1 の特徴付け
 
@@ -224,7 +264,32 @@ theorem layer_0_characterization :
 -/
 theorem layer_1_characterization :
     linearSpanTower.layer (1 : ℕ) = {v : Vec2Q | v.1 = 0 ∨ v.2 = 0} := by
-  sorry
+  ext v
+  rcases v with ⟨a, b⟩
+  change minBasisCount (a, b) ≤ (1 : ℕ) ↔ a = 0 ∨ b = 0
+  constructor
+  · intro hv
+    by_contra h'
+    have ha : a ≠ 0 := by
+      intro ha0
+      exact h' (Or.inl ha0)
+    have hb : b ≠ 0 := by
+      intro hb0
+      exact h' (Or.inr hb0)
+    have hcount : minBasisCount (a, b) = 2 := by
+      simp [minBasisCount, ha, hb]
+    have hv' := hv
+    simp [hcount] at hv'
+  · intro h
+    cases h with
+    | inl ha0 =>
+      by_cases hb0 : b = 0
+      · simp [minBasisCount, ha0, hb0]
+      · simp [minBasisCount, ha0, hb0]
+    | inr hb0 =>
+      by_cases ha0 : a = 0
+      · simp [minBasisCount, ha0, hb0]
+      · simp [minBasisCount, ha0, hb0]
 
 /-- **Exercise 10**: スカラー倍は minLayer を保存する
 
@@ -237,7 +302,18 @@ minBasisCount を保存することを示してください。
 -/
 theorem smul_preserves_minLayer (r : ℚ) (hr : r ≠ 0) (v : Vec2Q) :
     minBasisCount (Vec2Q.smul r v) = minBasisCount v := by
-  sorry
+  rcases v with ⟨a, b⟩
+  by_cases ha : a = 0
+  · by_cases hb : b = 0
+    · simp [Vec2Q.smul, minBasisCount, ha, hb]
+    · have hrb : r * b ≠ 0 := mul_ne_zero hr hb
+      simp [Vec2Q.smul, minBasisCount, ha, hb, hrb]
+  · by_cases hb : b = 0
+    · have hra : r * a ≠ 0 := mul_ne_zero hr ha
+      simp [Vec2Q.smul, minBasisCount, ha, hb, hra]
+    · have hra : r * a ≠ 0 := mul_ne_zero hr ha
+      have hrb : r * b ≠ 0 := mul_ne_zero hr hb
+      simp [Vec2Q.smul, minBasisCount, ha, hb, hra, hrb]
 
 /-! ## 発展課題（オプション） -/
 
@@ -247,7 +323,14 @@ n ≥ 2 のとき、層 n は ℚ² 全体に等しいことを示してくだ�
 -/
 theorem layer_ge_2_is_full (n : ℕ) (hn : n ≥ 2) :
     linearSpanTower.layer n = Set.univ := by
-  sorry
+  ext v
+  constructor
+  · intro _
+    simp
+  · intro _
+    have hv : minBasisCount v ≤ 2 := minBasisCount_le_two v
+    have : minBasisCount v ≤ n := le_trans hv hn
+    simpa [linearSpanTower] using this
 
 /-- **Challenge 2**: ベクトル加法と minBasisCount
 
@@ -259,7 +342,30 @@ theorem layer_ge_2_is_full (n : ℕ) (hn : n ≥ 2) :
 theorem minBasisCount_add_le (v w : Vec2Q) :
     minBasisCount (Vec2Q.add v w) ≤
     max (minBasisCount v) (minBasisCount w) + 1 := by
-  sorry
+  by_cases hmax : max (minBasisCount v) (minBasisCount w) = 0
+  · have hv0 : v = Vec2Q.zero := by
+      have hvle : minBasisCount v ≤ (0 : ℕ) := by
+        have : minBasisCount v ≤ max (minBasisCount v) (minBasisCount w) := by
+          exact le_max_left _ _
+        simpa [hmax] using this
+      exact (minBasisCount_eq_zero_iff v).1 (Nat.eq_zero_of_le_zero hvle)
+    have hw0 : w = Vec2Q.zero := by
+      have hwle : minBasisCount w ≤ (0 : ℕ) := by
+        have : minBasisCount w ≤ max (minBasisCount v) (minBasisCount w) := by
+          exact le_max_right _ _
+        simpa [hmax] using this
+      exact (minBasisCount_eq_zero_iff w).1 (Nat.eq_zero_of_le_zero hwle)
+    subst hv0
+    subst hw0
+    simp [Vec2Q.add, Vec2Q.zero, minBasisCount]
+  · have hv : minBasisCount (Vec2Q.add v w) ≤ 2 := minBasisCount_le_two _
+    have hpos : 0 < max (minBasisCount v) (minBasisCount w) :=
+      Nat.pos_of_ne_zero hmax
+    have hone : (1 : ℕ) ≤ max (minBasisCount v) (minBasisCount w) :=
+      Nat.succ_le_iff.2 hpos
+    have htwo : (2 : ℕ) ≤ max (minBasisCount v) (minBasisCount w) + 1 := by
+      simpa [Nat.succ_eq_add_one] using Nat.succ_le_succ hone
+    exact le_trans hv htwo
 
 /-! ## 補助定義：3次元への拡張 -/
 
