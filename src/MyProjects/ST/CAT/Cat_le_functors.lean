@@ -1,4 +1,5 @@
 import MyProjects.ST.CAT.Cat_le_exists
+import Mathlib.CategoryTheory.Functor.FullyFaithful
 
 /-!
 # Cat_le_functors: Data → Exists → D connections.
@@ -142,7 +143,6 @@ def forgetIndexMap : TowerD ⥤ TowerD_LeExists where
 /-- Convert an existential-lane morphism to a `HomD` morphism by choosing `j := indexMap i`. -/
 def homLeExists_to_homD {T T' : TowerD_LeExists} (f : T ⟶ T') :
     TowerD.HomD (T : TowerD) (T' : TowerD) := by
-  classical
   refine ⟨f.map, ?_⟩
   intro i
   rcases (TowerD_LeExists.HomLeExists.exists_indexMap f) with ⟨φ, -, hφ⟩
@@ -165,6 +165,15 @@ def forgetToD : TowerD_LeExists ⥤ TowerD_D where
     intro T T' T'' f g
     apply TowerD.HomD.ext
     rfl
+
+instance : Functor.Faithful forgetToD where
+  map_injective := by
+    intro T T' f g h
+    have hm : (forgetToD.map f).map = (forgetToD.map g).map := by
+      exact congrArg (fun k => k.map) h
+    apply TowerD_LeExists.HomLeExists.ext
+    intro x
+    exact congrArg (fun m => m x) hm
 
 /-- Composite forgetful functor: data `Cat_le` → `Cat_D` via the existential lane. -/
 def forgetLeToD : TowerD ⥤ TowerD_D :=
