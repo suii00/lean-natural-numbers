@@ -1,0 +1,14 @@
+今の HomEq := HomLe + bijective を Cat_eq/HomEq と呼ぶのは不整合です。
+
+
+おっしゃる通りで、現状の
+
+HomEq := HomLe + (map/indexMap が bijective)
+を Cat_eq / HomEq と呼ぶのは（ブルバキ流に「=と同型」を峻別する観点でも）名前が強すぎて誤読を誘います。しかも「同型射（isomorphism）」と言うなら、**逆射が同じ条件（層保存＋単調）を満たす**ことまで入れないと意味がズレます（単に bijective でも逆がHomLe` になるとは限らない）。
+
+整理案（どれにしますか？）：
+
+改名で整合：この定義は HomIso / Cat_iso（または HomBijLe）に改名し、Cat_eq/HomEq は使わない
+定義を強化して「同型」に寄せる：HomEq を「逆射データ（または Equiv/OrderIso）＋両方向の layer_preserving」を持つ形に変更（これなら “同型射の部分圏” と言える）
+Cat_eq を “層の等式版” にする：∀ i, Set.image map (layer i) = layer (indexMap i) 系を HomEq にして、bijective 版は別名へ分離
+今の環境は read-only なので、どれを採用するか決めたらその方針で修正パッチを入れるために書き込み許可が必要です。どの整理案が意図に近いですか？
