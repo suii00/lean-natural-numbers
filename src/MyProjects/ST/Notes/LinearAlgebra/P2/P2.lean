@@ -1,8 +1,8 @@
 import Mathlib.LinearAlgebra.Basis.Basic
 import Mathlib.LinearAlgebra.Dimension.Basic
+import Mathlib.LinearAlgebra.Dimension.Constructions
 import Mathlib.LinearAlgebra.FiniteDimensional.Basic
-import Mathlib.LinearAlgebra.Matrix.Diagonal
-import Mathlib.LinearAlgebra.Eigenspace.Basic
+import Mathlib.LinearAlgebra.StdBasis
 import Mathlib.Data.Rat.Defs
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finsupp.Fintype
@@ -52,6 +52,48 @@ ZEN大学のシラバスに対応：
 namespace LinearAlgebraTower
 
 open Classical
+
+/-!
+### Utility lemmas for `Nat.sSup (Set.range ...)`
+
+These lemmas package the common pattern used when treating `sSup (Set.range f)` for `f : α → ℕ`
+under an explicit boundedness hypothesis.
+-/
+
+theorem _root_.Nat.le_sSup_range_of_bdd {α : Type} (f : α → ℕ)
+    (hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n) (x : α) : f x ≤ sSup (Set.range f) := by
+  have hmem : f x ∈ Set.range f := ⟨x, rfl⟩
+  rw [Nat.sSup_def hf_bdd]
+  exact (Nat.find_spec hf_bdd) (f x) hmem
+
+theorem _root_.Nat.sSup_range_le_of_forall_le {α : Type} (f : α → ℕ) (m : ℕ) (hupper : ∀ x, f x ≤ m) :
+    sSup (Set.range f) ≤ m := by
+  classical
+  have hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n := by
+    refine ⟨m, ?_⟩
+    rintro a ⟨x, rfl⟩
+    exact hupper x
+  rw [Nat.sSup_def hf_bdd]
+  refine Nat.find_min' hf_bdd ?_
+  rintro a ⟨x, rfl⟩
+  exact hupper x
+
+theorem _root_.Nat.sSup_range_eq_of_forall_le_of_exists_eq {α : Type} (f : α → ℕ) (m : ℕ)
+    (hupper : ∀ x, f x ≤ m) (hex : ∃ x, f x = m) : sSup (Set.range f) = m := by
+  classical
+  have hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n := by
+    refine ⟨m, ?_⟩
+    rintro a ⟨x, rfl⟩
+    exact hupper x
+  apply le_antisymm
+  · rw [Nat.sSup_def hf_bdd]
+    refine Nat.find_min' hf_bdd ?_
+    rintro a ⟨x, rfl⟩
+    exact hupper x
+  · rcases hex with ⟨x, hx⟩
+    have hmem : m ∈ Set.range f := ⟨x, hx⟩
+    rw [Nat.sSup_def hf_bdd]
+    exact (Nat.find_spec hf_bdd) m hmem
 
 /-!
 ## Part 1: Foundation - Vector Space Structure Tower
@@ -915,44 +957,27 @@ theorem dimension_eq_max_minLayer_Vec2Q :
     (⨆ v : Vec2Q, minBasisCount2 v) = 2 := by
   classical
   let f : Vec2Q → ℕ := fun v => minBasisCount2 v
-  have hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n := by
-    refine ⟨2, ?_⟩
-    rintro a ⟨v, rfl⟩
-    exact minBasisCount2_le_two v
   change sSup (Set.range f) = 2
-  apply le_antisymm
-  · rw [Nat.sSup_def hf_bdd]
-    refine Nat.find_min' hf_bdd ?_
-    rintro a ⟨v, rfl⟩
+  refine Nat.sSup_range_eq_of_forall_le_of_exists_eq f 2 ?_ ?_
+  · intro v
     exact minBasisCount2_le_two v
-  · have h_ex : minBasisCount2 ((1 : ℚ), (1 : ℚ)) = 2 :=
+  · refine ⟨((1 : ℚ), (1 : ℚ)), ?_⟩
+    have h_ex : minBasisCount2 ((1 : ℚ), (1 : ℚ)) = 2 :=
       minBasisCount2_general (a := (1 : ℚ)) (b := (1 : ℚ)) one_ne_zero one_ne_zero
-    have hmem : (2 : ℕ) ∈ Set.range f := by
-      refine ⟨((1 : ℚ), (1 : ℚ)), ?_⟩
-      simp [f, h_ex]
-    rw [Nat.sSup_def hf_bdd]
-    exact (Nat.find_spec hf_bdd) 2 hmem
+    simp [f, h_ex]
 
 
 /--
-Diagonalization as structure tower isomorphism
+Identity morphism as a tower “isomorphism” (sanity check).
 
-Mathematical statement:
-行列 A が対角化可能
-⇔ 標準基底による構造塔と固有基底による構造塔が同型
-
-証明方針:
-1. 対角化可能 ⇒ 固有空間の直和分解が存在
-2. 直和分解 ⇔ 層の同型対応
-3. minLayerの保存性は固有値の対応から従う
-
-This is a deep connection between linear algebra and category theory.
-これは線形代数と圏論の深い関係を示す。
+This statement is intentionally weak: it merely exhibits the identity morphism on `vec2QTower`.
+Diagonalization-related statements should live in an advanced file, since their mathematical
+content is much stronger than this trivial witness.
 -/
-theorem diagonalizable_iff_tower_isomorphic :
+theorem vec2QTower_iso_id :
     ∃ (iso : LinearMapTower vec2QTower vec2QTower),
-      (∀ v, iso.map v = v) ∧  -- Basis change
-      (∀ i, iso.indexMap i = i) := by  -- Dimension preserved
+      (∀ v, iso.map v = v) ∧
+      (∀ i, iso.indexMap i = i) := by
   refine ⟨?_, ?_, ?_⟩
   · refine
       { map := id
@@ -1029,20 +1054,29 @@ noncomputable abbrev basisTower (b : Module.Basis ι K V) : VectorSpaceTower whe
     intro v i hv
     exact hv
 
+/-- Every `basisMinLayer` value is bounded by `maxLayer` (the supremum of all `basisMinLayer`s). -/
+theorem basisMinLayer_le_maxLayer (b : Module.Basis ι K V) (v : V) :
+    basisMinLayer b v ≤ (basisTower (K := K) (V := V) b).maxLayer := by
+  classical
+  let f : V → ℕ := basisMinLayer b
+  have hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n := by
+    refine ⟨Fintype.card ι, ?_⟩
+    rintro a ⟨w, rfl⟩
+    simpa [f, basisMinLayer] using (Finset.card_le_univ (s := (b.repr w).support))
+  have : f v ≤ sSup (Set.range f) :=
+    Nat.le_sSup_range_of_bdd f hf_bdd v
+  simpa [VectorSpaceTower.maxLayer, basisTower, f] using this
+
 /-- The maximal layer of the basis tower is the size of the basis index set. -/
 theorem maxLayer_basisTower_eq_card (b : Module.Basis ι K V) :
     (basisTower (K := K) (V := V) b).maxLayer = Fintype.card ι := by
   classical
   let f : V → ℕ := basisMinLayer b
-  have hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n := by
-    refine ⟨Fintype.card ι, ?_⟩
-    rintro a ⟨v, rfl⟩
-    simpa [f, basisMinLayer] using (Finset.card_le_univ (s := (b.repr v).support))
   change sSup (Set.range f) = Fintype.card ι
-  apply le_antisymm
-  · rw [Nat.sSup_def hf_bdd]
-    refine Nat.find_min' hf_bdd ?_
-    rintro a ⟨v, rfl⟩
+  refine
+    Nat.sSup_range_eq_of_forall_le_of_exists_eq f (Fintype.card ι)
+      (hupper := ?_) (hex := ?_)
+  · intro v
     simpa [f, basisMinLayer] using (Finset.card_le_univ (s := (b.repr v).support))
   ·
     let x : ι →₀ K := Finsupp.equivFunOnFinite.symm (fun _ : ι => (1 : K))
@@ -1054,14 +1088,10 @@ theorem maxLayer_basisTower_eq_card (b : Module.Basis ι K V) :
       · intro _hi
         refine Finsupp.mem_support_iff.mpr ?_
         simp [x]
-    have h_ex : f (b.repr.symm x) = Fintype.card ι := by
-      calc
-        f (b.repr.symm x) = x.support.card := by simp [f, basisMinLayer]
-        _ = Fintype.card ι := by simp [hx_support]
-    have hmem : (Fintype.card ι) ∈ Set.range f := by
-      exact ⟨b.repr.symm x, h_ex⟩
-    rw [Nat.sSup_def hf_bdd]
-    exact (Nat.find_spec hf_bdd) (Fintype.card ι) hmem
+    refine ⟨b.repr.symm x, ?_⟩
+    calc
+      f (b.repr.symm x) = x.support.card := by simp [f, basisMinLayer]
+      _ = Fintype.card ι := by simp [hx_support]
 
 /-- Specialization: for a finite-dimensional space, the maximal layer is `finrank`. -/
 theorem maxLayer_basisTower_eq_finrank [FiniteDimensional K V] (b : Module.Basis ι K V) :
@@ -1088,6 +1118,36 @@ theorem maxLayer_finBasisTower_eq_finrank (K : Type) (V : Type) [DivisionRing K]
     (maxLayer_basisTower_eq_card (K := K) (V := V) (ι := Fin (Module.finrank K V))
       (Module.finBasis K V))
 
+/-! ### Regression tests for `basisMinLayer` / `maxLayer` -/
+
+example :
+    basisMinLayer (K := ℚ) (V := Fin 2 → ℚ) (ι := Fin 2) (Pi.basisFun ℚ (Fin 2)) 0 = 0 := by
+  simp [basisMinLayer]
+
+example (i : Fin 2) :
+    basisMinLayer (K := ℚ) (V := Fin 2 → ℚ) (ι := Fin 2) (Pi.basisFun ℚ (Fin 2))
+        (Pi.single i (1 : ℚ)) = 1 := by
+  classical
+  have hrepr :
+      (Pi.basisFun ℚ (Fin 2)).repr (Pi.single i (1 : ℚ)) = Finsupp.single i (1 : ℚ) := by
+    ext j
+    by_cases hij : j = i
+    · subst hij
+      simp [Pi.basisFun_repr]
+    · simp [Pi.basisFun_repr, hij]
+  simp [basisMinLayer, hrepr, Finsupp.support_single_ne_zero, one_ne_zero]
+
+example : Module.finrank ℚ (ℚ × ℚ) = 2 := by
+  rw [Module.finrank_prod (R := ℚ) (M := ℚ) (M' := ℚ)]
+  simp
+
+example : (finBasisTower (K := ℚ) (V := (ℚ × ℚ))).maxLayer = 2 := by
+  have h : Module.finrank ℚ (ℚ × ℚ) = 2 := by
+    rw [Module.finrank_prod (R := ℚ) (M := ℚ) (M' := ℚ)]
+    simp
+  rw [maxLayer_finBasisTower_eq_finrank (K := ℚ) (V := (ℚ × ℚ))]
+  exact h
+
 end BasisTower
 
 /-!
@@ -1095,25 +1155,14 @@ end BasisTower
 ### 構造塔の言語によるrank-nullity定理
 
 The rank-nullity theorem can be expressed as:
-  dim(ker f) + dim(im f) = dim(V)
+  `dim(ker f) + dim(im f) = dim(V)`.
 
-In structure tower language:
-  maxLayer(ker f) + maxLayer(im f) = maxLayer(V)
+In structure tower language (once we pick a canonical basis tower):
+  `maxLayer(ker f) + maxLayer(im f) = maxLayer(V)`.
 
-where maxLayer = max of all minLayers.
-
-証明方針:
-1. 標準的なrank-nullity定理を使用
-2. maxLayer = dimensionの対応を確立
-3. 構造塔の言語に翻訳
-
-This shows structure towers provide a new perspective
-on classical linear algebra theorems.
+For the Vec2Q-specific “dimension = maximal minLayer” statement, see:
+`dimension_eq_max_minLayer_Vec2Q`.
 -/
-theorem rank_nullity_tower_version
-    (_f : LinearMapTower vec2QTower vec2QTower) :
-    (⨆ v : Vec2Q, minBasisCount2 v) = 2 := by
-  exact dimension_eq_max_minLayer_Vec2Q
 
 /-!
 ### Tower Rank-Nullity (Actual Translation)
@@ -1149,6 +1198,18 @@ example :
       ((finBasisTower (K := ℚ) (V := (ℚ × ℚ))).maxLayer : ℕ) := by
   simpa using rank_nullity_tower_finBasis (K := ℚ) (V := (ℚ × ℚ)) (V₂ := (ℚ × ℚ))
     (f := (0 : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))
+
+example :
+    ((finBasisTower (K := ℚ)
+            (V := LinearMap.range (LinearMap.id : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))).maxLayer :
+        ℕ) +
+        ((finBasisTower (K := ℚ)
+                (V := LinearMap.ker (LinearMap.id : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))).maxLayer :
+            ℕ) =
+      ((finBasisTower (K := ℚ) (V := (ℚ × ℚ))).maxLayer : ℕ) := by
+  simpa using
+    rank_nullity_tower_finBasis (K := ℚ) (V := (ℚ × ℚ)) (V₂ := (ℚ × ℚ))
+      (f := (LinearMap.id : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))
 
 /-!
 ## Part 7: Implementation Guide (Comments)
