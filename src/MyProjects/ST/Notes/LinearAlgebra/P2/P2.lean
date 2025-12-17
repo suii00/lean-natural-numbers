@@ -831,6 +831,29 @@ example (v : Vec2Q) :
       projectionFirstCoord.indexMap (vec2QTower.minLayer v) := by
   exact projectionFirstCoord.minLayer_preserving v
 
+/-! #### Projection `φ(n) = min(n, 1)` regression -/
+
+example : projectionFirstCoord.indexMap = fun n : ℕ => Nat.min n 1 := by
+  rfl
+
+example : Nat.min (0 : ℕ) 1 = 0 := by
+  simp
+
+example : Nat.min (2 : ℕ) 1 = 1 := by
+  simp
+
+example (v : Vec2Q) (hv : v ∈ vec2QTower.layer (2 : ℕ)) :
+    projectionFirstCoord.map v ∈ vec2QTower.layer (1 : ℕ) := by
+  have hv' :
+      projectionFirstCoord.map v ∈ vec2QTower.layer (projectionFirstCoord.indexMap (2 : ℕ)) := by
+    exact projectionFirstCoord.layer_preserving (i := (2 : ℕ)) v hv
+  -- Here `projectionFirstCoord.indexMap 2 = 1` via `φ(n) = min(n, 1)`.
+  simpa [projectionFirstCoord] using hv'
+
+example :
+    vec2QTower.minLayer (projectionFirstCoord.map ((1 : ℚ), (1 : ℚ))) = (1 : ℕ) := by
+  simp [vec2QTower, projectionFirstCoord, minBasisCount2]
+
 /-!
 ## Part 5: Linear Algebra 1 Concepts
 ## 第5部：線形代数1の概念
@@ -1136,6 +1159,24 @@ example (i : Fin 2) :
       simp [Pi.basisFun_repr]
     · simp [Pi.basisFun_repr, hij]
   simp [basisMinLayer, hrepr, Finsupp.support_single_ne_zero, one_ne_zero]
+
+/-! #### Reachability regression: all basis vectors used -/
+
+example :
+    basisMinLayer (K := ℚ) (V := Fin 2 → ℚ) (ι := Fin 2) (Pi.basisFun ℚ (Fin 2))
+        ((Pi.basisFun ℚ (Fin 2)).repr.symm
+          (Finsupp.equivFunOnFinite.symm (fun _ : Fin 2 => (1 : ℚ)))) = 2 := by
+  classical
+  let x : Fin 2 →₀ ℚ := Finsupp.equivFunOnFinite.symm (fun _ : Fin 2 => (1 : ℚ))
+  have hx_support : x.support = Finset.univ := by
+    ext i
+    constructor
+    · intro _hi
+      exact Finset.mem_univ i
+    · intro _hi
+      refine Finsupp.mem_support_iff.mpr ?_
+      simp [x]
+  simp [basisMinLayer, x, hx_support]
 
 example : Module.finrank ℚ (ℚ × ℚ) = 2 := by
   rw [Module.finrank_prod (R := ℚ) (M := ℚ) (M' := ℚ)]

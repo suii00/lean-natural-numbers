@@ -179,10 +179,14 @@ instance : Functor.Faithful forgetToD where
 def forgetLeToD : TowerD ⥤ TowerD_D :=
   forgetIndexMap ⋙ forgetToD
 
-/-! A tiny sanity check: `forgetLeToD` sends identity to identity on carrier maps. -/
-example (T : TowerD) (x : T.carrier) :
-    (forgetLeToD.map (𝟙 T)).map x = x := rfl
+  /-! A tiny sanity check: `forgetLeToD` sends identity to identity on carrier maps. -/
+  example (T : TowerD) (x : T.carrier) :
+      (forgetLeToD.map (𝟙 T)).map x = x := rfl
 
-end Functors
+  /-! A tiny sanity check: `forgetLeToD` preserves composition on carrier maps. -/
+  example (x : TowerD.natTowerD.carrier) :
+      (forgetLeToD.map (TowerD.natSuccHomLe ≫ TowerD.natSuccHomLe)).map x = Nat.succ (Nat.succ x) := rfl
+ 
+  end Functors
 
 end ST

@@ -71,3 +71,16 @@ File: `src/MyProjects/ST/Notes/LinearAlgebra/P2/P2.lean`
     plus `maxLayer` checks for `range` and `ker`
 - Verification:
   - `lake build MyProjects.ST.Notes.LinearAlgebra.P2.P2`
+
+## Follow-up (2025-12-17): more regression coverage
+
+- `P2/P2.lean`:
+  - Explicit tests for the Q2 projection clamp `φ(n) = min(n, 1)` (`indexMap` evaluation + a `layer_preserving` usage at `i = 2`).
+  - An explicit “reachability” witness for `basisMinLayer` on `Pi.basisFun` (all coordinates nonzero ⇒ support = `Finset.univ` ⇒ `basisMinLayer = 2`).
+- `ST/CAT`:
+  - Refactored `Cat_eq.lean` to sit on top of `Cat_le` and added a wrapper category `TowerD_Eq` plus the inclusion functor `forgetToLe`.
+  - Added a composition sanity check for `forgetLeToD` in `Cat_le_functors.lean`.
+- Verification:
+  - `lake build MyProjects.ST.Notes.LinearAlgebra.P2.P2`
+  - `lake build MyProjects.ST.CAT.Cat_eq`
+  - `lake build MyProjects.ST.CAT.Cat_le_functors`
