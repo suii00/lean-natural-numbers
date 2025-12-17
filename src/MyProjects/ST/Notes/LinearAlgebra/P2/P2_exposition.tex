@@ -41,13 +41,17 @@
 
 従来の線形代数の教科書では、以下のような概念が独立に導入される：
 \begin{itemize}
-  \item ベクトル空間の部分空間の階層：$\{0\} \subseteq V_1 \subseteq V_2 \subseteq \cdots \subseteq V_n = V$
+  \item ベクトル空間の部分空間の階層：$\{0\} \subseteq V_1 \subseteq V_2 \subseteq \cdots \subseteq V_n = V$（真の包含関係）
   \item ベクトルの線型独立性と生成系
   \item 基底の最小性と次元の概念
   \item 線型写像による次元の変化（rank-nullity定理）
 \end{itemize}
 
 構造塔理論は、これらの概念を統一的な枠組みで扱うことを可能にする。特に、各ベクトル$v$に対して「$v$を表現するのに必要な最小の基底ベクトル数」という不変量$\mathrm{minLayer}(v)$を導入することで、幾何学的直観と代数的構造を結びつける。
+
+\begin{remark}
+構造塔の「層」$\lambda(n)$は、従来の部分空間の階層とは異なる概念である。層$\lambda(n)$は「$n$個以下の基底要素で表現できるベクトル全体」であり、一般には部分空間ではない（複数の部分空間の合併となる）。この違いが構造塔理論の特徴であり、スパース表現や次元の段階的理解に有用である。
+\end{remark}
 
 \subsection{本稿の構成}
 
@@ -80,7 +84,7 @@
 \end{definition}
 
 \begin{remark}
-構造塔は本質的に、ベクトル空間の「段階的な構成」を形式化したものである。各層$\lambda(n)$は「$n$個以下の基底ベクトルで生成される部分空間」と解釈できる。
+構造塔は本質的に、ベクトル空間の「段階的な構成」を形式化したものである。各層$\lambda(n)$は「$n$個以下の基底ベクトルで表現できるベクトルの集合」であり、一般には部分空間ではない（例：$\mathbb{Q}^2$の$\lambda(1)$は2本の座標軸の合併で、加法で閉じていない）。
 \end{remark}
 
 \subsection{幾何学的解釈}
@@ -209,16 +213,26 @@ $\lambda(2)$については、任意の$v \in \mathbb{Q}^2$に対して$\mathrm{
 $\mathbb{Q}^3$の構造塔において、
 \begin{align*}
 \lambda(0) &= \{(0, 0, 0)\} \\
-\lambda(1) &= \text{3本の座標軸} \\
-\lambda(2) &= \text{3つの座標平面} \\
+\lambda(1) &= \text{3本の座標軸の合併（原点を含む）} \\
+\lambda(2) &= \text{3つの座標平面の合併} \\
 \lambda(3) &= \mathbb{Q}^3
+\end{align*}
+より正確には、
+\begin{align*}
+\lambda(1) &= \{(a,b,c) \mid \text{高々1つの座標が非零}\} \\
+\lambda(2) &= \{(a,b,c) \mid \text{少なくとも1つの座標が零}\}
 \end{align*}
 \end{theorem}
 
+\begin{remark}
+$\lambda(1)$と$\lambda(2)$は部分空間ではない。例えば、$(1,0,0) \in \lambda(1)$かつ$(0,1,0) \in \lambda(1)$だが、$(1,0,0) + (0,1,0) = (1,1,0) \notin \lambda(1)$である（加法で閉じていない）。
+\end{remark}
+
 この階層構造は、幾何学的に以下のように理解できる：
 \begin{itemize}
-  \item 点（0次元）$\to$ 直線（1次元）$\to$ 平面（2次元）$\to$ 空間（3次元）
+  \item 点（0次元）$\to$ 直線上の点の集合（1次元）$\to$ 平面上の点の集合（2次元）$\to$ 空間（3次元）
 \end{itemize}
+ただし、$\lambda(1)$や$\lambda(2)$は複数の部分空間の合併であり、単一の部分空間ではないことに注意する。
 
 \section{構造塔の射：線型写像}
 
@@ -345,19 +359,20 @@ $f : V \to W$を有限次元ベクトル空間の間の線型写像とする。$
 \end{align*}
 \end{proof}
 
-\subsection{幾何学的解釈}
+\subsection{構造塔による理解}
 
-Rank-nullity定理を構造塔の言語で表現することで、以下の幾何学的直観が得られる：
+Rank-nullity定理を構造塔の言語で表現することで、以下の理解が得られる：
 
 \begin{center}
 \begin{tikzcd}
 V \arrow[r, "f"] & W \\
-\text{層} \, \lambda_V(n) \arrow[r] \arrow[d] & \text{層} \, \lambda_W(m) \arrow[d] \\
-\ker f \oplus \mathrm{im}\, f \arrow[r, "\cong"] & V
+\mathrm{maxLayer}(V) \arrow[r, equal] & \mathrm{maxLayer}(\ker f) + \mathrm{maxLayer}(\mathrm{im}\, f)
 \end{tikzcd}
 \end{center}
 
-この図式は、$V$の構造塔が$\ker f$と$\mathrm{im}\, f$の構造塔の「直和」として分解されることを示している。
+この関係式は、$V$の「最大層」（次元）が、$\ker f$と$\mathrm{im}\, f$の最大層の\textbf{和}として表されることを示している。これは次元の加法性であり、一般にはベクトル空間としての直和分解$V \cong \ker f \oplus \mathrm{im}\, f$を意味するものではない（そのような分解には補空間の選択が必要であり、自然ではない）。
+
+構造塔の視点では、rank-nullity定理は「$V$の複雑さ（maxLayer）が、$f$によって失われる情報（$\ker f$）と保存される情報（$\mathrm{im}\, f$）の複雑さの和に等しい」という情報理論的解釈を持つ。
 
 \subsection{具体例}
 
@@ -373,7 +388,7 @@ $f : \mathbb{Q}^2 \to \mathbb{Q}$を$f(a, b) := a$（第一成分への射影）
 \]
 \end{example}
 
-この例は、$\mathbb{Q}^2$が$\ker f$（$y$軸）と$\mathrm{im}\, f$（$x$軸）に「分解」されることを構造塔の言語で表現している。
+この例は、$\mathbb{Q}^2$の次元（$\mathrm{maxLayer} = 2$）が、$\ker f$の次元（$y$軸方向、$\mathrm{maxLayer} = 1$）と$\mathrm{im}\, f$の次元（$x$軸方向、$\mathrm{maxLayer} = 1$）の和として表されることを示している。これは次元の加法性であり、構造塔の言語で自然に表現される。
 
 \section{教育的意義と展望}
 
