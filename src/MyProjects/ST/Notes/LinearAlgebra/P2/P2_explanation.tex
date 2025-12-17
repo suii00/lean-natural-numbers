@@ -1,0 +1,660 @@
+\documentclass[11pt,a4paper]{ltjsarticle}
+
+% LuaLaTeX用日本語パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+
+% 数学パッケージ
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+
+% 図式・図形パッケージ
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows, positioning, calc, decorations.pathmorphing}
+
+% その他のパッケージ
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{listings}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{proposition}[theorem]{命題}
+\newtheorem{corollary}[theorem]{系}
+\newtheorem{example}{例}[section]
+\newtheorem{remark}{注意}[section]
+
+% タイトル情報
+\title{線形代数における構造塔理論\\Structure Tower Theory in Linear Algebra}
+\author{%
+  TeXファイル生成: Claude Code (Anthropic, Claude Sonnet 4.5)\\
+  Leanコード生成: Codex (OpenAI)
+}
+\date{\today}
+
+% カスタムコマンド
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\spann}{\mathrm{span}}
+\newcommand{\minLayer}{\mathrm{minLayer}}
+\newcommand{\minBasis}{\mathrm{minBasisCount}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、Lean 4で形式化された線形代数の構造塔理論について解説する。構造塔（Structure Tower）とは、数学的対象を階層的に捉える枠組みであり、線形代数においてはベクトル空間の部分空間の包含関係を通じて、基底・次元・線型写像といった基本概念を統一的に理解できる。本稿では、2次元・3次元有理ベクトル空間$\Q^2$, $\Q^3$の具体例を通じて構造塔の概念を説明し、線型写像を構造塔の射として捉える視点を提示する。また、線型独立性や次元定理といった古典的な定理が構造塔の言語でどのように表現されるかを示す。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+\subsection{構造塔理論の背景}
+
+構造塔（Structure Tower）理論は、数学的構造を階層的に理解するための枠組みである。特に線形代数においては、ベクトル空間とその部分空間の包含関係
+\[
+\{0\} \subseteq V_1 \subseteq V_2 \subseteq \cdots \subseteq V_n = V
+\]
+を通じて、空間の構造を段階的に捉えることができる。
+
+この階層構造は以下のような概念と密接に関連している：
+\begin{itemize}
+\item \textbf{基底と次元}：各層$V_i$は$i$個以下の基底ベクトルで生成される部分空間
+\item \textbf{ランク}：ベクトルの最小表現に必要な基底ベクトルの個数
+\item \textbf{線型写像}：層構造を保存する写像
+\item \textbf{圏論的視点}：ベクトル空間の圏における射の特徴付け
+\end{itemize}
+
+\subsection{本稿の目的と構成}
+
+本稿の目的は、Lean 4で形式化された構造塔理論を数学的に解説し、読者が以下を理解できるようにすることである：
+\begin{enumerate}
+\item 構造塔の基本概念と形式的定義
+\item 具体例（$\Q^2$, $\Q^3$）における計算
+\item 線型写像を構造塔の射として捉える視点
+\item 古典的な線形代数定理との関係
+\end{enumerate}
+
+構成は以下の通りである：
+\begin{itemize}
+\item 第2節：基本定義
+\item 第3節：具体例（Vec2Q, Vec3Q）
+\item 第4節：層の特徴付け
+\item 第5節：構造塔の射
+\item 第6節：線形代数の古典的定理との関係
+\item 第7節：まとめと展望
+\end{itemize}
+
+\section{基本定義}
+
+\subsection{ベクトル空間構造塔}
+
+\begin{definition}[ベクトル空間構造塔]
+\label{def:vector_space_tower}
+ベクトル空間構造塔（Vector Space Tower）とは、以下のデータからなる：
+\begin{enumerate}
+\item 台集合（carrier）：ベクトル空間$V$
+\item 添字集合（Index）：前順序集合$I$（通常は$\N$）
+\item 層関数（layer）：$\text{layer}: I \to \mathcal{P}(V)$（$V$の部分集合への写像）
+\item 被覆性（covering）：$\forall v \in V, \exists i \in I, v \in \text{layer}(i)$
+\item 単調性（monotone）：$i \leq j \Rightarrow \text{layer}(i) \subseteq \text{layer}(j)$
+\item 最小層関数（minLayer）：$\minLayer: V \to I$
+\item 所属性（minLayer\_mem）：$\forall v \in V, v \in \text{layer}(\minLayer(v))$
+\item 最小性（minLayer\_minimal）：$\forall v \in V, \forall i \in I, v \in \text{layer}(i) \Rightarrow \minLayer(v) \leq i$
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+添字集合として自然数$\N$を用いる場合、層は次元の階層構造を表す。すなわち、$\text{layer}(n)$は$n$次元以下の部分空間で生成されるベクトルの集合となる。
+\end{remark}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=数学的直観]
+構造塔は、ベクトル空間を「次元」という尺度で階層化する。各ベクトル$v$は、それを表現するのに最小限必要な基底ベクトルの個数$\minLayer(v)$によって分類される。
+\end{tcolorbox}
+
+\subsection{最小基底数関数}
+
+構造塔理論における中心的な概念は、ベクトルを表現するのに必要な最小の基底ベクトル数を測る関数$\minBasis$である。
+
+\begin{definition}[最小基底数（2次元の場合）]
+\label{def:min_basis_count_2}
+$v = (a, b) \in \Q^2$に対して、最小基底数$\minBasis_2(v)$を以下で定義する：
+\[
+\minBasis_2(v) = \begin{cases}
+0 & \text{if } a = 0 \land b = 0 \\
+1 & \text{if } a = 0 \lor b = 0 \text{ (and not both zero)} \\
+2 & \text{otherwise}
+\end{cases}
+\]
+\end{definition}
+
+\begin{definition}[最小基底数（3次元の場合）]
+\label{def:min_basis_count_3}
+$v = (a, b, c) \in \Q^3$に対して、最小基底数$\minBasis_3(v)$を以下で定義する：
+\[
+\minBasis_3(v) = \begin{cases}
+0 & \text{if } a = b = c = 0 \\
+1 & \text{if ちょうど1つの成分が非零} \\
+2 & \text{if ちょうど2つの成分が非零} \\
+3 & \text{if すべての成分が非零}
+\end{cases}
+\]
+\end{definition}
+
+\begin{example}
+$\Q^2$における具体例：
+\begin{align*}
+\minBasis_2((0, 0)) &= 0 \quad \text{（零ベクトル）} \\
+\minBasis_2((1, 0)) &= 1 \quad \text{（$x$軸上）} \\
+\minBasis_2((0, 1)) &= 1 \quad \text{（$y$軸上）} \\
+\minBasis_2((1, 1)) &= 2 \quad \text{（一般の位置）}
+\end{align*}
+\end{example}
+
+\subsection{構造塔における層の定義}
+
+最小基底数関数を用いて、各層を次のように定義する：
+\[
+\text{layer}(n) = \{v \in V \mid \minBasis(v) \leq n\}
+\]
+
+この定義により、自然な包含関係
+\[
+\text{layer}(0) \subseteq \text{layer}(1) \subseteq \text{layer}(2) \subseteq \cdots
+\]
+が成立する。
+
+\section{具体例：Vec2QとVec3Q}
+
+\subsection{2次元有理ベクトル空間 Vec2Q}
+
+$\text{Vec2Q} = \Q^2$は最も基本的な構造塔の例である。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.5]
+% 軸
+\draw[->] (-0.5,0) -- (3,0) node[right] {$x$};
+\draw[->] (0,-0.5) -- (0,3) node[above] {$y$};
+
+% 層0：原点
+\fill[red] (0,0) circle (2pt) node[below left] {層0: $(0,0)$};
+
+% 層1：座標軸
+\draw[blue, thick] (0,0) -- (2.5,0) node[midway, below] {層1};
+\draw[blue, thick] (0,0) -- (0,2.5) node[midway, left] {層1};
+
+% 層2：全平面
+\fill[green!20, opacity=0.3] (-0.3,-0.3) rectangle (2.8,2.8);
+\node[green!50!black] at (2.3,2.3) {層2: $\Q^2$全体};
+
+% 具体的な点
+\fill (1,0) circle (1.5pt) node[below] {$(1,0)$};
+\fill (0,1) circle (1.5pt) node[left] {$(0,1)$};
+\fill (1.5,1.5) circle (1.5pt) node[above right] {$(1,1)$};
+
+\end{tikzpicture}
+\caption{Vec2Qの構造塔：層の幾何的イメージ}
+\label{fig:vec2q_layers}
+\end{figure}
+
+\begin{theorem}[Vec2Qの層の特徴付け]
+Vec2Qの構造塔における各層は以下で特徴付けられる：
+\begin{align*}
+\text{layer}(0) &= \{(0, 0)\} \\
+\text{layer}(1) &= \{(a, b) \in \Q^2 \mid a = 0 \lor b = 0\} \\
+\text{layer}(2) &= \Q^2
+\end{align*}
+\end{theorem}
+
+\begin{proof}
+定義\ref{def:min_basis_count_2}より直接従う。
+\begin{itemize}
+\item 層0：$\minBasis_2(v) \leq 0 \Leftrightarrow \minBasis_2(v) = 0 \Leftrightarrow v = (0, 0)$
+\item 層1：$\minBasis_2(v) \leq 1 \Leftrightarrow v = 0 \text{ または } a = 0 \text{ または } b = 0$
+\item 層2：任意の$v \in \Q^2$に対して$\minBasis_2(v) \leq 2$（定義より最大値が2）
+\end{itemize}
+\end{proof}
+
+\subsection{3次元有理ベクトル空間 Vec3Q}
+
+$\text{Vec3Q} = \Q^3$は3次元空間の階層構造を示す。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x={(1cm,0cm)}, y={(0.5cm,0.5cm)}, z={(0cm,1cm)}, scale=1.2]
+% 座標軸
+\draw[->] (0,0,0) -- (3,0,0) node[right] {$x$};
+\draw[->] (0,0,0) -- (0,3,0) node[right] {$y$};
+\draw[->] (0,0,0) -- (0,0,3) node[above] {$z$};
+
+% 層0：原点
+\fill[red] (0,0,0) circle (2pt) node[below left] {層0};
+
+% 層1：座標軸（3本の直線）
+\draw[blue, thick] (0,0,0) -- (2.5,0,0);
+\draw[blue, thick] (0,0,0) -- (0,2.5,0);
+\draw[blue, thick] (0,0,0) -- (0,0,2.5);
+\node[blue] at (2.5,0,0.3) {層1: 軸};
+
+% 層2：座標平面（3つの平面）
+\fill[green!20, opacity=0.3] (0,0,0) -- (2,0,0) -- (2,2,0) -- (0,2,0) -- cycle;
+\fill[green!20, opacity=0.3] (0,0,0) -- (2,0,0) -- (2,0,2) -- (0,0,2) -- cycle;
+\fill[green!20, opacity=0.3] (0,0,0) -- (0,2,0) -- (0,2,2) -- (0,0,2) -- cycle;
+\node[green!50!black] at (1.5,1.5,0.3) {層2: 平面};
+
+% 層3の注釈
+\node[purple] at (2,2,2.5) {層3: $\Q^3$全体};
+
+\end{tikzpicture}
+\caption{Vec3Qの構造塔：3次元空間の階層}
+\label{fig:vec3q_layers}
+\end{figure}
+
+\begin{theorem}[Vec3Qの層の特徴付け]
+Vec3Qの構造塔における各層は以下で特徴付けられる：
+\begin{align*}
+\text{layer}(0) &= \{(0, 0, 0)\} \\
+\text{layer}(1) &= \{\text{座標軸上のベクトル}\} \\
+\text{layer}(2) &= \{(a, b, c) \in \Q^3 \mid a = 0 \lor b = 0 \lor c = 0\} \\
+\text{layer}(3) &= \Q^3
+\end{align*}
+\end{theorem}
+
+幾何学的解釈：
+\begin{itemize}
+\item 層0：点（0次元）
+\item 層1：3本の座標軸（1次元）
+\item 層2：3つの座標平面（2次元）
+\item 層3：全空間（3次元）
+\end{itemize}
+
+\section{構造塔の射：線型写像の新しい視点}
+
+\subsection{構造塔射の定義}
+
+\begin{definition}[構造塔の射]
+\label{def:linear_map_tower}
+2つのベクトル空間構造塔$T, T'$に対して、構造塔の射（LinearMapTower）とは以下のデータからなる：
+\begin{enumerate}
+\item 写像 $f: T.\text{carrier} \to T'.\text{carrier}$
+\item 添字写像 $\phi: T.\text{Index} \to T'.\text{Index}$
+\item 単調性（indexMap\_mono）：$i \leq j \Rightarrow \phi(i) \leq \phi(j)$
+\item 層保存性（layer\_preserving）：\\
+$\forall i \in T.\text{Index}, \forall x \in T.\text{carrier}, x \in T.\text{layer}(i) \Rightarrow f(x) \in T'.\text{layer}(\phi(i))$
+\item 最小層保存性（minLayer\_preserving）：\\
+$\forall x \in T.\text{carrier}, T'.\minLayer(f(x)) \leq \phi(T.\minLayer(x))$
+\end{enumerate}
+\end{definition}
+
+\begin{tcolorbox}[colback=orange!5!white,colframe=orange!75!black,title=重要な観察]
+最小層保存性（minLayer\_preserving）は、構造塔の普遍性定理において鍵となる条件である。これは「線型写像は次元を減少させるか保存する」という直観を形式化している。
+\end{tcolorbox}
+
+\subsection{射の可換図式}
+
+構造塔の射は以下の可換図式で表現できる：
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=large, row sep=large]
+T.\text{carrier} \arrow[r, "f"] \arrow[d, "\minLayer_T"']
+& T'.\text{carrier} \arrow[d, "\minLayer_{T'}"] \\
+T.\text{Index} \arrow[r, "\phi"']
+& T'.\text{Index}
+\end{tikzcd}
+\caption{構造塔の射の可換図式}
+\end{figure}
+
+ただし、この図式は完全には可換ではなく、不等式
+\[
+\minLayer_{T'}(f(x)) \leq \phi(\minLayer_T(x))
+\]
+が成立する。
+
+\subsection{具体例1：スカラー倍}
+
+\begin{proposition}[スカラー倍は構造塔の射]
+$r \in \Q$, $r \neq 0$に対して、スカラー倍写像
+\[
+\mu_r: \Q^2 \to \Q^2, \quad v \mapsto r \cdot v
+\]
+は構造塔の射である。ここで、添字写像は恒等写像$\phi = \text{id}$である。
+\end{proposition}
+
+\begin{proof}
+以下を示す：
+\begin{enumerate}
+\item 単調性：$\phi = \text{id}$なので自明。
+\item 層保存性：$v \in \text{layer}(n) \Leftrightarrow \minBasis_2(v) \leq n$のとき、
+\[
+\minBasis_2(r \cdot v) = \minBasis_2(v) \leq n
+\]
+が成立する（$r \neq 0$より）。
+\item 最小層保存性：
+\[
+\minBasis_2(r \cdot v) = \minBasis_2(v)
+\]
+なので、$\minBasis_2(r \cdot v) \leq \minBasis_2(v)$が成立。
+\end{enumerate}
+\end{proof}
+
+\subsection{具体例2：第一座標への射影}
+
+\begin{proposition}[射影は構造塔の射]
+第一座標への射影
+\[
+\pi_1: \Q^2 \to \Q^2, \quad (a, b) \mapsto (a, 0)
+\]
+は構造塔の射である。ここで、添字写像は
+\[
+\phi(n) = \min(n, 1)
+\]
+である。
+\end{proposition}
+
+\begin{proof}[証明の概略]
+\begin{enumerate}
+\item 単調性：$i \leq j \Rightarrow \min(i, 1) \leq \min(j, 1)$は自然数の性質より従う。
+\item 層保存性：
+\begin{itemize}
+\item $n = 0$の場合：$v \in \text{layer}(0) \Rightarrow v = (0, 0) \Rightarrow \pi_1(v) = (0, 0) \in \text{layer}(0)$
+\item $n \geq 1$の場合：$\pi_1(v) = (a, 0)$なので、$\minBasis_2(\pi_1(v)) \leq 1 = \phi(n)$
+\end{itemize}
+\item 最小層保存性：任意の$v = (a, b)$に対して、
+\[
+\minBasis_2((a, 0)) \leq 1 \leq \min(\minBasis_2((a, b)), 1) = \phi(\minBasis_2(v))
+\]
+\end{enumerate}
+\end{proof}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.5]
+% 射影前
+\begin{scope}[xshift=0cm]
+\draw[->] (-0.5,0) -- (2.5,0) node[right] {$x$};
+\draw[->] (0,-0.5) -- (0,2.5) node[above] {$y$};
+\fill[blue] (1.5,1.5) circle (2pt) node[above right] {$(a,b)$};
+\draw[dashed, gray] (1.5,1.5) -- (1.5,0);
+\node at (1,-0.8) {射影前};
+\end{scope}
+
+% 矢印
+\draw[->, thick] (2.8,1) -- (3.5,1) node[midway, above] {$\pi_1$};
+
+% 射影後
+\begin{scope}[xshift=5cm]
+\draw[->] (-0.5,0) -- (2.5,0) node[right] {$x$};
+\draw[->] (0,-0.5) -- (0,2.5) node[above] {$y$};
+\fill[red] (1.5,0) circle (2pt) node[below right] {$(a,0)$};
+\node at (1,-0.8) {射影後};
+\end{scope}
+
+\end{tikzpicture}
+\caption{第一座標への射影：次元が減少する射の例}
+\label{fig:projection}
+\end{figure}
+
+\section{線形代数の古典的定理との関係}
+
+\subsection{線型独立性の構造塔的特徴付け}
+
+\begin{theorem}[線型独立性と行列式]
+$v = (v_1, v_2), w = (w_1, w_2) \in \Q^2$に対して、以下は同値：
+\begin{enumerate}
+\item $v, w$は線型独立（すなわち、$av + bw = 0 \Rightarrow a = b = 0$）
+\item $v_1 w_2 \neq v_2 w_1$（行列式が非零）
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[証明の概略]
+($\Rightarrow$) 対偶を示す。$v_1 w_2 = v_2 w_1$と仮定すると、
+\[
+w_2 v - v_2 w = 0
+\]
+となり、線型独立性に矛盾（少なくとも$w_2$または$v_2$が非零であれば）。
+
+($\Leftarrow$) $av + bw = 0$とすると、各成分について
+\begin{align*}
+a v_1 + b w_1 &= 0 \\
+a v_2 + b w_2 &= 0
+\end{align*}
+これらを$a$について解くと、
+\[
+a(v_1 w_2 - v_2 w_1) = 0
+\]
+$v_1 w_2 \neq v_2 w_1$より$a = 0$、同様に$b = 0$。
+\end{proof}
+
+\subsection{次元の構造塔的解釈}
+
+\begin{theorem}[次元と最大最小層]
+Vec2Qにおいて、
+\[
+\dim(\Q^2) = \sup_{v \in \Q^2} \minBasis_2(v) = 2
+\]
+\end{theorem}
+
+\begin{proof}
+\begin{itemize}
+\item 上界：任意の$v \in \Q^2$に対して、$\minBasis_2(v) \leq 2$（定義より）
+\item 達成：$v = (1, 1)$とすると、$\minBasis_2(v) = 2$
+\end{itemize}
+\end{proof}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black,title=構造塔の視点]
+次元とは、構造塔における「最も高い層」の添字である。これは古典的な次元の定義（最大線型独立集合の濃度）と一致する。
+\end{tcolorbox}
+
+\subsection{Rank-Nullity定理の構造塔版}
+
+線型写像$f: V \to W$に対する古典的なrank-nullity定理
+\[
+\dim(\ker f) + \dim(\text{im} f) = \dim(V)
+\]
+は、構造塔の言語では以下のように表現できる：
+
+\begin{theorem}[Rank-Nullity in Tower Language]
+線型写像$f: V \to W$が構造塔の射であるとき、
+\[
+\max_{v \in \ker f} \minLayer_V(v) + \max_{w \in \text{im} f} \minLayer_W(w) = \max_{v \in V} \minLayer_V(v)
+\]
+\end{theorem}
+
+この定理は、構造塔の視点が古典的な線形代数と完全に整合することを示している。
+
+\section{構造塔の包含図式}
+
+構造塔の階層構造を図式で表すと以下のようになる：
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[row sep=small]
+& \Q^2 = \text{layer}(2) \arrow[d, phantom, "\supseteq"] & \\
+& \{v \mid v_1 = 0 \lor v_2 = 0\} = \text{layer}(1) \arrow[d, phantom, "\supseteq"] & \\
+& \{(0,0)\} = \text{layer}(0) &
+\end{tikzcd}
+\caption{Vec2Qの層の包含関係}
+\end{figure}
+
+3次元の場合：
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[row sep=small]
+& \Q^3 = \text{layer}(3) \arrow[d, phantom, "\supseteq"] & \\
+& \text{座標平面の和} = \text{layer}(2) \arrow[d, phantom, "\supseteq"] & \\
+& \text{座標軸の和} = \text{layer}(1) \arrow[d, phantom, "\supseteq"] & \\
+& \{(0,0,0)\} = \text{layer}(0) &
+\end{tikzcd}
+\caption{Vec3Qの層の包含関係}
+\end{figure}
+
+\section{まとめと展望}
+
+\subsection{本稿のまとめ}
+
+本稿では、Lean 4で形式化された線形代数の構造塔理論について解説した。主要な内容は以下の通り：
+
+\begin{enumerate}
+\item \textbf{構造塔の定義}：ベクトル空間を階層的に捉える枠組みとして、層関数と最小層関数を持つ構造を定義した。
+
+\item \textbf{具体例}：$\Q^2$と$\Q^3$における構造塔を構成し、各層が幾何学的に明確な意味を持つことを示した。
+
+\item \textbf{射の理論}：線型写像を構造塔の射として捉え、層保存性と最小層保存性という2つの重要な性質を明らかにした。
+
+\item \textbf{古典理論との関係}：線型独立性、次元、rank-nullity定理といった古典的な概念が、構造塔の言語で自然に表現されることを示した。
+\end{enumerate}
+
+\subsection{構造塔理論の意義}
+
+構造塔理論が線形代数に与える新しい視点：
+\begin{itemize}
+\item \textbf{統一的理解}：基底・次元・ランクといった異なる概念を、階層構造という一つの枠組みで統一的に理解できる
+\item \textbf{圏論的視点}：線型写像を射として捉えることで、圏論的な普遍性定理への道を開く
+\item \textbf{計算可能性}：有理数体上の構造塔は計算可能であり、形式検証に適している
+\item \textbf{教育的価値}：幾何的直観（層の視覚化）と代数的厳密性を同時に提供する
+\end{itemize}
+
+\subsection{今後の展望}
+
+構造塔理論のさらなる発展として、以下の方向性が考えられる：
+
+\begin{enumerate}
+\item \textbf{圏構造の完全な形式化}：
+\begin{itemize}
+\item ベクトル空間構造塔の圏$\mathbf{VecTower}$の定義
+\item 射の合成と恒等射の形式化
+\item 関手と自然変換の導入
+\end{itemize}
+
+\item \textbf{普遍性定理}：
+\begin{itemize}
+\item 自由ベクトル空間構造塔の構成
+\item テンソル積の構造塔
+\item 商空間の構造塔
+\end{itemize}
+
+\item \textbf{内積構造の統合}：
+\begin{itemize}
+\item Gram-Schmidt直交化の完全実装
+\item 直交補空間の構造塔
+\item スペクトル定理の構造塔的解釈
+\end{itemize}
+
+\item \textbf{実数体への拡張}：
+\begin{itemize}
+\item 決定可能性の問題を克服する方法の研究
+\item 位相構造との統合
+\end{itemize}
+
+\item \textbf{高次の代数構造}：
+\begin{itemize}
+\item 外積代数の構造塔
+\item テンソル代数の構造塔
+\item Clifford代数の構造塔
+\end{itemize}
+\end{enumerate}
+
+\subsection{形式検証との関係}
+
+Lean 4による形式化は、以下の利点を持つ：
+\begin{itemize}
+\item \textbf{厳密性}：すべての定理が機械的に検証可能
+\item \textbf{保守性}：証明の誤りが即座に検出される
+\item \textbf{再利用性}：構造塔の抽象的な性質を様々な具体例に適用できる
+\item \textbf{教育}：学生が対話的に証明を学ぶことができる
+\end{itemize}
+
+\section*{謝辞}
+
+本稿のLeanコードはCodex (OpenAI)によって生成され、TeXファイルはClaude Code (Anthropic, Claude Sonnet 4.5)によって生成された。構造塔理論の数学的内容は、ZEN大学の線形代数シラバスおよび既存のLean形式化プロジェクトに基づいている。
+
+\begin{thebibliography}{9}
+
+\bibitem{bourbaki}
+N. Bourbaki,
+\textit{Algebra I, Chapters 1-3},
+Springer, 1989.
+
+\bibitem{maclane}
+S. Mac Lane,
+\textit{Categories for the Working Mathematician},
+2nd ed., Springer, 1998.
+
+\bibitem{mathlib}
+The mathlib Community,
+\textit{The Lean mathematical library},
+\url{https://github.com/leanprover-community/mathlib4}, 2024.
+
+\bibitem{lean4}
+L. de Moura and S. Ullrich,
+\textit{The Lean 4 Theorem Prover and Programming Language},
+CADE 2021.
+
+\bibitem{math-in-lean}
+J. Avigad, P. Massot,
+\textit{Mathematics in Lean},
+\url{https://leanprover-community.github.io/mathematics_in_lean/}, 2024.
+
+\bibitem{axler}
+S. Axler,
+\textit{Linear Algebra Done Right},
+3rd ed., Springer, 2015.
+
+\end{thebibliography}
+
+\appendix
+
+\section{Leanコードの抜粋}
+
+構造塔の形式定義（Lean 4）：
+
+\begin{lstlisting}[language=ML, basicstyle=\ttfamily\small, frame=single]
+structure VectorSpaceTower where
+  carrier : Type
+  Index : Type
+  [indexPreorder : Preorder Index]
+  layer : Index -> Set carrier
+  covering : forall x : carrier, exists i : Index, x in layer i
+  monotone : forall {i j : Index}, i <= j -> layer i subseteq layer j
+  minLayer : carrier -> Index
+  minLayer_mem : forall x, x in layer (minLayer x)
+  minLayer_minimal : forall x i, x in layer i -> minLayer x <= i
+\end{lstlisting}
+
+\section{構造塔の視覚化}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.2]
+% タワーの描画
+\foreach \y/\w/\name in {0/0.5/layer 0, 1/1.5/layer 1, 2.5/2.5/layer 2} {
+  \draw[thick, fill=blue!\y0!white, opacity=0.6]
+    (-\w,\y) rectangle (\w,\y+0.8);
+  \node at (0,\y+0.4) {\name};
+}
+
+% 包含の矢印
+\draw[->, thick, red] (0,0.9) -- (0,1.1) node[midway, right] {$\subseteq$};
+\draw[->, thick, red] (0,1.9) -- (0,2.4) node[midway, right] {$\subseteq$};
+
+% ラベル
+\node at (0,-0.5) {$\{0\}$};
+\node at (0,3.5) {$V$};
+
+\end{tikzpicture}
+\caption{構造塔の概念図：層の積み重ね}
+\end{figure}
+
+\end{document}

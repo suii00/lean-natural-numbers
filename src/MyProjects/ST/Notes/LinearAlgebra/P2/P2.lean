@@ -5,6 +5,7 @@ import Mathlib.LinearAlgebra.Matrix.Diagonal
 import Mathlib.LinearAlgebra.Eigenspace.Basic
 import Mathlib.Data.Rat.Defs
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finsupp.Fintype
 import Mathlib.Order.Basic
 import Mathlib.Tactic
 
@@ -969,6 +970,127 @@ theorem diagonalizable_iff_tower_isomorphic :
     rfl
 
 /-!
+### Maximal Layer / 最大層
+
+For towers whose index type supports `sSup`, define the maximal layer as the supremum
+of all minimal layers.
+
+This is the set-theoretic counterpart of taking
+`max { minLayer(v) | v ∈ V }` when the supremum is bounded.
+-/
+
+noncomputable def VectorSpaceTower.maxLayer (T : VectorSpaceTower) [SupSet T.Index] : T.Index :=
+  sSup (Set.range T.minLayer)
+
+/-!
+### Towers Induced by a Finite Basis / 有限基底から作る塔
+
+Given a finite basis, we build a `VectorSpaceTower` whose `minLayer` counts the number of
+nonzero coordinates of a vector in that basis.
+
+This makes the slogan precise:
+
+- `minLayer(v)` = “how many basis vectors are actually used to write `v`”
+- `maxLayer`    = “dimension” (i.e. `finrank`)
+- rank-nullity  = “tower rank-nullity”
+-/
+
+section BasisTower
+
+variable {K : Type} [DivisionRing K]
+variable {V : Type} [AddCommGroup V] [Module K V]
+variable {ι : Type} [Fintype ι]
+
+/-- The minimal layer of `v` w.r.t. a basis: the number of nonzero coordinates in `b.repr v`. -/
+noncomputable def basisMinLayer (b : Module.Basis ι K V) (v : V) : ℕ :=
+  by
+    classical
+    exact (b.repr v).support.card
+
+/-- A structure tower induced by a finite basis. -/
+noncomputable abbrev basisTower (b : Module.Basis ι K V) : VectorSpaceTower where
+  carrier := V
+  Index := ℕ
+  indexPreorder := (inferInstance : Preorder ℕ)
+  layer := fun n => {v : V | basisMinLayer b v ≤ n}
+  covering := by
+    intro v
+    refine ⟨basisMinLayer b v, ?_⟩
+    simp
+  monotone := by
+    intro i j hij v hv
+    exact le_trans hv hij
+  minLayer := basisMinLayer b
+  minLayer_mem := by
+    intro v
+    show basisMinLayer b v ≤ basisMinLayer b v
+    exact le_rfl
+  minLayer_minimal := by
+    intro v i hv
+    exact hv
+
+/-- The maximal layer of the basis tower is the size of the basis index set. -/
+theorem maxLayer_basisTower_eq_card (b : Module.Basis ι K V) :
+    (basisTower (K := K) (V := V) b).maxLayer = Fintype.card ι := by
+  classical
+  let f : V → ℕ := basisMinLayer b
+  have hf_bdd : ∃ n, ∀ a ∈ Set.range f, a ≤ n := by
+    refine ⟨Fintype.card ι, ?_⟩
+    rintro a ⟨v, rfl⟩
+    simpa [f, basisMinLayer] using (Finset.card_le_univ (s := (b.repr v).support))
+  change sSup (Set.range f) = Fintype.card ι
+  apply le_antisymm
+  · rw [Nat.sSup_def hf_bdd]
+    refine Nat.find_min' hf_bdd ?_
+    rintro a ⟨v, rfl⟩
+    simpa [f, basisMinLayer] using (Finset.card_le_univ (s := (b.repr v).support))
+  ·
+    let x : ι →₀ K := Finsupp.equivFunOnFinite.symm (fun _ : ι => (1 : K))
+    have hx_support : x.support = Finset.univ := by
+      ext i
+      constructor
+      · intro _hi
+        exact Finset.mem_univ i
+      · intro _hi
+        refine Finsupp.mem_support_iff.mpr ?_
+        simp [x]
+    have h_ex : f (b.repr.symm x) = Fintype.card ι := by
+      calc
+        f (b.repr.symm x) = x.support.card := by simp [f, basisMinLayer]
+        _ = Fintype.card ι := by simp [hx_support]
+    have hmem : (Fintype.card ι) ∈ Set.range f := by
+      exact ⟨b.repr.symm x, h_ex⟩
+    rw [Nat.sSup_def hf_bdd]
+    exact (Nat.find_spec hf_bdd) (Fintype.card ι) hmem
+
+/-- Specialization: for a finite-dimensional space, the maximal layer is `finrank`. -/
+theorem maxLayer_basisTower_eq_finrank [FiniteDimensional K V] (b : Module.Basis ι K V) :
+    (basisTower (K := K) (V := V) b).maxLayer = Module.finrank K V := by
+  classical
+  calc
+    (basisTower (K := K) (V := V) b).maxLayer = Fintype.card ι :=
+      maxLayer_basisTower_eq_card (K := K) (V := V) (ι := ι) b
+    _ = Module.finrank K V := by
+      simpa using
+        (Module.finrank_eq_card_basis (R := K) (M := V) b).symm
+
+/-- The canonical basis tower given by `Module.finBasis`. -/
+noncomputable abbrev finBasisTower (K : Type) (V : Type) [DivisionRing K] [AddCommGroup V]
+    [Module K V] [FiniteDimensional K V] : VectorSpaceTower :=
+  basisTower (K := K) (V := V) (Module.finBasis K V)
+
+/-- `maxLayer` of the canonical basis tower coincides with `finrank`. -/
+theorem maxLayer_finBasisTower_eq_finrank (K : Type) (V : Type) [DivisionRing K] [AddCommGroup V]
+    [Module K V] [FiniteDimensional K V] :
+    (finBasisTower (K := K) (V := V)).maxLayer = Module.finrank K V := by
+  classical
+  simpa [finBasisTower] using
+    (maxLayer_basisTower_eq_card (K := K) (V := V) (ι := Fin (Module.finrank K V))
+      (Module.finBasis K V))
+
+end BasisTower
+
+/-!
 ### Rank-Nullity Theorem in Structure Tower Language
 ### 構造塔の言語によるrank-nullity定理
 
@@ -992,6 +1114,41 @@ theorem rank_nullity_tower_version
     (_f : LinearMapTower vec2QTower vec2QTower) :
     (⨆ v : Vec2Q, minBasisCount2 v) = 2 := by
   exact dimension_eq_max_minLayer_Vec2Q
+
+/-!
+### Tower Rank-Nullity (Actual Translation)
+
+Using the canonical basis towers (`finBasisTower`), the standard mathlib theorem
+`LinearMap.finrank_range_add_finrank_ker` becomes a tower statement:
+
+`maxLayer(range f) + maxLayer(ker f) = maxLayer(V)`.
+-/
+
+theorem rank_nullity_tower_finBasis {K : Type} [DivisionRing K]
+    {V : Type} [AddCommGroup V] [Module K V] [FiniteDimensional K V]
+    {V₂ : Type} [AddCommGroup V₂] [Module K V₂] (f : V →ₗ[K] V₂) :
+    ((finBasisTower (K := K) (V := LinearMap.range f)).maxLayer : ℕ) +
+        ((finBasisTower (K := K) (V := LinearMap.ker f)).maxLayer : ℕ) =
+      ((finBasisTower (K := K) (V := V)).maxLayer : ℕ) := by
+  classical
+  haveI : FiniteDimensional K (LinearMap.range f) := by infer_instance
+  haveI : FiniteDimensional K (LinearMap.ker f) := by infer_instance
+  calc
+    ((finBasisTower (K := K) (V := LinearMap.range f)).maxLayer : ℕ) +
+        ((finBasisTower (K := K) (V := LinearMap.ker f)).maxLayer : ℕ) =
+      Module.finrank K (LinearMap.range f) + Module.finrank K (LinearMap.ker f) := by
+        rw [maxLayer_finBasisTower_eq_finrank (K := K) (V := LinearMap.range f)]
+        rw [maxLayer_finBasisTower_eq_finrank (K := K) (V := LinearMap.ker f)]
+    _ = Module.finrank K V := LinearMap.finrank_range_add_finrank_ker f
+    _ = ((finBasisTower (K := K) (V := V)).maxLayer : ℕ) := by
+        simpa using (maxLayer_finBasisTower_eq_finrank (K := K) (V := V)).symm
+
+example :
+    ((finBasisTower (K := ℚ) (V := LinearMap.range (0 : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))).maxLayer : ℕ) +
+        ((finBasisTower (K := ℚ) (V := LinearMap.ker (0 : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))).maxLayer : ℕ) =
+      ((finBasisTower (K := ℚ) (V := (ℚ × ℚ))).maxLayer : ℕ) := by
+  simpa using rank_nullity_tower_finBasis (K := ℚ) (V := (ℚ × ℚ)) (V₂ := (ℚ × ℚ))
+    (f := (0 : (ℚ × ℚ) →ₗ[ℚ] (ℚ × ℚ)))
 
 /-!
 ## Part 7: Implementation Guide (Comments)
