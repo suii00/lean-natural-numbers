@@ -2,62 +2,50 @@ import MyProjects.ST.CAT.Cat_le
 import Mathlib.CategoryTheory.Functor.Basic
 
 /-!
-# Cat_eq: The Subcategory of Isomorphisms
+# Cat_LeBij: Bijective morphisms in the `Cat_le` lane
 
-このファイルは構造塔の圏における同型射（isomorphisms）の部分圏 Cat_eq を定義します。
+This file defines a small category sitting *between* `Cat_le` and a genuine “isomorphism / groupoid”
+lane.
+
+`Cat_le` morphisms remember an order-preserving `indexMap` and preserve layers pointwise.
+Here we further require that both the carrier map and the index map are bijective.
+
+Important: **bijective + layer-preserving does not automatically make the inverse layer-preserving**.
+So this is *not* the groupoid of isomorphisms in `Cat_le`; it is just a “bijective lane”.
 
 ## 数学的動機
 
-構造塔の間の「構造を保つ同型」を形式化します。
-Cat_eq では、射は全単射な map と全単射な indexMap を持ちます。
+「層を保つ」ことに加えて「台集合や添字集合の bijective 性」も持つ射を独立に扱いたい場面がある。
+そのために `HomLe` に bijective 条件を追加した中間レーンを用意する。
 
-### 同型射の特徴
+### 注意（同型射との違い）
 
-**定義**: 射 (f, φ) : T → T' が同型射であるとは：
-1. f : X → X' が全単射
-2. φ : I → I' が全単射（順序同型）
-3. f と φ が層構造を保存
+逆写像が再び `HomLe` の条件（単調性＋層保存）を満たすことは一般には従わない。
+従って、このファイルの圏は「同型射の部分圏（groupoid）」ではない。
 
-**群構造**: すべての射が可逆なので、Cat_eq は群圏（groupoid）をなす。
-
-## Cat_D, Cat_le, Cat_eq の階層
+## Cat_D / Cat_le / Cat_LeBij の階層
 
 ```
          包含関係
-Cat_eq ⊆ Cat_le ⊆ Cat_D
+Cat_LeBij ⊆ Cat_le ⊆ Cat_D
 
-Hom_eq(T,T') ⊆ Hom_le(T,T') ⊆ Hom_D(T,T')
+Hom_LeBij(T,T') ⊆ Hom_le(T,T') ⊆ Hom_D(T,T')
 ```
 
 **各圏の射の条件**:
 - **Cat_D**: map のみ、∃j layer preservation
 - **Cat_le**: (map, φ) with φ monotone
-- **Cat_eq**: (map, φ) with f, φ both bijective
+- **Cat_LeBij**: `HomLe` + (map, φ) both bijective
 
 ## 数学的応用
 
-### 1. 構造塔の同型分類
-同型な構造塔は「本質的に同じ」数学的対象
-
-### 2. 対称性の記述
-構造塔の自己同型 = 構造を保つ対称性
-
-**例**: ベクトル空間の線形同型、位相空間の同相写像
-
-### 3. 普遍性との関係
-普遍対象は同型を除いて一意
-
-### 4. 確率論での応用
-確率空間の同型 = 確率的に同値な表現
+このレーンは「基礎集合の取り換え（全単射）」を伴う変換を扱うときの整理に使える。
 
 ## 主な内容
 
-1. `HomEq`: 同型射の定義（全単射条件）
-2. `CategoryEq`: Cat_eq の圏構造
-3. `Groupoid`: 群圏構造の証明
-4. `forgetToLe`, `forgetToD`: forgetful functors
-5. 逆射の構成と性質
-6. 具体例
+1. `TowerD.HomLeBij`: `HomLe` + bijective の射
+2. `TowerD_LeBij`: `Cat_LeBij` レーンの対象ラッパ
+3. `forgetToLe`: `Cat_LeBij → Cat_le`（bijective 条件を忘れる）
 
 ## 参考文献
 - Mac Lane, S. *Categories for the Working Mathematician*
@@ -72,27 +60,29 @@ open CategoryTheory
 namespace TowerD
 
 /-!
-## `HomEq`: isomorphism-like morphisms
+## `HomLeBij`: `HomLe` + bijectivity
 
-This file is intentionally minimal: we treat `HomEq` as the "tight" lane sitting above `HomLe`.
+We keep this file intentionally minimal: we treat `HomLeBij` as the “bijective lane” sitting
+above `HomLe`.
+
 To avoid typeclass collisions (multiple `Category` instances on the same object type `TowerD`),
-we put the `Cat_eq` instance on a wrapper type `TowerD_Eq`.
+we put the `Cat_LeBij` instance on a wrapper type `TowerD_LeBij`.
 -/
 
-/-- `Cat_eq` morphisms: `HomLe` morphisms whose carrier map and index map are both bijective. -/
-structure HomEq (T T' : TowerD) extends HomLe T T' where
+/-- `Cat_LeBij` morphisms: `HomLe` morphisms whose carrier map and index map are both bijective. -/
+structure HomLeBij (T T' : TowerD) extends HomLe T T' where
   /-- Bijectivity of the carrier map. -/
   map_bijective : Function.Bijective map
   /-- Bijectivity of the index map. -/
   indexMap_bijective : Function.Bijective indexMap
 
-/-- Notation for `HomEq` morphisms. -/
-infixr:10 " ⟶ₑ " => HomEq
+/-- Notation for `HomLeBij` morphisms. -/
+infixr:10 " ⟶ₗᵇ " => HomLeBij
 
-namespace HomEq
+namespace HomLeBij
 
 @[ext]
-theorem ext {T T' : TowerD} {f g : T ⟶ₑ T'}
+theorem ext {T T' : TowerD} {f g : T ⟶ₗᵇ T'}
     (hmap : f.map = g.map) (hindexMap : f.indexMap = g.indexMap) :
     f = g := by
   cases f with
@@ -104,14 +94,14 @@ theorem ext {T T' : TowerD} {f g : T ⟶ₑ T'}
       cases hto
       rfl
 
-/-- Identity morphism in `Cat_eq`. -/
-def id (T : TowerD) : T ⟶ₑ T where
+/-- Identity morphism in `Cat_LeBij`. -/
+def id (T : TowerD) : T ⟶ₗᵇ T where
   toHomLe := HomLe.id T
   map_bijective := Function.bijective_id
   indexMap_bijective := Function.bijective_id
 
-/-- Composition in `Cat_eq`. -/
-def comp {T T' T'' : TowerD} (g : T' ⟶ₑ T'') (f : T ⟶ₑ T') : T ⟶ₑ T'' where
+/-- Composition in `Cat_LeBij`. -/
+def comp {T T' T'' : TowerD} (g : T' ⟶ₗᵇ T'') (f : T ⟶ₗᵇ T') : T ⟶ₗᵇ T'' where
   toHomLe := HomLe.comp g.toHomLe f.toHomLe
   map_bijective := by
     rcases g.map_bijective with ⟨hg_inj, hg_surj⟩
@@ -141,52 +131,52 @@ def comp {T T' T'' : TowerD} (g : T' ⟶ₑ T'') (f : T ⟶ₑ T') : T ⟶ₑ T'
 @[simp] theorem id_map (T : TowerD) : (id T).map = _root_.id := rfl
 @[simp] theorem id_indexMap (T : TowerD) : (id T).indexMap = _root_.id := rfl
 
-@[simp] theorem comp_map {T T' T'' : TowerD} (g : T' ⟶ₑ T'') (f : T ⟶ₑ T') :
+@[simp] theorem comp_map {T T' T'' : TowerD} (g : T' ⟶ₗᵇ T'') (f : T ⟶ₗᵇ T') :
     (comp g f).map = g.map ∘ f.map := rfl
 
-@[simp] theorem comp_indexMap {T T' T'' : TowerD} (g : T' ⟶ₑ T'') (f : T ⟶ₑ T') :
+@[simp] theorem comp_indexMap {T T' T'' : TowerD} (g : T' ⟶ₗᵇ T'') (f : T ⟶ₗᵇ T') :
     (comp g f).indexMap = g.indexMap ∘ f.indexMap := rfl
 
 /-! Sanity checks: composition really is function composition on data fields. -/
-example {T T' T'' : TowerD} (g : T' ⟶ₑ T'') (f : T ⟶ₑ T') (x : T.carrier) :
+example {T T' T'' : TowerD} (g : T' ⟶ₗᵇ T'') (f : T ⟶ₗᵇ T') (x : T.carrier) :
     (comp g f).map x = g.map (f.map x) := rfl
 
-end HomEq
+end HomLeBij
 
 end TowerD
 
 /-!
-## `Cat_eq` as a category (on a wrapper type)
+## `Cat_LeBij` as a category (on a wrapper type)
 -/
 
-/-- Object wrapper for the `Cat_eq` lane. -/
-structure TowerD_Eq where
+/-- Object wrapper for the `Cat_LeBij` lane. -/
+structure TowerD_LeBij where
   toTowerD : TowerD
 
-instance : Coe TowerD_Eq TowerD := ⟨TowerD_Eq.toTowerD⟩
+instance : Coe TowerD_LeBij TowerD := ⟨TowerD_LeBij.toTowerD⟩
 
-namespace TowerD_Eq
+namespace TowerD_LeBij
 
-instance : Category TowerD_Eq where
-  Hom := fun T T' => TowerD.HomEq (T : TowerD) (T' : TowerD)
-  id := fun T => TowerD.HomEq.id (T : TowerD)
-  comp := fun f g => TowerD.HomEq.comp g f
+instance : Category TowerD_LeBij where
+  Hom := fun T T' => TowerD.HomLeBij (T : TowerD) (T' : TowerD)
+  id := fun T => TowerD.HomLeBij.id (T : TowerD)
+  comp := fun f g => TowerD.HomLeBij.comp g f
   id_comp := by
     intro X Y f
-    apply TowerD.HomEq.ext <;> rfl
+    apply TowerD.HomLeBij.ext <;> rfl
   comp_id := by
     intro X Y f
-    apply TowerD.HomEq.ext <;> rfl
+    apply TowerD.HomLeBij.ext <;> rfl
   assoc := by
     intro W X Y Z h g f
-    apply TowerD.HomEq.ext <;> rfl
+    apply TowerD.HomLeBij.ext <;> rfl
 
-end TowerD_Eq
+end TowerD_LeBij
 
 namespace Functors
 
-/-- Inclusion functor: `Cat_eq` lane → data `Cat_le` lane. -/
-def forgetToLe : TowerD_Eq ⥤ TowerD where
+/-- Inclusion functor: `Cat_LeBij` lane → data `Cat_le` lane (forget bijectivity). -/
+def forgetToLe : TowerD_LeBij ⥤ TowerD where
   obj T := (T : TowerD)
   map := by
     intro T T' f
@@ -199,7 +189,7 @@ def forgetToLe : TowerD_Eq ⥤ TowerD where
     apply TowerD.HomLe.ext <;> rfl
 
 /-! A tiny sanity check: `forgetToLe` keeps the carrier map. -/
-example {T T' : TowerD_Eq} (f : T ⟶ T') (x : (T : TowerD).carrier) :
+example {T T' : TowerD_LeBij} (f : T ⟶ T') (x : (T : TowerD).carrier) :
     (forgetToLe.map f).map x = f.map x := rfl
 
 end Functors
