@@ -63,3 +63,11 @@ File: `src/MyProjects/ST/Notes/LinearAlgebra/P2/P2.lean`
 - **小さく再利用可能な補題を先に置く**：後段の定理は「定義展開＋場合分け＋補題の適用」に落ちるように設計した。
 - **抽象と具体の境界を守る**：一般理論（`VectorSpaceTower`）は弱い前提（`Preorder`）に留め、`ℕ` を使う部分は `Nat` の具体補題で処理する。
 
+## Follow-up (2025-12-17): regression tests
+
+- Added low-cost, high-signal `example`s for:
+  - basis-change invariance of `basisTower` (reindexing via `Equiv.swap`)
+  - a rank-1 concrete map `LinearMap.fst` (projection) for `rank_nullity_tower_finBasis`,
+    plus `maxLayer` checks for `range` and `ker`
+- Verification:
+  - `lake build MyProjects.ST.Notes.LinearAlgebra.P2.P2`
