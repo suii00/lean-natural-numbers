@@ -71,14 +71,14 @@ The primary contributions of this work are:
     \item \textbf{Lean 4 Formalization:} We describe a modular formalization of these concepts, distinguishing between a ``thin wrapper'' of rank-theoretic definitions and the robust measure-theoretic backend.
 \end{itemize}
 
-The remainder of this paper is organized as follows. Section \ref{sec:discrete} establishes the discrete probability setting. Section \ref{sec:ranktower} introduces the abstract theory of Structure Towers. Section \ref{sec:stopping_ranks} maps stopping times to these towers. Section \ref{sec:ost} proves the Rank-based OST. Section \ref{sec:lean} discusses the mechanization, and Section \ref{sec:conclusion} concludes.
+The remainder of this paper is organized as follows. Section \ref{sec:discrete} establishes the discrete-time setting. Section \ref{sec:ranktower} introduces the abstract theory of Structure Towers. Section \ref{sec:stopping_ranks} maps stopping times to these towers. Section \ref{sec:ost} proves the Rank-based OST. Section \ref{sec:lean} discusses the mechanization, and Section \ref{sec:conclusion} concludes.
 
 % --- Section 2: Discrete Setting ---
-\section{Discrete Setting} \label{sec:discrete}
+\section{Discrete-time Setting} \label{sec:discrete}
 
-We restrict our attention to a discrete-time setting to focus on the structural correspondence without the distracting technicalities of continuous-time analysis.
+We restrict our attention to a discrete-time setting. Note that while the time index is discrete ($n \in \Nat$), the probability space $(\Omega, \mathcal{F}, \Prob)$ is general (not necessarily finite or discrete).
 
-Let $(\Omega, \mathcal{F}, \Prob)$ be a probability space. We consider a discrete time index $n \in \Nat$.
+Let $(\Omega, \mathcal{F}, \Prob)$ be a probability space.
 \begin{definition}[Filtration]
 A filtration $\Filtration = (\mathcal{F}_n)_{n \in \Nat}$ is a sequence of sub-$\sigma$-algebras such that $\mathcal{F}_n \subseteq \mathcal{F}_{n+1} \subseteq \mathcal{F}$ for all $n$.
 \end{definition}
@@ -96,19 +96,16 @@ A stochastic process $M = (M_n)_{n \in \Nat}$ is a martingale with respect to $\
 A map $\tau: \Omega \to \Nat \cup \{\infty\}$ is a stopping time with respect to $\Filtration$ if for every $n \in \Nat$, the event $\{\omega \in \Omega \mid \tau(\omega) \le n\}$ belongs to $\mathcal{F}_n$.
 \end{definition}
 
-Our goal is to reinterpret these standard definitions using the geometry of ``layers'' and ``ranks.''
-
 % --- Section 3: Minimal Structure-Tower Definitions ---
 \section{Structure Towers and Rank Functions} \label{sec:ranktower}
 
-In this section, we define the abstract machinery of Structure Towers. This theory, formalized in \texttt{RankTower.md}, provides the canonical correspondence between stratified structures and rank functions.
+In this section, we define the abstract machinery of Structure Towers. We begin with a minimal definition depending only on the subset structure, and then derive the rank function as a consequence. This avoids circularity in the correspondence.
 
 \begin{definition}[Structure Tower]
-A \textbf{Structure Tower with Min} consists of a carrier type $X$ and a sequence of subsets (layers) $\layer{n} \subseteq X$ satisfying:
+A \textbf{Structure Tower} consists of a carrier type $X$ and a sequence of subsets (layers) $\layer{n} \subseteq X$ satisfying:
 \begin{enumerate}
     \item \textbf{Covering:} $\forall x \in X, \exists n, x \in \layer{n}$.
     \item \textbf{Monotonicity:} $i \le j \implies \layer{i} \subseteq \layer{j}$.
-    \item \textbf{Minimality:} There exists a function $\minLayer: X \to \Nat$ such that $\minLayer(x)$ is the smallest index $n$ where $x \in \layer{n}$.
 \end{enumerate}
 \end{definition}
 
@@ -116,42 +113,43 @@ A \textbf{Structure Tower with Min} consists of a carrier type $X$ and a sequenc
 A \textbf{Rank Function} is a map $\rank: X \to \Nat \cup \{\infty\}$. We say a rank function is \textit{covering} if $\forall x, \rank(x) < \infty$, in which case it can be identified with a map $\rank: X \to \Nat$.
 \end{definition}
 
-\begin{remark}
-Although the formal definition allows for infinite ranks (implemented as \texttt{WithTop Nat} in Lean), we restrict our focus in this paper to covering rank functions (corresponding to bounded or finite stopping times) to establish a clean bijection with the Structure Tower defined above.
-\end{remark}
-
-The following theorem establishes the consistency between the layer structure and the minimal layer function.
+The following theorem establishes the bijection between these two structures.
 
 \begin{theorem}[Rank-Tower Correspondence] \label{thm:rank_tower_corr}
 There is a one-to-one correspondence between Structure Towers and Covering Rank Functions ($\rank: X \to \Nat$).
 \begin{enumerate}
     \item \textbf{Rank to Tower:} Given $\rank$, define $\layer{n} = \{x \mid \rank(x) \le n\}$.
-    \item \textbf{Tower to Rank:} Given a tower, define $\rank(x) = \minLayer(x)$.
+    \item \textbf{Tower to Rank:} Given a tower, define $\rank(x) = \min \{n \in \Nat \mid x \in \layer{n}\}$.
 \end{enumerate}
-These operations are inverses: the $\minLayer$ derived from the induced tower of $\rank$ is exactly $\rank$, and the layers induced by $\minLayer$ are exactly the original layers.
 \end{theorem}
 
 \begin{proof}[Sketch]
-The monotonicity ensures that the set of indices containing $x$ forms a filter in $\Nat$, determined by its minimum. The formalization \texttt{RankTower.lean} proves the round-trip identity, effectively showing that the explicit data of \texttt{minLayer} in the structure definition is redundant but consistent with the layer data.
+For the ``Tower to Rank'' direction, fix $x \in X$. Let $S_x = \{n \in \Nat \mid x \in \layer{n}\}$. By the Covering property, $S_x$ is non-empty. By Monotonicity, $S_x$ is an upper set (if $n \in S_x$ and $m \ge n$, then $m \in S_x$). By the well-ordering principle of $\Nat$, $S_x$ has a unique minimum element. We define $\rank(x)$ to be this minimum. The inverse relationship follows directly from the definition of the minimum and the upper set property.
 \end{proof}
+
+\begin{remark}[Canonical Form]
+In our Lean formalization, we define a \texttt{StructureTowerWithMin} which includes the $\minLayer$ (rank) function as part of the data field for computational efficiency. Theorem \ref{thm:rank_tower_corr} justifies that this additional data is redundant but consistent: any Structure Tower induces a unique canonical $\minLayer$.
+\end{remark}
 
 % --- Section 4: Stopping Times as Ranks ---
 \section{Stopping Times as Ranks} \label{sec:stopping_ranks}
 
-We now bridge the gap between structure towers and probability theory.
-Throughout this section and the next, we assume $\tau$ is a \textbf{bounded stopping time}. That is, there exists $K \in \Nat$ such that $\tau(\omega) \le K$ for all $\omega$. Consequently, $\tau$ takes values in $\Nat$, allowing us to treat it as a covering rank function $\rank_\tau: \Omega \to \Nat$.
+We now bridge the gap between structure towers and probability theory. The relationship between the general definitions and our specific bounded setting is summarized as follows:
+\[
+  \text{Stopping Time } (\Nat \cup \{\infty\}) \xrightarrow{\text{Bounded}} \text{Stopping Time } (\Nat) \iff \text{Covering Rank } (\Nat)
+\]
+Throughout the rest of this paper, we assume $\tau$ is a \textbf{bounded stopping time}. That is, there exists $K \in \Nat$ such that $\tau(\omega) \le K$ for all $\omega$. Consequently, $\tau$ corresponds to a covering rank function $\rank_\tau: \Omega \to \Nat$.
 
 \begin{proposition}[Stopping Time as Rank]
 Let $\tau$ be a bounded stopping time. Define $\rank_\tau(\omega) = \tau(\omega)$. Then the induced structure tower $\Tower_\tau$ satisfies:
 \begin{equation}
     \layer{n}(\Tower_\tau) = \{\omega \in \Omega \mid \tau(\omega) \le n\}.
 \end{equation}
+Furthermore, the canonical rank derived from this tower is exactly $\tau$ itself.
 \end{proposition}
 
-While $\minLayer(\omega) = \tau(\omega)$ holds by definition, the probabilistic significance lies in the following observation:
-
 \begin{remark}[Non-triviality of Adaptedness]
-The structural definition alone yields subsets $\layer{n} \subseteq \Omega$. The crucial probabilistic content is that because $\tau$ is a stopping time, we have $\layer{n}(\Tower_\tau) \in \mathcal{F}_n$. This means the geometry of the structure tower is ``adapted'' to the filtration $\Filtration$. The rank structure encodes the information flow.
+The structural definition alone yields subsets $\layer{n} \subseteq \Omega$. The crucial probabilistic content is that because $\tau$ is a stopping time, we have $\layer{n}(\Tower_\tau) \in \mathcal{F}_n$. This means the geometry of the structure tower is ``adapted'' to the filtration $\Filtration$.
 \end{remark}
 
 We define the \textbf{Rank-Stopped Process} $M^\tau$ (denoted \texttt{rankStoppedProcess} in the formalization) and the \textbf{Terminal Variable} $M_\tau$.
@@ -181,11 +179,13 @@ The proof relies on two main steps:
     \begin{align*}
         \CondExp{M^\tau_{n+1}}{n} &= \CondExp{M_{\tau \land (n+1)}}{n} \\
         &= \CondExp{\Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_{n+1}}{n} \\
-        &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} \CondExp{M_{n+1}}{n} \\
+        &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} \CondExp{M_{n+1}}{n}
+    \end{align*}
+    Crucially, the term $\Ind{\tau \le n} M_\tau$ is $\mathcal{F}_n$-measurable. This is because it can be decomposed as a finite sum $\sum_{k=0}^n \Ind{\tau=k} M_k$, where each term is the product of an $\mathcal{F}_k$-measurable event ($\{\tau=k\} \in \mathcal{F}_k \subseteq \mathcal{F}_n$) and an $\mathcal{F}_k$-measurable variable ($M_k \in \mathcal{F}_k \subseteq \mathcal{F}_n$). Thus, it factors out of the conditional expectation:
+    \begin{align*}
         &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_n \\
         &= M_{\tau \land n} = M^\tau_n.
     \end{align*}
-    Integrability of $M^\tau_n$ follows from the integrability of $M$ and the boundedness of $\tau$ (it is a finite sum of integrable variables).
     
     \item \textbf{Expectation Conservation:} Since $M^\tau$ is a martingale, $\Ex[M^\tau_n] = \Ex[M^\tau_0]$. Since $\tau \ge 0$, $M^\tau_0 = M_0$. Thus $\Ex[M^\tau_n] = \Ex[M_0]$.
 \end{enumerate}
@@ -210,17 +210,20 @@ The project is divided into distinct layers:
 \end{enumerate}
 
 \subsection{Benefits of the Thin Wrapper}
-The ``thin wrapper'' approach simplifies the application of standard probability theorems. For example, to prove the conservation of expectation for the rank-stopped process, we do not need to reconstruct the integral theory. Since \texttt{rankStoppedProcess M tau} is definitionally equal to the standard \texttt{Martingale.stoppedProcess}, we can directly apply Mathlib's \texttt{integral\_condExp} and \texttt{martingale\_of\_bdd}.
+A key feature of our formalization is the use of \texttt{abbrev} to define rank-theoretic concepts. This ensures \textbf{definitional equality} with standard Mathlib concepts, allowing us to reuse existing theorems without manual type casting.
+
+For example, \texttt{rankStoppedProcess} is defined as an alias for \texttt{Martingale.stoppedProcess}. This allows proofs like the following to succeed using only \texttt{exact} or \texttt{simp}:
 
 \begin{verbatim}
--- In Lean, the proof becomes trivial due to definitional equality:
+-- Because rankStoppedProcess is definitionally equal to stoppedProcess,
+-- we can apply Mathlib's integral_condExp directly.
 theorem rankOptionalStopping_bounded ... :
   Integral (rankStoppedProcess M tau n) = Integral (M 0) := by
-  -- The definition unfolds to the standard stopped process
+  -- The goal is unified with the standard martingale theorem
   exact Martingale.stopped_process_integral_eq ...
 \end{verbatim}
 
-This allows the user to reason at the high level of Rank Towers while the backend transparently handles the measure-theoretic details.
+This strategy minimizes the friction between the high-level structural abstraction and the low-level measure-theoretic implementation.
 
 % --- Section 7: Discussion ---
 \section{Discussion} \label{sec:conclusion}
