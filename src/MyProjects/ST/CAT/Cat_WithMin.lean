@@ -13,8 +13,11 @@ a chosen `minLayer` and morphisms preserve it **by equality**:
 
 ## Relation to `Cat_eq`
 
-`MyProjects.ST.CAT.Cat_eq` lives on the *minLayer-free* notion `TowerD` and uses bijectivity of
-`map`/`indexMap`. Therefore, its hom-type is intentionally different from the present lane.
+`MyProjects.ST.CAT.Cat_eq` is a thin wrapper that re-exports this module as the preferred
+entry point for the `minLayer`-equality lane.
+
+For the bijective lane on the minLayer-free notion `TowerD`, see `MyProjects.ST.CAT.Cat_TowerD_Bij`
+(built on top of `MyProjects.ST.CAT.Cat_LeBij`).
 -/
 
 namespace ST

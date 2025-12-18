@@ -441,7 +441,8 @@ Cat2 ----忘却----> Cat_le ----忘却----> Cat_D
 - **Cat_le.lean** (本ファイル): 順序保存の部分圏
 - **CAT2_complete.lean**: 最も厳格な圏（minLayer 保存）
 - **CatD_Filtration.lean**: 確率論への応用
-- **Cat_eq.lean**: 同型射の部分圏（今後実装）
+- **Cat_eq.lean**: `minLayer` 等号版レーン（`Cat_WithMin` の再輸出）
+- **Cat_TowerD_Bij.lean**: `Cat_le` の bijective レーン（`HomLe` + bijective）
 
 ### Bourbaki の精神
 
