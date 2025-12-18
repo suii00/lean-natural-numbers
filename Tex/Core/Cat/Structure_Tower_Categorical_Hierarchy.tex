@@ -150,7 +150,7 @@
     % Arrows (Forgetful functors)
     \draw[->, dashed] (WithMin) -- node[left, font=\footnotesize, align=right] {forget minLayer\\(conceptual)} (Le);
     \draw[->, thick] (Le) -- node[above, font=\footnotesize] {forget indexMap data} (LeExists);
-    \draw[->, thick] (LeExists) -- node[right, font=\footnotesize] {forget monotone} (D);
+    \draw[->, thick] (LeExists) -- node[right, font=\footnotesize, align=left] {forget (Monotone $\phi$)} (D);
     \draw[->, dashed] (LeBij) -- (Le);
 
 \end{tikzpicture}
@@ -209,24 +209,24 @@
 
 \texttt{Cat\_le\_functors.md} では、これら3つのレーンを繋ぐ忘却関手が定義されています。これらは対象間の単なる写像ではなく、圏から圏への関手（Functor）として実装されています。
 
-\begin{enumerate}
-    \item \textbf{forgetIndexMap}: $\CatLe \to \CatLeExists$
+\begin{itemize}
+    \item \texttt{forgetIndexMap} : $\CatLe \rightsquigarrow \CatLeExists$
     \begin{itemize}
         \item \texttt{Cat\_le} (Data) から \texttt{Cat\_le\_exists} (Exists) へ。
         \item 具体的な $\phi$ を忘れ、その存在性だけを残します。
     \end{itemize}
     
-    \item \textbf{forgetToD}: $\CatLeExists \to \CatD$
+    \item \texttt{forgetToD} : $\CatLeExists \rightsquigarrow \CatD$
     \begin{itemize}
         \item \texttt{Cat\_le\_exists} (Exists) から \texttt{Cat\_D} へ。
         \item $\phi$ の「単調性」の要件を忘れ、単に「各層がどこかの層に入る（$\exists j$）」という条件に弱めます。
     \end{itemize}
 
-    \item \textbf{forgetLeToD}: $\CatLe \to \CatD$
+    \item \texttt{forgetLeToD} : $\CatLe \rightsquigarrow \CatD$
     \begin{itemize}
         \item 上記2つの合成です。
     \end{itemize}
-\end{enumerate}
+\end{itemize}
 
 なお、型クラスの衝突を避けるため、各圏の対象には \texttt{TowerD\_D}, \texttt{TowerD\_LeExists} といったラッパー型（付録A参照）が使用されています。
 
@@ -291,7 +291,7 @@ Leanの型クラス推論（Typeclass Inference）において、同一の型（
 
 \section{Sanity check 集}
 
-各ファイルには、定義が意図通りであることを確認するための簡単なテスト（Sanity check）が含まれています。これらはすべて \texttt{rfl}（反射性）で証明が完了する単純なものです。
+各ファイルには、定義が意図通りであることを確認するための簡単なテスト（Sanity check）が含まれています。これらはLeanでコンパイル可能な形（\texttt{1} は \texttt{\\mathbf{1}} として表示されるなど）に整えられています。
 
 \begin{lstlisting}
 -- Cat_WithMin.md
