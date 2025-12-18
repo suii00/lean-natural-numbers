@@ -30,7 +30,6 @@
 \newcommand{\RR}{\mathbb{R}}
 \newcommand{\EE}{\mathbb{E}}
 \newcommand{\PP}{\mathbb{P}}
-\newcommand{\WithTop}[1]{#1 \cup \{\top\}}
 
 % Title and authors
 \title{Rank-based Optional Stopping via Structure Towers}
@@ -51,7 +50,7 @@
 We present a formalization of the Optional Stopping Theorem (OST) for discrete-time martingales using \emph{structure towers} and \emph{rank functions}.
 Structure towers provide a layer-based view of filtered probability spaces, where each layer corresponds to a stopping set.
 We establish that stopping times are canonically identified with rank functions via the correspondence $\tau(\omega) = \minLayer(\omega)$.
-This identification allows a purely algebraic proof of the bounded OST.
+This identification allows a discrete, combinatorial proof of the bounded OST in the finite setting.
 The theory is fully mechanized in Lean~4 using Mathlib, yielding executable decision procedures for finite probability spaces.
 We isolate category-theoretic aspects in an appendix, keeping the main exposition accessible to probability theorists and formal-methods practitioners.
 \end{abstract}
@@ -81,7 +80,7 @@ Our rank-based approach is novel in treating stopping times as \emph{rank functi
 
 \paragraph{Notation.}
 Once introduced, notation is fixed throughout.
-$\NN = \{0,1,2,\ldots\}$; $\WithTop{\NN} = \NN \cup \{\top\}$ with $n < \top$ for all $n \in \NN$.
+$\NN = \{0,1,2,\ldots\}$ denotes the natural numbers.
 
 \section{Discrete Setting}
 \label{sec:discrete}
@@ -151,9 +150,9 @@ A rank function assigns a natural-number rank to each element, inducing a tower 
 
 \begin{definition}[Tower from rank]
 \label{def:tower-from-rank}
-Given $\rho: X \to \WithTop{\NN}$ with $\forall x, \, \exists n \in \NN, \, \rho(x) \leq n$, define $\Tower_\rho$ by
+Given $\rho: X \to \NN$, define $\Tower_\rho$ by
 \[
-\layer_n = \{x \in X : \rho(x) \leq n\}, \quad \minLayer(x) = \min\{n \in \NN : \rho(x) \leq n\}.
+\layer_n = \{x \in X : \rho(x) \leq n\}, \quad \minLayer(x) = \rho(x).
 \]
 \end{definition}
 
@@ -164,19 +163,18 @@ $x \in \layer_n \iff \rho(x) \leq n$.
 
 \begin{lemma}[minLayer equals rank]
 \label{lem:minlayer-eq-rank}
-If $\rho: X \to \NN$ (taking values in $\NN$, not $\WithTop{\NN}$), then $\minLayer_{\Tower_\rho}(x) = \rho(x)$.
+For $\rho: X \to \NN$, $\minLayer_{\Tower_\rho}(x) = \rho(x)$.
 \end{lemma}
 
 \noindent\textbf{Proof sketch.}
-By definition, $\minLayer(x)$ is the least $n$ with $\rho(x) \leq n$.
-Since $\rho(x) \in \NN$, $n = \rho(x)$ is the unique minimum.
+By Definition~\ref{def:tower-from-rank}, $\minLayer(x) = \rho(x)$ directly.
 \qed
 
 Conversely, any tower induces a rank function.
 
 \begin{definition}[Rank from tower]
 \label{def:rank-from-tower}
-Given $\Tower$, define $\rank_\Tower: X \to \WithTop{\NN}$ by $\rank_\Tower(x) = \minLayer(x)$.
+Given $\Tower$, define $\rank_\Tower: X \to \NN$ by $\rank_\Tower(x) = \minLayer(x)$.
 \end{definition}
 
 \begin{theorem}[Rank--tower isomorphism]
@@ -190,13 +188,14 @@ The constructions $\rho \mapsto \Tower_\rho$ and $\Tower \mapsto \rank_\Tower$ a
 
 \noindent\textbf{Proof sketch.}
 (1) follows from Lemma~\ref{lem:minlayer-eq-rank}.
-(2): $x \in \layer_n^{\Tower_{\rank_\Tower}}$ iff $\rank_\Tower(x) \leq n$ iff $\minLayer(x) \leq n$ iff $x \in \layer_n$ by minimality.
+(2): Let $x \in X$. If $x \in \layer_n$, then $\minLayer(x) \leq n$ by minimality.
+Conversely, if $\minLayer(x) \leq n$, then $x \in \layer_{\minLayer(x)}$ by definition of $\minLayer$ (\texttt{minLayer\_mem}), and $\layer_{\minLayer(x)} \subseteq \layer_n$ by monotonicity, hence $x \in \layer_n$.
 \qed
 
 This bijection justifies identifying towers with rank functions.
 In Lean, this is:
 
-\texttt{noncomputable def towerFromRank (rho : X -> WithTop Nat) ...}
+\texttt{noncomputable def towerFromRank (rho : X -> Nat) : StructureTowerWithMin}
 
 \begin{example}[Linear span rank for $\QQ^2$]
 \label{ex:vec2q}
@@ -268,12 +267,19 @@ In Lean (\texttt{StoppingTime\_C.lean}), the correspondence is made constructive
 
 \subsection{Rank interpretation of filtrations}
 
-The filtration $\Filtration$ itself induces a tower of $\sigma$-algebras.
-For each singleton $\{\omega\}$, define the \emph{first measurable time}:
+The filtration $\Filtration$ itself can induce a tower structure under additional assumptions.
+Assume $\Filtration$ is \emph{eventually separating}: for each $\omega \in \Omega$, there exists $n \in \NN$ such that $\{\omega\} \in \Filtration_n$.
+Then we can define the \emph{first measurable time}:
 \[
 \mathrm{firstMeas}(\omega) = \min\{n \in \NN : \{\omega\} \in \Filtration_n\}.
 \]
-This yields a rank function on $\Omega$, and the corresponding tower's layers are precisely the sets of singletons measurable at time $n$.
+This yields a rank function on $\Omega$, with layers equal to the sets of singletons measurable at time $n$.
+
+\begin{remark}
+In finite probability spaces with coarse filtrations, singletons may never become measurable.
+The eventually-separating assumption ensures that $\mathrm{firstMeas}$ is well-defined.
+For general filtrations, one can instead define ranks on \emph{atoms} (minimal non-empty measurable sets) rather than singletons.
+\end{remark}
 
 \section{Rank Optional Stopping Theorem}
 \label{sec:rank-ost}
@@ -456,12 +462,12 @@ This strategy minimizes proof obligations in the top-level file and clarifies th
 \section{Discussion and Future Directions}
 \label{sec:discussion}
 
-We have demonstrated that the Optional Stopping Theorem admits a purely rank-theoretic formulation, where stopping times are rank functions and stopping sets are tower layers.
+We have demonstrated that the Optional Stopping Theorem admits a discrete, combinatorial formulation via rank functions and structure towers, where stopping times are rank functions and stopping sets are tower layers.
 This perspective offers several advantages:
 
 \begin{itemize}
 \item \textbf{Conceptual clarity:} The layer-based view makes explicit the ``stratification'' of the sample space by stopping times.
-\item \textbf{Algebraic simplicity:} Rank functions are elementary objects (maps to $\NN$), avoiding measure-theoretic subtleties in the discrete setting.
+\item \textbf{Finitary simplicity:} Rank functions are elementary objects (maps to $\NN$), avoiding measure-theoretic subtleties in the discrete setting.
 \item \textbf{Compositional proofs:} Layer separation allows modular, reusable proof components.
 \item \textbf{Computability:} Finite, rational-probability examples are directly executable in Lean.
 \end{itemize}
@@ -512,19 +518,20 @@ J.~L.~Doob.
 Wiley, 1953.
 
 \bibitem{isabelle-ost}
-J.~Hölzl, A.~Lochbihler, and D.~Traytel.
-A formalized theory of martingales in Isabelle/HOL.
-\textit{Archive of Formal Proofs}, 2015.
+M.~Keskin.
+A Formalization of Martingales in Isabelle/HOL.
+\textit{arXiv:2309.06311}, 2023.
 
 \bibitem{coq-prob}
-A.~Affeldt, R.~Affeldt, and D.~Nowak.
-A Coq formalization of measure theory and probability.
-\textit{Journal of Formalized Reasoning}, 2018.
+R.~Affeldt, C.~Cohen, and D.~Rouhling.
+Formalization Techniques for Asymptotic Reasoning in Classical Analysis.
+\textit{Journal of Formalized Reasoning}, 11(1):43--76, 2018.
 
 \bibitem{lean-mathlib}
 The mathlib Community.
 The Lean mathematical library.
-\url{https://github.com/leanprover-community/mathlib4}, 2024.
+In \textit{CPP 2020: Proceedings of the 9th ACM SIGPLAN International Conference on Certified Programs and Proofs}, pages 367--381, 2020.
+Also available at \url{https://github.com/leanprover-community/mathlib4}.
 
 \bibitem{bourbaki}
 N.~Bourbaki.
