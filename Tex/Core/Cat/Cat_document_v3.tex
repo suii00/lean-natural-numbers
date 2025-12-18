@@ -1,0 +1,367 @@
+% !TeX program = lualatex
+% Cat_document_v3.tex
+% Purpose: A stable, Lane-oriented write-up for the “Cat family” in Structure Tower Theory.
+% Compile with: lualatex Cat_document_v3.tex
+
+\documentclass[a4paper,12pt]{ltjsarticle}
+
+% --- Japanese (LuaLaTeX) ---
+\usepackage{luatexja}
+\usepackage[haranoaji]{luatexja-preset}
+
+% --- Math / theorem ---
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{centernot} % for \centernot\Rightarrow
+
+% --- Diagrams ---
+\usepackage{tikz-cd}
+
+% --- Lists / layout / links ---
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue, unicode=true}
+
+% --- Code blocks (Lean) ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  frame=single,
+  breaklines=true
+}
+
+% --- Theorem environments ---
+\newtheorem{definition}{定義}[section]
+\newtheorem{proposition}{命題}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{remark}{注意}[section]
+\newtheorem{example}{例}[section]
+
+% --- Stable macros (avoid linebreak corruption) ---
+\newcommand{\TowerD}{\ensuremath{\mathsf{TowerD}}}
+\newcommand{\HomD}{\ensuremath{\mathsf{HomD}}}
+\newcommand{\HomLe}{\ensuremath{\mathsf{HomLe}}}
+\newcommand{\HomLeExists}{\ensuremath{\mathsf{HomLeExists}}}
+\newcommand{\HomLeBij}{\ensuremath{\mathsf{HomLeBij}}}
+
+\newcommand{\CatD}{\ensuremath{\mathsf{Cat}_D}}
+\newcommand{\Catledata}{\ensuremath{\mathsf{Cat}_{le}^{\text{data}}}}
+\newcommand{\Catleexists}{\ensuremath{\mathsf{Cat}_{le}^{\exists}}}
+\newcommand{\CatLeBij}{\ensuremath{\mathsf{Cat}_{LeBij}}}
+\newcommand{\CatTowerDBij}{\ensuremath{\mathsf{Cat}_{TowerD\_Bij}}}
+\newcommand{\WithMin}{\ensuremath{\mathsf{WithMin}}}
+\newcommand{\Cateq}{\ensuremath{\mathsf{Cat}_{eq}}}
+
+\newcommand{\minLayer}{\operatorname{minLayer}}
+\newcommand{\layer}{\operatorname{layer}}
+\newcommand{\Index}{\operatorname{Index}}
+\newcommand{\carrier}{\operatorname{carrier}}
+
+\title{Cat群（レーン群）の整理：\CatD, \Catledata, \Catleexists, \CatLeBij, \WithMin}
+\author{su（編集）}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本稿は、Structure Tower Theory（構造塔）に付随する「Cat群（複数の圏レーン）」を、
+射が保持する情報量の増減という観点から整理する。
+とくに、\CatD（最薄）、\Catledata（indexMap をデータで保持）、
+\Catleexists（indexMap を存在に落とす）、\CatLeBij（全単射条件を追加）、
+\WithMin（minLayer を持つ硬いレーン）を、忘却関手で接続する。
+\end{abstract}
+
+\section{設計原理と全体図}
+
+\subsection{設計原理}
+レーン設計の要点は次の 3 つである。
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{段階的抽象化}：
+  射に含めるデータ（例：添字写像 \(\varphi\)、最小層 \(\minLayer\)）を段階的に忘却し、
+  応用に応じて「硬い/柔らかい」圏を選べるようにする。
+  \item \textbf{圏論的整合性}：
+  各レーンで恒等射・合成が閉じることを確認し、レーン間は忘却関手で結ぶ。
+  \item \textbf{Lean 実装の型安全性}：
+  同一の対象型に複数の \texttt{Category} instance を置く衝突を避けるため、
+  必要に応じてラッパ型（例：\(\mathsf{TowerD\_D}\)）を導入する。
+\end{enumerate}
+
+\subsection{全体図（レーンと忘却関手）}
+
+まず、indexMap を \emph{データ}として持つ \Catledata から、
+indexMap を \emph{存在}に落とした \Catleexists を経由し、
+最薄の \CatD に至る系列を考える：
+
+\[
+\begin{tikzcd}[column sep=huge]
+  \Catledata \arrow[r, "U_1=\textsf{forgetIndexMap}"] &
+  \Catleexists \arrow[r, "U_2=\textsf{forgetToD}"] &
+  \CatD
+\end{tikzcd}
+\]
+
+次に、\Catledata の射に「全単射性」を追加した bijective レーン \CatLeBij を導入する：
+
+\[
+\begin{tikzcd}[column sep=huge]
+  \CatLeBij \arrow[r, "\textsf{forgetToLe}"] &
+  \Catledata
+\end{tikzcd}
+\]
+
+最後に、最小層 \(\minLayer\) を対象側に持つ硬いレーン \WithMin を置き、
+入口名として \Cateq を固定する：
+
+\[
+\begin{tikzcd}[column sep=huge]
+  \Cateq \arrow[r, "\cong"] &
+  \WithMin \arrow[r, "\textsf{forget minLayer}"] &
+  \Catledata
+\end{tikzcd}
+\]
+
+\begin{remark}
+本稿では \(\Cateq\) を「minLayer 等式保存（homeq）レーンの入口名」として用い、
+「離散圏」等の別概念には割り当てない（命名衝突回避）。
+\end{remark}
+
+\section{\CatD}
+
+\begin{definition}[\TowerD（minLayer なしの構造塔）]
+構造塔 \(T\) は次のデータからなる：
+\[
+T = \bigl(X,\ I,\ \le,\ \layer,\ \textsf{covering},\ \textsf{monotone}\bigr)
+\]
+\begin{itemize}
+  \item 台集合 \(X=\carrier(T)\)
+  \item 添字集合 \(I=\Index(T)\) と前順序 \(\le\)
+  \item 層 \(\layer_T : I \to \mathcal{P}(X)\)
+  \item covering：\(\forall x\in X,\ \exists i\in I,\ x\in \layer_T(i)\)
+  \item monotone：\(i\le j \Rightarrow \layer_T(i)\subseteq \layer_T(j)\)
+\end{itemize}
+\end{definition}
+
+\begin{definition}[\CatD の射（\HomD）]
+2 つの構造塔 \(T=(X,I,\layer)\), \(T'=(X',I',\layer')\) に対し、
+\CatD の射 \(f:T\to T'\) は台集合の写像 \(f:X\to X'\) であって、
+\[
+\forall i\in I,\ \exists j\in I',\ f(\layer(i))\subseteq \layer'(j)
+\]
+を満たすものとする。ここで \(f(\layer(i))\) は像集合（\(f''\layer(i)\)）である。
+\end{definition}
+
+\begin{proposition}
+\CatD は圏をなす（恒等射と合成が閉じる）。
+\end{proposition}
+
+\begin{proof}
+恒等写像では \(j=i\) を取ればよい。
+合成 \(g\circ f\) については、
+\(\forall i,\exists j,\ f(\layer(i))\subseteq \layer'(j)\) と
+\(\forall j,\exists k,\ g(\layer'(j))\subseteq \layer''(k)\) を組み合わせて
+\(\exists k\) を得る。
+\end{proof}
+
+\begin{remark}
+\CatD は「層送り先」を \(\exists j\) で隠すため、もっとも柔らかいレーンである。
+フィルトレーション間の写像など、層の整合を弱く仮定したい場面に向く。
+\end{remark}
+
+\section{\Catledata（data）}
+
+\begin{definition}[\Catledata の射（\HomLe）]
+\(T=(X,I,\layer)\), \(T'=(X',I',\layer')\) に対し、
+\Catledata の射は 2 つの写像
+\[
+f:X\to X',\qquad \varphi:I\to I'
+\]
+からなり、次を満たす：
+\begin{enumerate}[label=(\alph*)]
+  \item \(\varphi\) は単調：\(i\le j \Rightarrow \varphi(i)\le \varphi(j)\)。
+  \item 層保存（点ごと）：\(\forall i,\forall x,\ x\in\layer(i)\Rightarrow f(x)\in\layer'(\varphi(i))\)。
+\end{enumerate}
+\end{definition}
+
+\begin{proposition}
+\Catledata は圏をなす。
+\end{proposition}
+
+\begin{proof}
+恒等射は \((\mathrm{id}_X,\mathrm{id}_I)\)。
+合成は \((g,\psi)\circ(f,\varphi)=(g\circ f,\psi\circ \varphi)\) と置けば、
+単調性は単調性の合成で従い、層保存も直ちに従う。
+\end{proof}
+
+\begin{remark}
+\CatD では「\(\exists j\)」で隠していた層送り先を、data 版では \(\varphi(i)\) として \emph{データに昇格}させる。
+この昇格は構成・証明を簡単にする一方で、同じ \(f\) に対して異なる \(\varphi\) が存在し得るため、
+忘却の faithful 性に影響を与える（次節参照）。
+\end{remark}
+
+\section{\Catleexists（$\exists$）}
+
+\begin{definition}[\Catleexists の射（\HomLeExists）]
+\(T=(X,I,\layer)\), \(T'=(X',I',\layer')\) に対し、
+\Catleexists の射は台集合写像 \(f:X\to X'\) であって、
+ある添字写像 \(\varphi:I\to I'\) が存在し
+\[
+\exists \varphi,\;
+\bigl(\varphi \text{ は単調}\bigr)\ \wedge\
+\forall i,\forall x,\ x\in\layer(i)\Rightarrow f(x)\in\layer'(\varphi(i))
+\]
+を満たすものとする。
+\end{definition}
+
+\begin{remark}
+\Catleexists は \Catledata より薄い。射の等式は \(f\) の等式に寄りやすく、
+後述の忘却関手の faithful 性が改善される（data 版での「同じ \(f\) に複数 \(\varphi\)」問題を緩和する）。
+\end{remark}
+
+\section{Forgetful functors（Data→Exists→D）}
+
+\subsection{第一忘却関手 \(U_1 : \Catledata \to \Catleexists\)}
+\begin{definition}[forgetIndexMap]
+対象 \(T\) はそのまま送る。
+射 \((f,\varphi)\) は台集合写像 \(f\) だけを残し、\(\varphi\) は存在証明に回す：
+\[
+U_1(f,\varphi) := f.
+\]
+\end{definition}
+
+\subsection{第二忘却関手 \(U_2 : \Catleexists \to \CatD\)}
+\begin{definition}[forgetToD]
+対象 \(T\) はそのまま送る。
+射 \(f:X\to X'\) に対し、\CatD の条件
+\(\forall i,\exists j,\ f(\layer(i))\subseteq \layer'(j)\)
+は、\Catleexists で存在する \(\varphi\) を用いて \(j=\varphi(i)\) と選ぶことで得られる。
+\end{definition}
+
+\begin{proposition}
+合成 \(U_2\circ U_1 : \Catledata \to \CatD\) は忘却関手である。
+\end{proposition}
+
+\begin{remark}[data 版の faithful 問題]
+data 版 \Catledata では、同じ \(f\) でも異なる \(\varphi\) を持つ射が存在し得る。
+このとき、\(\varphi\) を捨てる忘却はそれらを同一視し、一般に faithful にならない。
+\Catleexists はこのズレを設計として吸収する。
+\end{remark}
+
+\section{\CatLeBij と「groupoid ではない」注意}\label{sec:CatLeBij}
+
+\begin{definition}[\CatLeBij の射（\HomLeBij）]
+\CatLeBij の射は \HomLe のデータ \((f,\varphi)\) に加えて
+\[
+f:X\to X' \text{ が全単射},\qquad \varphi:I\to I' \text{ が全単射}
+\]
+を満たすものとする。
+\end{definition}
+
+\begin{remark}[重要：一般に \Catledata の同型射部分（groupoid）ではない]
+\CatLeBij は「全単射だから同型」と見えやすいが、
+一般には \Catledata における同型射（逆が再び \HomLe 条件を満たす射）にはならない。
+核心は次である：
+\[
+\textsf{bijective}(f,\varphi)\ \wedge\ \textsf{layer\_preserving}(f,\varphi)
+\;\centernot\Rightarrow\;
+\textsf{layer\_preserving}(f^{-1},\varphi^{-1}).
+\]
+層保存は片側条件であり、全単射であっても逆向き層保存が自動ではない。
+したがって \CatLeBij は「\Catledata の同型射を抜き出した groupoid」ではなく、
+\textbf{bijective 条件を課した中間レーン}である。
+\end{remark}
+
+\section{\CatTowerDBij（再輸出・命名史は脚注）}
+
+\begin{definition}[\CatTowerDBij]
+本稿では
+\[
+\CatTowerDBij \;:=\; \CatLeBij
+\]
+と同一視する（実装上は再輸出・命名アダプタに相当する）。%
+\footnote{%
+歴史的に別名（例：\(\Cateq\)）で呼ばれていた時期があるが、
+\(\Cateq\) は minLayer 等式保存レーン（本稿の \WithMin）と衝突しやすいため、
+\CatTowerDBij に退避・固定する。}
+\end{definition}
+
+\begin{remark}
+この節は概念の追加ではなく「入口名の安定化」である。
+minLayer を持たない世界で bijective レーンを参照する際は \CatTowerDBij を用いる。
+\end{remark}
+
+\section{\WithMin（Cat2）と homeq}
+
+\begin{definition}[\WithMin（minLayer 付き構造塔）]
+\WithMin の対象は、\TowerD \(T=(X,I,\le,\layer,\ldots)\) に加えて
+関数 \(\minLayer : X\to I\) を備え、次を満たすものとする：
+\begin{enumerate}[label=(\alph*)]
+  \item \(\forall x,\ x\in \layer(\minLayer(x))\)（所属）
+  \item \(\forall x,\forall i,\ x\in \layer(i)\Rightarrow \minLayer(x)\le i\)（最小性）
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[homeq（minLayer 等式保存射）]
+\WithMin の射 \(f:T\to T'\) は、台集合写像 \(f:X\to X'\) と
+添字写像 \(\varphi:I\to I'\) からなり、\Catledata と同様の層保存に加えて
+\textbf{minLayer を等式で保存}する：
+\[
+\forall x\in X,\qquad
+\minLayer_{T'}(f(x)) \;=\; \varphi(\minLayer_T(x)).
+\]
+本稿ではこの射型（レーン）を \textbf{homeq} と呼ぶ。
+\end{definition}
+
+\begin{remark}
+homeq は「最小層」という追加構造を強く拘束するため、本稿のレーン群の中で最も硬い部類に属する。
+停止時刻・階数（rank）・最小生成段階など「最小層が意味を持つ」場面で自然に現れる。
+\end{remark}
+
+\section{\Cateq（\WithMin レーンの入口として固定）}
+
+\begin{definition}[\Cateq]
+本稿では
+\[
+\Cateq \;:=\; \WithMin
+\]
+を入口名として固定する。すなわち \Cateq は「minLayer 等式保存（homeq）レーン」を指す。
+\end{definition}
+
+\begin{remark}
+\Cateq を「離散圏」等の別概念に用いると、\CatTowerDBij や \Catledata との整理が破綻しやすい。
+命名衝突を避けるため、\Cateq は本稿の意味に一意に割り当てる。
+\end{remark}
+
+\appendix
+\section{型ラッパ一覧（Lean 実装の都合）}
+
+同一の対象型に複数の \texttt{Category} instance を与えると衝突するため、
+レーンごとに対象を薄くラップする型を導入する。
+
+\begin{itemize}
+  \item \(\mathsf{TowerD\_D}\)：\CatD（\HomD）用
+  \item \(\mathsf{TowerD\_LeExists}\)：\Catleexists（\HomLeExists）用
+  \item \(\mathsf{TowerD\_LeBij}\)：\CatLeBij（\HomLeBij）用
+\end{itemize}
+
+\section{Sanity check 集（Lean の \texttt{rfl} 点検）}
+
+Unicode が環境依存で化けやすいため、ここでは ASCII 近似で記す。
+
+\begin{lstlisting}[language=]
+-- Data→Exists→D: underlying carrier maps compose as expected
+example (x : TowerD.natTowerD.carrier) :
+  (forgetLeToD.map (TowerD.natSuccHomLe >> TowerD.natSuccHomLe)).map x
+    = Nat.succ (Nat.succ x) := rfl
+\end{lstlisting}
+
+\begin{remark}
+sanity check は「設計意図が Lean 定義に反映されている」ことを短距離で保証する。
+忘却関手が何を捨て、何を保つか（台集合写像の合成など）を \texttt{rfl} で確認できると強い。
+\end{remark}
+
+\end{document}
