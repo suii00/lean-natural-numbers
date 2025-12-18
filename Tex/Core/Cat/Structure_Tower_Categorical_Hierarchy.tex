@@ -31,7 +31,6 @@
 \newcommand{\HomD}{\mathrm{Hom}_{\mathsf{D}}}
 \newcommand{\HomLe}{\mathrm{Hom}_{\mathsf{le}}}
 \newcommand{\HomLeExists}{\mathrm{Hom}_{\mathsf{le}\exists}}
-% エラー修正: minLayerの定義を追加
 \newcommand{\minLayer}{\operatorname{minLayer}}
 
 % --- Lean言語の定義 (listings用) ---
@@ -117,9 +116,10 @@
 \begin{tikzpicture}[node distance=2.5cm, auto]
     % Nodes
     \node[draw, rectangle, rounded corners, fill=blue!10, align=center] (WithMin) {
-        \textbf{Cat\_WithMin} (Cat\_eq)\\
+        \textbf{Cat\_WithMin}\\
+        {\footnotesize (entry point: \texttt{Cat\_eq})}\\
         Obj: WithMin\\
-        Hom: $= \text{minLayer}$
+        Hom: $= \minLayer$
     };
 
     \node[draw, rectangle, rounded corners, fill=green!10, align=center, below left=of WithMin, xshift=-1cm] (Le) {
@@ -227,7 +227,7 @@
 
 なお、型クラスの衝突を避けるため、各圏の対象には \texttt{TowerD\_D}, \texttt{TowerD\_LeExists} といったラッパー型（付録A参照）が使用されています。
 
-\section{Cat\_LeBij と「groupoid ではない」注意}
+\section{Cat\_LeBij（注意：逆が層保存とは限らない）}
 
 \texttt{Cat\_LeBij.md} は、\texttt{Cat\_le} の射に「全単射（Bijective）」という条件を加えた圏を定義しています。
 
@@ -239,19 +239,18 @@
 \end{itemize}
 
 \subsection{重要：Groupoid ではない}
-この圏は「同型射の圏（Groupoid）」ではありません。なぜなら、構造塔の射において、**写像が全単射であっても、その逆写像が層構造を保存するとは限らない**からです。
+この圏は「同型射の圏（Groupoid）」ではありません。これは本体系の整理における核心的な注意点です。
+構造塔の射において、**写像が全単射であっても、その逆写像が層構造を保存するとは限らない**からです。
 
 例えば、密な層構造を持つ塔から疎な層構造を持つ塔への全単射な順序保存写像が存在しても、逆方向は層を飛び越えてしまう可能性があります。
-したがって、これは単なる「全単射な射のレーン（Bijective lane）」として理解すべきです。
+したがって、これは同型射（Isomorphism）を集めたものではなく、単なる「全単射な射のレーン（Bijective lane）」として理解すべきです。
 
-\section{Cat\_TowerD\_Bij}
+\subsection{実装上の入口：Cat\_TowerD\_Bij}
+\texttt{Cat\_TowerD\_Bij.md} は、この \texttt{Cat\_LeBij} へのエイリアスを提供します。
 
-\texttt{Cat\_TowerD\_Bij.md} は、\texttt{Cat\_LeBij} の内容へのエイリアスを提供します。
-
-\subsection{命名の歴史（脚注的解説）}
 かつてこの概念は \texttt{Cat\_eq} という名前で呼ばれていたことがありましたが、これは誤解を招く名称でした。
 \texttt{Cat\_eq} は後述するように「\texttt{minLayer} を等式で保存する」圏のために予約されるべき名前です。
-この混乱を避けるため、\texttt{TowerD} 上の全単射レーンは明確に \texttt{Cat\_TowerD\_Bij} と再命名されました。
+この混乱を避けるため、\texttt{TowerD} 上の全単射レーンは明確に \texttt{Cat\_TowerD\_Bij} と再命名され、\texttt{Cat\_LeBij} の再輸出として位置づけられています。
 
 \section{WithMin (Cat2) と homeq}
 
