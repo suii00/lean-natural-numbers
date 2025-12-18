@@ -39,13 +39,7 @@
 
 % --- Title and Authors ---
 \title{Rank-based Optional Stopping via Structure Towers}
-\author{
-  Claude Code\thanks{TeX generation and structural synthesis.} \\
-  \texttt{claude.ai}
-  \and
-  Codex (OpenAI)\thanks{Lean 4 formalization and code generation.} \\
-  \texttt{openai.com}
-}
+\author{su}
 \date{\today}
 
 \begin{document}
@@ -59,9 +53,9 @@ We present a structural re-interpretation of the Optional Stopping Theorem (OST)
 % --- Section 1: Introduction ---
 \section{Introduction}
 
-The Optional Stopping Theorem (OST) is a cornerstone of martingale theory, asserting that the expected value of a martingale remains invariant under random stopping times, provided certain boundedness or integrability conditions are met. Traditionally, this result is presented purely within the language of measure theory. In this paper, we propose a categorical shift in perspective: we view the stopping time not just as a measurable random variable, but as a \textit{Rank Function} that induces a \textit{Structure Tower} on the probability space.
+The Optional Stopping Theorem (OST) is a cornerstone of martingale theory, asserting that the expected value of a martingale remains invariant under random stopping times, provided certain boundedness or integrability conditions are met. Traditionally, this result is presented purely within the language of measure theory. In this paper, we propose a structural shift in perspective: we view the stopping time not just as a measurable random variable, but as a \textit{Rank Function} that induces a \textit{Structure Tower} on the probability space.
 
-This section provides an overview of the paper's motivation and structure. We aim to bridge the gap between abstract structuralism and concrete probability theory. By defining a canonical correspondence between stopping times and structure towers, we show that the ``stopping'' operation is equivalent to a ``minimization'' operation in a rank lattice. This abstraction simplifies the conceptual burden of the proof and aligns naturally with formal verification strategies.
+This section provides an overview of the paper's motivation and structure. We aim to bridge the gap between abstract structuralism and concrete probability theory. By defining a canonical correspondence between stopping times and structure towers, we show that the ``stopping'' operation is equivalent to a ``minimization'' operation with respect to the rank order. This abstraction simplifies the conceptual burden of the proof and aligns naturally with formal verification strategies.
 
 The primary contributions of this work are:
 \begin{itemize}
@@ -151,11 +145,11 @@ Thus, the tower is probabilistically meaningful because each layer is $\mathcal{
 The structural definition alone yields subsets $\layer{n} \subseteq \Omega$. The crucial probabilistic content is that because $\tau$ is a stopping time, we have $\layer{n}(\Tower_\tau) \in \mathcal{F}_n$. This means the geometry of the structure tower is ``adapted'' to the filtration $\Filtration$.
 \end{remark}
 
-We define the \textbf{Rank-Stopped Process} $M^\tau$ (denoted \texttt{rankStoppedProcess} in the formalization) and the \textbf{Terminal Variable} $M_\tau$.
+We define the \textbf{Rank-Stopped Process} $M^\tau$ and the \textbf{Terminal Variable} $M_\tau$.
 \begin{definition}
 \begin{itemize}
     \item The process stopped at rank $n$: $M^\tau_n(\omega) := M_{\min(n, \tau(\omega))}(\omega)$.
-    \item The value at the stopping time: $M_\tau(\omega) := M_{\tau(\omega)}(\omega)$.
+    \item The value at the stopping time (defined only when $\tau(\omega) < \infty$): $M_\tau(\omega) := M_{\tau(\omega)}(\omega)$.
 \end{itemize}
 \end{definition}
 
@@ -175,7 +169,11 @@ Let $M$ be a martingale and $\tau$ a stopping time.
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-\textbf{Part (i):} We must show $\CondExp{M^\tau_{n+1}}{n} = M^\tau_n$.
+\textbf{Part (i):} First, we verify integrability. Since $M^\tau_n = M_{\min(\tau, n)}$, we can bound it by the sum of absolute values of the process up to time $n$:
+\[ |M^\tau_n| \le \sum_{k=0}^n |M_k|. \]
+By the triangle inequality and the integrability of $M$ ($\Ex[|M_k|] < \infty$), we have $\Ex[|M^\tau_n|] < \infty$.
+
+Next, we show $\CondExp{M^\tau_{n+1}}{n} = M^\tau_n$.
 \begin{align*}
     M^\tau_{n+1} &= M_{\tau \land (n+1)} \\
     &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_{n+1}
@@ -184,7 +182,7 @@ Conditioning on $\mathcal{F}_n$:
 \begin{align*}
     \CondExp{M^\tau_{n+1}}{n} &= \CondExp{\Ind{\tau \le n} M_\tau}{n} + \CondExp{\Ind{\tau > n} M_{n+1}}{n}
 \end{align*}
-Crucially, the term $\Ind{\tau \le n} M_\tau$ is $\mathcal{F}_n$-measurable. This is because it can be decomposed as a finite sum $\sum_{k=0}^n \Ind{\tau=k} M_k$, where each term is the product of an $\mathcal{F}_k$-measurable event ($\{\tau=k\} \in \mathcal{F}_k \subseteq \mathcal{F}_n$) and an $\mathcal{F}_k$-measurable variable ($M_k \in \mathcal{F}_k \subseteq \mathcal{F}_n$). Thus:
+The term $\Ind{\tau \le n} M_\tau$ is $\mathcal{F}_n$-measurable (decomposable into $\sum_{k=0}^n \Ind{\tau=k} M_k$). For the second term, observe that $\{\tau > n\} = \{\tau \le n\}^c \in \mathcal{F}_n$. Thus $\Ind{\tau > n}$ is $\mathcal{F}_n$-measurable and can be factored out:
 \begin{align*}
     &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} \CondExp{M_{n+1}}{n} \\
     &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_n \\
@@ -216,14 +214,21 @@ The project is divided into distinct layers:
 \subsection{Benefits of the Thin Wrapper}
 A key feature of our formalization is the use of \texttt{abbrev} to define rank-theoretic concepts. This ensures \textbf{definitional equality} with standard Mathlib concepts.
 
-The following schematic code snippet illustrates how this allows us to reuse Mathlib's measure theory directly within our rank-theoretic proofs:
+The following schematic code snippet illustrates how this allows us to verify equality trivially (using \texttt{rfl}) and reuse Mathlib's measure theory directly within our rank-theoretic proofs:
 
 \begin{verbatim}
 -- Schematic representation of the formal proof structure
+
+/-- The rank-based stopped process is definitionally equal
+    to the standard stopped process. -/
+example (M : Martingale mu) (tau : StoppingTime F) :
+  rankStoppedProcess M tau = Martingale.stoppedProcess M tau := by
+  rfl
+
+/-- We can apply standard theorems directly. -/
 theorem rankOptionalStopping_bounded ... :
   Integral (rankStoppedProcess M tau n) = Integral (M 0) := by
-  -- Since rankStoppedProcess is definitionally equal to
-  -- Martingale.stoppedProcess, we can apply the standard theorem:
+  -- Since they are definitionally equal, exact matches immediately:
   exact Martingale.stopped_process_integral_eq ...
 \end{verbatim}
 
@@ -233,6 +238,12 @@ This strategy minimizes the friction between the high-level structural abstracti
 \section{Discussion} \label{sec:conclusion}
 
 We have presented a structural approach to the Optional Stopping Theorem. By identifying stopping times with rank functions, we provided a geometric interpretation of the OST as an invariance property across the layers of a structure tower. While we focused on the bounded case, the correspondence paves the way for treating unbounded stopping times via limits in the structure tower.
+
+% --- Acknowledgements ---
+\section*{Acknowledgements}
+
+\paragraph{AI Assistance Disclosure}
+The author used generative AI language tools (specifically Claude 3.5 Sonnet by Anthropic) to assist with structural synthesis, LaTeX drafting, and English language editing. Additionally, OpenAI's Codex/GPT models were used to generate suggestions for the Lean 4 formalization code and proof outlines. All mathematical statements, proofs, citations, code, and the final wording of this manuscript were independently verified by the author, who takes full responsibility for the content.
 
 % --- Appendices ---
 \appendix
