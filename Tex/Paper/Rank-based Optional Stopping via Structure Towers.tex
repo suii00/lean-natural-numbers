@@ -47,7 +47,7 @@
 \maketitle
 
 \begin{abstract}
-We present a structural re-interpretation of the Optional Stopping Theorem (OST) for martingales using the concept of Structure Towers and Rank Functions. By formally identifying stopping times with rank functions on a stratified probability space, we transform the classical probabilistic statement into a structural property. We formalize this correspondence in Lean 4, demonstrating that the ``stopped process'' is canonically identified (definitionally equal via \texttt{abbrev} aliases) with a rank-restricted evaluation. This paper details the construction of the Structure Tower induced by a stopping time, the translation of probabilistic conditions to rank properties, and the subsequent derivation of the Bounded Optional Stopping Theorem. The formalization prioritizes a ``thin wrapper'' strategy, separating the high-level rank-theoretic arguments from the underlying measure-theoretic implementation.
+We present a structural re-interpretation of the Optional Stopping Theorem (OST) for martingales using the concept of Structure Towers and Rank Functions. By formally identifying stopping times with rank functions on a stratified probability space, we transform the classical probabilistic statement into a structural property. We formalize this correspondence in Lean 4, demonstrating that the ``stopped process'' is canonically identified (formalized as definitional equality in our library) with a rank-restricted evaluation. This paper details the construction of the Structure Tower induced by a stopping time, the translation of probabilistic conditions to rank properties, and the subsequent derivation of the Bounded Optional Stopping Theorem. The formalization prioritizes a ``thin wrapper'' strategy, separating the high-level rank-theoretic arguments from the underlying measure-theoretic implementation.
 \end{abstract}
 
 % --- Section 1: Introduction ---
@@ -110,7 +110,7 @@ A \textbf{Rank Function} is a map $\rank: X \to \Nat \cup \{\infty\}$. We say a 
 The following theorem establishes the bijection between these two structures.
 
 \begin{theorem}[Rank-Tower Correspondence] \label{thm:rank_tower_corr}
-There is a one-to-one correspondence (up to set equality for layers and extensional equality for functions) between Structure Towers and Covering Rank Functions ($\rank: X \to \Nat$).
+There is a one-to-one correspondence between Structure Towers and Covering Rank Functions ($\rank: X \to \Nat$). We identify towers up to pointwise equality of the layer sets $(\layer{n})_{n \in \Nat}$ and rank functions up to extensional equality.
 \begin{enumerate}
     \item \textbf{Rank to Tower:} Given $\rank$, define $\layer{n} = \{x \mid \rank(x) \le n\}$.
     \item \textbf{Tower to Rank:} Given a tower, define $\rank(x) = \min \{n \in \Nat \mid x \in \layer{n}\}$.
@@ -118,7 +118,7 @@ There is a one-to-one correspondence (up to set equality for layers and extensio
 \end{theorem}
 
 \begin{proof}[Sketch]
-For the ``Tower to Rank'' direction, fix $x \in X$. Let $S_x = \{n \in \Nat \mid x \in \layer{n}\}$. By the Covering property, $S_x$ is non-empty. By Monotonicity, $S_x$ is an upper set (if $n \in S_x$ and $m \ge n$, then $m \in S_x$). By the well-ordering principle of $\Nat$, $S_x$ has a unique minimum element. We define $\rank(x)$ to be this minimum. The inverse relationship follows directly from the definition of the minimum and the upper set property.
+For the ``Tower to Rank'' direction, fix $x \in X$. Let $S_x = \{n \in \Nat \mid x \in \layer{n}\}$. By the Covering property, $S_x$ is non-empty. By Monotonicity, $S_x$ is an upper set. By the well-ordering principle of $\Nat$, $S_x$ has a unique minimum element. We define $\rank(x)$ to be this minimum. The inverse relationship follows directly from the definition of the minimum and the upper set property.
 \end{proof}
 
 \begin{remark}[Canonical Form]
@@ -141,8 +141,8 @@ Furthermore, the canonical rank derived from this tower is exactly $\tau$ itself
 
 Thus, the tower is probabilistically meaningful because each layer is $\mathcal{F}_n$-measurable.
 
-\begin{remark}[Non-triviality of Adaptedness]
-The structural definition alone yields subsets $\layer{n} \subseteq \Omega$. The crucial probabilistic content is that because $\tau$ is a stopping time, we have $\layer{n}(\Tower_\tau) \in \mathcal{F}_n$. This means the geometry of the structure tower is ``adapted'' to the filtration $\Filtration$.
+\begin{remark}[Adapted Towers]
+Conversely, consider any Structure Tower on $\Omega$ that is \textit{adapted}, meaning each $\layer{n} \in \mathcal{F}_n$. The induced rank function $\rho(\omega) = \min \{n \mid \omega \in \layer{n}\}$ satisfies $\{\rho \le n\} = \layer{n} \in \mathcal{F}_n$, and is therefore a valid stopping time. This establishes a bidirectional correspondence between adapted structure towers and stopping times.
 \end{remark}
 
 We define the \textbf{Rank-Stopped Process} $M^\tau$ and the \textbf{Terminal Variable} $M_\tau$.
@@ -151,6 +151,7 @@ We define the \textbf{Rank-Stopped Process} $M^\tau$ and the \textbf{Terminal Va
     \item The process stopped at rank $n$: $M^\tau_n(\omega) := M_{\min(n, \tau(\omega))}(\omega)$.
     \item The value at the stopping time (defined only when $\tau(\omega) < \infty$): $M_\tau(\omega) := M_{\tau(\omega)}(\omega)$.
 \end{itemize}
+Here, the operation $\min(n, \tau(\omega))$ corresponds to the restriction (minimization) in the rank lattice $\Nat$.
 \end{definition}
 
 % --- Section 5: Rank Optional Stopping Theorem ---
@@ -169,9 +170,10 @@ Let $M$ be a martingale and $\tau$ a stopping time.
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-\textbf{Part (i):} First, we verify integrability. Since $M^\tau_n = M_{\min(\tau, n)}$, we can bound it by the sum of absolute values of the process up to time $n$:
-\[ |M^\tau_n| \le \sum_{k=0}^n |M_k|. \]
-By the triangle inequality and the integrability of $M$ ($\Ex[|M_k|] < \infty$), we have $\Ex[|M^\tau_n|] < \infty$.
+\textbf{Part (i):} First, we verify adaptedness and integrability. We can decompose $M^\tau_n$ as:
+\[ M^\tau_n = \sum_{k=0}^{n-1} \Ind{\tau=k} M_k + \Ind{\tau \ge n} M_n. \]
+Since $\{\tau=k\} \in \mathcal{F}_k \subseteq \mathcal{F}_n$ and $M_k$ is $\mathcal{F}_k$-measurable, each term is $\mathcal{F}_n$-measurable. By the triangle inequality and integrability of $M$:
+\[ \Ex[|M^\tau_n|] \le \sum_{k=0}^n \Ex[|M_k|] < \infty. \]
 
 Next, we show $\CondExp{M^\tau_{n+1}}{n} = M^\tau_n$.
 \begin{align*}
@@ -182,7 +184,7 @@ Conditioning on $\mathcal{F}_n$:
 \begin{align*}
     \CondExp{M^\tau_{n+1}}{n} &= \CondExp{\Ind{\tau \le n} M_\tau}{n} + \CondExp{\Ind{\tau > n} M_{n+1}}{n}
 \end{align*}
-The term $\Ind{\tau \le n} M_\tau$ is $\mathcal{F}_n$-measurable (decomposable into $\sum_{k=0}^n \Ind{\tau=k} M_k$). For the second term, observe that $\{\tau > n\} = \{\tau \le n\}^c \in \mathcal{F}_n$. Thus $\Ind{\tau > n}$ is $\mathcal{F}_n$-measurable and can be factored out:
+The term $\Ind{\tau \le n} M_\tau$ is $\mathcal{F}_n$-measurable (using the same finite sum decomposition). For the second term, observe that $\{\tau > n\} = \{\tau \le n\}^c \in \mathcal{F}_n$. Thus $\Ind{\tau > n}$ is $\mathcal{F}_n$-measurable and factors out:
 \begin{align*}
     &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} \CondExp{M_{n+1}}{n} \\
     &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_n \\
