@@ -79,6 +79,7 @@
     {ₗₑ}{${}_{\mathrm{le}}$}1
     {ₗₑ∃}{${}_{\mathrm{le}\exists}$}1
     {ₗᵇ}{${}_{\mathrm{le}}^{\mathrm{b}}$}1
+    {⥤}{$\rightsquigarrow$}1 % 関手用の記号
 }
 
 % --- 文書情報 ---
@@ -147,13 +148,13 @@
     };
 
     % Arrows (Forgetful functors)
-    \draw[->, thick] (WithMin) -- node[left, font=\footnotesize] {forget minLayer} (Le);
+    \draw[->, dashed] (WithMin) -- node[left, font=\footnotesize, align=right] {forget minLayer\\(conceptual)} (Le);
     \draw[->, thick] (Le) -- node[above, font=\footnotesize] {forget indexMap data} (LeExists);
     \draw[->, thick] (LeExists) -- node[right, font=\footnotesize] {forget monotone} (D);
     \draw[->, dashed] (LeBij) -- (Le);
 
 \end{tikzpicture}
-\caption{構造塔の圏論的階層図。矢印は忘却関手（情報量の減少）を表す。}
+\caption{構造塔の圏論的階層図。矢印は忘却関手（情報量の減少）を表す。実線は実装済みの関手、点線は概念的な関係または部分的な実装を示す。}
 \end{figure}
 
 \section{Cat\_D}
@@ -171,9 +172,23 @@
 
 ここには、添字集合間の写像 $\phi: I \to I'$ は明示的に存在しません。「どこかの層に入ればよい」というこの柔軟性は、確率空間の等価性や、異なる時間スケールを持つ過程間の写像を扱う際に有用です。
 
+\section{Cat\_le\_exists (Exists)}
+
+\texttt{Cat\_le\_exists} は、\texttt{Cat\_le} と \texttt{Cat\_D} の中間にある圏です。\texttt{Cat\_le\_exists.md} で定義されています。
+これは「存在量化」という点では \texttt{Cat\_D} に近いですが、順序保存性の要請という点では \texttt{Cat\_le} に近い性質を持ちます。
+
+\subsection{動機}
+\texttt{Cat\_le} では添字写像 $\phi$ をデータとして持ちますが、場合によっては「適切な順序保存写像 $\phi$ が存在すること」だけを保証し、$\phi$ の具体的な選び方は区別したくないことがあります。
+
+\subsection{射: HomLeExists}
+射は $(f, P)$ の対です。ここで $f$ は基礎写像、$P$ は以下の存在命題の証拠です。
+\[ \exists \phi: I \to I', \text{Monotone}(\phi) \land (\forall i, f(L_i) \subseteq L'_{\phi(i)}) \]
+圏論的には、これは \texttt{Cat\_le} の射から $\phi$ の情報を忘れたものと見なせます。
+
 \section{Cat\_le (data)}
 
 \texttt{Cat\_le} は、順序構造を明示的に保存したい場合の圏です。\texttt{Cat\_le.md} で定義されています。
+前の節の \texttt{Cat\_le\_exists} と異なり、ここでは添字写像を**データとして**保持します。
 
 \subsection{射: HomLe}
 この圏の射は、データとして $(f, \phi)$ の対を持ちます。
@@ -190,36 +205,24 @@
 
 この圏では、同じ写像 $f$ であっても、異なる時間スケール変換 $\phi$ を伴えば「異なる射」として区別されます。
 
-\section{Cat\_le\_exists (Exists)}
-
-\texttt{Cat\_le\_exists} は、\texttt{Cat\_le} と \texttt{Cat\_D} の中間にある圏です。\texttt{Cat\_le\_exists.md} で定義されています。
-
-\subsection{動機}
-\texttt{Cat\_le} では添字写像 $\phi$ をデータとして持ちますが、場合によっては「適切な順序保存写像 $\phi$ が存在すること」だけを保証し、$\phi$ の具体的な選び方は区別したくないことがあります。
-
-\subsection{射: HomLeExists}
-射は $(f, P)$ の対です。ここで $f$ は基礎写像、$P$ は以下の存在命題の証拠です。
-\[ \exists \phi: I \to I', \text{Monotone}(\phi) \land (\forall i, f(L_i) \subseteq L'_{\phi(i)}) \]
-圏論的には、これは \texttt{Cat\_le} の射から $\phi$ の情報を忘れたものと見なせます。
-
 \section{Forgetful functors (Data $\to$ Exists $\to$ D)}
 
-\texttt{Cat\_le\_functors.md} では、これら3つのレーンを繋ぐ忘却関手が定義されています。
+\texttt{Cat\_le\_functors.md} では、これら3つのレーンを繋ぐ忘却関手が定義されています。これらは対象間の単なる写像ではなく、圏から圏への関手（Functor）として実装されています。
 
 \begin{enumerate}
-    \item \textbf{forgetIndexMap}: $\TowerD \to \TowerD\_LeExists$
+    \item \textbf{forgetIndexMap}: $\CatLe \to \CatLeExists$
     \begin{itemize}
         \item \texttt{Cat\_le} (Data) から \texttt{Cat\_le\_exists} (Exists) へ。
         \item 具体的な $\phi$ を忘れ、その存在性だけを残します。
     \end{itemize}
     
-    \item \textbf{forgetToD}: $\TowerD\_LeExists \to \TowerD\_D$
+    \item \textbf{forgetToD}: $\CatLeExists \to \CatD$
     \begin{itemize}
         \item \texttt{Cat\_le\_exists} (Exists) から \texttt{Cat\_D} へ。
         \item $\phi$ の「単調性」の要件を忘れ、単に「各層がどこかの層に入る（$\exists j$）」という条件に弱めます。
     \end{itemize}
 
-    \item \textbf{forgetLeToD}: $\TowerD \to \TowerD\_D$
+    \item \textbf{forgetLeToD}: $\CatLe \to \CatD$
     \begin{itemize}
         \item 上記2つの合成です。
     \end{itemize}
