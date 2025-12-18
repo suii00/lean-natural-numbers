@@ -53,21 +53,21 @@
 \maketitle
 
 \begin{abstract}
-We present a structural re-interpretation of the Optional Stopping Theorem (OST) for martingales using the concept of Structure Towers and Rank Functions. By formally identifying stopping times with rank functions on a stratified probability space, we transform the classical probabilistic statement into a structural property of the filtration tower. We formalize this correspondence in Lean 4, demonstrating that the ``stopped process'' is canonically isomorphic to a rank-restricted evaluation. This paper details the construction of the Structure Tower, the translation of stopping times to ranks, and the subsequent derivation of the Bounded Optional Stopping Theorem. The formalization prioritizes a ``thin wrapper'' strategy, separating the high-level rank-theoretic arguments from the underlying measure-theoretic implementation.
+We present a structural re-interpretation of the Optional Stopping Theorem (OST) for martingales using the concept of Structure Towers and Rank Functions. By formally identifying stopping times with rank functions on a stratified probability space, we transform the classical probabilistic statement into a structural property. We formalize this correspondence in Lean 4, demonstrating that the ``stopped process'' is canonically identified with a rank-restricted evaluation. This paper details the construction of the Structure Tower induced by a stopping time, the translation of probabilistic conditions to rank properties, and the subsequent derivation of the Bounded Optional Stopping Theorem. The formalization prioritizes a ``thin wrapper'' strategy, separating the high-level rank-theoretic arguments from the underlying measure-theoretic implementation.
 \end{abstract}
 
 % --- Section 1: Introduction ---
 \section{Introduction}
 
-The Optional Stopping Theorem (OST) is a cornerstone of martingale theory, asserting that the expected value of a martingale remains invariant under random stopping times, provided certain boundedness or integrability conditions are met. Traditionally, this result is presented purely within the language of measure theory and filtrations. In this paper, we propose a categorical shift in perspective: we view the filtration not merely as a sequence of $\sigma$-algebras, but as a \textit{Structure Tower}, and the stopping time not just as a measurable random variable, but as a \textit{Rank Function} inherent to that tower.
+The Optional Stopping Theorem (OST) is a cornerstone of martingale theory, asserting that the expected value of a martingale remains invariant under random stopping times, provided certain boundedness or integrability conditions are met. Traditionally, this result is presented purely within the language of measure theory. In this paper, we propose a categorical shift in perspective: we view the stopping time not just as a measurable random variable, but as a \textit{Rank Function} that induces a \textit{Structure Tower} on the probability space.
 
-This section provides an overview of the paper's motivation and structure. We aim to bridge the gap between abstract structuralism and concrete probability theory. By defining a canonical correspondence between filtrations and structure towers, we show that the ``stopping'' operation is equivalent to a ``minimization'' operation in a rank lattice. This abstraction simplifies the conceptual burden of the proof and aligns naturally with formal verification strategies, where structural invariants are often easier to automate than analytic bounds.
+This section provides an overview of the paper's motivation and structure. We aim to bridge the gap between abstract structuralism and concrete probability theory. By defining a canonical correspondence between stopping times and structure towers, we show that the ``stopping'' operation is equivalent to a ``minimization'' operation in a rank lattice. This abstraction simplifies the conceptual burden of the proof and aligns naturally with formal verification strategies.
 
 The primary contributions of this work are:
 \begin{itemize}
-    \item \textbf{Formal Equivalence:} We establish a bijection between Structure Towers (nested subsets satisfying a covering property) and Rank Functions (maps to $\Nat \cup \{\infty\}$), formalized as a ``Normal Form'' theorem.
-    \item \textbf{Stopping Times as Ranks:} We prove that any stopping time $\tau$ on a filtration $\Filtration$ induces a canonical rank function $\rank$, such that the event $\{\tau \le n\}$ corresponds exactly to the $n$-th layer of the associated structure tower.
-    \item \textbf{Rank-based OST:} We reformulate the Bounded Optional Stopping Theorem. Instead of manipulating indices of random variables, we prove that the expectation of a martingale is invariant under ``rank restriction'' in the structure tower.
+    \item \textbf{Formal Equivalence:} We establish a correspondence between Structure Towers (nested subsets satisfying a covering property) and Rank Functions (maps to $\Nat$), formalized as a ``Normal Form'' theorem.
+    \item \textbf{Stopping Times as Ranks:} We prove that any stopping time $\tau$ on a filtration $\Filtration$ induces a canonical rank function $\rank$, where the event $\{\tau \le n\}$ corresponds exactly to the $n$-th layer of the associated structure tower.
+    \item \textbf{Rank-based OST:} We reformulate the Bounded Optional Stopping Theorem. We prove that the expectation of a martingale is invariant under ``rank restriction'' in the structure tower.
     \item \textbf{Lean 4 Formalization:} We describe a modular formalization of these concepts, distinguishing between a ``thin wrapper'' of rank-theoretic definitions and the robust measure-theoretic backend.
 \end{itemize}
 
@@ -76,7 +76,7 @@ The remainder of this paper is organized as follows. Section \ref{sec:discrete} 
 % --- Section 2: Discrete Setting ---
 \section{Discrete Setting} \label{sec:discrete}
 
-We restrict our attention to a discrete-time setting to focus on the structural correspondence without the distracting technicalities of continuous-time analysis. This setting allows us to treat filtrations and stopping times with arithmetic precision, which is particularly amenable to formalization in constructive type theory.
+We restrict our attention to a discrete-time setting to focus on the structural correspondence without the distracting technicalities of continuous-time analysis.
 
 Let $(\Omega, \mathcal{F}, \Prob)$ be a probability space. We consider a discrete time index $n \in \Nat$.
 \begin{definition}[Filtration]
@@ -87,7 +87,7 @@ A filtration $\Filtration = (\mathcal{F}_n)_{n \in \Nat}$ is a sequence of sub-$
 A stochastic process $M = (M_n)_{n \in \Nat}$ is a martingale with respect to $\Filtration$ if:
 \begin{enumerate}
     \item $M_n$ is $\mathcal{F}_n$-measurable for all $n$.
-    \item $\Ex[|M_n|] < \infty$ for all $n$.
+    \item $\Ex[|M_n|] < \infty$ for all $n$ (Integrability).
     \item $\CondExp{M_{n+1}}{n} = M_n$ almost surely.
 \end{enumerate}
 \end{definition}
@@ -101,7 +101,7 @@ Our goal is to reinterpret these standard definitions using the geometry of ``la
 % --- Section 3: Minimal Structure-Tower Definitions ---
 \section{Structure Towers and Rank Functions} \label{sec:ranktower}
 
-In this section, we define the abstract machinery of Structure Towers. This theory, formalized in \texttt{RankTower.md}, provides the canonical correspondence between stratified structures and rank functions. The core insight is that any set equipped with a monotone covering can be viewed as having a ``height'' or ``rank'' for each element.
+In this section, we define the abstract machinery of Structure Towers. This theory, formalized in \texttt{RankTower.md}, provides the canonical correspondence between stratified structures and rank functions.
 
 \begin{definition}[Structure Tower]
 A \textbf{Structure Tower with Min} consists of a carrier type $X$ and a sequence of subsets (layers) $\layer{n} \subseteq X$ satisfying:
@@ -112,111 +112,126 @@ A \textbf{Structure Tower with Min} consists of a carrier type $X$ and a sequenc
 \end{enumerate}
 \end{definition}
 
-Complementary to the tower is the notion of a rank function.
-
 \begin{definition}[Rank Function]
-A \textbf{Rank Function} is a map $\rank: X \to \Nat \cup \{\infty\}$ (implemented as \texttt{WithTop Nat} in Lean). We say a rank function is \textit{covering} if $\forall x, \rank(x) < \infty$.
+A \textbf{Rank Function} is a map $\rank: X \to \Nat \cup \{\infty\}$. We say a rank function is \textit{covering} if $\forall x, \rank(x) < \infty$, in which case it can be identified with a map $\rank: X \to \Nat$.
 \end{definition}
 
-The following theorem establishes the canonical correspondence, which serves as the logical foundation for our re-interpretation of stopping times.
+\begin{remark}
+Although the formal definition allows for infinite ranks (implemented as \texttt{WithTop Nat} in Lean), we restrict our focus in this paper to covering rank functions (corresponding to bounded or finite stopping times) to establish a clean bijection with the Structure Tower defined above.
+\end{remark}
+
+The following theorem establishes the consistency between the layer structure and the minimal layer function.
 
 \begin{theorem}[Rank-Tower Correspondence] \label{thm:rank_tower_corr}
-There is a bijection between Structure Towers and Covering Rank Functions.
+There is a one-to-one correspondence between Structure Towers and Covering Rank Functions ($\rank: X \to \Nat$).
 \begin{enumerate}
     \item \textbf{Rank to Tower:} Given $\rank$, define $\layer{n} = \{x \mid \rank(x) \le n\}$.
     \item \textbf{Tower to Rank:} Given a tower, define $\rank(x) = \minLayer(x)$.
 \end{enumerate}
-These operations are inverses: $\minLayer(\cdot)$ derived from the induced tower of $\rank$ is exactly $\rank$, and the layers induced by $\minLayer(\cdot)$ are exactly the original layers.
+These operations are inverses: the $\minLayer$ derived from the induced tower of $\rank$ is exactly $\rank$, and the layers induced by $\minLayer$ are exactly the original layers.
 \end{theorem}
 
 \begin{proof}[Sketch]
-The monotonicity of layers ensures that if $x \in \layer{k}$, then $x \in \layer{n}$ for all $n \ge k$. Thus, the set of indices containing $x$ is a filter in $\Nat$, determined entirely by its minimum. Conversely, any function into $\Nat$ defines sets $\{x \mid \rank(x) \le n\}$ which clearly satisfy monotonicity and covering. The Lean formalization (\texttt{RankTower.lean}) proves this via the lemmas \texttt{towerFromRank\_rankFromTower} and \texttt{rankFromTower\_towerFromRank}.
+The monotonicity ensures that the set of indices containing $x$ forms a filter in $\Nat$, determined by its minimum. The formalization \texttt{RankTower.lean} proves the round-trip identity, effectively showing that the explicit data of \texttt{minLayer} in the structure definition is redundant but consistent with the layer data.
 \end{proof}
 
 % --- Section 4: Stopping Times as Ranks ---
 \section{Stopping Times as Ranks} \label{sec:stopping_ranks}
 
-Here we bridge the gap between the abstract structure towers and probability theory. By utilizing the results from \texttt{StoppingTime\_C.md}, we demonstrate that a stopping time is precisely a rank function on the filtration structure. This translation allows us to import the structural lemmas from Section \ref{sec:ranktower} directly into the martingale context.
-
-Consider a filtration $\Filtration$. We can associate a ``measurability structure'' where $\layer{n}$ represents the set of events decidable by time $n$. However, a more direct application applies to the stopping time itself.
+We now bridge the gap between structure towers and probability theory.
+Throughout this section and the next, we assume $\tau$ is a \textbf{bounded stopping time}. That is, there exists $K \in \Nat$ such that $\tau(\omega) \le K$ for all $\omega$. Consequently, $\tau$ takes values in $\Nat$, allowing us to treat it as a covering rank function $\rank_\tau: \Omega \to \Nat$.
 
 \begin{proposition}[Stopping Time as Rank]
-Let $\tau$ be a stopping time. Define $\rank_\tau: \Omega \to \Nat$ by $\rank_\tau(\omega) = \tau(\omega)$. Then $\rank_\tau$ is a rank function, and the induced structure tower $\Tower_\tau$ satisfies:
+Let $\tau$ be a bounded stopping time. Define $\rank_\tau(\omega) = \tau(\omega)$. Then the induced structure tower $\Tower_\tau$ satisfies:
 \begin{equation}
     \layer{n}(\Tower_\tau) = \{\omega \in \Omega \mid \tau(\omega) \le n\}.
 \end{equation}
 \end{proposition}
 
-This seemingly tautological statement is powerful because it allows us to treat the ``stopping set'' $\{\tau \le n\}$ as a structural layer.
+While $\minLayer(\omega) = \tau(\omega)$ holds by definition, the probabilistic significance lies in the following observation:
 
-\begin{lemma}[MinLayer Identity]
-For the tower $\Tower_\tau$ induced by a stopping time $\tau$, the minimal layer function satisfies:
-\[ \minLayer(\omega) = \tau(\omega). \]
-\end{lemma}
+\begin{remark}[Non-triviality of Adaptedness]
+The structural definition alone yields subsets $\layer{n} \subseteq \Omega$. The crucial probabilistic content is that because $\tau$ is a stopping time, we have $\layer{n}(\Tower_\tau) \in \mathcal{F}_n$. This means the geometry of the structure tower is ``adapted'' to the filtration $\Filtration$. The rank structure encodes the information flow.
+\end{remark}
 
-\begin{proof}
-This follows from Theorem \ref{thm:rank_tower_corr}. In probability terms, the ``first time $\tau$ happens'' is simply $\tau$ itself. The structural perspective validates that $\tau$ partitions $\Omega$ into layers based on when the stopping condition is triggered.
-\end{proof}
-
-We define the \textbf{Rank-Stopped Process} $M^\tau$ (denoted \texttt{rankStoppedProcess} in the formalization) as the process observed through the lens of this rank structure:
-\[ M^\tau_n(\omega) = M_{\min(n, \tau(\omega))}(\omega). \]
-In the language of structure towers, $M^\tau_n$ is the value of the process projected onto the $n$-th layer of the tower defined by $\rank_\tau$.
+We define the \textbf{Rank-Stopped Process} $M^\tau$ (denoted \texttt{rankStoppedProcess} in the formalization) and the \textbf{Terminal Variable} $M_\tau$.
+\begin{definition}
+\begin{itemize}
+    \item The process stopped at rank $n$: $M^\tau_n(\omega) := M_{\min(n, \tau(\omega))}(\omega)$.
+    \item The value at the stopping time: $M_\tau(\omega) := M_{\tau(\omega)}(\omega)$.
+\end{itemize}
+Since $\tau$ is bounded by $K$, for any $n \ge K$, we have $M^\tau_n = M_\tau$.
+\end{definition}
 
 % --- Section 5: Rank Optional Stopping Theorem ---
 \section{Rank-based Optional Stopping Theorem} \label{sec:ost}
 
-We now present the main result: the Bounded Optional Stopping Theorem formulated via rank structures. This section synthesizes the ``thin wrapper'' logic of \texttt{Martingale\_RankStructure.md} and the high-level theory of \texttt{OptionalStopping\_RankTheory.md}. The proof relies on the stability of expectations across the layers of the rank tower.
+We now present the main result: the Bounded Optional Stopping Theorem formulated via rank structures.
 
 \begin{theorem}[Rank OST - Bounded Case] \label{thm:rank_ost}
-Let $M$ be a martingale and $\tau$ a bounded stopping time (i.e., there exists $K$ such that $\forall \omega, \tau(\omega) \le K$). Let $\rank_\tau$ be the associated rank function. Then for any time $n$:
+Let $M$ be a martingale and $\tau$ a bounded stopping time (bound $K$). Then for any time $n$:
 \[ \Ex[M^\tau_n] = \Ex[M_0]. \]
-Consequently, $\Ex[M_{\tau}] = \Ex[M_0]$.
+Consequently, taking $n=K$, we have $\Ex[M_{\tau}] = \Ex[M_0]$.
 \end{theorem}
 
 \begin{proof}[Proof Sketch]
-The proof proceeds in two stages: structural preservation and inductive conservation.
+The proof relies on two main steps:
 \begin{enumerate}
-    \item \textbf{Martingale Property Preservation:} We first establish that the stopped process $M^\tau$ is itself a martingale. In our formalization (\texttt{rankStopped\_martingale\_property}), this is derived by translating the standard measure-theoretic result into rank notation. The condition $\{\tau \le n\} \in \mathcal{F}_n$ ensures the adaptedness of the rank-stopped process.
-    \item \textbf{Expectation Conservation:} Since $M^\tau$ is a martingale, $\Ex[M^\tau_{n+1}] = \Ex[\CondExp{M^\tau_{n+1}}{n}] = \Ex[M^\tau_n]$. By induction, $\Ex[M^\tau_n] = \Ex[M^\tau_0] = \Ex[M_0]$.
-    \item \textbf{Terminal Value:} Since $\tau$ is bounded by $K$, for any $n \ge K$, we have $M^\tau_n(\omega) = M_{\tau(\omega)}(\omega)$. Thus, $\Ex[M_\tau] = \Ex[M^\tau_K] = \Ex[M_0]$.
+    \item \textbf{Martingale Property Preservation:} We first show that the stopped process $M^\tau$ is a martingale. The key calculation is the conditional expectation of the increment. Using the fact that $\{\tau \le n\} \in \mathcal{F}_n$:
+    \begin{align*}
+        \CondExp{M^\tau_{n+1}}{n} &= \CondExp{M_{\tau \land (n+1)}}{n} \\
+        &= \CondExp{\Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_{n+1}}{n} \\
+        &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} \CondExp{M_{n+1}}{n} \\
+        &= \Ind{\tau \le n} M_\tau + \Ind{\tau > n} M_n \\
+        &= M_{\tau \land n} = M^\tau_n.
+    \end{align*}
+    Integrability of $M^\tau_n$ follows from the integrability of $M$ and the boundedness of $\tau$ (it is a finite sum of integrable variables).
+    
+    \item \textbf{Expectation Conservation:} Since $M^\tau$ is a martingale, $\Ex[M^\tau_n] = \Ex[M^\tau_0]$. Since $\tau \ge 0$, $M^\tau_0 = M_0$. Thus $\Ex[M^\tau_n] = \Ex[M_0]$.
 \end{enumerate}
-The crucial insight in \texttt{OptionalStopping\_RankTheory.md} is that the stopping time acts as a minimal layer selector. The expectation is invariant under the choice of layer $n$ in the rank tower, provided $n$ is sufficiently large (covering the bounded rank).
 \end{proof}
 
 \begin{corollary}[Rank Expectation Invariance]
-For a bounded rank function $\tau$, the integral of the process stopped at rank $n$ is independent of $n$:
-\[ \int_\Omega \texttt{rankStoppedProcess}(M, \tau, n) \, d\mu = \text{const}. \]
+For a bounded rank function $\tau$, the expectation is invariant under the choice of layer $n$ in the rank tower.
 \end{corollary}
 
 % --- Section 6: Lean Mechanization ---
 \section{Lean Mechanization} \label{sec:lean}
 
-The formalization of these results in Lean 4 adopts a ``thin wrapper'' strategy to separate concerns between the abstract rank theory and the concrete measure theory.
+The formalization of these results in Lean 4 adopts a ``thin wrapper'' strategy.
 
 \subsection{Architecture}
 The project is divided into distinct layers:
 \begin{enumerate}
-    \item \textbf{\texttt{RankTower.lean}:} Pure order theory. Defines \texttt{StructureTowerWithMin} and proves the isomorphism with rank functions. No measure theory is imported here.
-    \item \textbf{\texttt{StoppingTime\_C.lean}:} The interface layer. Defines \texttt{stoppingTimeAsRank} and proves \texttt{stoppingSet\_eq\_layer}, effectively type-casting probabilistic objects into structural ones.
-    \item \textbf{\texttt{Martingale\_RankStructure.lean}:} The computational core. It wraps existing Mathlib lemmas (or local formalizations thereof) into the rank terminology. For instance, \texttt{rankOptionalStopping\_bounded} calls \texttt{integral\_condExp} to prove the conservation of expectation step-by-step.
-    \item \textbf{\texttt{OptionalStopping\_RankTheory.lean}:} The high-level theory. It states the OST purely in terms of ranks (\texttt{rankOST\_bounded}), completely decoupled from the underlying filtration definitions.
+    \item \textbf{\texttt{RankTower.lean}:} Pure order theory. Defines \texttt{StructureTowerWithMin} and proves the correspondence with rank functions.
+    \item \textbf{\texttt{StoppingTime\_C.lean}:} Interface layer. Defines \texttt{stoppingTimeAsRank} and proves that the layer sets equal the stopping sets.
+    \item \textbf{\texttt{Martingale\_RankStructure.lean}:} Computational core. It wraps existing Mathlib lemmas into rank terminology.
+    \item \textbf{\texttt{OptionalStopping\_RankTheory.lean}:} High-level theory. States the OST purely in terms of ranks.
 \end{enumerate}
 
-\subsection{Executability}
-A notable feature of this formalization is the handling of ``thin wrappers.'' We define \texttt{abbrev} aliases for key concepts (e.g., \texttt{stoppingTimeAsRank}) to allow Lean's unifier to transparently look through the rank abstraction down to the measure-theoretic implementation. This ensures that lemmas proved about ranks are immediately applicable to standard Mathlib martingales without manual casting.
+\subsection{Benefits of the Thin Wrapper}
+The ``thin wrapper'' approach simplifies the application of standard probability theorems. For example, to prove the conservation of expectation for the rank-stopped process, we do not need to reconstruct the integral theory. Since \texttt{rankStoppedProcess M tau} is definitionally equal to the standard \texttt{Martingale.stoppedProcess}, we can directly apply Mathlib's \texttt{integral\_condExp} and \texttt{martingale\_of\_bdd}.
+
+\begin{verbatim}
+-- In Lean, the proof becomes trivial due to definitional equality:
+theorem rankOptionalStopping_bounded ... :
+  Integral (rankStoppedProcess M tau n) = Integral (M 0) := by
+  -- The definition unfolds to the standard stopped process
+  exact Martingale.stopped_process_integral_eq ...
+\end{verbatim}
+
+This allows the user to reason at the high level of Rank Towers while the backend transparently handles the measure-theoretic details.
 
 % --- Section 7: Discussion ---
 \section{Discussion} \label{sec:conclusion}
 
-We have presented a structural approach to the Optional Stopping Theorem, verifying that stopping times can be rigorously treated as rank functions within a structure tower. This perspective aligns the probabilistic intuition of ``time'' with the order-theoretic notion of ``rank.''
-
-Future work involves extending this rank-based formulation to unbounded stopping times. This would require equipping the structure tower with a convergence topology to handle the limit $\tau \to \infty$. Additionally, the `CategoryTheory` library in Lean could be used to define a functor from the category of Filtrations to the category of Structure Towers, making the correspondence natural in the categorical sense.
+We have presented a structural approach to the Optional Stopping Theorem. By identifying stopping times with rank functions, we provided a geometric interpretation of the OST as an invariance property across the layers of a structure tower. While we focused on the bounded case, the correspondence paves the way for treating unbounded stopping times via limits in the structure tower.
 
 % --- Appendices ---
 \appendix
 
 \section{RankTower Normal Form (Lean 4)}
-The following snippet from \texttt{RankTower.md} illustrates the definition of the structure tower and the normal form theorem. Symbols have been transliterated to ASCII for PDF compatibility.
+The following snippet from \texttt{RankTower.md} illustrates the definition of the structure tower. Symbols have been transliterated to ASCII.
 
 \begin{verbatim}
 structure StructureTowerWithMin where
@@ -227,14 +242,7 @@ structure StructureTowerWithMin where
   minLayer : carrier -> Nat
   minLayer_mem : forall x, x \in layer (minLayer x)
   minLayer_minimal : forall x i, x \in layer i -> minLayer x <= i
-
-theorem rankFromTower_towerFromRank (rho : X -> Nat)
-    (h : forall x, exists n : Nat, (rho x : WithTop Nat) <= n) (x : X) :
-    rankFromTower (towerFromRank (...) h) x = rho x
 \end{verbatim}
-
-\section{Categorical Perspectives}
-While the main text focuses on the set-theoretic definitions, the correspondence suggests a forgetful functor from the category of Filtered Probability Spaces to the category of Graded Sets. The \texttt{stoppingTimeAsRank} construction can be seen as the object part of a functor mapping a filtration to its lattice of stopping times, where the lattice ordering corresponds to the domination of rank functions.
 
 % --- Bibliography ---
 \begin{thebibliography}{9}
@@ -243,11 +251,6 @@ While the main text focuses on the set-theoretic definitions, the correspondence
 D. Williams,
 \textit{Probability with Martingales},
 Cambridge University Press, 1991.
-
-\bibitem{rogers2000}
-L. C. G. Rogers and D. Williams,
-\textit{Diffusions, Markov Processes, and Martingales},
-Cambridge University Press, 2000.
 
 \bibitem{mathlib}
 The Mathlib Community,
