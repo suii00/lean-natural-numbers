@@ -1,0 +1,94 @@
+いいえ、私のhomeqの定義では復元は不可能です。
+
+
+はい、その理解で合っています。
+
+homeq := (HomLe + bijective) からは一般に「逆射が同じ条件を満たす」ことが出ないので、Cat_le 側の構造としては復元できません（典型的には “連続な全単射 ≠ 同相” と同型の失敗で、layer_preserving が片方向だからです。indexMap も preorder 一般では monotone bijection ⇒ inverse monotone が言えません）。
+
+なので方針は：
+
+homeq は 同型（Cat_eq）ではなく、今の Cat_LeBij（bijective lane）として扱う
+Cat_eq.lean は「同型射」等の説明をやめて、必要なら Cat_LeBij の薄い互換ラッパ（旧名の alias）に落とす
+この方針で Cat_eq.lean 側も「用語と実体」を揃える修正まで入れますか？（いまは read-only なので書き込み許可が必要です）
+
+/-- 最小層を持つ構造塔
+三つ組 (X, (Xᵢ)ᵢ∈I, ≤, minLayer) からなり：
+
+X: 基礎集合
+I: 添字半順序集合
+(Xᵢ): 各層（被覆性と単調性を満たす）
+minLayer: 各要素の最小層を選ぶ関数
+-/
+structure StructureTowerWithMin where
+/-- 基礎集合 -/
+carrier : Type u
+/-- 添字集合 -/
+Index : Type v
+/-- 添字集合上の半順序 -/
+[indexPreorder : Preorder Index]
+/-- 各層の定義: Index → Set carrier -/
+layer : Index → Set carrier
+/-- 被覆性: すべての層の和集合が全体を覆う -/
+covering : ∀ x : carrier, ∃ i : Index, x ∈ layer i
+/-- 単調性: 順序を保存 -/
+monotone : ∀ {i j : Index}, i ≤ j → layer i ⊆ layer j
+/-- 各要素の最小層を選ぶ関数 -/
+minLayer : carrier → Index
+/-- minLayer x は実際に x を含む -/
+minLayer_mem : ∀ x, x ∈ layer (minLayer x)
+/-- minLayer x は最小 -/
+minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
+namespace StructureTowerWithMin
+
+instance instIndexPreorder (T : StructureTowerWithMin.{u, v}) : Preorder T.Index :=
+T.indexPreorder
+
+variable {T T' T'' T''' : StructureTowerWithMin.{u, v}}
+
+/-- 構造塔の射
+対 (f, φ) であって：
+
+f: 基礎集合の写像
+φ: 添字集合の順序を保つ写像
+f が層構造を保存
+f が最小層の構造を保存（重要！）
+-/
+structure Hom (T T' : StructureTowerWithMin.{u, v}) where
+/-- 基礎集合間の写像 -/
+map : T.carrier → T'.carrier
+/-- 添字集合間の順序を保つ写像 -/
+indexMap : T.Index → T'.Index
+/-- φ が順序を保存 -/
+indexMap_mono : ∀ {i j : T.Index}, i ≤ j → indexMap i ≤ indexMap j
+/-- f が層構造を保存 -/
+layer_preserving : ∀ (i : T.Index) (x : T.carrier),
+x ∈ T.layer i → map x ∈ T'.layer (indexMap i)
+/-- f が最小層を保存（これが一意性の鍵！） -/
+minLayer_preserving : ∀ x, T'.minLayer (map x) = indexMap (T.minLayer x)
+これがCat_eqだと思いこんでいたもの
+
+
+おっしゃる通りで、あなたの homeq（= minLayer_preserving : T'.minLayer (map x) = indexMap (T.minLayer x) を本質に据える定義）だと、HomLe + bijective から 復元は一般に不可能です。
+
+理由（ブルバキ流に “追加構造” として見ると明確）：
+
+minLayer は「層の族」から 一意に決まるとは限らない選択データです（同じ layer を持ちつつ minLayer の選び方だけが違う塔が作れます）。TowerD（minLayer なし）に落とした時点で、その選択情報は失われるので、HomLe + bijective だけでは minLayer の等号保存を判定できません。
+さらに、bijective + layer_preserving は “同型（逆射も同じ条件を満たす）” を保証しません（逆が HomLe 条件を満たさない例があり得る）ので、Cat_eq をそれで呼ぶのも意味が強すぎます。
+そして、あなたが貼った StructureTowerWithMin とその Hom（等号版 minLayer_preserving）は、実際 c:\Users\swan0\repo\lean-natural-numbers\src\MyProjects\ST\CAT2_complete.lean に既に同型の形で実装されています。
+
+確認したい方針は1点だけです：
+
+今後 MyProjects.ST.CAT.Cat_eq（src\MyProjects\ST\CAT\Cat_eq.lean）を、**“minLayer 等号版（= CAT2_complete のレーン）”**として再定義（または再輸出）し、いまの “bijective レーン” は Cat_LeBij（すでにある）に寄せる、で進めて良いですか？
+
+いや混乱している。CAT2_completeのhomこそがhomeqだと思いこんでいた。
+
+
+混乱ポイントはここです：
+
+c:\Users\swan0\repo\lean-natural-numbers\src\MyProjects\ST\CAT2_complete.lean の StructureTowerWithMin.Hom は、まさに
+minLayer_preserving : T'.minLayer (map x) = indexMap (T.minLayer x)（等号）を要求する“厳密版”なので、あなたの言う **homeq（= 版）**に一番自然に対応します。
+一方 c:\Users\swan0\repo\lean-natural-numbers\src\MyProjects\ST\CAT\Cat_eq.lean の TowerD.HomEq は minLayer をそもそも持たない TowerD 上で、HomLe + bijective を「同型っぽく」呼んでいるだけで、あなたの homeq とは別物です（ここが不整合の源）。
+確認したいのは1点だけ：
+
+今後の用語として homeq := CAT2_complete の Hom（minLayer 等号） で確定して良いですか？
+OKなら、ST/CAT/Cat_eq.lean はこの意味に合わせて「再輸出（wrapper）」に作り替え、HomLe + bijective は ST/CAT/Cat_LeBij.lean に寄せて整理、が一番きれいです。

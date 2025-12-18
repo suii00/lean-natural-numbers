@@ -1,0 +1,7 @@
+決めたいのは1点だけで、Cat_eq という名前を今後どちらに割り当てたいですか？
+
+eq = minLayer 等号（= homeq）にする（ブルバキ流にはこれが一番自然）
+
+eq = bijective レーンに残す（ただし名前は強く、注記必須）
+
+なら、私は「今の Cat_eq を Cat_Bij/Cat_TowerD_Bij に移す or Cat_LeBij に吸収し、Cat_eq.lean は Cat_WithMin を再輸出する薄いラッパ」にするのが一番きれいだと思います。
