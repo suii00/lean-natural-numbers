@@ -1,4 +1,4 @@
-import MyProjects.ST.CAT2_complete
+import MyProjects.ST.Rank.P3.RankTower
 import MyProjects.ST.RankCore.P1.List
 
 /-!
@@ -13,7 +13,6 @@ namespace RankCore
 
 def toTowerWithMin {α : Type*} (T : Core α) : StructureTowerWithMin where
   carrier := α
-  Index := ℕ
   layer := fun n => layer T n
   covering := by
     intro x
