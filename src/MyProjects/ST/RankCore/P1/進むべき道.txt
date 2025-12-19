@@ -1,0 +1,116 @@
+Day 1-2: グラフ例の大量生産（8時間）
+lean// 10個の#eval例を生成
+def cycleGraph4 : FinGraph 4 where ...
+def starGraph5 : FinGraph 6 where ... -- 中心ノード+5端点
+def completeGraph3 : FinGraph 3 where ...
+
+#eval (finGraphCore cycleGraph4 0).rank 2 -- 2
+#eval (finGraphCore starGraph5 0).rank 5 -- 1 (全て隣接)
+#eval (finGraphCore completeGraph3 0).rank 2 -- 1 (全て距離1)
+成功基準: 10個の#eval例 + それぞれ異なるrank値
+Day 3-4: RankHomLe実装（12時間）
+lean// グラフ準同型の例（lineGraph3 → cycleGraph4）
+def lineToLoopHom : RankHomLe (finGraphCore lineGraph3 0)
+(finGraphCore cycleGraph4 0) where
+f := ... // ノード0→0, 1→1, 2→2, (3を追加してループ)
+rank_le := by ... // 距離が非減少
+目標: 証明が5行以内（List.mapHomパターン適用）
+Day 5: ドキュメント整備（10時間）
+
+各グラフの視覚化コメント
+BFSアルゴリズムの正当性（非形式的説明）
+使用例のREADME
+
+Week 5-6: BFS正当性
+
+以下の追加に関して意見を聞かせてほしい
+
+
+結論だけ先に：Day 1–2（#eval量産）は実現容易／Day 3–4（RankHomLe）は“5行以内”がかなり厳しい／Day 5（ドキュメント）は問題なし、という見立てです。
+
+Day 1–2（#eval 10本）について
+
+実装は容易です。cycleGraph4, starGraph5, completeGraph3 に加え、pathLength が 0..9 の値を必ず取るようにグラフと評価点を設計すれば「各 #eval が異なる rank 値」条件を満たせます。
+ただし「各 #eval がすべて異なる」か、「各グラフごとに違う」かが曖昧です。私は “全 10 本が相異” と解釈して設計するのが安全だと思います。ここは確認したいです。
+Day 3–4（RankHomLe）について
+
+現在の RankHomLe は map, indexMap, indexMap_mono, rank_le が必要なので、リクエストの f := ... は map := ... に修正が必要です。
+“5行以内”は、pathLength ≤ n の補題が先にないと厳しいです。
+例：indexMap := fun _ => 4 にして「常に 4 以下」を示すには pathLength が燃料 n を超えないことの補題が必要です。
+提案：
+補題 pathLength_le を1つ追加（BFSの燃料で上界）
+rank_le はその補題1行 + simp で 5 行以内に収める
+Day 5（ドキュメント）について
+
+問題ありません。
+各グラフのASCII図 or 簡単な説明コメント
+BFS の非形式的正当性（燃料と深さ）
+README の使用例（どの README に書くか指定が欲しい）
+進め方の提案：
+
+#eval 10本を先に作る（達成条件を満たす設計）
+pathLength_le 補題 → RankHomLe を5行以内で仕上げる
+コメントと README
+確認したいこと：
+
+「10個の #eval 例 + それぞれ異なる rank 値」は、全 10 本が相異で合っていますか？
+README は どのファイルに追記しますか？
+OKなら、Day 1–2 相当の #eval 量産からすぐ着手できます。
+
+BFS正当性の難易度について
+
+
+結論：中～高難度です（このプロジェクト方針だと「高」に寄ります）。
+
+理由（簡潔）：
+
+BFSは“正しさの層”が3段ある
+停止性（燃料・訪問集合が単調に増える）
+到達性（見つかれば到達可能）
+最短性（最初に見つかった距離が最小）
+の 最短性 が一番重く、
+レベル（depth）と frontier の不変条件を明示して証明する必要がある。
+今の実装は List と Finset の混在・filter/flatMap で、
+**「frontier が長さ d の到達点のみ」**を言語化する補題が必要。
+このプロジェクトだと：
+
+Day 1–2 の #eval は簡単
+Day 3–4 の RankHomLe も補題1本で行ける
+BFS正当性は“Week 5–6”の見積りは妥当（証明が長くなる）
+おすすめ方針（Bourbaki精神に沿って小さく）
+
+まず 非形式的な正当性（コメント）
+次に 弱い補題だけ形式化
+pathLength = some d → d ≤ n（燃料上界）
+pathLength = some d → reachable（到達性のみ）
+最短性は後回し（ここが本番）
+必要なら、**「BFS正当性の最小セット」**として
+どの補題から始めるかのロードマップを出します。
+
+BFS正当性の難易度を考えるとVec2Qを含めどう進めるべきか
+
+
+結論：BFS正当性は後回し、当面は「RankCore の実用例を増やす」方針が最も堅いです。
+Vec2Q はそのまま主軸に据えてOKで、GraphDist は “計算例を出すだけ” の扱いに留めるのが安全です。
+
+理由（短く）：
+
+BFS最短性の形式化は 証明コストが高い（不変条件が必要）。
+いまの優先度（実用性・Bourbaki的な構造）には、RankCore の実例拡充が一番効く。
+Vec2Q は Closure_Basic.lean を活かせて 低コストで信頼性が高い。
+具体的な進め方（提案）：
+
+Vec2Q を完成形にする
+rank_general 以外にも rank_axis_left/right を追加し、Closure_Basic.lean の補題を写経できることを確認
+#eval 例を少数追加して「動くこと」を担保
+GraphDist は“例の量産”に限定
+BFS正当性は未着手でOK
+「計算できる例を並べる」だけにして、正当性は “Week 5–6” の別タスク
+RankHomLe の例は Vec2Q 側で作る
+たとえば「座標の射影」や「スカラー倍」で rank が増えない例を作る
+BFS を使わずに短い証明にできる
+もしOKなら、次にやる作業は：
+
+Vec2Q に 2つの補題 + 1つの RankHomLe 例を追加
+GraphDist は #eval を増やすだけにして、正当性はREADMEに「将来課題」と明記
+この方向で進めてよければ、具体的にどの補題／射を追加するかこちらから案を出します。
