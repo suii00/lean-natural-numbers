@@ -31,4 +31,14 @@ example {α : Type*} [DecidableEq α] (s : Finset α) :
     s ∈ layer (finsetCore (α := α)) s.card := by
   simp [layer, finsetCore]
 
+#eval finsetCore.rank ({1, 2, 3} : Finset Nat)  -- 3
+#eval finsetCore.rank (∅ : Finset Nat)  -- 0
+
+-- ボーナス：image による射の計算例
+def natSuccFinset : Finset ℕ → Finset ℕ :=
+  fun s => s.image Nat.succ
+
+#eval natSuccFinset {0, 1, 2}  -- {1, 2, 3}
+#eval finsetCore.rank (natSuccFinset {0, 1, 2})  -- 3
+
 end RankCore

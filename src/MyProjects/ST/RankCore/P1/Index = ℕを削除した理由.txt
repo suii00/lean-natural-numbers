@@ -1,0 +1,13 @@
+Index := ℕを削除した理由を聞かせてもらっても？
+
+
+RankTower 側の StructureTowerWithMin には Index フィールドが存在せず、Index := ℕ を書くと型エラーになるため削除しました。
+実際、RankTower.lean の StructureTowerWithMin は
+
+carrier : Type*
+layer : ℕ → Set carrier
+covering, monotone, minLayer, …
+の構成で、添字は 最初から ℕ に固定されています。したがって Index を指定する余地がなく、Index := ℕ は不整合になります。
+（この変更により lake build MyProjects.ST.RankCore.P1.ToTower が通るようになりました。）
+
+もし将来、Index を持つ一般版（CAT2_complete の方）へ戻したいなら、再び Index := ℕ を含める設計に戻せます。
