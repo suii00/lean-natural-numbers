@@ -21,6 +21,22 @@ lemma rank_general (a b : ℚ) (ha : a ≠ 0) (hb : b ≠ 0) :
   simpa [vec2QCore, ClosureTowerExample.minBasisCount] using
     (ClosureTowerExample.minBasisCount_general a b ha hb)
 
+def scalarMultHom (r : ℚ) (hr : r ≠ 0) :
+    RankHomLe vec2QCore vec2QCore where
+  map := ClosureTowerExample.scalarMultMap r hr
+  indexMap := id
+  indexMap_mono := by
+    intro i j hij
+    exact hij
+  rank_le := by
+    intro v
+    have h := ClosureTowerExample.scalarMult_preserves_minLayer r hr v
+    have h' :
+        vec2QCore.rank (ClosureTowerExample.scalarMultMap r hr v) =
+          vec2QCore.rank v := by
+      simpa [vec2QCore, ClosureTowerExample.minBasisCount] using h
+    simpa using (le_of_eq h')
+
 example : vec2QCore.rank (0, 0) = 0 := by
   simp [vec2QCore]
 
