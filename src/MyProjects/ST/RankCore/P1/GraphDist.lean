@@ -1,51 +1,47 @@
-import Mathlib.Data.Nat.Lattice
+import Mathlib
 import MyProjects.ST.RankCore.P1.List
 
 /-!
-Graph distance rank (toy model).
+Computable graph distance rank (finite graph).
 
-Key defs: `Graph`, `reachableIn`, `graphDistCore`, `constRankCore`.
-Example: constant rank makes every layer equal to `Set.univ` above the bound.
+Key defs: `FinGraph`, `pathLength`, `finGraphCore`, `lineGraph3`.
+Example: `finGraphCore lineGraph3 0 |>.rank 2 = 2`.
 -/
 
 -- RankCore/GraphDist.lean
 namespace RankCore
 
-structure Graph (V : Type*) where
-  adj : V → V → Prop
+/-- Finite graph on `Fin n`, adjacency as `Bool`. -/
+structure FinGraph (n : ℕ) where
+  adj : Fin n → Fin n → Bool
 
-def reachableIn {V : Type*} (_G : Graph V) (_start _v : V) (_n : ℕ) : Prop := True -- TODO
+def neighbors {n : ℕ} (G : FinGraph n) (v : Fin n) : List (Fin n) :=
+  (List.finRange n).filter (fun w => G.adj v w)
 
-noncomputable def graphDistCore {V : Type*} (G : Graph V) (start : V) : Core V where
-  rank := by
-    classical
-    intro v
-    by_cases h : ∃ n, reachableIn G start v n
-    · exact Nat.find h
-    · exact 0  -- 未到達（仮）
+def bfsAux {n : ℕ} (G : FinGraph n) (target : Fin n) :
+    Nat → Nat → List (Fin n) → Finset (Fin n) → Option Nat
+  | fuel, depth, frontier, visited =>
+      if target ∈ frontier then
+        some depth
+      else
+        match fuel with
+        | 0 => none
+        | fuel + 1 =>
+            let next := frontier.flatMap (neighbors G)
+            let next' := next.filter (fun w => decide (w ∉ visited))
+            let visited' := visited ∪ next'.toFinset
+            bfsAux G target fuel (depth + 1) next' visited'
 
--- 病理例：定数ランク
-def constRankCore (α : Type*) (k : ℕ) : Core α where
-  rank := fun _ => k
+/-- BFS shortest path length, with fuel `n` for termination. -/
+def pathLength {n : ℕ} (G : FinGraph n) (start target : Fin n) : Option ℕ :=
+  bfsAux G target n 0 [start] ({start} : Finset (Fin n))
 
--- この場合、layer 0 = layer 1 = ... = univ（全部同じ）
-lemma const_layer_eq {α : Type*} (k : ℕ) :
-    ∀ n, k ≤ n → layer (constRankCore α k) n = Set.univ := by
-  intro n hn
-  ext x
-  simp [layer, constRankCore, hn]
+def finGraphCore {n : ℕ} (G : FinGraph n) (start : Fin n) : Core (Fin n) where
+  rank := fun v => (pathLength G start v).getD n  -- 未到達なら n
 
--- 設計上の警告：HomDが過剰に緩む
-example {α β : Type*} : ∀ (f : α → β),
-    ∃ (φ : RankHomD (constRankCore α 0) (constRankCore β 0)),
-      φ.map = f := by
-  intro f
-  exact ⟨{
-    map := f
-    layer_map_exists := fun _ => ⟨0, by
-      intro x hx
-      simp [layer, constRankCore] at hx ⊢
-    ⟩
-  }, rfl⟩
+def lineGraph3 : FinGraph 3 where
+  adj := fun i j => decide (i.1 + 1 = j.1 ∨ j.1 + 1 = i.1)
+
+#eval (finGraphCore lineGraph3 0).rank 2  -- 2
 
 end RankCore
