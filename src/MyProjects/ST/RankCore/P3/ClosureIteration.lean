@@ -5,213 +5,218 @@ import MyProjects.ST.RankCore.Basic
 
 
 /-!
-# ClosureIteration - 閉包演算の反復回数によるRanked構造
+# ClosureIteration - iteration rank for an expansion operator
 
-## 概要
-閉包演算の反復回数を rank 関数とする Ranked 構造の例。
-layer n は「n 回以下の閉包反復で到達可能な集合」を表す。
+## Overview
+We model a one-step expansion `step : Set X → Set X` with:
+- extensive: `S ⊆ step S`
+- monotone: `S ⊆ T → step S ⊆ step T`
 
-## 数学的意義
-閉包演算 cl : Set X → Set X に対して：
-- rank S = min {n : ℕ | cl^n(S) = cl^(n+1)(S)}（固定点到達回数）
-- rank S = ⊤（無限）: cl の反復が収束しない場合
-- layer n = {S | rank S ≤ n}
+The rank of a set is the least `n` such that `iter n S = iter (n+1) S`,
+or `⊤` if the iteration never stabilizes.
 
-## 具体例
-### 位相空間の閉包
-- 既閉集合の rank = 0
-- 開集合の境界を追加で閉じる場合の rank = 1
-- 無限回の反復が必要な場合も存在
+## Design note
+If we assume idempotence (`step (step S) = step S`), every set stabilizes after
+at most one step, so the rank collapses to `0/1`. To keep multi-step
+examples meaningful, **idempotence is intentionally omitted**.
+The idempotent case is recorded in `Bonus/ClosureIteration_Bonus.lean`.
 
-### グラフの到達可能性
-- 孤立点の rank = 0
-- 1ステップで到達可能な点の rank = 1
-- n ステップで到達可能な点の rank = n
+## WithTop ℕ
+We use `WithTop ℕ` to represent divergence:
+- `rank : Set X → WithTop ℕ`
+- `⊤` means "does not converge"
 
-## 注意事項
-WithTop ℕ を使用して無限反復を表現：
-- rank : Set X → WithTop ℕ
-- ⊤ は「収束しない」ことを表す
-
-## 応用
-- 確率論における停止時刻の最小性
-- 可到達性解析
-- 不動点理論
+## Applications (informal)
+- reachability analysis (graph expansion)
+- iterative generation procedures
+- fixed-point style reasoning
 -/
 
 namespace ST
 
 universe u v
 
-/-! ## 閉包演算の定義 -/
+/-! ## Expansion operator -/
 
 variable {X : Type u}
 
-/-- 閉包演算の公理的定義 -/
-structure ClosureOperator (X : Type u) where
-  cl : Set X → Set X
-  extensive : ∀ S, S ⊆ cl S
-  monotone : ∀ {S T}, S ⊆ T → cl S ⊆ cl T
-  idempotent : ∀ S, cl (cl S) = cl S
+/-- A monotone, extensive one-step expansion on sets (not necessarily idempotent). -/
+structure ExpansionOperator (X : Type u) where
+  step : Set X → Set X
+  extensive : ∀ S, S ⊆ step S
+  monotone : ∀ {S T}, S ⊆ T → step S ⊆ step T
 
-namespace ClosureOperator
+namespace ExpansionOperator
 
-variable (C : ClosureOperator X)
+variable (C : ExpansionOperator X)
 
-/-- n 回の反復適用 -/
+/-- Iterate `step` `n` times. -/
 def iter (n : ℕ) (S : Set X) : Set X :=
-  Nat.recOn n S (fun _ acc => C.cl acc)
+  Nat.recOn n S (fun _ acc => C.step acc)
 
 @[simp]
 lemma iter_zero (S : Set X) : C.iter 0 S = S := rfl
 
 @[simp]
-lemma iter_succ (n : ℕ) (S : Set X) : C.iter (n + 1) S = C.cl (C.iter n S) := rfl
+lemma iter_succ (n : ℕ) (S : Set X) : C.iter (n + 1) S = C.step (C.iter n S) := rfl
 
-/-- 反復が収束するかを判定 -/
+/-- Convergence predicate. -/
 def converges (S : Set X) : Prop :=
   ∃ n : ℕ, C.iter n S = C.iter (n + 1) S
 
-/-- 収束する最小の n（収束しない場合は ⊤） -/
-noncomputable def iterationRank (C : ClosureOperator X) (S : Set X) : WithTop ℕ := by
+/-- Least `n` if the iteration converges; otherwise `⊤`. -/
+noncomputable def iterationRank (C : ExpansionOperator X) (S : Set X) : WithTop ℕ := by
   classical
   exact if h : C.converges S then
     Nat.find h
   else
     ⊤
 
-end ClosureOperator
+end ExpansionOperator
 
-/-! ## Ranked インスタンス定義 -/
+/-! ## Ranked instance -/
 
-/-- 閉包演算の反復回数を rank 関数とする Ranked インスタンス -/
-noncomputable instance instRankedClosure (C : ClosureOperator X) :
+/-- Ranked instance given by iteration count. -/
+noncomputable instance instRankedExpansion (C : ExpansionOperator X) :
     Ranked (WithTop ℕ) (Set X) where
-  rank := ClosureOperator.iterationRank (C := C)
+  rank := ExpansionOperator.iterationRank (C := C)
 
-/-! ## 基本性質 -/
+/-! ## Basic properties -/
 
-variable (C : ClosureOperator X)
+variable (C : ExpansionOperator X)
 
-/-- layer定義の具体化 -/
-lemma closure_layer_iff (n : ℕ) (S : Set X) :
-    S ∈ (instRankedClosure C : Ranked (WithTop ℕ) (Set X)).layer n ↔
-    ClosureOperator.iterationRank (C := C) S ≤ n := by
+/-- Layer membership is rank-boundedness. -/
+lemma expansion_layer_iff (n : ℕ) (S : Set X) :
+    S ∈ (instRankedExpansion C : Ranked (WithTop ℕ) (Set X)).layer n ↔
+    ExpansionOperator.iterationRank (C := C) S ≤ n := by
   rfl
 
-/-- 単調性の確認 -/
-lemma closure_layer_mono {m n : ℕ} (h : m ≤ n) :
-    (instRankedClosure C : Ranked (WithTop ℕ) (Set X)).layer m ⊆
-    (instRankedClosure C : Ranked (WithTop ℕ) (Set X)).layer n := by
+/-- Monotonicity of layers. -/
+lemma expansion_layer_mono {m n : ℕ} (h : m ≤ n) :
+    (instRankedExpansion C : Ranked (WithTop ℕ) (Set X)).layer m ⊆
+    (instRankedExpansion C : Ranked (WithTop ℕ) (Set X)).layer n := by
   intro S hS
   exact le_trans hS (WithTop.coe_le_coe.mpr h)
 
-/-- 既閉集合（不動点）は rank 0 を持つ -/
-lemma closed_has_rank_zero (S : Set X) (h : C.cl S = S) :
-    ClosureOperator.iterationRank (C := C) S = ((0 : ℕ) : WithTop ℕ) := by
+/-- Fixed points have rank 0. -/
+lemma fixed_has_rank_zero (S : Set X) (h : C.step S = S) :
+    ExpansionOperator.iterationRank (C := C) S = ((0 : ℕ) : WithTop ℕ) := by
   classical
   have hconv : C.converges S := by
     refine ⟨0, ?_⟩
-    simp [ClosureOperator.iter, h]
+    simp [ExpansionOperator.iter, h]
   have hfind : Nat.find hconv = 0 := by
     refine (Nat.find_eq_zero _).2 ?_
-    simp [ClosureOperator.iter, h]
-  have h' : ClosureOperator.iterationRank (C := C) S = Nat.find hconv := by
-    simp [ClosureOperator.iterationRank, hconv]
+    simp [ExpansionOperator.iter, h]
+  have h' : ExpansionOperator.iterationRank (C := C) S = Nat.find hconv := by
+    simp [ExpansionOperator.iterationRank, hconv]
   have hfind' : (Nat.find hconv : WithTop ℕ) = ((0 : ℕ) : WithTop ℕ) := by
     simpa [hfind]
   simpa [h'] using hfind'
 
-/-- rank 0 の集合は既閉集合 -/
-lemma rank_zero_iff_closed (S : Set X) :
-    ClosureOperator.iterationRank (C := C) S = ((0 : ℕ) : WithTop ℕ) ↔ C.cl S = S := by
+/-- Rank 0 iff fixed point. -/
+lemma rank_zero_iff_fixed (S : Set X) :
+    ExpansionOperator.iterationRank (C := C) S = ((0 : ℕ) : WithTop ℕ) ↔ C.step S = S := by
   constructor
   · intro h0
     classical
     by_cases hconv : C.converges S
     · have h0' :
         (Nat.find hconv : WithTop ℕ) = ((0 : ℕ) : WithTop ℕ) := by
-          simpa [ClosureOperator.iterationRank, hconv] using h0
+          simpa [ExpansionOperator.iterationRank, hconv] using h0
       have hfind : Nat.find hconv = 0 := by
         exact (WithTop.coe_eq_coe.mp h0')
       have hiter : C.iter 0 S = C.iter (0 + 1) S := (Nat.find_eq_zero _).1 hfind
-      simpa [ClosureOperator.iter] using hiter.symm
+      simpa [ExpansionOperator.iter] using hiter.symm
     · have : False := by
-        simpa [ClosureOperator.iterationRank, hconv] using h0
+        simpa [ExpansionOperator.iterationRank, hconv] using h0
       exact this.elim
-  · intro hclosed
-    exact closed_has_rank_zero (C := C) (S := S) hclosed
+  · intro hfixed
+    exact fixed_has_rank_zero (C := C) (S := S) hfixed
 
-/-- rank が有限なら収束する -/
+/-- Finite rank implies convergence. -/
 lemma finite_rank_iff_converges (S : Set X) :
-    (∃ n : ℕ, ClosureOperator.iterationRank (C := C) S = n) ↔ C.converges S := by
+    (∃ n : ℕ, ExpansionOperator.iterationRank (C := C) S = n) ↔ C.converges S := by
   classical
   constructor
   · rintro ⟨n, hn⟩
     by_contra hconv
     have : False := by
-      simpa [ClosureOperator.iterationRank, hconv] using hn
+      simpa [ExpansionOperator.iterationRank, hconv] using hn
     exact this.elim
   · intro hconv
     refine ⟨Nat.find hconv, ?_⟩
-    simp [ClosureOperator.iterationRank, hconv]
+    simp [ExpansionOperator.iterationRank, hconv]
 
-/-- 反復の単調性 -/
+/-- Iteration is extensive. -/
 lemma iter_mono (n : ℕ) (S : Set X) :
     S ⊆ C.iter n S := by
   induction n with
   | zero =>
-      simp [ClosureOperator.iter]
+      simp [ExpansionOperator.iter]
   | succ n ih =>
       have h1 : S ⊆ C.iter n S := ih
-      have h2 : C.iter n S ⊆ C.cl (C.iter n S) := C.extensive _
+      have h2 : C.iter n S ⊆ C.step (C.iter n S) := C.extensive _
       exact (Set.Subset.trans h1 h2)
 
-/-! ## 計算可能な例（有限型の場合） -/
+/-! ## Constructed examples -/
 
-/-- 離散閉包（恒等写像）の例 -/
-def discreteClosure : ClosureOperator X where
-  cl := id
+/-- Discrete expansion (identity). -/
+def discreteExpansion : ExpansionOperator X where
+  step := id
   extensive := fun S => Set.Subset.refl S
   monotone := fun h => h
-  idempotent := fun S => rfl
 
-/-- 離散閉包では全ての集合が rank 0 -/
+/-- All sets have rank 0 under the discrete expansion. -/
 example (S : Set X) :
-    ClosureOperator.iterationRank (C := discreteClosure) S = ((0 : ℕ) : WithTop ℕ) := by
-  simpa [discreteClosure] using
-    (closed_has_rank_zero (C := discreteClosure) (S := S) rfl)
+    ExpansionOperator.iterationRank (C := discreteExpansion) S = ((0 : ℕ) : WithTop ℕ) := by
+  simpa [discreteExpansion] using
+    (fixed_has_rank_zero (C := discreteExpansion) (S := S) rfl)
 
-/-- 全域閉包（常に全集合）の例 -/
-def wholeClosure : ClosureOperator X where
-  cl := fun _ => Set.univ
+/-- Trivial expansion to `Set.univ`. -/
+def wholeExpansion : ExpansionOperator X where
+  step := fun _ => Set.univ
   extensive := fun S => Set.subset_univ S
   monotone := fun _ => Set.Subset.refl Set.univ
-  idempotent := fun S => rfl
 
-/-- 空集合の全域閉包における rank -/
+/-- Rank of `∅` under the trivial expansion. -/
 example :
-    ClosureOperator.iterationRank (C := wholeClosure) (∅ : Set X) ≤
+    ExpansionOperator.iterationRank (C := wholeExpansion) (∅ : Set X) ≤
       ((1 : ℕ) : WithTop ℕ) := by
   classical
-  have hconv : wholeClosure.converges (∅ : Set X) := by
+  have hconv : wholeExpansion.converges (∅ : Set X) := by
     refine ⟨1, ?_⟩
-    simp [ClosureOperator.iter, wholeClosure]
+    simp [ExpansionOperator.iter, wholeExpansion]
   have hle : Nat.find hconv ≤ 1 :=
-    Nat.find_min' hconv (by simp [ClosureOperator.iter, wholeClosure])
+    Nat.find_min' hconv (by simp [ExpansionOperator.iter, wholeExpansion])
   have h' :
-      ClosureOperator.iterationRank (C := wholeClosure) (∅ : Set X) = Nat.find hconv := by
-    simp [ClosureOperator.iterationRank, hconv]
+      ExpansionOperator.iterationRank (C := wholeExpansion) (∅ : Set X) = Nat.find hconv := by
+    simp [ExpansionOperator.iterationRank, hconv]
   have hle' : (Nat.find hconv : WithTop ℕ) ≤ ((1 : ℕ) : WithTop ℕ) :=
     WithTop.coe_le_coe.mpr hle
   simpa [h'] using hle'
 
--- 具体的な有限型での計算例
+-- Concrete computations on finite types.
 section FiniteExample
 
-/-- Bool型での例 -/
-def boolClosure : ClosureOperator Bool where
-  cl := by
+/-! ### A non-idempotent step expansion -/
+
+/-- One-step expansion induced by a function. -/
+def stepExpansion (step : X → X) : ExpansionOperator X where
+  step := fun S => S ∪ step '' S
+  extensive := by
+    intro S x hx
+    exact Or.inl hx
+  monotone := by
+    intro S T hST x hx
+    rcases hx with hx | hx
+    · exact Or.inl (hST hx)
+    · rcases hx with ⟨y, hy, rfl⟩
+      exact Or.inr ⟨y, hST hy, rfl⟩
+
+/-- An example on Bool. -/
+def boolExpansion : ExpansionOperator Bool where
+  step := by
     classical
     exact fun S => if S.Nonempty then Set.univ else ∅
   extensive := by
@@ -228,31 +233,55 @@ def boolClosure : ClosureOperator Bool where
     · have hT : T.Nonempty := Set.Nonempty.mono hST hS
       simp [hS, hT]
     · simp [hS]
-  idempotent := by
-    classical
-    intro S
-    by_cases h : S.Nonempty
-    · simp [h]
-    · simp [h]
+
+/-- A simple multi-step example on ℕ. -/
+def natStepExpansion : ExpansionOperator ℕ :=
+  stepExpansion Nat.succ
+
+example :
+    ExpansionOperator.iter (C := natStepExpansion) 1 ({0} : Set ℕ) ≠
+      ExpansionOperator.iter (C := natStepExpansion) 2 ({0} : Set ℕ) := by
+  intro hEq
+  have h2_cl :
+      (2 : ℕ) ∈ natStepExpansion.step (natStepExpansion.step ({0} : Set ℕ)) := by
+    dsimp [natStepExpansion, stepExpansion]
+    refine Or.inr ?_
+    refine ⟨1, ?_, rfl⟩
+    refine Or.inr ?_
+    refine ⟨0, ?_, rfl⟩
+    simp
+  have hEq' :
+      natStepExpansion.step ({0} : Set ℕ) =
+        natStepExpansion.step (natStepExpansion.step ({0} : Set ℕ)) := by
+    simpa [ExpansionOperator.iter] using hEq
+  have h1 : (2 : ℕ) ∈ natStepExpansion.step ({0} : Set ℕ) := by
+    rw [hEq']
+    exact h2_cl
+  have h1' :
+      (2 : ℕ) ∉ ExpansionOperator.iter (C := natStepExpansion) 1 ({0} : Set ℕ) := by
+    change (2 : ℕ) ∉ natStepExpansion.step ({0} : Set ℕ)
+    dsimp [natStepExpansion, stepExpansion]
+    simp
+  exact h1' h1
 
 end FiniteExample
 
-/-! ## StructureTower変換（簡約版） -/
+/-! ## StructureTower conversion (omitted) -/
 
-/- 最小層を持つ構造塔（WithTop ℕ 添字版は非自明なので省略）
-   注：StructureTowerWithMin は ℕ 添字を仮定しているため、
-   WithTop ℕ を扱う完全な変換には別の定義が必要。 -/
+/- A tower with a minimum layer is omitted here.
+   Note: StructureTowerWithMin assumes ℕ indexing, so a full conversion for
+   WithTop ℕ needs a different construction. -/
 
-/-- layer の有限性について -/
+/-- A concrete characterization of finite layers. -/
 lemma layer_finite_rank (n : ℕ) :
-    (instRankedClosure C : Ranked (WithTop ℕ) (Set X)).layer n =
-    {S : Set X | ∃ m : ℕ, m ≤ n ∧ ClosureOperator.iterationRank (C := C) S = m} := by
+    (instRankedExpansion C : Ranked (WithTop ℕ) (Set X)).layer n =
+    {S : Set X | ∃ m : ℕ, m ≤ n ∧ ExpansionOperator.iterationRank (C := C) S = m} := by
   ext S
   constructor
   · intro hS
     classical
-    have hS'': ClosureOperator.iterationRank (C := C) S ≤ n := hS
-    cases hS' : ClosureOperator.iterationRank (C := C) S with
+    have hS'': ExpansionOperator.iterationRank (C := C) S ≤ n := hS
+    cases hS' : ExpansionOperator.iterationRank (C := C) S with
     | top =>
         have : False := by
           exact (WithTop.not_top_le_coe (a := n)) (by simpa [hS'] using hS'')
@@ -266,25 +295,8 @@ lemma layer_finite_rank (n : ℕ) :
         simpa [hS']
   · intro hS
     rcases hS with ⟨m, hm, hEq⟩
-    change ClosureOperator.iterationRank (C := C) S ≤ n
+    change ExpansionOperator.iterationRank (C := C) S ≤ n
     have hm' : (m : WithTop ℕ) ≤ n := WithTop.coe_le_coe.mpr hm
     simpa [hEq] using hm'
-
-/-! ## 応用：停止時刻との対応 -/
-
-section StoppingTimeConnection
-
-variable {Ω : Type u}
-
-/-- σ-代数の生成操作は閉包演算 -/
-axiom sigma_algebra_closure : ClosureOperator (Set Ω)
-
-/-- 停止時刻は filtration における rank に対応 -/
-axiom stopping_time_rank_correspondence :
-  ∀ (F : Set (Set Ω)),
-    ClosureOperator.iterationRank (C := sigma_algebra_closure) F =
-      ((0 : ℕ) : WithTop ℕ)  -- この対応は抽象的な定理の主張
-
-end StoppingTimeConnection
 
 end ST
