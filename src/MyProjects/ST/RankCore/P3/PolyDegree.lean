@@ -150,8 +150,8 @@ lemma layer_zero_eq_constants :
     · subst hc
       simp [instRankedPolynomial]
 
-/-- Layer n は R-加群として閉じている -/
-lemma layer_add_closed (n : ℕ) (p q : Polynomial R)
+/-- Layer n は加法で閉じている（より頑丈な形） -/
+lemma layer_add_closed' (n : ℕ) (p q : Polynomial R)
     (hp : p ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n)
     (hq : q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n) :
     p + q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n := by
@@ -162,5 +162,12 @@ lemma layer_add_closed (n : ℕ) (p q : Polynomial R)
   have h2 : max p.natDegree q.natDegree ≤ n := by
     exact max_le_iff.mpr ⟨hp', hq'⟩
   exact le_trans h1 h2
+
+/-- Layer n は R-加群として閉じている -/
+lemma layer_add_closed (n : ℕ) (p q : Polynomial R)
+    (hp : p ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n)
+    (hq : q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n) :
+    p + q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n := by
+  simpa using (layer_add_closed' (n := n) (p := p) (q := q) hp hq)
 
 end ST
