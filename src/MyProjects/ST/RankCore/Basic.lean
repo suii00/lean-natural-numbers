@@ -4,8 +4,8 @@ import Mathlib
 /-!
 Ranked objects and their layers.
 
-Key defs: `Ranked`, `Ranked.layer`, `Ranked.layer_mono`, `Ranked.toNatTowerWithMin`.
-Example: `x ∈ (Ranked.toNatTowerWithMin R).layer (R.rank x)`.
+Key defs: `Ranked`, `Ranked.layer`, `Ranked.layer_mono`.
+Bridge to towers lives in `ToTowerWithMin.lean`.
 -/
 
 namespace ST
