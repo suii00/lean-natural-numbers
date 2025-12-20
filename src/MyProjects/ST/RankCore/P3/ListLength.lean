@@ -21,7 +21,7 @@ layer n は「長さが n 以下のすべてのリスト」を表す。
 
 namespace ST
 
-universe u
+universe u v
 
 /-- Ranked インスタンス定義 -/
 structure Ranked (α : Type v) (X : Type u) where
@@ -59,35 +59,23 @@ variable {α : Type u}
 /-- layer定義の具体化 -/
 lemma list_layer_iff (n : ℕ) (l : List α) :
     l ∈ (instRankedList : Ranked ℕ (List α)).layer n ↔ l.length ≤ n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold layer definition
-  -- 2. Apply Ranked.mem_layer_iff
-  -- 3. Simplify using instRankedList.rank = List.length
+  rfl
 
 /-- 単調性の確認 -/
 lemma list_layer_mono {m n : ℕ} (h : m ≤ n) :
     (instRankedList : Ranked ℕ (List α)).layer m ⊆
     (instRankedList : Ranked ℕ (List α)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply Ranked.layer_mono with h
+  exact Ranked.layer_mono (R := instRankedList) h
 
 /-- 空リストは layer 0 に属する -/
 lemma nil_in_layer_zero :
     ([] : List α) ∈ (instRankedList : Ranked ℕ (List α)).layer 0 := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Simplify: [].length = 0 ≤ 0
+  simp [Ranked.layer, instRankedList]
 
 /-- n 要素リストは layer n に属する -/
 lemma list_in_layer_self (l : List α) :
     l ∈ (instRankedList : Ranked ℕ (List α)).layer l.length := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Reflexivity: l.length ≤ l.length
+  simp [Ranked.layer, instRankedList]
 
 /-! ## 計算可能な例 -/
 
@@ -125,7 +113,7 @@ structure StructureTowerWithMin where
   minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
 
 /-- Ranked ℕ から StructureTowerWithMin への変換 -/
-def toTowerWithMin (R : Ranked ℕ X) : StructureTowerWithMin where
+def toTowerWithMin {X : Type u} (R : Ranked ℕ X) : StructureTowerWithMin where
   carrier := X
   layer n := {x : X | R.rank x ≤ n}
   covering := by
@@ -151,18 +139,11 @@ def listAsStructureTower {α : Type u} : StructureTowerWithMin :=
 lemma list_tower_layer_eq (n : ℕ) :
     listAsStructureTower.layer n =
     (instRankedList : Ranked ℕ (List α)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold listAsStructureTower and toTowerWithMin
-  -- 2. Show set equality by ext
-  -- 3. Both sides reduce to {l | l.length ≤ n}
+  rfl
 
 /-- 変換後の minLayer が rank と一致 -/
 lemma list_tower_minLayer_eq (l : List α) :
     listAsStructureTower.minLayer l = l.length := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold listAsStructureTower and toTowerWithMin
-  -- 2. minLayer is defined as R.rank = List.length
+  rfl
 
 end ST
