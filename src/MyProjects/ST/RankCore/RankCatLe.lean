@@ -32,14 +32,15 @@ namespace RankCatLe
 variable {α : Type v} [Preorder α]
 
 /-- Projection: the underlying carrier type. -/
-abbrev carrier (T : RankCatLe (u := u) α) : Type u := T.1
+abbrev carrier (T : RankCatLe (α := α)) : Type u := T.1
 
 /-- Projection: the ranked structure on the carrier. -/
-abbrev ranked (T : RankCatLe (u := u) α) : Ranked α (carrier (u := u) T) := T.2
+abbrev ranked (T : RankCatLe (α := α)) : Ranked α (carrier T) := T.2
 
 /-- Ext lemma for morphisms in the data lane (useful for rewriting). -/
 @[ext]
-lemma hom_ext {T U : RankCatLe (u := u) α} {f g : (T ⟶ U)}
+lemma hom_ext {T U : RankCatLe (α := α)}
+    {f g : RankHomLe (ranked T) (ranked U)}
     (hmap : f.map = g.map) (hind : f.indexMap = g.indexMap) : f = g := by
   -- `mono` and `rank_le` are Prop-fields, so it suffices to match the data fields.
   cases f
@@ -49,9 +50,9 @@ lemma hom_ext {T U : RankCatLe (u := u) α} {f g : (T ⟶ U)}
   rfl
 
 /-- Category instance on `RankCatLe α` with `RankHomLe` morphisms. -/
-instance : Category (RankCatLe (u := u) α) where
-  Hom T U := RankHomLe (ranked (u := u) (α := α) T) (ranked (u := u) (α := α) U)
-  id T := RankHomLe.id (ranked (u := u) (α := α) T)
+instance : Category (RankCatLe (α := α)) where
+  Hom T U := RankHomLe (ranked T) (ranked U)
+  id T := RankHomLe.id (ranked T)
   comp f g := RankHomLe.comp f g
   id_comp := by
     intro T U f
@@ -71,7 +72,7 @@ instance : Category (RankCatLe (u := u) α) where
 
 section DoD
 
-variable {T U V : RankCatLe (u := u) α}
+variable {T U V : RankCatLe (α := α)}
 variable (f : T ⟶ U) (g : U ⟶ V)
 
 -- Basic sanity checks (should typecheck).
