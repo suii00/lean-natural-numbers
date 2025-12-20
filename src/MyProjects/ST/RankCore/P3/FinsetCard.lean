@@ -1,5 +1,7 @@
 import Mathlib.Data.Finset.Card
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Set.Finite.Basic
+import Mathlib.Data.Fintype.Powerset
 
 /-!
 # FinsetCard - 有限集合の濃度によるRanked構造
@@ -26,7 +28,7 @@ layer n は「濃度が n 以下のすべての有限集合」を表す。
 
 namespace ST
 
-universe u
+universe u v
 
 /-- Ranked インスタンス定義（再掲） -/
 structure Ranked (α : Type v) (X : Type u) where
@@ -64,44 +66,29 @@ variable {α : Type u}
 /-- layer定義の具体化 -/
 lemma finset_layer_iff (n : ℕ) (S : Finset α) :
     S ∈ (instRankedFinset : Ranked ℕ (Finset α)).layer n ↔ S.card ≤ n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold layer definition
-  -- 2. Apply Ranked.mem_layer_iff
-  -- 3. Simplify using instRankedFinset.rank = Finset.card
+  rfl
 
 /-- 単調性の確認 -/
 lemma finset_layer_mono {m n : ℕ} (h : m ≤ n) :
     (instRankedFinset : Ranked ℕ (Finset α)).layer m ⊆
     (instRankedFinset : Ranked ℕ (Finset α)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply Ranked.layer_mono with h
+  exact Ranked.layer_mono (R := instRankedFinset) h
 
 /-- 空集合は layer 0 に属する -/
 lemma empty_in_layer_zero :
     (∅ : Finset α) ∈ (instRankedFinset : Ranked ℕ (Finset α)).layer 0 := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Simplify: ∅.card = 0 ≤ 0
+  simp [Ranked.layer, instRankedFinset]
 
 /-- n 元集合は layer n に属する -/
 lemma finset_in_layer_self (S : Finset α) :
     S ∈ (instRankedFinset : Ranked ℕ (Finset α)).layer S.card := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Reflexivity: S.card ≤ S.card
+  simp [Ranked.layer, instRankedFinset]
 
 /-- 部分集合のrankは小さい -/
 lemma rank_subset {S T : Finset α} (h : S ⊆ T) :
     (instRankedFinset : Ranked ℕ (Finset α)).rank S ≤
     (instRankedFinset : Ranked ℕ (Finset α)).rank T := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold rank = Finset.card
-  -- 2. Apply Finset.card_le_card h
+  simpa using (Finset.card_le_card h)
 
 /-! ## 計算可能な例 -/
 
@@ -119,6 +106,10 @@ example : (instRankedFinset : Ranked ℕ (Finset ℕ)).rank {1, 2, 3} = 3 := rfl
 
 -- 4元集合の rank
 example : (instRankedFinset : Ranked ℕ (Finset ℕ)).rank {1, 2, 3, 4} = 4 := rfl
+
+-- layer membership check
+example : ({1, 2} : Finset ℕ) ∈ (instRankedFinset : Ranked ℕ (Finset ℕ)).layer 2 := by
+  simp [Ranked.layer, instRankedFinset]
 
 -- #eval での動作確認
 #eval (instRankedFinset : Ranked ℕ (Finset ℕ)).rank ∅
@@ -139,7 +130,7 @@ structure StructureTowerWithMin where
   minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
 
 /-- Ranked ℕ から StructureTowerWithMin への変換 -/
-def toTowerWithMin (R : Ranked ℕ X) : StructureTowerWithMin where
+def toTowerWithMin {X : Type u} (R : Ranked ℕ X) : StructureTowerWithMin where
   carrier := X
   layer n := {x : X | R.rank x ≤ n}
   covering := by
@@ -165,29 +156,20 @@ def finsetAsStructureTower {α : Type u} : StructureTowerWithMin :=
 lemma finset_tower_layer_eq (n : ℕ) :
     finsetAsStructureTower.layer n =
     (instRankedFinset : Ranked ℕ (Finset α)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold finsetAsStructureTower and toTowerWithMin
-  -- 2. Show set equality by ext
-  -- 3. Both sides reduce to {S | S.card ≤ n}
+  rfl
 
 /-- 変換後の minLayer が rank と一致 -/
 lemma finset_tower_minLayer_eq (S : Finset α) :
     finsetAsStructureTower.minLayer S = S.card := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold finsetAsStructureTower and toTowerWithMin
-  -- 2. minLayer is defined as R.rank = Finset.card
+  rfl
 
 /-! ## 組合せ論的性質 -/
 
 /-- 層 n には高々 C(|α|, 0) + ... + C(|α|, n) 個の要素しかない（α が有限のとき） -/
 lemma layer_finite_when_base_finite [Fintype α] (n : ℕ) :
     Set.Finite ((instRankedFinset : Ranked ℕ (Finset α)).layer n) := by
-  sorry
-  -- Proof strategy:
-  -- 1. layer n = {S | S.card ≤ n}
-  -- 2. これは有限個の有限集合の和集合
-  -- 3. Finset.finite_toSet を使う
+  refine (Set.finite_univ.subset ?_)
+  intro S hS
+  exact Set.mem_univ S
 
 end ST
