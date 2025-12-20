@@ -20,6 +20,7 @@ layer n は「次数が n 以下のすべての多項式」を表す。
 ゼロ多項式の扱い：
 - Polynomial.natDegree 0 = 0（Mathlibの定義）
 - これにより layer 0 にはゼロ多項式と定数多項式が含まれる
+T1 では natDegree : ℕ を採用し、degree : WithBot ℕ には寄せない。
 
 ## 典型的な使用例
 - ゼロ多項式 0 の natDegree = 0
@@ -156,7 +157,10 @@ lemma layer_add_closed (n : ℕ) (p q : Polynomial R)
     p + q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n := by
   have hp' : p.natDegree ≤ n := hp
   have hq' : q.natDegree ≤ n := hq
-  have h := Polynomial.natDegree_add_le_of_degree_le (p := p) (q := q) hp' hq'
-  simpa using h
+  have h1 : (p + q).natDegree ≤ max p.natDegree q.natDegree :=
+    Polynomial.natDegree_add_le p q
+  have h2 : max p.natDegree q.natDegree ≤ n := by
+    exact max_le_iff.mpr ⟨hp', hq'⟩
+  exact le_trans h1 h2
 
 end ST
