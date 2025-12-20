@@ -30,14 +30,17 @@
 \newcommand{\layer}{\operatorname{layer}}
 \newcommand{\map}{\operatorname{map}}
 \newcommand{\indexMap}{\operatorname{indexMap}}
-\newcommand{\iter}{\operatorname{iter}} % 修正: iterを定義
+\newcommand{\iter}{\operatorname{iter}}
 \newcommand{\step}{\operatorname{step}}
+\newcommand{\natDegree}{\operatorname{natDegree}}
+\newcommand{\WithTop}{\mathrm{WithTop}}
+
+% --- 復元したマクロ ---
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\Z}{\mathbb{Z}}
 \newcommand{\List}{\mathrm{List}}
 \newcommand{\Finset}{\mathrm{Finset}}
 \newcommand{\Poly}{\mathrm{Polynomial}}
-\newcommand{\WithTop}{\mathrm{WithTop}}
 
 % --- メタデータ ---
 \title{\textbf{ランク付きオブジェクトの数学的構造と諸例}\\ \large --- Leanライブラリ \texttt{ST.RankCore} に基づく解説 ---}
@@ -52,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-本稿では、データ構造をその「複雑さ」や「サイズ」に基づいて層別化（stratification）するための抽象的枠組みである「ランク付きオブジェクト（Ranked Object）」について解説する。Lean 4ライブラリ \code{ST.RankCore} の実装に基づき、基本定義、データレーン射（RankHomLe）、およびリスト、有限集合、多項式、整数、閉包反復といった具体的な数学的対象における実現例を網羅する。
+本稿では、データ構造をその「複雑さ」や「サイズ」に基づいて層別化（stratification）するための抽象的枠組みである「ランク付きオブジェクト（Ranked Object）」について解説する。Lean 4ライブラリ \code{ST.RankCore} のT1仕様に基づき、基本定義、データレーン射（RankHomLe）、およびリスト、有限集合、多項式、整数、閉包反復といった具体的な数学的対象における実現例を網羅する。
 \end{abstract}
 
 \tableofcontents
@@ -63,29 +66,34 @@
 
 \subsection{定義と構造}
 
+一般に、データの型を $X$、ランク（インデックス）の型を $\iota$（イオタ）とする。
+
 \begin{definition}[ランク付きオブジェクト]
-$\alpha$ を前順序集合（インデックス型）、$X$ を型（キャリア型）とする。
-構造 $R = (X, \rank_R)$ が $\alpha$-ランク付きオブジェクトであるとは、以下の写像を備えていることを言う。
+$\iota$ を前順序集合（インデックス型）、$X$ を型（キャリア型）とする。
+構造 $R = (X, \rank_R)$ が $\iota$-ランク付きオブジェクトであるとは、以下の写像を備えていることを言う。
 \[
-  \rank_R : X \to \alpha
+  \rank_R : X \to \iota
 \]
-Leanにおける定義は \code{ST.Ranked} である。
 \end{definition}
+
+\noindent \textbf{Lean実装:} \code{ST.Ranked}
 
 このランク関数により、$X$ の部分集合族である「レイヤー（層）」が誘導される。
 
 \begin{definition}[レイヤー]
-任意の $n \in \alpha$ に対し、$n$-レイヤー $\layer_R(n)$ を以下のように定義する。
+任意の $n : \iota$ に対し、$n$-レイヤー $\layer_R(n) \subseteq X$ を以下のように定義する。
 \[
-  \layer_R(n) := \{ x \in X \mid \rank_R(x) \le n \}
+  \layer_R(n) := \{ x : X \mid \rank_R(x) \le n \}
 \]
 \end{definition}
 
+\noindent \textbf{Lean実装:} \code{ST.Ranked.layer}
+
 \subsection{レイヤーの単調性}
-インデックス型 $\alpha$ の順序構造は、レイヤー間の包含関係に直接反映される。
+インデックス型 $\iota$ の順序構造は、レイヤー間の包含関係に直接反映される。
 
 \begin{lemma}[単調性]
-$n, m \in \alpha$ において $n \le m$ ならば、以下が成り立つ。
+$n, m : \iota$ において $n \le m$ ならば、以下が成り立つ。
 \[
   \layer_R(n) \subseteq \layer_R(m)
 \]
@@ -96,7 +104,7 @@ $n, m \in \alpha$ において $n \le m$ ならば、以下が成り立つ。
 \begin{center}
 \begin{tikzpicture}
     % 背景の定義
-    \draw[thick, ->] (0, 0) -- (6, 0) node[right] {$\alpha$ (ランク)};
+    \draw[thick, ->] (0, 0) -- (6, 0) node[right] {$\iota$ (ランク)};
     
     % Layer 0
     \draw[fill=blue!10] (0.5, 0.2) rectangle (1.5, 1.5);
@@ -126,19 +134,21 @@ $n, m \in \alpha$ において $n \le m$ ならば、以下が成り立つ。
 異なるランク付きオブジェクト間の関係を記述するために、「データレーン射 (RankHomLe)」を導入する。これは構造を保つ写像であり、ランクの増大を制御する。
 
 \subsection{定義}
-$R = (X, \rank_R : X \to \alpha)$ と $S = (Y, \rank_S : Y \to \beta)$ をランク付きオブジェクトとする。
+$R = (X, \rank_R : X \to \iota)$ と $S = (Y, \rank_S : Y \to \kappa)$ をランク付きオブジェクトとする。
 
 \begin{definition}[RankHomLe]
 $f : R \to_{\le} S$ は以下の対 $(f_{\map}, f_{\indexMap})$ からなる。
 \begin{enumerate}
     \item \textbf{キャリア写像}: $f_{\map} : X \to Y$
-    \item \textbf{インデックス写像}: $f_{\indexMap} : \alpha \to \beta$ （単調増加）
+    \item \textbf{インデックス写像}: $f_{\indexMap} : \iota \to \kappa$ （単調増加）
 \end{enumerate}
 これらは以下の\textbf{ランク不等式}を満たさなければならない。
 \[
-  \forall x \in X, \quad \rank_S(f_{\map}(x)) \le f_{\indexMap}(\rank_R(x))
+  \forall x : X, \quad \rank_S(f_{\map}(x)) \le f_{\indexMap}(\rank_R(x))
 \]
 \end{definition}
+
+\noindent \textbf{Lean実装:} \code{ST.RankHomLe}
 
 \subsection{可換図式的解釈}
 この定義は、以下の図式における「Lax可換性（不等式による可換性）」として表現できる。
@@ -147,8 +157,8 @@ $f : R \to_{\le} S$ は以下の対 $(f_{\map}, f_{\indexMap})$ からなる。
 \begin{tikzpicture}[node distance=2.5cm, auto]
   \node (X) {$X$};
   \node (Y) [right=of X] {$Y$};
-  \node (A) [below=of X] {$\alpha$};
-  \node (B) [below=of Y] {$\beta$};
+  \node (A) [below=of X] {$\iota$};
+  \node (B) [below=of Y] {$\kappa$};
 
   \draw[->] (X) -- node {$f_{\map}$} (Y);
   \draw[->] (X) -- node[left] {$\rank_R$} (A);
@@ -161,8 +171,8 @@ $f : R \to_{\le} S$ は以下の対 $(f_{\map}, f_{\indexMap})$ からなる。
   \node[right=0.5cm of Y] (Expl) {
     \begin{minipage}{5cm}
       \small
-      パス1: $X \xrightarrow{\rank} \alpha \xrightarrow{\indexMap} \beta$ \\
-      パス2: $X \xrightarrow{\map} Y \xrightarrow{\rank} \beta$ \\
+      パス1: $X \xrightarrow{\rank} \iota \xrightarrow{\indexMap} \kappa$ \\
+      パス2: $X \xrightarrow{\map} Y \xrightarrow{\rank} \kappa$ \\
       \\
       条件: パス2 $\le$ パス1
     \end{minipage}
@@ -170,84 +180,95 @@ $f : R \to_{\le} S$ は以下の対 $(f_{\map}, f_{\indexMap})$ からなる。
 \end{tikzpicture}
 \end{center}
 
+\subsection{恒等と合成}
+RankHomLeは圏の構造を成す。
+
+\begin{definition}[恒等射]
+任意の $R$ に対し、$\mathrm{id}_R : R \to_{\le} R$ は以下で与えられる。
+\[ \map = \mathrm{id}_X, \quad \indexMap = \mathrm{id}_\iota \]
+\end{definition}
+
+\begin{definition}[合成]
+$f : R \to_{\le} S$ と $g : S \to_{\le} T$ に対し、合成 $g \circ f$ は以下で定義される。
+\[ \map = g_{\map} \circ f_{\map}, \quad \indexMap = g_{\indexMap} \circ f_{\indexMap} \]
+\end{definition}
+
+\noindent \textbf{証明の要点:} 合成がランク不等式を満たすことは、単調性と推移律から直ちに導かれる。
+\[
+  \rank_T(g(f(x))) \le g_{\indexMap}(\rank_S(f(x))) \le g_{\indexMap}(f_{\indexMap}(\rank_R(x)))
+\]
+ここで2つ目の不等式に $g_{\indexMap}$ の単調性（mono）を使用し、全体として不等式の推移律（le\_trans）で結ばれる。
+
 \section{具体的な実現例}
 
 以下に、Leanライブラリ内で実装されている5つの具体的なランク付きオブジェクトの例を挙げる。これらはすべて $T1$ 仕様に基づいている。
 
 \subsection{ListLength (リストの長さ)}
-最も基本的な例である。
+最も基本的な例である。$A$ を任意の型とする。
 \begin{itemize}
-    \item \textbf{型}: $X = \List(\alpha)$, $\alpha = \N$
+    \item \textbf{型}: $X = \List(A)$
+    \item \textbf{インデックス}: $\iota = \N$
     \item \textbf{ランク}: $\rank(l) = \mathrm{length}(l)$
     \item \textbf{レイヤー}: $\layer(n)$ は長さ $n$ 以下のリスト全体。
 \end{itemize}
+\noindent \textbf{Lean実装:} \code{ST.instRankedList}
 
 \subsection{FinsetCard (有限集合の濃度)}
-順序を無視した構造のサイズである。
+順序を無視した構造のサイズである。$A$ を任意の型とする。
 \begin{itemize}
-    \item \textbf{型}: $X = \Finset(\alpha)$, $\alpha = \N$
+    \item \textbf{型}: $X = \Finset(A)$
+    \item \textbf{インデックス}: $\iota = \N$
     \item \textbf{ランク}: $\rank(S) = \mathrm{card}(S)$
 \end{itemize}
+\noindent \textbf{Lean実装:} \code{ST.instRankedFinset}
 
 \subsubsection*{例: RankHomLe (List $\to$ Finset)}
-リストを有限集合に変換する操作は、重複を取り除くためサイズが増えることはない。これは \code{RankHomLe} の典型例である。
+型 $A$ に決定可能な等号 \code{[DecidableEq A]} があると仮定する。リストを有限集合に変換する操作は、重複を取り除くためサイズが増えることはない。
 \[ \mathrm{card}(\mathrm{toFinset}(l)) \le \mathrm{length}(l) \]
 ここで、$f_{\indexMap} = \mathrm{id}_{\N}$ である。
 
 \subsection{PolyDegree (多項式の次数)}
-代数的な例。$R$ を半環とする。
+代数的な例。$R$ を半環 \code{[Semiring R]} とする。
 \begin{itemize}
-    \item \textbf{型}: $X = \Poly(R)$, $\alpha = \N$
+    \item \textbf{型}: $X = \Poly(R)$
+    \item \textbf{インデックス}: $\iota = \N$
     \item \textbf{ランク}: $\rank(p) = \mathrm{natDegree}(p)$
 \end{itemize}
 \begin{remark}
 Leanの \code{natDegree} の仕様により、ゼロ多項式 $0$ の次数は $0$ となる。したがって、$\layer(0)$ には定数多項式とゼロ多項式の両方が含まれる。
 \end{remark}
+\noindent \textbf{Lean実装:} \code{ST.instRankedPolynomial}
 
 \subsection{IntAbs (整数の絶対値)}
 幾何的な距離に基づくランク。
 \begin{itemize}
-    \item \textbf{型}: $X = \Z$, $\alpha = \N$
+    \item \textbf{型}: $X = \Z$
+    \item \textbf{インデックス}: $\iota = \N$
     \item \textbf{ランク}: $\rank(z) = |z| = \mathrm{natAbs}(z)$
-    \item \textbf{レイヤー}: $\layer(n) = \{ z \in \Z \mid -n \le z \le n \}$
+    \item \textbf{レイヤー}: $\layer(n) = \{ z : \Z \mid -n \le z \le n \}$
 \end{itemize}
+\noindent \textbf{Lean実装:} \code{ST.instRankedInt}
 
 \subsection{ClosureIteration (反復の停止)}
 動的なプロセスの収束性に基づく高度な例である。
 集合 $X$ 上の拡大写像 $\mathrm{step} : \mathcal{P}(X) \to \mathcal{P}(X)$ を考える。
 
 \begin{itemize}
-    \item \textbf{インデックス}: $\alpha = \WithTop \N = \N \cup \{\top\}$
+    \item \textbf{インデックス}: $\iota = \WithTop \N = \N \cup \{\infty\}$ （Leanでは $\top$）
     \item \textbf{定義}: $\iter(n, S) = \underbrace{\mathrm{step}(\dots \mathrm{step}}_{n}(S)\dots)$ とする。
     \item \textbf{ランク}: 
-    \[ \rank(S) = \min \{ n \in \N \mid \iter(n, S) = \iter(n+1, S) \} \]
-    もしそのような $n$ が存在しなければ $\top$（無限大）。
+    \[ \rank(S) = \min \{ n : \N \mid \iter(n, S) = \iter(n+1, S) \} \]
+    もしそのような $n$ が存在しなければ $\infty$。
 \end{itemize}
 
-\begin{figure}[h]
-\centering
-\begin{tikzpicture}[scale=0.9, transform shape]
-  \node[draw, circle, minimum size=1cm] (S0) at (0,0) {$S$};
-  \node[draw, circle, minimum size=1cm] (S1) at (2.5,0) {$S_1$};
-  \node[draw, circle, minimum size=1cm] (S2) at (5,0) {$S_2$};
-  \node[draw, circle, double, minimum size=1cm] (S3) at (7.5,0) {$S_\infty$};
-  
-  \draw[->, thick] (S0) -- node[above] {step} (S1);
-  \draw[->, thick] (S1) -- node[above] {step} (S2);
-  \draw[->, thick] (S2) -- node[above] {step} node[below] {\small (安定)} (S3);
-  \draw[->, thick, loop right] (S3) edge node {id} (S3);
-
-  \node[align=center] at (3.75, -1.5) {$\rank(S) = 2$\\ （2回のステップで不動点に到達）};
-\end{tikzpicture}
-\caption{ClosureIterationにおけるランクの概念図}
-\end{figure}
-
 この定義において、べき等性（$\mathrm{step}(\mathrm{step}(S)) = \mathrm{step}(S)$）は仮定されていない。仮定した場合、ランクは常に $0$ または $1$ に退化する。
+
+\noindent \textbf{Lean実装:} \code{ST.instRankedExpansion}
 
 \section{まとめ}
 本稿では、Leanで実装された \code{ST.RankCore} の数学的基礎を解説した。
 \begin{enumerate}
-    \item \textbf{Ranked Object}: データに対数的な尺度（ランク）を導入する。
+    \item \textbf{Ranked Object}: データに順序的な尺度（ランク）を導入する。
     \item \textbf{RankHomLe}: 構造とランクの有界性を保つ射。
     \item \textbf{具体例}: List, Finset, Polynomial, Int, ClosureExpansion など、離散数学から代数、解析的構造まで幅広く適用可能である。
 \end{enumerate}
