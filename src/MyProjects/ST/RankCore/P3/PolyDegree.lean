@@ -1,5 +1,6 @@
 import Mathlib.Algebra.Polynomial.Basic
 import Mathlib.Algebra.Polynomial.Degree.Definitions
+import Mathlib.Algebra.Polynomial.Degree.Operations
 
 /-!
 # PolyDegree - 多項式の次数によるRanked構造
@@ -32,7 +33,7 @@ layer n は「次数が n 以下のすべての多項式」を表す。
 
 namespace ST
 
-universe u
+universe u v
 
 /-- Ranked インスタンス定義（再掲） -/
 structure Ranked (α : Type v) (X : Type u) where
@@ -72,79 +73,64 @@ variable {R : Type u} [Semiring R]
 lemma poly_layer_iff (n : ℕ) (p : Polynomial R) :
     p ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n ↔
     p.natDegree ≤ n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold layer definition
-  -- 2. Apply Ranked.mem_layer_iff
-  -- 3. Simplify using instRankedPolynomial.rank = Polynomial.natDegree
+  rfl
 
 /-- 単調性の確認 -/
 lemma poly_layer_mono {m n : ℕ} (h : m ≤ n) :
     (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer m ⊆
     (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply Ranked.layer_mono with h
+  intro p hp
+  exact le_trans hp h
 
 /-- ゼロ多項式は layer 0 に属する -/
 lemma zero_in_layer_zero :
     (0 : Polynomial R) ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer 0 := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Simplify: (0 : Polynomial R).natDegree = 0 ≤ 0
+  simp [instRankedPolynomial]
 
 /-- 定数多項式は layer 0 に属する -/
 lemma const_in_layer_zero (c : R) :
     (Polynomial.C c) ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer 0 := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Use Polynomial.natDegree_C: (C c).natDegree ≤ 0
+  simp [instRankedPolynomial]
 
 /-- n 次多項式は layer n に属する -/
 lemma poly_in_layer_self (p : Polynomial R) :
     p ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer p.natDegree := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff
-  -- 2. Reflexivity: p.natDegree ≤ p.natDegree
+  simp [instRankedPolynomial]
 
 /-- 次数は加法で増えない（実際は最大値になる） -/
 lemma rank_add_le (p q : Polynomial R) :
     (instRankedPolynomial : Ranked ℕ (Polynomial R)).rank (p + q) ≤
     max ((instRankedPolynomial : Ranked ℕ (Polynomial R)).rank p)
         ((instRankedPolynomial : Ranked ℕ (Polynomial R)).rank q) := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold rank = Polynomial.natDegree
-  -- 2. Apply Polynomial.natDegree_add_le
+  simpa [instRankedPolynomial] using Polynomial.natDegree_add_le p q
 
 /-! ## 計算可能な例 -/
 
 -- ゼロ多項式の rank
-example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank 0 = 0 := rfl
+example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank 0 = 0 := by
+  simp [instRankedPolynomial]
 
 -- 定数多項式の rank（非ゼロ）
-example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.C 5) = 0 := rfl
+example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.C 5) = 0 := by
+  simp [instRankedPolynomial]
 
 -- X の rank
-example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank Polynomial.X = 1 := rfl
+example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank Polynomial.X = 1 := by
+  simp [instRankedPolynomial]
 
 -- X^2 の rank
-example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 2) = 2 := rfl
+example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 2) = 2 := by
+  simp [instRankedPolynomial]
 
 -- X^3 の rank
-example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 3) = 3 := rfl
+example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 3) = 3 := by
+  simp [instRankedPolynomial]
 
 -- X^5 の rank
-example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 5) = 5 := rfl
+example : (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 5) = 5 := by
+  simp [instRankedPolynomial]
 
--- #eval での動作確認
-#eval (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank 0
-#eval (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank Polynomial.X
-#eval (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 2)
-#eval (instRankedPolynomial : Ranked ℕ (Polynomial ℤ)).rank (Polynomial.X ^ 4)
+-- #eval は Polynomial が非計算的なため省略（証明例で確認）
 
 /-! ## StructureTower変換 -/
 
@@ -159,7 +145,7 @@ structure StructureTowerWithMin where
   minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
 
 /-- Ranked ℕ から StructureTowerWithMin への変換 -/
-def toTowerWithMin (R : Ranked ℕ X) : StructureTowerWithMin where
+def toTowerWithMin {X : Type u} (R : Ranked ℕ X) : StructureTowerWithMin where
   carrier := X
   layer n := {x : X | R.rank x ≤ n}
   covering := by
@@ -185,19 +171,13 @@ def polyAsStructureTower {R : Type u} [Semiring R] : StructureTowerWithMin :=
 lemma poly_tower_layer_eq (n : ℕ) :
     polyAsStructureTower.layer n =
     (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold polyAsStructureTower and toTowerWithMin
-  -- 2. Show set equality by ext
-  -- 3. Both sides reduce to {p | p.natDegree ≤ n}
+  ext p
+  rfl
 
 /-- 変換後の minLayer が rank と一致 -/
 lemma poly_tower_minLayer_eq (p : Polynomial R) :
     polyAsStructureTower.minLayer p = p.natDegree := by
-  sorry
-  -- Proof strategy:
-  -- 1. Unfold polyAsStructureTower and toTowerWithMin
-  -- 2. minLayer is defined as R.rank = Polynomial.natDegree
+  rfl
 
 /-! ## 代数的性質 -/
 
@@ -205,21 +185,28 @@ lemma poly_tower_minLayer_eq (p : Polynomial R) :
 lemma layer_zero_eq_constants :
     (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer 0 =
     {p : Polynomial R | ∃ c : R, p = Polynomial.C c ∨ p = 0} := by
-  sorry
-  -- Proof strategy:
-  -- 1. layer 0 = {p | p.natDegree ≤ 0}
-  -- 2. natDegree p ≤ 0 ⇔ p is constant or zero
-  -- 3. Use Polynomial.eq_C_of_natDegree_le_zero
+  ext p
+  constructor
+  · intro hp
+    have hp' : p.natDegree ≤ 0 := hp
+    refine ⟨p.coeff 0, ?_⟩
+    left
+    exact Polynomial.eq_C_of_natDegree_le_zero hp'
+  · intro hp
+    rcases hp with ⟨c, hc | hc⟩
+    · subst hc
+      simp [instRankedPolynomial]
+    · subst hc
+      simp [instRankedPolynomial]
 
 /-- Layer n は R-加群として閉じている -/
 lemma layer_add_closed (n : ℕ) (p q : Polynomial R)
     (hp : p ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n)
     (hq : q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n) :
     p + q ∈ (instRankedPolynomial : Ranked ℕ (Polynomial R)).layer n := by
-  sorry
-  -- Proof strategy:
-  -- 1. Apply mem_layer_iff at hp, hq
-  -- 2. (p + q).natDegree ≤ max p.natDegree q.natDegree ≤ n
-  -- 3. Use Polynomial.natDegree_add_le
+  have hp' : p.natDegree ≤ n := hp
+  have hq' : q.natDegree ≤ n := hq
+  have h := Polynomial.natDegree_add_le_of_degree_le (p := p) (q := q) hp' hq'
+  simpa using h
 
 end ST
