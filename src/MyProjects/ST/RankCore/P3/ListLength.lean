@@ -2,6 +2,8 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Nat.Lattice
 import MyProjects.ST.RankCore.Basic
 import MyProjects.ST.RankCore.Bridge.ToTowerWithMin
+import MyProjects.ST.RankCore.RankHomLe
+import MyProjects.ST.RankCore.P3.FinsetCard
 
 /-!
 # ListLength - リストの長さによるRanked構造
@@ -95,5 +97,20 @@ lemma list_tower_layer_eq (n : ℕ) :
 lemma list_tower_minLayer_eq (l : List α) :
     listAsStructureTower.minLayer l = l.length := by
   rfl
+
+/-! ## RankHomLe: List → Finset -/
+
+/-- 重複除去で濃度が減るので、`List` から `Finset` への RankHomLe。 -/
+def listToFinsetRankHomLe (α : Type u) [DecidableEq α] :
+    RankHomLe (instRankedList : Ranked ℕ (List α))
+              (instRankedFinset : Ranked ℕ (Finset α)) where
+  map := List.toFinset
+  indexMap := id
+  mono := by
+    intro a b hab
+    exact hab
+  rank_le := by
+    intro l
+    simpa [instRankedList, instRankedFinset] using (List.toFinset_card_le (l := l))
 
 end ST
