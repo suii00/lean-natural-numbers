@@ -24,8 +24,8 @@ universe u v
 /-- Objects of the Rank data-lane category at index type `α`.
 
 An object is a type `X : Type u` equipped with a rank function `X → α`. -/
-abbrev RankCatLe (α : Type v) : Type (max (u + 1) v) :=
-  Σ X : Type u, Ranked α X
+abbrev RankCatLe.{u1, v1} (α : Type v1) : Type (max (u1 + 1) v1) :=
+  Σ X : Type u1, Ranked α X
 
 namespace RankCatLe
 
@@ -53,6 +53,7 @@ lemma hom_ext {T U : RankCatLe (α := α)}
 instance : Category (RankCatLe (α := α)) where
   Hom T U := RankHomLe (ranked T) (ranked U)
   id T := RankHomLe.id (ranked T)
+  -- comp f g = f ≫ g (first f, then g)
   comp f g := RankHomLe.comp f g
   id_comp := by
     intro T U f
