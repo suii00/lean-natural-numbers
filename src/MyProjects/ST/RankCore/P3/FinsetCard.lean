@@ -115,6 +115,11 @@ lemma finset_tower_minLayer_eq (S : Finset α) :
 
 /-! ## 組合せ論的性質 -/
 
+/-- Rank bound for `List.toFinset`, used in the `ListLength → FinsetCard` RankHomLe. -/
+lemma toFinset_rank_le_length [DecidableEq α] (l : List α) :
+    (instRankedFinset : Ranked ℕ (Finset α)).rank l.toFinset ≤ l.length := by
+  simpa [instRankedFinset] using (List.toFinset_card_le (l := l))
+
 /-- 層 n には高々 C(|α|, 0) + ... + C(|α|, n) 個の要素しかない（α が有限のとき） -/
 lemma layer_finite_when_base_finite [Fintype α] (n : ℕ) :
     Set.Finite ((instRankedFinset : Ranked ℕ (Finset α)).layer n) := by
