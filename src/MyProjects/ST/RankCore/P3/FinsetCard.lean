@@ -2,6 +2,8 @@ import Mathlib.Data.Finset.Card
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Set.Finite.Basic
 import Mathlib.Data.Fintype.Powerset
+import MyProjects.ST.RankCore.Basic
+import MyProjects.ST.RankCore.Bridge.ToTowerWithMin
 
 /-!
 # FinsetCard - 有限集合の濃度によるRanked構造
@@ -29,29 +31,6 @@ layer n は「濃度が n 以下のすべての有限集合」を表す。
 namespace ST
 
 universe u v
-
-/-- Ranked インスタンス定義（再掲） -/
-structure Ranked (α : Type v) (X : Type u) where
-  rank : X → α
-
-namespace Ranked
-
-variable {α : Type v} {X : Type u}
-
-/-- Standard "layer" induced by rank: elements of rank ≤ n. -/
-def layer [Preorder α] (R : Ranked α X) (n : α) : Set X :=
-  {x | R.rank x ≤ n}
-
-@[simp] theorem mem_layer_iff [Preorder α] (R : Ranked α X) (n : α) (x : X) :
-    x ∈ R.layer n ↔ R.rank x ≤ n := Iff.rfl
-
-/-- Monotonicity of layers: n ≤ m ⇒ layer n ⊆ layer m. -/
-theorem layer_mono [Preorder α] (R : Ranked α X) {n m : α} (hnm : n ≤ m) :
-    R.layer n ⊆ R.layer m := by
-  intro x hx
-  exact le_trans hx hnm
-
-end Ranked
 
 /-! ## Ranked インスタンス定義 -/
 
@@ -119,38 +98,9 @@ example : ({1, 2} : Finset ℕ) ∈ (instRankedFinset : Ranked ℕ (Finset ℕ))
 
 /-! ## StructureTower変換 -/
 
-/-- 最小層を持つ構造塔（簡約版） -/
-structure StructureTowerWithMin where
-  carrier : Type*
-  layer : ℕ → Set carrier
-  covering : ∀ x : carrier, ∃ i : ℕ, x ∈ layer i
-  monotone : ∀ {i j : ℕ}, i ≤ j → layer i ⊆ layer j
-  minLayer : carrier → ℕ
-  minLayer_mem : ∀ x, x ∈ layer (minLayer x)
-  minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
-
-/-- Ranked ℕ から StructureTowerWithMin への変換 -/
-def toTowerWithMin {X : Type u} (R : Ranked ℕ X) : StructureTowerWithMin where
-  carrier := X
-  layer n := {x : X | R.rank x ≤ n}
-  covering := by
-    intro x
-    refine ⟨R.rank x, ?_⟩
-    simp
-  monotone := by
-    intro i j hij x hx
-    exact le_trans hx hij
-  minLayer := R.rank
-  minLayer_mem := by
-    intro x
-    simp
-  minLayer_minimal := by
-    intro x i hx
-    exact hx
-
 /-- TowerWithMinへの変換（Finset用） -/
 def finsetAsStructureTower {α : Type u} : StructureTowerWithMin :=
-  toTowerWithMin (instRankedFinset : Ranked ℕ (Finset α))
+  toNatTowerWithMin (instRankedFinset : Ranked ℕ (Finset α))
 
 /-- 変換後の層が元の層と一致 -/
 lemma finset_tower_layer_eq (n : ℕ) :
