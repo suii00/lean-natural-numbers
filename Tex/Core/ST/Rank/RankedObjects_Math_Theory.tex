@@ -1,0 +1,255 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- パッケージ設定 ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[top=25mm, bottom=25mm, left=20mm, right=20mm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes.geometric, positioning, backgrounds, fit, calc}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan
+}
+
+% --- 定理環境 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+\theoremstyle{plain}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+
+% --- マクロ ---
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\layer}{\operatorname{layer}}
+\newcommand{\map}{\operatorname{map}}
+\newcommand{\indexMap}{\operatorname{indexMap}}
+\newcommand{\iter}{\operatorname{iter}} % 修正: iterを定義
+\newcommand{\step}{\operatorname{step}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\List}{\mathrm{List}}
+\newcommand{\Finset}{\mathrm{Finset}}
+\newcommand{\Poly}{\mathrm{Polynomial}}
+\newcommand{\WithTop}{\mathrm{WithTop}}
+
+% --- メタデータ ---
+\title{\textbf{ランク付きオブジェクトの数学的構造と諸例}\\ \large --- Leanライブラリ \texttt{ST.RankCore} に基づく解説 ---}
+\author{
+    \textbf{TeX生成}: Gemini (Google) \\
+    \textbf{Leanファイル生成}: Codex (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、データ構造をその「複雑さ」や「サイズ」に基づいて層別化（stratification）するための抽象的枠組みである「ランク付きオブジェクト（Ranked Object）」について解説する。Lean 4ライブラリ \code{ST.RankCore} の実装に基づき、基本定義、データレーン射（RankHomLe）、およびリスト、有限集合、多項式、整数、閉包反復といった具体的な数学的対象における実現例を網羅する。
+\end{abstract}
+
+\tableofcontents
+
+\section{基本理論: Ranked Object}
+
+ランク付きオブジェクトの理論は、任意の型 $X$ に対して「ランク」と呼ばれる評価関数を付与し、そのランクに基づいて $X$ をフィルタリングするという単純なアイデアに基づいている。
+
+\subsection{定義と構造}
+
+\begin{definition}[ランク付きオブジェクト]
+$\alpha$ を前順序集合（インデックス型）、$X$ を型（キャリア型）とする。
+構造 $R = (X, \rank_R)$ が $\alpha$-ランク付きオブジェクトであるとは、以下の写像を備えていることを言う。
+\[
+  \rank_R : X \to \alpha
+\]
+Leanにおける定義は \code{ST.Ranked} である。
+\end{definition}
+
+このランク関数により、$X$ の部分集合族である「レイヤー（層）」が誘導される。
+
+\begin{definition}[レイヤー]
+任意の $n \in \alpha$ に対し、$n$-レイヤー $\layer_R(n)$ を以下のように定義する。
+\[
+  \layer_R(n) := \{ x \in X \mid \rank_R(x) \le n \}
+\]
+\end{definition}
+
+\subsection{レイヤーの単調性}
+インデックス型 $\alpha$ の順序構造は、レイヤー間の包含関係に直接反映される。
+
+\begin{lemma}[単調性]
+$n, m \in \alpha$ において $n \le m$ ならば、以下が成り立つ。
+\[
+  \layer_R(n) \subseteq \layer_R(m)
+\]
+\end{lemma}
+
+この性質により、ランク付きオブジェクトはフィルトレーション（昇鎖）構造を持つと見なせる。
+
+\begin{center}
+\begin{tikzpicture}
+    % 背景の定義
+    \draw[thick, ->] (0, 0) -- (6, 0) node[right] {$\alpha$ (ランク)};
+    
+    % Layer 0
+    \draw[fill=blue!10] (0.5, 0.2) rectangle (1.5, 1.5);
+    \node at (1, 0.8) {$\layer(n_0)$};
+    \node[below] at (1, 0) {$n_0$};
+
+    % Layer 1
+    \draw[fill=blue!20, fill opacity=0.5] (2.0, 0.2) rectangle (3.5, 2.0);
+    \node at (2.75, 1.1) {$\layer(n_1)$};
+    \node[below] at (2.75, 0) {$n_1$};
+    
+    % Layer 2
+    \draw[fill=blue!30, fill opacity=0.5] (4.0, 0.2) rectangle (5.5, 2.5);
+    \node at (4.75, 1.4) {$\layer(n_2)$};
+    \node[below] at (4.75, 0) {$n_2$};
+
+    % 包含関係の矢印
+    \draw[->, thick, shorten >=2pt, shorten <=2pt] (1.5, 0.8) -- (2.0, 0.8) node[midway, above] {$\subseteq$};
+    \draw[->, thick, shorten >=2pt, shorten <=2pt] (3.5, 1.1) -- (4.0, 1.1) node[midway, above] {$\subseteq$};
+    
+    \node at (3, 3) {基本定理: $n_0 \le n_1 \le n_2 \implies \layer(n_0) \subseteq \layer(n_1) \subseteq \layer(n_2)$};
+\end{tikzpicture}
+\end{center}
+
+\section{射の理論: RankHomLe}
+
+異なるランク付きオブジェクト間の関係を記述するために、「データレーン射 (RankHomLe)」を導入する。これは構造を保つ写像であり、ランクの増大を制御する。
+
+\subsection{定義}
+$R = (X, \rank_R : X \to \alpha)$ と $S = (Y, \rank_S : Y \to \beta)$ をランク付きオブジェクトとする。
+
+\begin{definition}[RankHomLe]
+$f : R \to_{\le} S$ は以下の対 $(f_{\map}, f_{\indexMap})$ からなる。
+\begin{enumerate}
+    \item \textbf{キャリア写像}: $f_{\map} : X \to Y$
+    \item \textbf{インデックス写像}: $f_{\indexMap} : \alpha \to \beta$ （単調増加）
+\end{enumerate}
+これらは以下の\textbf{ランク不等式}を満たさなければならない。
+\[
+  \forall x \in X, \quad \rank_S(f_{\map}(x)) \le f_{\indexMap}(\rank_R(x))
+\]
+\end{definition}
+
+\subsection{可換図式的解釈}
+この定義は、以下の図式における「Lax可換性（不等式による可換性）」として表現できる。
+
+\begin{center}
+\begin{tikzpicture}[node distance=2.5cm, auto]
+  \node (X) {$X$};
+  \node (Y) [right=of X] {$Y$};
+  \node (A) [below=of X] {$\alpha$};
+  \node (B) [below=of Y] {$\beta$};
+
+  \draw[->] (X) -- node {$f_{\map}$} (Y);
+  \draw[->] (X) -- node[left] {$\rank_R$} (A);
+  \draw[->] (Y) -- node[right] {$\rank_S$} (B);
+  \draw[->] (A) -- node [below] {$f_{\indexMap}$} (B);
+  
+  % Lax commutativity symbol
+  \node at ($(X)!0.5!(B)$) {$\swarrow \le$};
+  
+  \node[right=0.5cm of Y] (Expl) {
+    \begin{minipage}{5cm}
+      \small
+      パス1: $X \xrightarrow{\rank} \alpha \xrightarrow{\indexMap} \beta$ \\
+      パス2: $X \xrightarrow{\map} Y \xrightarrow{\rank} \beta$ \\
+      \\
+      条件: パス2 $\le$ パス1
+    \end{minipage}
+  };
+\end{tikzpicture}
+\end{center}
+
+\section{具体的な実現例}
+
+以下に、Leanライブラリ内で実装されている5つの具体的なランク付きオブジェクトの例を挙げる。これらはすべて $T1$ 仕様に基づいている。
+
+\subsection{ListLength (リストの長さ)}
+最も基本的な例である。
+\begin{itemize}
+    \item \textbf{型}: $X = \List(\alpha)$, $\alpha = \N$
+    \item \textbf{ランク}: $\rank(l) = \mathrm{length}(l)$
+    \item \textbf{レイヤー}: $\layer(n)$ は長さ $n$ 以下のリスト全体。
+\end{itemize}
+
+\subsection{FinsetCard (有限集合の濃度)}
+順序を無視した構造のサイズである。
+\begin{itemize}
+    \item \textbf{型}: $X = \Finset(\alpha)$, $\alpha = \N$
+    \item \textbf{ランク}: $\rank(S) = \mathrm{card}(S)$
+\end{itemize}
+
+\subsubsection*{例: RankHomLe (List $\to$ Finset)}
+リストを有限集合に変換する操作は、重複を取り除くためサイズが増えることはない。これは \code{RankHomLe} の典型例である。
+\[ \mathrm{card}(\mathrm{toFinset}(l)) \le \mathrm{length}(l) \]
+ここで、$f_{\indexMap} = \mathrm{id}_{\N}$ である。
+
+\subsection{PolyDegree (多項式の次数)}
+代数的な例。$R$ を半環とする。
+\begin{itemize}
+    \item \textbf{型}: $X = \Poly(R)$, $\alpha = \N$
+    \item \textbf{ランク}: $\rank(p) = \mathrm{natDegree}(p)$
+\end{itemize}
+\begin{remark}
+Leanの \code{natDegree} の仕様により、ゼロ多項式 $0$ の次数は $0$ となる。したがって、$\layer(0)$ には定数多項式とゼロ多項式の両方が含まれる。
+\end{remark}
+
+\subsection{IntAbs (整数の絶対値)}
+幾何的な距離に基づくランク。
+\begin{itemize}
+    \item \textbf{型}: $X = \Z$, $\alpha = \N$
+    \item \textbf{ランク}: $\rank(z) = |z| = \mathrm{natAbs}(z)$
+    \item \textbf{レイヤー}: $\layer(n) = \{ z \in \Z \mid -n \le z \le n \}$
+\end{itemize}
+
+\subsection{ClosureIteration (反復の停止)}
+動的なプロセスの収束性に基づく高度な例である。
+集合 $X$ 上の拡大写像 $\mathrm{step} : \mathcal{P}(X) \to \mathcal{P}(X)$ を考える。
+
+\begin{itemize}
+    \item \textbf{インデックス}: $\alpha = \WithTop \N = \N \cup \{\top\}$
+    \item \textbf{定義}: $\iter(n, S) = \underbrace{\mathrm{step}(\dots \mathrm{step}}_{n}(S)\dots)$ とする。
+    \item \textbf{ランク}: 
+    \[ \rank(S) = \min \{ n \in \N \mid \iter(n, S) = \iter(n+1, S) \} \]
+    もしそのような $n$ が存在しなければ $\top$（無限大）。
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.9, transform shape]
+  \node[draw, circle, minimum size=1cm] (S0) at (0,0) {$S$};
+  \node[draw, circle, minimum size=1cm] (S1) at (2.5,0) {$S_1$};
+  \node[draw, circle, minimum size=1cm] (S2) at (5,0) {$S_2$};
+  \node[draw, circle, double, minimum size=1cm] (S3) at (7.5,0) {$S_\infty$};
+  
+  \draw[->, thick] (S0) -- node[above] {step} (S1);
+  \draw[->, thick] (S1) -- node[above] {step} (S2);
+  \draw[->, thick] (S2) -- node[above] {step} node[below] {\small (安定)} (S3);
+  \draw[->, thick, loop right] (S3) edge node {id} (S3);
+
+  \node[align=center] at (3.75, -1.5) {$\rank(S) = 2$\\ （2回のステップで不動点に到達）};
+\end{tikzpicture}
+\caption{ClosureIterationにおけるランクの概念図}
+\end{figure}
+
+この定義において、べき等性（$\mathrm{step}(\mathrm{step}(S)) = \mathrm{step}(S)$）は仮定されていない。仮定した場合、ランクは常に $0$ または $1$ に退化する。
+
+\section{まとめ}
+本稿では、Leanで実装された \code{ST.RankCore} の数学的基礎を解説した。
+\begin{enumerate}
+    \item \textbf{Ranked Object}: データに対数的な尺度（ランク）を導入する。
+    \item \textbf{RankHomLe}: 構造とランクの有界性を保つ射。
+    \item \textbf{具体例}: List, Finset, Polynomial, Int, ClosureExpansion など、離散数学から代数、解析的構造まで幅広く適用可能である。
+\end{enumerate}
+
+\end{document}
