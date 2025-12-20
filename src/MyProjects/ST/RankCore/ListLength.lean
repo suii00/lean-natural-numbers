@@ -1,4 +1,4 @@
-import MyProjects.ST.RankCore.RankCore
+import MyProjects.ST.RankCore.Basic
 
 namespace ST
 

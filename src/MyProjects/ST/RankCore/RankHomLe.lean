@@ -1,5 +1,5 @@
 import Mathlib
-import MyProjects.ST.RankCore.RankCore
+import MyProjects.ST.RankCore.Basic
 
 /-!
 # RankHomLe (T1 skeleton)
