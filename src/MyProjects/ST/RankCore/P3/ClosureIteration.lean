@@ -1,6 +1,7 @@
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.Nat.Lattice
 import Mathlib.Data.Nat.Find
+import MyProjects.ST.RankCore.Basic
 
 
 /-!
@@ -41,29 +42,6 @@ WithTop ℕ を使用して無限反復を表現：
 namespace ST
 
 universe u v
-
-/-- Ranked インスタンス定義（再掲） -/
-structure Ranked (α : Type v) (X : Type u) where
-  rank : X → α
-
-namespace Ranked
-
-variable {α : Type v} {X : Type u}
-
-/-- Standard "layer" induced by rank: elements of rank ≤ n. -/
-def layer [Preorder α] (R : Ranked α X) (n : α) : Set X :=
-  {x | R.rank x ≤ n}
-
-@[simp] theorem mem_layer_iff [Preorder α] (R : Ranked α X) (n : α) (x : X) :
-    x ∈ R.layer n ↔ R.rank x ≤ n := Iff.rfl
-
-/-- Monotonicity of layers: n ≤ m ⇒ layer n ⊆ layer m. -/
-theorem layer_mono [Preorder α] (R : Ranked α X) {n m : α} (hnm : n ≤ m) :
-    R.layer n ⊆ R.layer m := by
-  intro x hx
-  exact le_trans hx hnm
-
-end Ranked
 
 /-! ## 閉包演算の定義 -/
 
