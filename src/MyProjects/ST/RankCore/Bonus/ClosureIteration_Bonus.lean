@@ -50,7 +50,7 @@ lemma iterationRank_le_one (S : Set X) :
     have h2 :
         ExpansionOperator.iter (C := C.toExpansionOperator) 2 S = C.step S := by
       simpa using (iter_succ_eq_step (C := C) 1 S)
-    simpa [h1, h2]
+    exact h1.trans h2.symm
   have hconv : ExpansionOperator.converges (C := C.toExpansionOperator) S :=
     ⟨1, h12⟩
   have hle : Nat.find hconv ≤ 1 :=
