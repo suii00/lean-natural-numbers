@@ -1,0 +1,342 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+
+% LuaLaTeX用パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{left=25mm,right=25mm,top=30mm,bottom=30mm}
+
+% 定理環境の設定
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% タイトル情報
+\title{ランク付き対象とデータレーン射の数学的基礎}
+\author{%
+  TeXファイル生成: Claude Code \\
+  Leanファイル生成: Codex (OpenAI)%
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文書は、ランク付き対象（ranked objects）とそれらの間のデータレーン射（data-lane morphisms）についての数学的基礎を解説する。
+この理論は、階層構造を持つ数学的対象を扱うための枠組みを提供し、特に構造タワー（structure towers）への橋渡しとなる。
+本文書のTeXファイルはClaude Codeによって生成され、形式証明はCodex (OpenAI)によってLean言語で実装されている。
+\end{abstract}
+
+\tableofcontents
+
+\section{序論}
+
+階層構造を持つ数学的対象は、代数学、トポロジー、そして計算機科学において広く現れる。
+本文書では、そのような対象を統一的に扱うための枠組みとして、\emph{ランク付き対象}（ranked objects）の理論を展開する。
+
+ランク付き対象は、台集合 $X$ とランク関数 $\operatorname{rank} : X \to \alpha$（ここで $\alpha$ は前順序集合）から構成される。
+このシンプルな構造から、層（layers）や射の概念が自然に導かれる。
+
+\section{ランク付き対象と層}
+\label{sec:rankcore}
+
+この節では、ランク付き対象の基本的な定義と、ランク関数によって誘導される層構造について述べる。
+
+\subsection{ランク付き対象}
+
+\begin{definition}[ランク付き対象]
+\label{def:ranked}
+$\alpha$ を型（後に前順序が備わる）、$X$ を型とする。
+\emph{ランク付き対象}（ranked object）とは、組
+\[
+  R = (X, \operatorname{rank}_R)
+\]
+であり、ここで $\operatorname{rank}_R : X \to \alpha$ は\emph{ランク関数}（rank function）である。
+
+\textbf{Lean実装:} \texttt{ST.Ranked (\(\alpha\)) (X)} 構造体、フィールド \texttt{rank : X → α}
+\end{definition}
+
+\begin{remark}
+この定義において、型 $\alpha$ には特別な構造を要求していない。しかし、層を定義する際には $\alpha$ に前順序構造を仮定する。
+\end{remark}
+
+\subsection{ランクによって誘導される層}
+
+前順序集合 $\alpha$ が与えられたとき、各 $n \in \alpha$ に対して、ランクが $n$ 以下の要素全体の集合を考えることができる。
+これを $n$-層と呼ぶ。
+
+\begin{definition}[層]
+\label{def:layer}
+$\alpha$ を前順序集合、$R = (X, \operatorname{rank}_R)$ をランク付き対象とする。
+$n \in \alpha$ に対して、$R$ の $n$ における\emph{層}（layer）を
+\[
+  \operatorname{layer}_R(n) := \{\,x \in X \mid \operatorname{rank}_R(x) \le n\,\}
+\]
+で定義する。
+
+\textbf{Lean実装:} \texttt{ST.Ranked.layer R n}
+\end{definition}
+
+層の定義から、次の特徴付けが直ちに従う。
+
+\begin{lemma}[層の所属条件]
+\label{lem:mem-layer-iff}
+任意の $x \in X$ と $n \in \alpha$ に対して、
+\[
+  x \in \operatorname{layer}_R(n) \iff \operatorname{rank}_R(x) \le n.
+\]
+\textbf{Lean実装:} \texttt{ST.Ranked.mem\_layer\_iff}
+\end{lemma}
+
+層の最も重要な性質は、その単調性である。
+
+\begin{lemma}[層の単調性]
+\label{lem:layer-mono}
+$\alpha$ において $n \le m$ ならば、$\operatorname{layer}_R(n) \subseteq \operatorname{layer}_R(m)$.
+
+\textbf{Lean実装:} \texttt{ST.Ranked.layer\_mono}
+\end{lemma}
+
+\begin{proof}
+$x \in \operatorname{layer}_R(n)$ とする。定義より $\operatorname{rank}_R(x) \le n$ である。
+$n \le m$ より、推移律から $\operatorname{rank}_R(x) \le m$ を得る。
+したがって $x \in \operatorname{layer}_R(m)$ である。
+\end{proof}
+
+\begin{remark}
+この単調性により、層の族 $\{\operatorname{layer}_R(n)\}_{n \in \alpha}$ は $X$ のフィルトレーション（濾過）を形成する。
+これは構造タワー（structure tower）への橋渡しとなる重要な性質である。
+\end{remark}
+
+\subsection{層構造の図式表現}
+
+層の単調性を図式で表すと以下のようになる：
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=large]
+  n \le m \arrow[d, phantom, "\text{in } \alpha"] \\
+  \operatorname{layer}_R(n) \arrow[r, hook, "\subseteq"] & \operatorname{layer}_R(m)
+\end{tikzcd}
+\end{center}
+
+より一般に、前順序 $\alpha$ における鎖 $n_1 \le n_2 \le n_3 \le \cdots$ に対して、対応する層の増加列が得られる：
+
+\begin{center}
+\begin{tikzcd}[column sep=small]
+  \operatorname{layer}_R(n_1) \arrow[r, hook] &
+  \operatorname{layer}_R(n_2) \arrow[r, hook] &
+  \operatorname{layer}_R(n_3) \arrow[r, hook] &
+  \cdots
+\end{tikzcd}
+\end{center}
+
+\section{ランク付き対象間のデータレーン射}
+\label{sec:rankhomle}
+
+この節では、ランク付き対象の間の構造を保つ写像について述べる。
+
+\subsection{データレーン射の定義}
+
+2つのランク付き対象の間の射は、単に台集合の間の写像だけでなく、ランクの構造も尊重する必要がある。
+そのために、台写像とインデックス写像の組を考える。
+
+\begin{definition}[データレーン射]
+\label{def:rankhomle}
+$\alpha, \beta$ を前順序集合とし、
+\[
+  R = (X, \operatorname{rank}_R) \text{ を $\alpha$-ランク付き対象}, \qquad
+  S = (Y, \operatorname{rank}_S) \text{ を $\beta$-ランク付き対象}
+\]
+とする。$R$ から $S$ への\emph{データレーン射}（data-lane morphism）
+$f : R \to_{\le} S$ とは、組
+\[
+  f = (\operatorname{map}_f,\ \operatorname{indexMap}_f)
+\]
+であり、ここで
+\[
+  \operatorname{map}_f : X \to Y, \qquad \operatorname{indexMap}_f : \alpha \to \beta
+\]
+は次の条件を満たす：
+\begin{enumerate}
+\item $\operatorname{indexMap}_f$ は単調写像である。
+\item 任意の $x \in X$ に対して、
+\[
+  \operatorname{rank}_S(\operatorname{map}_f(x)) \le \operatorname{indexMap}_f(\operatorname{rank}_R(x)).
+\]
+\end{enumerate}
+
+\textbf{Lean実装:} \texttt{ST.RankHomLe R S} 構造体、フィールド
+\texttt{map}, \texttt{indexMap}, \texttt{mono}, \texttt{rank\_le}
+\end{definition}
+
+\begin{remark}
+条件(2)は、台写像 $\operatorname{map}_f$ が要素を送る際に、そのランクがインデックス写像によって制御される範囲内に収まることを要求している。
+これにより、$f$ は層構造を保存する性質を持つ。
+\end{remark}
+
+\subsection{データレーン射の図式表現}
+
+データレーン射の構造を図式で表すと：
+
+\begin{center}
+\begin{tikzcd}[row sep=huge, column sep=huge]
+  X \arrow[r, "\operatorname{map}_f"] \arrow[d, "\operatorname{rank}_R"'] &
+  Y \arrow[d, "\operatorname{rank}_S"] \\
+  \alpha \arrow[r, "\operatorname{indexMap}_f"'] &
+  \beta
+\end{tikzcd}
+\end{center}
+
+この図式は可換ではないが、任意の $x \in X$ に対して
+\[
+\operatorname{rank}_S(\operatorname{map}_f(x)) \le \operatorname{indexMap}_f(\operatorname{rank}_R(x))
+\]
+という不等式が成り立つ。
+
+\subsection{恒等射と合成}
+
+データレーン射は、圏論的な構造を持つ。ここでは恒等射と合成を定義する。
+
+\begin{definition}[恒等データレーン射]
+\label{def:rankhomle-id}
+ランク付き対象 $R = (X, \operatorname{rank}_R)$ に対して、恒等データレーン射
+$\mathrm{id}_R : R \to_{\le} R$ を
+\[
+  \operatorname{map}_{\mathrm{id}_R} := \mathrm{id}_X, \qquad
+  \operatorname{indexMap}_{\mathrm{id}_R} := \mathrm{id}_\alpha
+\]
+で定義する。
+
+\textbf{Lean実装:} \texttt{ST.RankHomLe.id}
+\end{definition}
+
+\begin{definition}[データレーン射の合成]
+\label{def:rankhomle-comp}
+$f : R \to_{\le} S$ と $g : S \to_{\le} T$ が与えられたとき、その合成
+$g \circ f : R \to_{\le} T$ を
+\[
+  \operatorname{map}_{g\circ f} := \operatorname{map}_g \circ \operatorname{map}_f, \qquad
+  \operatorname{indexMap}_{g\circ f} := \operatorname{indexMap}_g \circ \operatorname{indexMap}_f
+\]
+で定義する。
+
+\textbf{Lean実装:} \texttt{ST.RankHomLe.comp}
+\end{definition}
+
+\begin{proposition}[合成の well-definedness]
+定義~\ref{def:rankhomle-comp}の合成 $g \circ f$ は、確かにデータレーン射である。
+\end{proposition}
+
+\begin{proof}
+2つの条件を確認する。
+
+\textbf{(1) 単調性:}
+$\operatorname{indexMap}_f$ と $\operatorname{indexMap}_g$ がともに単調なので、
+その合成 $\operatorname{indexMap}_g \circ \operatorname{indexMap}_f$ も単調である。
+
+\textbf{(2) ランク条件:}
+任意の $x \in X$ に対して、
+\begin{align*}
+  \operatorname{rank}_T(\operatorname{map}_{g\circ f}(x))
+  &= \operatorname{rank}_T(\operatorname{map}_g(\operatorname{map}_f(x))) \\
+  &\le \operatorname{indexMap}_g(\operatorname{rank}_S(\operatorname{map}_f(x)))
+    \quad \text{($g$ のランク条件)} \\
+  &\le \operatorname{indexMap}_g(\operatorname{indexMap}_f(\operatorname{rank}_R(x)))
+    \quad \text{($f$ のランク条件と $\operatorname{indexMap}_g$ の単調性)} \\
+  &= \operatorname{indexMap}_{g\circ f}(\operatorname{rank}_R(x)).
+\end{align*}
+\end{proof}
+
+\subsection{データレーン射の合成図式}
+
+3つのランク付き対象 $R, S, T$ とデータレーン射 $f, g$ の合成を図式で表すと：
+
+\begin{center}
+\begin{tikzcd}[row sep=huge, column sep=large]
+  R \arrow[r, "f"] \arrow[rr, bend left=15, "g \circ f"] &
+  S \arrow[r, "g"] &
+  T
+\end{tikzcd}
+\end{center}
+
+詳細には、台とインデックスの2層構造で：
+
+\begin{center}
+\begin{tikzcd}[row sep=huge, column sep=large]
+  X \arrow[r, "\operatorname{map}_f"] \arrow[d] &
+  Y \arrow[r, "\operatorname{map}_g"] \arrow[d] &
+  Z \arrow[d] \\
+  \alpha \arrow[r, "\operatorname{indexMap}_f"'] &
+  \beta \arrow[r, "\operatorname{indexMap}_g"'] &
+  \gamma
+\end{tikzcd}
+\end{center}
+
+\section{圏論的視点}
+
+\begin{remark}[T1フリーズの範囲]
+現在のT1仕様では、データと基本操作（恒等射・合成）のみを固定している。
+圏構造の公式なパッケージング（\texttt{Category}インスタンス）は、意図的にT3段階まで延期されている。
+\end{remark}
+
+データレーン射の恒等射と合成は、圏の公理を満たすことが期待される：
+\begin{itemize}
+\item \textbf{左単位律:} $\mathrm{id}_S \circ f = f$
+\item \textbf{右単位律:} $f \circ \mathrm{id}_R = f$
+\item \textbf{結合律:} $(h \circ g) \circ f = h \circ (g \circ f)$
+\end{itemize}
+
+これらの証明は、台写像とインデックス写像の各成分について通常の関数の圏の性質から従う。
+
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep=large]
+  R \arrow[r, "f"] \arrow[d, "\mathrm{id}_R"'] \arrow[dr, "f" description] &
+  S \arrow[d, "\mathrm{id}_S"] \\
+  R \arrow[r, "f"'] &
+  S
+\end{tikzcd}
+\end{center}
+
+\section{構造タワーへの橋渡し}
+
+\begin{remark}[今後の発展]
+ランク付き対象から構造タワー（例: \texttt{StructureTowerWithMin}）への橋渡しは、
+本T1フリーズの範囲外である。この接続は別ファイル \texttt{ToTowerWithMin.lean} で扱われる。
+\end{remark}
+
+層の単調性（補題~\ref{lem:layer-mono}）により、ランク付き対象 $R$ は自然に $X$ のフィルトレーションを定める。
+このフィルトレーション構造を精密化することで、より豊かな構造タワー理論へと発展させることができる。
+
+\section{まとめ}
+
+本文書では、ランク付き対象の基礎理論を展開した：
+\begin{itemize}
+\item \textbf{ランク付き対象}（定義~\ref{def:ranked}）: 台集合とランク関数の組
+\item \textbf{層}（定義~\ref{def:layer}）: ランクによって誘導される部分集合の族
+\item \textbf{層の単調性}（補題~\ref{lem:layer-mono}）: フィルトレーション構造の基礎
+\item \textbf{データレーン射}（定義~\ref{def:rankhomle}）: ランク構造を保つ射
+\item \textbf{恒等射と合成}（定義~\ref{def:rankhomle-id}, \ref{def:rankhomle-comp}）: 圏構造の基礎
+\end{itemize}
+
+これらの概念は、Leanによって形式的に検証されており、今後の構造タワー理論の基盤となる。
+
+\vspace{1em}
+
+\noindent
+\textbf{生成情報:}
+\begin{itemize}
+\item 本TeXファイルは Claude Code によって生成された
+\item 形式証明（Leanファイル）は Codex (OpenAI) によって生成された
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,229 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- 基本設定 ---
+\usepackage[top=30mm, bottom=30mm, left=25mm, right=25mm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{url}
+
+% --- 日本語設定 (LuaTeX) ---
+\usepackage{luatexja}
+% 既定のフォント設定を使用します
+
+% --- 図式描画用 ---
+\usepackage{tikz}
+\usetikzlibrary{cd, positioning, shapes.geometric, fit, backgrounds}
+
+% --- 定理環境の定義 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{remark}[definition]{注釈}
+\newtheorem{example}[definition]{例}
+\newtheorem{lemma}[definition]{補題}
+
+% --- マクロ定義 ---
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\layer}{\operatorname{layer}}
+\newcommand{\map}{\operatorname{map}}
+\newcommand{\indexMap}{\operatorname{indexMap}}
+
+% --- タイトル情報 ---
+\title{\textbf{ランク付きオブジェクトとその射の数学的構造}\\ \large --- T1 Specification Freezeに基づく解説 ---}
+\author{
+  \textbf{TeX生成}: Gemini (Google) \\
+  \textbf{Leanコード生成}: Codex (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Lean 4ライブラリ \code{MyProjects.ST.RankCore} における「ランク付きオブジェクト (Ranked Object)」および「データレーン射 (RankHomLe)」の数学的定義について解説する。これらは、順序構造を持つインデックス集合によって層別化されたデータ構造を扱うための基礎的な枠組みである。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに}
+本稿は、提供されたLeanのソースコード（\code{RankCore/Basic.lean} および \code{RankHomLe.lean}）とその仕様書に基づき、ランク付きオブジェクトの理論的基礎を整理したものである。
+
+この体系における中心的なアイデアは、データを持つ型 $X$ と、そのデータの「複雑さ」や「段階」を表すインデックス型 $\alpha$ を分離し、それらをランク関数によって結びつけることにある。
+
+\section{ランク付きオブジェクト (Ranked Objects)}
+\label{sec:ranked}
+
+\subsection{定義}
+最も基本的な構造は、型 $X$ の各要素に対して、その「ランク」を割り当てる関数を備えたオブジェクトである。
+
+\begin{definition}[ランク付きオブジェクト]
+$\alpha$ を型（通常は前順序集合）、$X$ を型とする。
+\textbf{$\alpha$-ランク付きオブジェクト} $R$ は以下の対で定義される。
+\[
+  R = (X, \rank_R)
+\]
+ここで、$\rank_R$ は以下の写像である。
+\[
+  \rank_R : X \to \alpha
+\]
+\end{definition}
+
+\begin{remark}[Leanでの実装]
+これはLeanにおける構造 \code{ST.Ranked} に対応する。
+\begin{verbatim}
+structure Ranked (α : Type v) (X : Type u) where
+  rank : X → α
+\end{verbatim}
+\end{remark}
+
+\subsection{レイヤー (Layers)}
+インデックス集合 $\alpha$ に前順序（$\le$）が入っている場合、特定のランク $n \in \alpha$ 以下の要素全体を考えることができる。これを「レイヤー」と呼ぶ。
+
+\begin{definition}[レイヤー]
+$\alpha$ を前順序集合とする。ランク付きオブジェクト $R = (X, \rank_R)$ と $n \in \alpha$ に対し、\textbf{$n$-レイヤー} $\layer_R(n)$ を以下のように定義する。
+\[
+  \layer_R(n) := \{ x \in X \mid \rank_R(x) \le n \}
+\]
+\end{definition}
+
+\begin{lemma}[レイヤーの単調性]
+$n, m \in \alpha$ について $n \le m$ ならば、以下が成り立つ。
+\[
+  \layer_R(n) \subseteq \layer_R(m)
+\]
+\end{lemma}
+これは、高いランクのレイヤーは低いランクのレイヤーを包含することを意味しており、フィルトレーション（filtration）構造を示唆している。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+  % Draw Alpha axis
+  \draw[->, thick] (0,0) -- (0,5) node[left] {$\alpha$ (Rank)};
+  
+  % Draw Layers
+  \draw[fill=blue!10, dashed] (1,1) rectangle (6,1.2);
+  \node[left] at (0,1.1) {$n$};
+  \node[right] at (6,1.1) {$\layer_R(n)$};
+
+  \draw[fill=blue!20, dashed] (1,3) rectangle (6,3.2);
+  \node[left] at (0,3.1) {$m$};
+  \node[right] at (6,3.1) {$\layer_R(m)$};
+
+  % Elements
+  \node[circle, fill=black, inner sep=1.5pt, label=below:$x$] at (2, 0.8) {};
+  \node[circle, fill=black, inner sep=1.5pt, label=below:$y$] at (4, 2.5) {};
+
+  % Arrows indicating rank
+  \draw[dotted, ->] (2, 0.8) -- (0, 0.8) node[left] {\scriptsize $\rank x$};
+  \draw[dotted, ->] (4, 2.5) -- (0, 2.5) node[left] {\scriptsize $\rank y$};
+
+  % Label
+  \node at (3.5, 5.5) {\textbf{ランクによる層別化のイメージ}};
+  \node[right] at (7, 2) {\begin{minipage}{4cm} \small $n \le m$ のとき、\\ $\layer_R(n) \subseteq \layer_R(m)$ \\ となる構造を持つ。\end{minipage}};
+\end{tikzpicture}
+\caption{ランク付きオブジェクトとレイヤーの概念図}
+\end{figure}
+
+\section{データレーン射 (RankHomLe)}
+\label{sec:rankhomle}
+
+異なるインデックス集合を持つランク付きオブジェクト間の射を定義する。この射は「データレーン（Data-lane）」と呼ばれ、データの写像とインデックスの写像のペアからなる。
+
+\subsection{定義}
+
+\begin{definition}[データレーン射]
+$\alpha, \beta$ を前順序集合とする。
+$R = (X, \rank_R)$ を $\alpha$-ランク付きオブジェクト、
+$S = (Y, \rank_S)$ を $\beta$-ランク付きオブジェクトとする。
+
+$R$ から $S$ への\textbf{データレーン射} $f : R \to_{\le} S$ は、以下の2つの写像の組である。
+\[
+  f = (\map_f, \indexMap_f)
+\]
+ここで、
+\begin{itemize}
+    \item $\map_f : X \to Y$ （データの写像）
+    \item $\indexMap_f : \alpha \to \beta$ （ランクの写像）
+\end{itemize}
+であり、以下の2条件を満たす必要がある。
+\begin{enumerate}
+    \item \textbf{単調性 (Monotonicity):} $\indexMap_f$ は単調増加である。すなわち、
+    \[ a_1 \le a_2 \implies \indexMap_f(a_1) \le \indexMap_f(a_2) \]
+    \item \textbf{ランク不等式 (Rank Inequality):} 任意の $x \in X$ に対して、
+    \[ \rank_S(\map_f(x)) \le \indexMap_f(\rank_R(x)) \]
+\end{enumerate}
+\end{definition}
+
+\begin{remark}[Leanでの実装]
+Leanの構造 \code{ST.RankHomLe} におけるフィールドに対応する。
+\begin{itemize}
+    \item \code{map}: $X \to Y$
+    \item \code{indexMap}: $\alpha \to \beta$
+    \item \code{mono}: \code{Monotone indexMap}
+    \item \code{rank\_le}: $\forall x, S.\rank (\map x) \le \indexMap (R.\rank x)$
+\end{itemize}
+\end{remark}
+
+\subsection{図式による解釈}
+この定義は、以下の図式における「ゆるい可換性（Lax Commutativity）」として理解できる。厳密な可換図式ではなく、不等式による制約が入ることに注意が必要である。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=3cm, auto]
+  \node (X) {$X$};
+  \node (Y) [right=of X] {$Y$};
+  \node (A) [below=of X] {$\alpha$};
+  \node (B) [below=of Y] {$\beta$};
+
+  \draw[->] (X) -- node {$\map_f$} (Y);
+  \draw[->] (X) -- node[left] {$\rank_R$} (A);
+  \draw[->] (Y) -- node[right] {$\rank_S$} (B);
+  \draw[->] (A) -- node [below] {$\indexMap_f$} (B);
+
+  % Draw inequality symbol in the middle
+  \node at (1.5, -1.5) {$\swarrow \le$};
+  
+  \node[text width=8cm, align=center] at (1.5, -3.5) {
+    \textbf{条件:} \\
+    $\rank_S \circ \map_f \le \indexMap_f \circ \rank_R$
+  };
+\end{tikzpicture}
+\caption{RankHomLeの構造を表す図式}
+\label{fig:rankhomle}
+\end{figure}
+
+図\ref{fig:rankhomle}において、左上から右下へ至る2つのパスを考える。
+\begin{itemize}
+    \item パス1 ($X \to Y \to \beta$): $x \mapsto \map_f(x) \mapsto \rank_S(\map_f(x))$
+    \item パス2 ($X \to \alpha \to \beta$): $x \mapsto \rank_R(x) \mapsto \indexMap_f(\rank_R(x))$
+\end{itemize}
+条件は、「パス1の結果（変換後のデータのランク）」は「パス2の結果（変換されたランク）」によって\textbf{上から抑えられる}ことを要求している。これは、データ変換によってランクが不当に増大しないことを保証する、一種の「計算量」や「複雑性」の保存則とも解釈できる。
+
+\section{構成要素の合成}
+T1仕様における基本的な操作として、恒等射と射の合成が定義されている。
+
+\subsection{恒等射 (Identity)}
+任意のランク付きオブジェクト $R$ に対し、恒等射 $\mathrm{id}_R$ は以下のように定義される。
+\[
+  \map_{\mathrm{id}} = \mathrm{id}_X, \quad \indexMap_{\mathrm{id}} = \mathrm{id}_\alpha
+\]
+不等式条件 $\rank_R(x) \le \rank_R(x)$ は自明に満たされる。
+
+\subsection{合成 (Composition)}
+$f: R \to_{\le} S$ と $g: S \to_{\le} T$ があるとき、その合成 $g \circ f$ は成分ごとの合成で定義される。
+\[
+  \map_{g \circ f} = \map_g \circ \map_f, \quad \indexMap_{g \circ f} = \indexMap_g \circ \indexMap_f
+\]
+
+\textbf{合成の正当性:}
+ランク条件が満たされることは、以下の計算により確認できる。
+任意の $x \in X$ に対し、
+\begin{align*}
+  \rank_T(\map_g(\map_f(x))) 
+  &\le \indexMap_g(\rank_S(\map_f(x))) \quad (\because g \text{のランク条件}) \\
+  &\le \indexMap_g(\indexMap_f(\rank_R(x))) \quad (\because \indexMap_g \text{の単調性と} f \text{のランク条件})
+\end{align*}
+ここで、$g$ の $\indexMap$ が単調であることが本質的に使用されている。
+
+\end{document}

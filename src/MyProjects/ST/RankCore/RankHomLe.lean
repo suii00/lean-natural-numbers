@@ -25,7 +25,7 @@ namespace ST
 
 universe u v w
 
-open scoped Classical
+
 
 /-- Data-lane morphisms between ranked objects. -/
 structure RankHomLe {α : Type v} {β : Type w} {X : Type u} {Y : Type u}

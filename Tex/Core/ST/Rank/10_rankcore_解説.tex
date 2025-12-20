@@ -1,0 +1,314 @@
+\documentclass[12pt,a4paper]{ltjsarticle}
+
+% LuaLaTeX用パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes,calc}
+\usepackage{xcolor}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% タイトル情報
+\title{順位付き対象と層の数学的解説\\
+\large Ranked Objects and Layers の詳細}
+\author{%
+  生成: Claude Code (Anthropic Claude Sonnet 4.5)\\
+  対応Leanファイル生成: Codex (OpenAI)\\
+  原文: \texttt{MyProjects.ST.RankCore.Basic}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文書は、順位付き対象（ranked objects）と層（layers）の理論について数学的に解説する。
+この理論は形式証明支援系Leanで実装された\texttt{MyProjects.ST.RankCore.Basic}モジュールに対応しており、
+構造の階層化と段階的構成を形式化するための基礎を与える。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+数学や計算機科学において、対象に「順位」や「ランク」を付与し、その順位に基づいて対象を階層的に整理することは極めて有用である。
+本文書では、このような構造を形式化した\emph{順位付き対象}（ranked object）の概念と、
+それに付随する\emph{層}（layer）の理論を詳しく解説する。
+
+\subsection{動機と応用}
+
+順位付き構造は以下のような場面で現れる：
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{帰納的構成}: 数学的対象を段階的に構成する際、各要素に「構成された段階」を記録する
+  \item \textbf{グラフ理論}: 頂点の深さや距離に基づく階層構造
+  \item \textbf{型理論}: 型の宇宙階層（universe levels）
+  \item \textbf{計算複雑性}: アルゴリズムの反復回数や再帰の深さ
+\end{itemize}
+
+\section{順位付き対象}
+\label{sec:ranked}
+
+\subsection{基本定義}
+
+まず、順位を表す型と対象を表す型を導入する。
+
+\begin{definition}[順位付き対象]\label{def:ranked}
+$\alpha$を型、$X$を型とする。
+\emph{順位付き対象}（ranked object）$R$とは、以下の構造である：
+\[
+  R = (X, \operatorname{rank}_R)
+\]
+ここで、$\operatorname{rank}_R : X \to \alpha$は\emph{順位関数}（rank function）である。
+
+\medskip
+\noindent
+\textbf{Lean表現:} \texttt{ST.Ranked (α) (X)} with field \texttt{rank : X → α}
+\end{definition}
+
+\begin{remark}
+定義\ref{def:ranked}において、$\alpha$は任意の型でよいが、後に前順序（preorder）を仮定することで層の概念を定義する。
+\end{remark}
+
+\subsection{順位付き対象の直感的理解}
+
+順位付き対象は、各要素$x \in X$に対して「どの段階に属するか」を示す情報$\operatorname{rank}_R(x) \in \alpha$を持つ。
+これにより、$X$の要素を$\alpha$の値に基づいて分類できる。
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.2]
+  % 左側: 集合X
+  \draw[thick,rounded corners] (-1.5,-2) rectangle (1.5,2);
+  \node[above] at (0,2) {$X$};
+
+  % 要素
+  \foreach \y/\name in {1.5/x_1, 0.5/x_2, -0.5/x_3, -1.5/x_4} {
+    \fill (0,\y) circle (2pt);
+    \node[left] at (-0.2,\y) {$\name$};
+  }
+
+  % 右側: 型α
+  \draw[thick,rounded corners] (4,-2) rectangle (6.5,2);
+  \node[above] at (5.25,2) {$\alpha$};
+
+  % ランク値
+  \node at (5.25,1.5) {$r_1$};
+  \node at (5.25,0.5) {$r_2$};
+  \node at (5.25,-1) {$r_3$};
+
+  % 順位関数の矢印
+  \draw[-{Stealth},thick,blue] (0.3,1.5) -- (4.5,1.5) node[midway,above] {$\operatorname{rank}_R$};
+  \draw[-{Stealth},thick,blue] (0.3,0.5) -- (4.5,1.5);
+  \draw[-{Stealth},thick,blue] (0.3,-0.5) -- (4.5,0.5);
+  \draw[-{Stealth},thick,blue] (0.3,-1.5) -- (4.5,-1);
+
+  % ラベル
+  \node[blue,below] at (2.5,-2.5) {順位関数 $\operatorname{rank}_R : X \to \alpha$};
+\end{tikzpicture}
+\caption{順位付き対象のイメージ：各要素$x \in X$は順位$\operatorname{rank}_R(x) \in \alpha$を持つ}
+\label{fig:ranked}
+\end{figure}
+
+\section{層構造}
+\label{sec:layers}
+
+\subsection{前順序の導入}
+
+層の概念を定義するために、$\alpha$に前順序構造を導入する。
+
+\begin{definition}[前順序]
+型$\alpha$上の\emph{前順序}（preorder）とは、二項関係$\le$であって以下を満たすものである：
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{反射性}: すべての$a \in \alpha$に対して$a \le a$
+  \item \textbf{推移性}: すべての$a, b, c \in \alpha$に対して、$a \le b$かつ$b \le c$ならば$a \le c$
+\end{enumerate}
+\end{definition}
+
+以降、$\alpha$は前順序を持つと仮定する。
+
+\subsection{層の定義}
+
+\begin{definition}[層]\label{def:layer}
+$\alpha$を前順序、$R=(X,\operatorname{rank}_R)$を順位付き対象とする。
+各$n\in \alpha$に対して、$R$の\emph{$n$-層}（$n$-layer）を次で定義する：
+\[
+  \operatorname{layer}_R(n) := \{\,x \in X \mid \operatorname{rank}_R(x) \le n\,\}.
+\]
+
+\medskip
+\noindent
+\textbf{Lean表現:} \texttt{ST.Ranked.layer R n}
+\end{definition}
+
+\begin{remark}
+$\operatorname{layer}_R(n)$は、「順位が$n$以下の要素全体」を集めた部分集合である。
+これにより、$X$を順位に基づいて段階的に構成できる。
+\end{remark}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.1]
+  % 縦軸: ランク
+  \draw[-{Stealth},thick] (0,0) -- (0,6.5) node[left] {ランク};
+
+  % ランクレベル
+  \foreach \y/\label in {1/r_0, 2.5/r_1, 4/r_2, 5.5/r_3} {
+    \draw[dashed,gray] (0,\y) -- (8,\y);
+    \node[left] at (0,\y) {$\label$};
+  }
+
+  % 要素の配置
+  \foreach \x/\y in {1/0.8, 2/0.9, 3/2.3, 4/2.6, 5/3.8, 6/4.1, 7/5.4} {
+    \fill[blue] (\x,\y) circle (3pt);
+  }
+
+  % layer_R(r_1)の範囲
+  \fill[red!20,opacity=0.5] (-0.5,0) rectangle (8.5,2.5);
+  \node[red,right,font=\small] at (8.5,1.25) {$\operatorname{layer}_R(r_1)$};
+
+  % layer_R(r_2)の範囲
+  \draw[thick,green!60!black,dashed] (-0.5,4) -- (8.5,4);
+  \node[green!60!black,right,font=\small] at (8.5,2.25) {$\operatorname{layer}_R(r_2)$まで};
+
+  % 説明
+  \node[blue,below,font=\footnotesize] at (4,-0.5) {青点: $X$の要素};
+  \node[red,below,font=\footnotesize] at (4,-1) {赤領域: $\operatorname{rank}_R(x) \le r_1$の要素};
+\end{tikzpicture}
+\caption{層のイメージ：$\operatorname{layer}_R(n)$は順位$\le n$の要素全体}
+\label{fig:layer}
+\end{figure}
+
+\section{層の基本性質}
+
+\subsection{所属条件の特徴づけ}
+
+\begin{lemma}[所属条件の特徴づけ]\label{lem:mem-layer-iff}
+$x\in X$、$n\in \alpha$とする。このとき、
+\[
+  x \in \operatorname{layer}_R(n) \iff \operatorname{rank}_R(x) \le n.
+\]
+
+\medskip
+\noindent
+\textbf{Lean表現:} \texttt{ST.Ranked.mem\_layer\_iff}
+\end{lemma}
+
+\begin{proof}
+定義\ref{def:layer}より直ちに従う。
+\end{proof}
+
+\subsection{層の単調性}
+
+層の最も重要な性質は、順位が大きくなるにつれて層が拡大することである。
+
+\begin{lemma}[層の単調性]\label{lem:layer-mono}
+$n, m \in \alpha$とし、$n \le m$とする。このとき、
+\[
+  \operatorname{layer}_R(n) \subseteq \operatorname{layer}_R(m).
+\]
+
+\medskip
+\noindent
+\textbf{Lean表現:} \texttt{ST.Ranked.layer\_mono}
+\end{lemma}
+
+\begin{proof}
+$x \in \operatorname{layer}_R(n)$とする。補題\ref{lem:mem-layer-iff}より$\operatorname{rank}_R(x) \le n$。
+仮定より$n \le m$なので、推移性より$\operatorname{rank}_R(x) \le m$。
+再び補題\ref{lem:mem-layer-iff}より$x \in \operatorname{layer}_R(m)$。
+\end{proof}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=1.2]
+  % ベン図風の表現
+  \draw[thick,blue,fill=blue!10] (0,0) ellipse (1.5cm and 1cm);
+  \draw[thick,red,fill=red!10,opacity=0.7] (0,0) ellipse (2.5cm and 1.8cm);
+  \draw[thick,green!60!black,fill=green!10,opacity=0.5] (0,0) ellipse (3.5cm and 2.5cm);
+
+  \node[blue] at (0,0) {$\operatorname{layer}_R(n)$};
+  \node[red] at (0,-1.3) {$\operatorname{layer}_R(m)$};
+  \node[green!60!black] at (0,-2) {$\operatorname{layer}_R(p)$};
+
+  \node[below,font=\footnotesize] at (0,-3) {$n \le m \le p$のとき $\operatorname{layer}_R(n) \subseteq \operatorname{layer}_R(m) \subseteq \operatorname{layer}_R(p)$};
+\end{tikzpicture}
+\caption{層の単調性：順位が増加すると層は拡大する}
+\label{fig:layer-mono}
+\end{figure}
+
+\section{構造タワーとの橋渡し}
+
+\begin{remark}[タワーへの橋渡し]
+順位付き対象から構造タワー（structure tower）への対応は、本節（T1仕様固定）の範囲外である。
+この橋渡しは\texttt{ToTowerWithMin.lean}で扱われる。
+
+具体的には、層の族$\{\operatorname{layer}_R(n)\}_{n \in \alpha}$は、
+単調性（補題\ref{lem:layer-mono}）により、$\alpha$上のフィルトレーション（filtration）的構造を想起させる。
+これにより、順位付き対象は自然に構造タワーの構造を誘導する。
+\end{remark}
+
+\section{例}
+
+\begin{example}[自然数による順位付け]
+$\alpha = \mathbb{N}$（自然数、通常の順序）、$X = \{a, b, c, d, e\}$とし、
+\[
+  \operatorname{rank}_R(a) = 0, \quad
+  \operatorname{rank}_R(b) = 1, \quad
+  \operatorname{rank}_R(c) = 1, \quad
+  \operatorname{rank}_R(d) = 2, \quad
+  \operatorname{rank}_R(e) = 3
+\]
+と定義する。このとき、
+\begin{align*}
+  \operatorname{layer}_R(0) &= \{a\}, \\
+  \operatorname{layer}_R(1) &= \{a, b, c\}, \\
+  \operatorname{layer}_R(2) &= \{a, b, c, d\}, \\
+  \operatorname{layer}_R(3) &= \{a, b, c, d, e\} = X.
+\end{align*}
+\end{example}
+
+\begin{example}[半順序による順位付け]
+$\alpha$が半順序（poset）の場合、非可比な要素$n, m \in \alpha$に対しては、
+$\operatorname{layer}_R(n)$と$\operatorname{layer}_R(m)$の包含関係は一般には成り立たない。
+これにより、より複雑な階層構造を表現できる。
+\end{example}
+
+\section{まとめ}
+
+本文書では、順位付き対象と層の基本理論を解説した。主要な結果は以下の通りである：
+
+\begin{itemize}[leftmargin=*]
+  \item 順位付き対象$R = (X, \operatorname{rank}_R)$は、型$X$の各要素に順位を付与する（定義\ref{def:ranked}）
+  \item 前順序$\alpha$に対して、層$\operatorname{layer}_R(n)$は順位$\le n$の要素の集合である（定義\ref{def:layer}）
+  \item 層は単調である：$n \le m$ならば$\operatorname{layer}_R(n) \subseteq \operatorname{layer}_R(m)$（補題\ref{lem:layer-mono}）
+\end{itemize}
+
+これらの概念は、数学的構造の段階的構成や帰納的定義の形式化において基礎的な役割を果たす。
+
+\vspace{1em}
+\hrule
+\vspace{0.5em}
+\noindent
+\textbf{生成情報:}
+\begin{itemize}[leftmargin=*]
+  \item 本TeXファイルは Claude Code (Anthropic Claude Sonnet 4.5) により生成されました
+  \item 対応するLeanファイル（\texttt{MyProjects.ST.RankCore.Basic}）は Codex (OpenAI) により生成されました
+  \item 原文: \texttt{10\_rankcore.tex} (T1 specification freeze)
+\end{itemize}
+
+\end{document}
