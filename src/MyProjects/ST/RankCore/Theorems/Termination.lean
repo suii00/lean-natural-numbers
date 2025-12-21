@@ -113,16 +113,6 @@ theorem wf_absDesc : WellFounded AbsDesc := by
   intro x y h
   exact h
 
-def PredRel : Nat → Nat → Prop := fun x y => y = x + 1
-
-theorem wf_predRel : WellFounded PredRel := by
-  let R : Ranked Nat Nat := { rank := id }
-  refine wf_of_rank_decreasing (R := R) (r := PredRel) ?_
-  intro x y h
-  rcases h with rfl
-  change x < Nat.succ x
-  exact Nat.lt_succ_self x
-
 end Examples
 
 end ST
