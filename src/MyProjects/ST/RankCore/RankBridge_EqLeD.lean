@@ -105,6 +105,7 @@ variable {R : Ranked α X} {S : Ranked β Y}
     ∃ m : β, ∀ x : X, R.rank x ≤ n → S.rank (f.map x) ≤ m :=
   f.map_layer n
 
+/-- `map_layer` expressed as `Set.MapsTo` on layers. -/
 lemma map_layer_layer (f : RankHomD R S) (n : α) :
     ∃ m : β, Set.MapsTo f.map (R.layer n) (S.layer m) := by
   rcases f.map_layer n with ⟨m, hm⟩
