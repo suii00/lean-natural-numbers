@@ -31,14 +31,13 @@ section GoalTheorem
 theorem gcd_step_wellfounded : WellFounded (fun (p q : ℕ × ℕ) => p.2 < q.2) := by
   -- Proof strategy: Use InvImage and Nat.lt_wfRel
   -- The relation is induced from < on ℕ via projection to second component
-  sorry
+  simpa using (InvImage.wf (fun p : ℕ × ℕ => p.2) (wellFounded_lt))
 
 /--
 最終的に欲しいのは、この関係の下で任意の開始点がaccessibleであること。
 -/
 example (a b : ℕ) : Acc (fun (p q : ℕ × ℕ) => p.2 < q.2) (a, b) := by
-  apply gcd_step_wellfounded.apply
-  sorry
+  exact (gcd_step_wellfounded).apply (a, b)
 
 end GoalTheorem
 
@@ -96,15 +95,17 @@ Fields:
 - `α`: 状態の型
 - `rank`: 減少する量の測度
 - `step`: 計算の1ステップ（オプショナル）
-- `rank_decreases`: rankが実際に減少することの証明（オプショナル）
+- `rank_decreases`: rankが実際に減少することの証明（補助命題として別に用意）
 -/
 structure RankCore (α : Type*) where
   /-- The rank function: measures "size" or "complexity" -/
   rank : α → ℕ
   /-- The step function: one computational step (optional for some applications) -/
   step : α → α := id
-  /-- Proof that rank decreases under step (optional, can be proven separately) -/
-  rank_decreases : ∀ x, rank (step x) < rank x := by decide
+
+/-- Optional property: rank strictly decreases under `step`. -/
+def RankCore.rank_decreases {α : Type*} (rc : RankCore α) : Prop :=
+  ∀ x, rc.rank (rc.step x) < rc.rank x
 
 /--
 **GCD RankCore instance**: ユークリッド互除法のRankCore実装。
@@ -112,19 +113,11 @@ structure RankCore (α : Type*) where
 チェックリスト:
 ✓ rank = gcd_rank (除数)
 ✓ step = gcd_step ((a,b) ↦ (b, a mod b))
-✓ rank_decreases = 証明が必要（b ≠ 0の条件下で）
+✓ rank_decreases は補題として別途証明（b ≠ 0の条件下）
 -/
 def gcdRankCore : RankCore GCDState where
   rank := gcd_rank
   step := gcd_step
-  rank_decreases := by
-    -- この証明は b ≠ 0 の条件が必要なので、ここでは部分的
-    -- 実際の使用では、条件付きで使用する
-    intro ⟨a, b⟩
-    simp [gcd_rank, gcd_step]
-    -- b = 0 のケースで失敗するので、ここはsorry
-    -- （実際にはb ≠ 0の条件下でのみ使用する）
-    sorry
 
 /--
 **条件付きrank減少**: b ≠ 0 のとき、rank (step (a, b)) < rank (a, b)
@@ -221,8 +214,7 @@ theorem gcd_relation_wellfounded :
 theorem gcd_step_wellfounded' :
     WellFounded (fun (p q : GCDState) => p.2 < q.2) := by
   -- gcd_rank p = p.2 なので、上の定理と同じ
-  convert gcd_relation_wellfounded using 2
-  simp [gcd_rank]
+  simpa [gcd_rank] using gcd_relation_wellfounded
 
 /--
 **Accessibility**: 任意の状態 (a, b) がaccessible。
@@ -257,10 +249,28 @@ termination_by gcd_rank (a, b)
 -/
 theorem gcd_with_proof_eq_gcd (a b : ℕ) :
     gcd_with_proof a b = Nat.gcd a b := by
-  -- Proof strategy: Induction on b using WellFounded recursion
-  -- Base case: b = 0
-  -- Inductive step: use gcd recurrence relation
-  sorry
+  -- Proof strategy: strong induction on b.
+  -- Align the recursion with `Nat.gcd_rec` and use commutativity.
+  revert a
+  refine Nat.strongRecOn b ?_
+  intro b ih a
+  by_cases hb : b = 0
+  · subst hb
+    simp [gcd_with_proof]
+  · have hlt : a % b < b := Nat.mod_lt _ (Nat.pos_of_ne_zero hb)
+    have ih' : gcd_with_proof b (a % b) = Nat.gcd b (a % b) :=
+      ih _ hlt b
+    calc
+      gcd_with_proof a b = gcd_with_proof b (a % b) := by
+        nth_rewrite 1 [gcd_with_proof]
+        simp [hb]
+      _ = Nat.gcd b (a % b) := ih'
+      _ = Nat.gcd (a % b) b := by
+        simpa [Nat.gcd_comm]
+      _ = Nat.gcd b a := by
+        exact (Nat.gcd_rec b a).symm
+      _ = Nat.gcd a b := by
+        simpa [Nat.gcd_comm]
 
 end GoalProof
 
