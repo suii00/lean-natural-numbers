@@ -85,4 +85,34 @@ example (x : X) : Acc (Desc (R := R)) x :=
 
 end Termination
 
+/-! ## C3 examples (two small applications) -/
+
+section Examples
+
+open Termination
+
+variable {α : Type u}
+
+def TailRel : List α → List α → Prop := fun x y => ∃ a, y = a :: x
+
+theorem wf_tailRel : WellFounded (TailRel (α := α)) := by
+  let R : Ranked Nat (List α) := { rank := List.length }
+  refine wf_of_rank_decreasing (R := R) (r := TailRel (α := α)) ?_
+  intro x y h
+  rcases h with ⟨a, rfl⟩
+  change List.length x < Nat.succ (List.length x)
+  exact Nat.lt_succ_self (List.length x)
+
+def PredRel : Nat → Nat → Prop := fun x y => y = x + 1
+
+theorem wf_predRel : WellFounded PredRel := by
+  let R : Ranked Nat Nat := { rank := id }
+  refine wf_of_rank_decreasing (R := R) (r := PredRel) ?_
+  intro x y h
+  rcases h with rfl
+  change x < Nat.succ x
+  exact Nat.lt_succ_self x
+
+end Examples
+
 end ST
