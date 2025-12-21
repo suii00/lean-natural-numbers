@@ -1,6 +1,6 @@
 import Mathlib.Data.Nat.Basic
 import Mathlib.Order.WellFounded
-
+import MyProjects.ST.RankCore.Basic
 /-!
 # Ackermann関数の停止性証明（RankCoreアプローチ）
 
@@ -133,12 +133,17 @@ Leanは自動的に以下を検証:
   2. Ackermann関数の各再帰呼び出しは辞書式順序で減少
   3. Leanのterminationチェッカーがこれを自動検証
 -/
-theorem ackermann_terminates : 
+theorem ackermann_terminates :
     WellFounded (fun (p₁ p₂ : ℕ × ℕ) => p₁.1 < p₂.1 ∨ (p₁.1 = p₂.1 ∧ p₁.2 < p₂.2)) := by
   -- Proof strategy: This is precisely the lexicographic order on ℕ × ℕ
   -- which is WellFounded (since ℕ is WellFounded)
   -- Use Prod.Lex.wellFounded or similar
-  sorry
+  refine (WellFounded.mono
+    (r := Prod.Lex (· < ·) (· < ·))
+    (r' := fun (p₁ p₂ : ℕ × ℕ) => p₁.1 < p₂.1 ∨ (p₁.1 = p₂.1 ∧ p₁.2 < p₂.2)) ?wf ?sub)
+  · exact (Prod.lex Nat.lt_wfRel Nat.lt_wfRel).wf
+  · intro p₁ p₂ h
+    exact (Prod.lex_def (r := (· < ·)) (s := (· < ·)) (p := p₁) (q := p₂)).2 h
 
 /-! ## 数学的コメント -/
 
@@ -185,12 +190,35 @@ def list_lex : List ℕ → List ℕ → Prop
 /-- 別の例: 3重辞書式順序
 (a, b, c) : まず a、次に b、最後に c を比較 -/
 def triple_lex (p₁ p₂ : ℕ × ℕ × ℕ) : Prop :=
-  p₁.1 < p₂.1 ∨ 
+  p₁.1 < p₂.1 ∨
   (p₁.1 = p₂.1 ∧ p₁.2.1 < p₂.2.1) ∨
   (p₁.1 = p₂.1 ∧ p₁.2.1 = p₂.2.1 ∧ p₁.2.2 < p₂.2.2)
 
 theorem triple_lex_wellFounded : WellFounded triple_lex := by
   -- Proof strategy: Nested application of lexicographic product
-  sorry
+  refine (WellFounded.mono
+    (r := Prod.Lex (· < ·) (Prod.Lex (· < ·) (· < ·)))
+    (r' := triple_lex) ?wf ?sub)
+  · exact (Prod.lex Nat.lt_wfRel (Prod.lex Nat.lt_wfRel Nat.lt_wfRel)).wf
+  · intro p₁ p₂ h
+    refine (Prod.lex_def
+      (r := (· < ·))
+      (s := Prod.Lex (· < ·) (· < ·))
+      (p := p₁) (q := p₂)).2 ?_
+    rcases h with h | h
+    · exact Or.inl h
+    · rcases h with h | h
+      · refine Or.inr ?_
+        refine ⟨h.1, ?_⟩
+        exact (Prod.lex_def (r := (· < ·)) (s := (· < ·)) (p := p₁.2) (q := p₂.2)).2
+          (Or.inl h.2)
+      · refine Or.inr ?_
+        refine ⟨h.1, ?_⟩
+        exact (Prod.lex_def (r := (· < ·)) (s := (· < ·)) (p := p₁.2) (q := p₂.2)).2
+          (Or.inr ⟨h.2.1, h.2.2⟩)
+
+-- Example test: triple_lex is well-founded at a concrete base point.
+example : Acc triple_lex (0, 0, 0) :=
+  triple_lex_wellFounded.apply (0, 0, 0)
 
 end Ackermann_Example
