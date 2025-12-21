@@ -1,0 +1,41 @@
+\section{PolyDegree}
+\label{sec:ex-polydegree}
+
+\subsection{Lean source}
+\begin{itemize}
+\item Module: \texttt{MyProjects.ST.RankCore.P3.PolyDegree}
+\item Instance: \texttt{ST.instRankedPolynomial}
+\end{itemize}
+
+\subsection{Definition}
+Let $R$ be a semiring and consider $X := R[X]$.
+\begin{definition}[Polynomial degree rank (T2 choice)]
+We define $\rank(p) := \mathrm{natDegree}(p) \in \mathbb{N}$ (Lean: \texttt{Polynomial.natDegree}).
+Thus
+\[
+  \layer(n) := \{\, p : R[X] \mid \mathrm{natDegree}(p) \le n \,\}.
+\]
+\end{definition}
+
+\paragraph{Design note (zero polynomial).}
+In Mathlib, \texttt{natDegree 0 = 0}, hence $\layer(0)$ contains $0$ and all constant polynomials.
+
+\subsection{Key lemmas (T2)}
+\begin{itemize}
+\item \textbf{Layer membership:} \texttt{poly\_layer\_iff}.
+\item \textbf{Monotonicity:} \texttt{poly\_layer\_mono}.
+\item \textbf{Rank bound under addition:} \texttt{rank\_add\_le}.
+\item \textbf{Layer-$0$ characterization (constants):} \texttt{layer\_zero\_eq\_constants}.
+\item \textbf{Layer closed under addition:} \texttt{layer\_add\_closed'} / \texttt{layer\_add\_closed}.
+\end{itemize}
+
+\subsection{Executable demos}
+Polynomial evaluation is often noncomputable in Lean; therefore, this example emphasizes
+\textbf{proof-driven} checks rather than \texttt{\#eval}.
+
+\subsection{Bridge to towers}
+This example uses \texttt{toNatTowerWithMin} and records:
+\begin{itemize}
+\item Layer equality: \texttt{poly\_tower\_layer\_eq}.
+\item minLayer equality: \texttt{poly\_tower\_minLayer\_eq}.
+\end{itemize}

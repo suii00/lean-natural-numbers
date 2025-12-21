@@ -1,0 +1,40 @@
+\chapter{A3 Example Catalog (T2 Freeze)}
+\label{ch:a3-examples}
+
+This chapter is the \textbf{T2 documentation skeleton} for WBS item \textbf{A3 (five examples)}.
+Each example instantiates the T1 interface
+\texttt{ST.Ranked} and (when applicable) the bridge to \texttt{StructureTowerWithMin}.
+
+\section{Scope and conventions}
+\begin{itemize}
+\item \textbf{Source of truth (Lean).} Each section points to a Lean file (module path) that
+  defines the instance and the supporting lemmas.
+\item \textbf{T2 goal.} Provide a stable narrative around:
+  (i) the rank function, (ii) the induced layers, (iii) representative lemmas, and
+  (iv) small executable demonstrations when feasible.
+\item \textbf{Bonus isolation.} Lemmas with heavy Mathlib dependencies are moved to \emph{Bonus}
+  files and are not used by the T2 main text.
+\end{itemize}
+
+\section{Five required examples}
+\begin{enumerate}
+\item ListLength (\S\ref{sec:ex-listlength})
+\item FinsetCard (\S\ref{sec:ex-finsetcard})
+\item PolyDegree (\S\ref{sec:ex-polydegree})
+\item IntAbs (\S\ref{sec:ex-intabs})
+\item ClosureIteration (\S\ref{sec:ex-closureiteration})
+\end{enumerate}
+
+\bigskip
+\noindent
+\textbf{Inputs.} This chapter is assembled via:
+\begin{center}
+\verb|\input{31_listlength.tex}|, \verb|\input{32_finsetcard.tex}|, \verb|\input{33_polydegree.tex}|,\\
+\verb|\input{34_intabs.tex}|, \verb|\input{35_closureiteration.tex}|.
+\end{center}
+
+\input{31_listlength}
+\input{32_finsetcard}
+\input{33_polydegree}
+\input{34_intabs}
+\input{35_closureiteration}

@@ -1,0 +1,47 @@
+\section{IntAbs}
+\label{sec:ex-intabs}
+
+\subsection{Lean source}
+\begin{itemize}
+\item Module: \texttt{MyProjects.ST.RankCore.P3.IntAbs}
+\item Instance: \texttt{ST.instRankedInt}
+\end{itemize}
+
+\subsection{Definition}
+Consider $X := \mathbb{Z}$ and index set $\mathbb{N}$.
+\begin{definition}[Absolute value rank on integers]
+Define $\rank(z) := |z|_{\mathbb{N}}$ (Lean: \texttt{Int.natAbs}).
+Then
+\[
+  \layer(n) := \{\, z \in \mathbb{Z} \mid |z| \le n \,\}
+  \;\;=\;\;
+  \{\, z \in \mathbb{Z} \mid -n \le z \le n \,\}.
+\]
+\end{definition}
+
+\subsection{Key lemmas (T2)}
+\begin{itemize}
+\item \textbf{Layer membership:} \texttt{int\_layer\_iff}.
+\item \textbf{Interval characterization:} \texttt{int\_layer\_eq\_interval}.
+\item \textbf{Monotonicity:} \texttt{int\_layer\_mono}.
+\item \textbf{Symmetry:} \texttt{rank\_neg}.
+\item \textbf{Triangle inequality:} \texttt{rank\_add\_le}.
+\end{itemize}
+
+\subsection{Executable demos}
+This example supports abundant \texttt{\#eval} demonstrations of \texttt{Int.natAbs}.
+
+\subsection{Bridge to towers}
+As in previous $\mathbb{N}$-indexed examples, we use \texttt{toNatTowerWithMin}:
+\begin{itemize}
+\item Layer equality: \texttt{int\_tower\_layer\_eq}.
+\item minLayer equality: \texttt{int\_tower\_minLayer\_eq}.
+\end{itemize}
+
+\subsection{Non-closure examples}
+The file includes concrete witnesses that $\layer(n)$ is generally not closed under $+$ or $\times$,
+by exhibiting $1+1=2$ and $2\cdot 2=4$ at $n=1,2$ respectively.
+
+\subsection{Bonus isolation}
+The cardinality formula for $\layer(n)$ is intentionally excluded from T2 main text and lives in a
+Bonus file (see the Lean comment).

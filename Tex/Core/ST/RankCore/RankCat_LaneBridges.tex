@@ -1,0 +1,190 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- パッケージ設定 (LuaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[top=25mm, bottom=25mm, left=20mm, right=20mm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes.geometric, positioning, backgrounds, fit, calc}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan
+}
+
+% --- 定理環境 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+\theoremstyle{plain}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{theorem}[definition]{定理}
+
+% --- マクロ ---
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\layer}{\operatorname{layer}}
+\newcommand{\map}{\operatorname{map}}
+\newcommand{\indexMap}{\operatorname{indexMap}}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\Obj}{\operatorname{Obj}}
+\newcommand{\Hom}{\operatorname{Hom}}
+\newcommand{\RankCatLe}{\mathbf{RankCat}_{\le}}
+\newcommand{\RankHomLe}{\mathrm{RankHom}_{\le}}
+\newcommand{\RankHomEq}{\mathrm{RankHom}_{=}}
+\newcommand{\RankHomD}{\mathrm{RankHom}_{\exists}}
+
+% --- タイトル ---
+\title{\textbf{ランク付きオブジェクトの圏とレーンブリッジ}\\ \large --- T3 Snapshot: RankCatLe and Lane Bridges ---}
+\author{
+    \textbf{TeX解説生成}: Gemini (Google) \\
+    \textbf{Leanコード生成}: Codex (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Leanライブラリ \code{MyProjects.ST.RankCore} のT3開発フェーズにおける成果、特にランク付きオブジェクトを対象とする圏 $\RankCatLe$ の構成と、異なる制約強度を持つ射（レーン）間の変換（ブリッジ）について数学的に解説する。中心的な役割を果たす「データレーン (\code{Le})」が、いかにして「等式レーン (\code{Eq})」と「存在レーン (\code{D})」を接続するかを明らかにする。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに: T3の到達点}
+本稿が解説するのは、ランク付きオブジェクトの理論における「圏化（Categorification）」と「多層的な射の統合」の段階である。T1段階で定義されたランク付きオブジェクトと射を基盤とし、以下の2つの主要な構造を導入する。
+
+\begin{enumerate}
+    \item \textbf{圏 $\RankCatLe$ (RankCatLe):} ランク付きオブジェクトを対象とし、ランクの有界性を保つ射を射とする圏。
+    \item \textbf{レーンブリッジ (Lane Bridges):} 射の強さに応じた3つのレベル（Eq, Le, D）と、それらの間の包含関係。
+\end{enumerate}
+
+\section{ランク付きオブジェクトの圏 ($\RankCatLe$)}
+
+まず、中心となる圏の構造を定義する。インデックス型（順序集合）$\alpha$ を固定する。
+
+\subsection{対象と射}
+
+\begin{definition}[対象]
+圏 $\RankCatLe(\alpha)$ の対象は、型 $X$ とその上のランク関数 $\rank_X : X \to \alpha$ の対 $(X, \rank_X)$ である。
+Leanでは、これは依存ペア $\Sigma X, \code{Ranked}\ \alpha\ X$ として表現される。
+\end{definition}
+
+\begin{definition}[射: RankHomLe]
+2つの対象 $R=(X, \rank_X)$ と $S=(Y, \rank_Y)$ の間の射 $f: R \to S$ は、以下の要素からなる構造である。
+\begin{itemize}
+    \item キャリア写像: $\map_f : X \to Y$
+    \item インデックス写像: $\indexMap_f : \alpha \to \alpha$ （単調増加）
+\end{itemize}
+これらは以下の\textbf{ランク不等式（Lax可換性）}を満たす。
+\[
+  \forall x \in X,\quad \rank_Y(\map_f(x)) \le \indexMap_f(\rank_X(x))
+\]
+\end{definition}
+
+\subsection{圏の構造: 恒等と合成}
+
+圏を構成するためには、恒等射と射の合成が必要である。これらは \code{RankHomLe} モジュールで定義されている。
+
+\begin{itemize}
+    \item \textbf{恒等射 ($\id_R$):}
+    キャリア写像とインデックス写像の双方が恒等写像 $\id$ である。
+    \[ \rank_X(\id(x)) \le \id(\rank_X(x)) \]
+    これは反射律 $a \le a$ により成立する。
+
+    \item \textbf{合成 ($g \circ f$):}
+    $f: R \to S, g: S \to T$ に対し、合成射は成分ごとの合成で定義される。
+    \[ \map_{g \circ f} = \map_g \circ \map_f, \quad \indexMap_{g \circ f} = \indexMap_g \circ \indexMap_f \]
+    ランク条件の成立は、以下の不等式の連鎖（Chaining）により保証される。
+    \begin{align*}
+        \rank_T(g(f(x))) 
+        &\le \indexMap_g(\rank_S(f(x))) \quad (\because g \text{の条件}) \\
+        &\le \indexMap_g(\indexMap_f(\rank_X(x))) \quad (\because f \text{の条件と} \indexMap_g \text{の単調性})
+    \end{align*}
+\end{itemize}
+
+この定義により、結合法則などの圏の公理は、不等式の詳細に立ち入ることなく成立する。
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[row sep=large, column sep=huge]
+  (X, \rank_X) \arrow[r, "f=(\map_f{,}\ \indexMap_f)"] \arrow[rd, "g \circ f"'] 
+  & (Y, \rank_Y) \arrow[d, "g=(\map_g{,}\ \indexMap_g)"] \\
+  & (Z, \rank_Z)
+\end{tikzcd}
+\caption{$\RankCatLe$ における射の合成}
+\end{figure}
+
+\section{レーンブリッジ: Eq $\to$ Le $\to$ D}
+
+本ライブラリの特徴的な設計として、射の「強さ」に応じた3つの異なる定義（レーン）があり、それらが一方向の含意関係（ブリッジ）で結ばれている。
+
+\subsection{3つのレーン定義}
+
+\begin{enumerate}
+    \item \textbf{Eqレーン ($\RankHomEq$):} 最も強い条件。ランクが等式で保存される。
+    \[ \rank_Y(f(x)) = \indexMap(\rank_X(x)) \]
+    
+    \item \textbf{Leレーン ($\RankHomLe$):} 標準的な条件。ランクが上から抑えられる。
+    \[ \rank_Y(f(x)) \le \indexMap(\rank_X(x)) \]
+    これが圏 $\RankCatLe$ の射として採用されている "Source of Truth" である。
+
+    \item \textbf{Dレーン / 存在レーン ($\RankHomD$):} 最も弱い条件。具体的な $\indexMap$ を持たず、各層が「ある層」に写ることのみを要求する。
+    \[ \forall n \in \alpha, \exists m \in \alpha, \forall x, \rank_X(x) \le n \implies \rank_Y(f(x)) \le m \]
+\end{enumerate}
+
+\subsection{ブリッジの構造}
+
+これらのレーンは、以下の図式のように変換可能である。
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=huge, row sep=large]
+  \textbf{Eq} \arrow[r, "\code{toLe}"] \arrow[d, phantom, "\text{等式}"] 
+  & \textbf{Le} \arrow[r, "\code{toD}"] \arrow[d, phantom, "\text{不等式}"] 
+  & \textbf{D} \arrow[d, phantom, "\text{存在}"] \\
+  \rank_Y(f(x)) = \varphi(r_x) \arrow[r, Rightarrow] 
+  & \rank_Y(f(x)) \le \varphi(r_x) \arrow[r, Rightarrow] 
+  & \exists m, f(\layer(n)) \subseteq \layer(m)
+\end{tikzcd}
+\caption{レーン間の変換（ブリッジ）構造}
+\end{figure}
+
+\subsubsection*{Eq $\to$ Le (\code{toLe})}
+等式 $a = b$ ならば不等式 $a \le b$ が成り立つ（反射律）ことを利用する。
+Leanでは \code{le\_of\_eq} を使用して変換する。
+
+\subsubsection*{Le $\to$ D (\code{toD})}
+具体的な $\indexMap$ を持つ $\RankHomLe$ は、自明に $\RankHomD$ の条件を満たす。
+ある $n$ に対して、存在すべき $m$ として $\indexMap(n)$ を選べばよい（Witnessの構成）。
+\[ \rank_X(x) \le n \implies \rank_Y(f(x)) \le \indexMap(\rank_X(x)) \le \indexMap(n) \]
+ここで2つ目の不等号には $\indexMap$ の単調性が効いている。
+
+\section{設計思想: なぜLeが中心なのか}
+
+3つのレーンの中で、$\RankHomLe$（不等式レーン）がライブラリの中核（Source of Truth）として選ばれている。その理由は以下の「数学的安定性」と「工学的安定性」にある。
+
+\begin{itemize}
+    \item \textbf{数学的安定性:} 合成が「順序の推移律」と「写像の単調性」のみで閉じるため、解析的な条件や測度論的な仮定を必要としない。
+    \item \textbf{工学的安定性:} 証明が外部ライブラリの複雑な補題に依存せず、\code{le\_trans} などの基本的な順序の公理のみで完結するため、Leanのバージョンアップやライブラリの変更に対して極めて堅牢である。
+\end{itemize}
+
+\section{まとめ}
+
+T3スナップショットにおいて、ランク付きオブジェクトの理論は以下の構造を獲得した。
+
+\begin{enumerate}
+    \item \textbf{圏 $\RankCatLe$:} ランクと不等式に基づく堅牢な圏。
+    \item \textbf{多層的な射:} 厳密な等式 ($\RankHomEq$) から緩やかな有界性 ($\RankHomD$) までを扱うための階層構造。
+    \item \textbf{ブリッジ:} これらを滑らかに接続する変換機構。
+\end{enumerate}
+
+これにより、具体的なアルゴリズム（EqやLeで記述されることが多い）と、抽象的な解析（Dで記述されることが多い）の間を自由に行き来する基礎が整ったと言える。
+
+\end{document}

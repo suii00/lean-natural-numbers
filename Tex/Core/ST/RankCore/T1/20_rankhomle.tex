@@ -1,0 +1,68 @@
+\section{Data-lane morphisms between ranked objects (T1)}
+\label{sec:rankhomle}
+
+This section is the \textbf{T1 specification freeze} corresponding to
+\texttt{MyProjects.ST.RankCore.RankHomLe} (Lean file \texttt{RankHomLe.lean}).
+
+\subsection{Definition (\texttt{ST.RankHomLe})}
+
+Let $\alpha,\beta$ be preorders, and let
+\[
+  R=(X,\operatorname{rank}_R)\ \text{ be an $\alpha$-ranked object}, \qquad
+  S=(Y,\operatorname{rank}_S)\ \text{ be a $\beta$-ranked object}.
+\]
+A \emph{data-lane morphism} from $R$ to $S$ consists of a carrier map $X\to Y$ together with
+a \emph{monotone index map} $\alpha\to \beta$ which bounds ranks along the carrier map.
+
+\begin{definition}[Data-lane morphism]\label{def:rankhomle}
+A \emph{data-lane morphism} $f : R \to_{\le} S$ is a tuple
+\[
+  f = (\operatorname{map}_f,\ \operatorname{indexMap}_f)
+\]
+where
+\[
+  \operatorname{map}_f : X \to Y,\qquad \operatorname{indexMap}_f : \alpha \to \beta
+\]
+such that:
+\begin{enumerate}
+\item $\operatorname{indexMap}_f$ is monotone;
+\item for all $x\in X$,
+\[
+  \operatorname{rank}_S(\operatorname{map}_f(x)) \le \operatorname{indexMap}_f(\operatorname{rank}_R(x)).
+\]
+\end{enumerate}
+This is the Lean structure \texttt{ST.RankHomLe R S} with fields
+\texttt{map}, \texttt{indexMap}, \texttt{mono}, \texttt{rank\_le}.
+\end{definition}
+
+\subsection{Identity and composition (T1 operations)}
+
+\begin{definition}[Identity]\label{def:rankhomle-id}
+For a ranked object $R=(X,\operatorname{rank}_R)$, the identity data-lane morphism
+$\mathrm{id}_R : R \to_{\le} R$ is given by
+\[
+  \operatorname{map}_{\mathrm{id}_R} := \mathrm{id}_X,\qquad
+  \operatorname{indexMap}_{\mathrm{id}_R} := \mathrm{id}_\alpha.
+\]
+In Lean: \texttt{ST.RankHomLe.id}.
+\end{definition}
+
+\begin{definition}[Composition]\label{def:rankhomle-comp}
+Given $f : R \to_{\le} S$ and $g : S \to_{\le} T$, define $g\circ f : R \to_{\le} T$ by
+\[
+  \operatorname{map}_{g\circ f} := \operatorname{map}_g \circ \operatorname{map}_f,\qquad
+  \operatorname{indexMap}_{g\circ f} := \operatorname{indexMap}_g \circ \operatorname{indexMap}_f.
+\]
+Monotonicity of $\operatorname{indexMap}_{g\circ f}$ follows from monotonicity of each factor, and
+the rank bound is obtained by chaining
+\[
+  \operatorname{rank}_T(\operatorname{map}_g(\operatorname{map}_f(x)))
+  \le \operatorname{indexMap}_g(\operatorname{rank}_S(\operatorname{map}_f(x)))
+  \le \operatorname{indexMap}_g(\operatorname{indexMap}_f(\operatorname{rank}_R(x))).
+\]
+In Lean: \texttt{ST.RankHomLe.comp}.
+\end{definition}
+
+\paragraph{Scope of T1 freeze.}
+At T1 we freeze only the \emph{data} and the operations \emph{id/comp}.
+The categorical packaging (\texttt{Category} instance) is intentionally deferred to T3.

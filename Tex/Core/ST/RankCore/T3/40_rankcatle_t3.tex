@@ -1,0 +1,169 @@
+\chapter{T3 Snapshot: \texttt{RankCatLe} and lane bridges}
+\label{ch:t3-rankcatle}
+
+This chapter freezes the \textbf{T3 (week 6)} state:
+\begin{itemize}
+\item \textbf{B2:} the category instance \texttt{RankCatLe} (objects, morphisms, composition),
+\item \textbf{B3:} the lane bridges \texttt{Eq} $\to$ \texttt{Le} $\to$ \texttt{D} (one representative chain).
+\end{itemize}
+
+\paragraph{Lean sources (as of T3).}
+\begin{itemize}
+\item \texttt{RankHomLe.lean}: the data-lane morphism \texttt{RankHomLe} (the ``source of truth''). 
+\item \texttt{RankCatLe.lean}: the category packaging of \texttt{RankHomLe} into \texttt{RankCatLe}.
+\item \texttt{RankBridge\_EqLeD.lean}: bridge definitions \texttt{RankHomEq}, \texttt{RankHomD} and the maps
+  \texttt{toLe}, \texttt{toD}.
+\item \texttt{RankCat.lean}: a convenience wrapper (kept minimal here; relations to older Cat-lanes are deferred).
+\end{itemize}
+
+\section{Ranked objects and layers (recap)}
+Fix an index type $\iota$ equipped with a preorder $(\iota,\le)$.
+
+\begin{definition}[Ranked object]
+A \emph{ranked object} is a pair $(X,r)$ where $X$ is a type and $r : X \to \iota$ is a rank function.
+In Lean, this is \texttt{ST.Ranked $\iota$ X} with field \texttt{rank : X → $\iota$}.
+\end{definition}
+
+\begin{definition}[Layers]
+For a ranked object $R=(X,r)$ and $n\in\iota$, the \emph{$n$-th layer} is the subset
+\[
+  \layer_R(n) := \{\,x\in X \mid r(x)\le n\,\}.
+\]
+Lean notation: \texttt{R.layer n}.
+\end{definition}
+
+Layers convert rank inequalities into membership statements and serve as the common ``interface language''
+for the weakest lane (\S\ref{sec:t3-lanes}).
+
+\section{\texttt{RankHomLe}: the data-lane morphisms}
+\label{sec:t3-rankhomle}
+
+Let $R=(X,r_X)$ be a ranked object over $\alpha$ and $S=(Y,r_Y)$ a ranked object over $\beta$
+(where $\alpha,\beta$ are preorders).
+
+\begin{definition}[\texttt{RankHomLe}]
+A \texttt{RankHomLe} morphism $f : R \to S$ consists of:
+\begin{itemize}
+\item a carrier map $f.\mathrm{map} : X \to Y$,
+\item an index map $f.\mathrm{indexMap} : \alpha \to \beta$,
+\item monotonicity: $f.\mathrm{indexMap}$ is monotone,
+\item a rank inequality (lax commutativity):
+\[
+  r_Y\bigl(f.\mathrm{map}(x)\bigr)\ \le\ f.\mathrm{indexMap}\bigl(r_X(x)\bigr)
+  \qquad (\forall x\in X).
+\]
+\end{itemize}
+\end{definition}
+
+\paragraph{Why \texttt{Le} is the source of truth.}
+We choose the \texttt{Le} lane as the canonical implementation lane for two reasons:
+\begin{enumerate}
+\item \textbf{Mathematical stability:} composition is closed using only transitivity of $\le$ and monotonicity of
+  \texttt{indexMap}. No measure-theoretic or analytic infrastructure is needed.
+\item \textbf{Engineering stability:} the core proof of composition is the ``one-line'' chain
+  \[
+    r_Z(g(f(x))) \le g_\*(r_Y(f(x))) \le g_\*(f_\*(r_X(x))),
+  \]
+  hence it depends on almost no external lemmas and is resilient to library updates.
+\end{enumerate}
+
+\section{\texttt{RankCatLe}: a category of ranked objects (B2)}
+\label{sec:t3-rankcatle}
+
+Fix a preorder $\alpha$.
+
+\begin{definition}[\texttt{RankCatLe $\alpha$} (objects)]
+The objects are dependent pairs
+\[
+  \mathrm{Obj}(\mathrm{RankCatLe}(\alpha)) := \sum_{X:\mathrm{Type}} \mathrm{Ranked}(\alpha,X).
+\]
+That is, an object is a carrier type $X$ together with a rank $r : X\to\alpha$.
+\end{definition}
+
+\begin{definition}[\texttt{RankCatLe $\alpha$} (morphisms)]
+For objects $T=(X,r_X)$ and $U=(Y,r_Y)$, the hom-set is
+\[
+  \mathrm{Hom}(T,U) := \mathrm{RankHomLe}(r_X,r_Y),
+\]
+so a morphism carries both a map on carriers and a monotone index map.
+\end{definition}
+
+\begin{definition}[Identity and composition]
+\begin{itemize}
+\item The identity $\mathrm{id}_T$ uses $\mathrm{id}_X$ on carriers and $\mathrm{id}_\alpha$ on indices.
+\item Composition is defined by composing both the carrier maps and the index maps:
+\[
+  (g\circ f).\mathrm{map} := g.\mathrm{map}\circ f.\mathrm{map},\qquad
+  (g\circ f).\mathrm{indexMap} := g.\mathrm{indexMap}\circ f.\mathrm{indexMap}.
+\]
+The rank inequality is proved by the transitivity--monotonicity chain described above.
+\end{itemize}
+\end{definition}
+
+\paragraph{Category laws.}
+The proofs of $\mathrm{id}\_\mathrm{comp}$, $\mathrm{comp}\_\mathrm{id}$, and $\mathrm{assoc}$ are
+definitionally trivial after destructing morphisms (\texttt{cases}/\texttt{ext} in Lean).
+Crucially, these proofs do not inspect the internal inequalities.
+
+\paragraph{Forgetful functors (standard terminology).}
+There is an evident \emph{forgetful functor}
+\[
+  U : \mathrm{RankCatLe}(\alpha) \longrightarrow \mathbf{Type},\qquad (X,r)\mapsto X,
+\]
+sending a morphism to its carrier map. This is the primary interface to ``ordinary functions''.
+Because morphisms carry additional data (\texttt{indexMap}), $U$ need not be faithful in general.
+A faithful forgetful functor is obtained by forgetting only proof fields while retaining the data
+$(\mathrm{map},\mathrm{indexMap})$; we keep its explicit packaging for later stages.
+
+\section{Lane relations: Eq $\to$ Le $\to$ D (B3)}
+\label{sec:t3-lanes}
+
+At T3 we record three ``strength levels'' for morphisms between ranked objects.
+
+\begin{itemize}
+\item \textbf{Eq lane (\texttt{RankHomEq}).}
+Rank preservation holds by equality:
+\[
+  r_Y(f(x)) = \varphi(r_X(x)).
+\]
+\item \textbf{Le lane (\texttt{RankHomLe}).}
+Rank preservation holds by inequality:
+\[
+  r_Y(f(x)) \le \varphi(r_X(x)).
+\]
+\item \textbf{D lane (\texttt{RankHomD}).}
+Only layer-boundedness is required:
+\[
+  \forall n\ \exists m\ \forall x,\ r_X(x)\le n \Rightarrow r_Y(f(x))\le m.
+\]
+Equivalently, $f$ maps each layer into some layer (\texttt{Set.MapsTo}).
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=large]
+\texttt{RankHomEq} \arrow[r, "\texttt{toLe}"] &
+\texttt{RankHomLe} \arrow[r, "\texttt{toD}"] &
+\texttt{RankHomD}
+\end{tikzcd}
+\caption{Lane bridges recorded at T3: Eq $\to$ Le $\to$ D.}
+\label{fig:t3-bridges}
+\end{figure}
+
+\paragraph{Bridge Eq $\to$ Le.}
+The map \texttt{RankHomEq.toLe} sends an equality proof to an inequality proof via $\le$-reflexivity
+(\texttt{le\_of\_eq}).
+
+\paragraph{Bridge Le $\to$ D.}
+The map \texttt{RankHomLe.toD} chooses the witness $m := \varphi(n)$ and proves:
+\[
+  r_Y(f(x)) \le \varphi(r_X(x)) \le \varphi(n),
+\]
+using monotonicity of $\varphi$. In Lean, the chosen-witness lemma is exposed as
+\texttt{RankHomLe.toD\_bound}. The corresponding layer formulation is available as
+\texttt{RankHomD.mapsTo\_layer}.
+
+\paragraph{What we intentionally do \emph{not} write at T3.}
+We do not yet relate \texttt{RankCatLe} to the older ``Cat\_*'' families (e.g.\ \texttt{Cat\_le},
+\texttt{Cat\_D}, \texttt{Cat\_WithMin}). Doing so now would front-load technical debt.
+The goal of T3 is to freeze a clean, rank-centric category and its internal lane comparisons.

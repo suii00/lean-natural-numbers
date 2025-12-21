@@ -1,0 +1,862 @@
+\documentclass[11pt,a4paper,ja=standard]{bxjsarticle}
+
+% ---------- LuaLaTeX用日本語設定 ----------
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Yu Mincho}
+\setsansjfont{Yu Gothic}
+
+% ---------- 数学・図式パッケージ ----------
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows,calc}
+
+% ---------- レイアウト ----------
+\usepackage{geometry}
+\geometry{margin=25mm}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+% ---------- 定理環境 ----------
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% ---------- カスタムマクロ ----------
+\newcommand{\layer}{\operatorname{layer}}
+\newcommand{\Hom}{\operatorname{Hom}}
+\newcommand{\Obj}{\operatorname{Obj}}
+\newcommand{\Type}{\mathbf{Type}}
+\newcommand{\RankHomLe}{\mathtt{RankHomLe}}
+\newcommand{\RankHomEq}{\mathtt{RankHomEq}}
+\newcommand{\RankHomD}{\mathtt{RankHomD}}
+\newcommand{\RankCatLe}{\mathtt{RankCatLe}}
+\newcommand{\Ranked}{\mathtt{Ranked}}
+
+% ---------- タイトル情報 ----------
+\title{ランク付き構造の圏論的枠組み：\\
+3つのモルフィズム層とそのブリッジ}
+
+\author{%
+  TeXファイル生成: Claude Code\\
+  Leanコード生成: OpenAI Codex\\
+  \medskip\\
+  \small 本文書はLean 4による形式化プロジェクトの数学的解説です
+}
+
+\date{\today}
+
+% ---------- ドキュメント開始 ----------
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、ランク関数を持つ構造の圏論的枠組みを構築する。
+主な貢献は以下の通りである：
+(1) データ層モルフィズム $\RankHomLe$ の定義と圏構造 $\RankCatLe$、
+(2) 3つの強度レベル（等式層 $\RankHomEq$、不等式層 $\RankHomLe$、存在層 $\RankHomD$）の定義、
+(3) これらの層の間の自然な埋め込み（ブリッジ）の構成。
+本研究はLean 4による形式的証明を伴い、圏の公理が構成的に検証されている。
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+% ============================================================
+\section{序論}
+% ============================================================
+
+\subsection{背景と動機}
+
+ランク付き構造は、複雑度理論、計算理論、順序構造の研究など、数学と計算機科学の様々な分野で自然に現れる。
+各要素にランク（順序付き集合の値）を割り当てることで、構造の「階層性」や「複雑さ」を捉えることができる。
+
+本研究の目的は、このようなランク付き構造の間の射を圏論的に整理し、
+異なる強度の条件（等式、不等式、存在条件）を持つ3つの「層」を定義し、
+それらの間の関係を明確化することである。
+
+\subsection{形式化の方針}
+
+本稿で述べる数学的内容は、すべてLean 4による形式的証明を伴っている。
+Leanコードの生成にはOpenAI Codexを使用し、TeXファイルの生成にはClaude Codeを使用した。
+形式化により、以下の利点が得られる：
+
+\begin{itemize}
+\item 圏の公理（結合律、単位律）の機械的検証
+\item 型安全性による定義の明確化
+\item モノトニシティなどの重要な性質の明示的証明
+\end{itemize}
+
+% ============================================================
+\section{基本概念：ランク付き対象}
+% ============================================================
+
+\subsection{ランク付き対象の定義}
+
+順序付き集合によるランク付けの概念を導入する。
+
+\begin{definition}[前順序]
+集合 $\alpha$ 上の二項関係 $\le$ が\emph{前順序}（preorder）であるとは、
+以下を満たすことである：
+\begin{itemize}
+\item 反射律：任意の $a \in \alpha$ に対し $a \le a$、
+\item 推移律：$a \le b$ かつ $b \le c$ ならば $a \le c$。
+\end{itemize}
+\end{definition}
+
+\begin{definition}[ランク付き対象]\label{def:ranked}
+前順序 $(\alpha, \le)$ に関する\emph{ランク付き対象}とは、対 $(X, r)$ である。
+ここで：
+\begin{itemize}
+\item $X$ は型（集合）、
+\item $r : X \to \alpha$ はランク関数。
+\end{itemize}
+Lean 4では、これを構造体 $\Ranked\ \alpha\ X$ として実装し、
+フィールド $\mathtt{rank} : X \to \alpha$ を持つ。
+\end{definition}
+
+\begin{example}
+$\alpha = \mathbb{N}$ を自然数の通常の順序とする。
+$X = \{$有限グラフ$\}$ として、各グラフ $G$ のランクをその頂点数 $r(G) = |V(G)|$ と定義すれば、
+$(X, r)$ はランク付き対象である。
+\end{example}
+
+\subsection{層の概念}
+
+ランク関数から自然に導かれる重要な概念が層（layer）である。
+
+\begin{definition}[層]\label{def:layer}
+ランク付き対象 $R = (X, r)$ と $n \in \alpha$ に対し、
+$n$-\emph{層} $\layer_R(n)$ を以下で定義する：
+\[
+  \layer_R(n) := \{\, x \in X \mid r(x) \le n \,\}.
+\]
+Lean記法では $\mathtt{R.layer}\ n$ と書く。
+\end{definition}
+
+\begin{remark}
+層はランクの不等式を集合の帰属性に変換する。
+これにより、存在層モルフィズム（後述の定義~\ref{def:rankhomd}）で
+集合論的な「写像」の言葉で条件を述べることができる。
+\end{remark}
+
+\begin{proposition}[層のモノトニシティ]
+$m \le n$ ならば $\layer_R(m) \subseteq \layer_R(n)$。
+\end{proposition}
+
+\begin{proof}
+$x \in \layer_R(m)$ とすると $r(x) \le m$ である。
+$m \le n$ より推移律から $r(x) \le n$ となり、$x \in \layer_R(n)$。
+\end{proof}
+
+% ============================================================
+\section{データ層モルフィズム：\texorpdfstring{$\RankHomLe$}{RankHomLe}}
+% ============================================================
+
+\subsection{定義と基本性質}
+
+3つの層の中で、$\RankHomLe$ を「真理の源泉」(source of truth) として採用する。
+
+\begin{definition}[$\RankHomLe$ モルフィズム]\label{def:rankhomle}
+前順序 $\alpha, \beta$ に関するランク付き対象 $R = (X, r_X)$ および $S = (Y, r_Y)$ の間の
+\emph{データ層モルフィズム} $f : R \to S$ は、以下のデータからなる：
+\begin{itemize}
+\item 台写像 $f.\mathtt{map} : X \to Y$、
+\item 添字写像 $f.\mathtt{indexMap} : \alpha \to \beta$、
+\item モノトニシティ：$f.\mathtt{indexMap}$ は単調、
+\item ランク不等式（緩可換性）：
+\[
+  r_Y(f.\mathtt{map}(x)) \le f.\mathtt{indexMap}(r_X(x))
+  \qquad (\forall x \in X).
+\]
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+ランク不等式は、図式
+\[
+\begin{tikzcd}
+X \arrow[r, "f.\mathtt{map}"] \arrow[d, "r_X"'] & Y \arrow[d, "r_Y"] \\
+\alpha \arrow[r, "f.\mathtt{indexMap}"'] & \beta
+\end{tikzcd}
+\]
+が「$\le$ の意味で可換」であることを意味する。
+\end{remark}
+
+\subsection{恒等射と合成}
+
+圏の公理を満たすことを示すために、恒等射と合成を定義する。
+
+\begin{definition}[恒等射]
+ランク付き対象 $R = (X, r)$ に対し、恒等射 $\mathrm{id}_R : R \to R$ を以下で定義する：
+\begin{itemize}
+\item $(\mathrm{id}_R).\mathtt{map} = \mathrm{id}_X$、
+\item $(\mathrm{id}_R).\mathtt{indexMap} = \mathrm{id}_\alpha$、
+\item モノトニシティは自明（$a \le b \Rightarrow a \le b$）、
+\item ランク不等式：$r(\mathrm{id}_X(x)) = r(x) \le r(x)$（反射律）。
+\end{itemize}
+\end{definition}
+
+\begin{definition}[合成]\label{def:composition}
+$f : R \to S$、$g : S \to T$ を $\RankHomLe$ モルフィズムとする。
+合成 $g \circ f : R \to T$ を以下で定義する：
+\begin{itemize}
+\item $(g \circ f).\mathtt{map} = g.\mathtt{map} \circ f.\mathtt{map}$、
+\item $(g \circ f).\mathtt{indexMap} = g.\mathtt{indexMap} \circ f.\mathtt{indexMap}$、
+\item モノトニシティ：単調写像の合成は単調、
+\item ランク不等式：任意の $x \in X$ に対し
+\begin{align*}
+r_T(g.\mathtt{map}(f.\mathtt{map}(x)))
+&\le g.\mathtt{indexMap}(r_S(f.\mathtt{map}(x)))
+  \quad (\text{$g$ のランク不等式})\\
+&\le g.\mathtt{indexMap}(f.\mathtt{indexMap}(r_X(x)))
+  \quad (\text{$f$ のランク不等式と $g.\mathtt{indexMap}$ のモノトニシティ}).
+\end{align*}
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[合成の結合律]
+$f : R \to S$、$g : S \to T$、$h : T \to U$ に対し、
+$(h \circ g) \circ f = h \circ (g \circ f)$。
+\end{theorem}
+
+\begin{proof}
+台写像と添字写像の等式は関数合成の結合律から従う。
+モノトニシティとランク不等式は命題的内容（Prop）なので、証明無関係性により自動的に一致する。
+Leanでは、構造体を分解（$\mathtt{cases}$）すれば定義的に等しい。
+\end{proof}
+
+\subsection{なぜ $\RankHomLe$ を選ぶのか}
+
+$\RankHomLe$ を標準的な実装層として採用する理由は二つある：
+
+\begin{enumerate}
+\item \textbf{数学的安定性}：
+合成の閉包性は、$\le$ の推移律と $\mathtt{indexMap}$ のモノトニシティのみで示される。
+測度論的・解析的な追加構造は不要である。
+
+\item \textbf{工学的安定性}：
+合成の証明の核心は、定義~\ref{def:composition}で見たように
+\[
+  r_T(g(f(x))) \le g_*(r_S(f(x))) \le g_*(f_*(r_X(x)))
+\]
+という「一行の不等式連鎖」である。
+これは外部補題にほとんど依存せず、ライブラリ更新に対して頑健である。
+\end{enumerate}
+
+% ============================================================
+\section{圏 \texorpdfstring{$\RankCatLe$}{RankCatLe} の構成}
+% ============================================================
+
+\subsection{対象と射の定義}
+
+前順序 $\alpha$ を固定する。
+
+\begin{definition}[$\RankCatLe(\alpha)$ の対象]
+圏 $\RankCatLe(\alpha)$ の対象は、依存対
+\[
+  \Obj(\RankCatLe(\alpha)) := \sum_{X : \Type} \Ranked(\alpha, X)
+\]
+である。すなわち、対象は台型 $X$ とランク関数 $r : X \to \alpha$ の対である。
+\end{definition}
+
+\begin{definition}[$\RankCatLe(\alpha)$ の射]
+対象 $T = (X, r_X)$、$U = (Y, r_Y)$ に対し、
+射の集合を
+\[
+  \Hom(T, U) := \RankHomLe(r_X, r_Y)
+\]
+と定義する。
+\end{definition}
+
+\subsection{圏構造の検証}
+
+\begin{theorem}[$\RankCatLe$ は圏である]\label{thm:rankcatle-category}
+$\RankCatLe(\alpha)$ は以下の構造を持つ圏である：
+\begin{itemize}
+\item 恒等射：各対象 $T$ に対し $\mathrm{id}_T \in \Hom(T, T)$、
+\item 合成：$f \in \Hom(T, U)$、$g \in \Hom(U, V)$ に対し $g \circ f \in \Hom(T, V)$、
+\item 単位律：$\mathrm{id}_U \circ f = f$ および $f \circ \mathrm{id}_T = f$、
+\item 結合律：$(h \circ g) \circ f = h \circ (g \circ f)$。
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+前節で恒等射と合成を定義した。
+単位律と結合律は、モルフィズムの構造体を分解すれば、
+台写像と添字写像の等式は関数の単位律・結合律から従い、
+残りのフィールド（$\mathtt{mono}$、$\mathtt{rank\_le}$）は命題なので自動的に一致する。
+Lean 4では、$\mathtt{cases}$ タクティクと $\mathtt{rfl}$（反射律）で完了する。
+\end{proof}
+
+\begin{remark}
+圏の公理の証明は、ランクの不等式の\emph{内部}を検査する必要がない。
+これは、$\RankHomLe$ の設計が「正しい抽象レベル」にあることを示唆している。
+\end{remark}
+
+\subsection{忘却関手}
+
+標準的な忘却関手を定義する。
+
+\begin{definition}[台忘却関手]
+関手 $U : \RankCatLe(\alpha) \to \Type$ を以下で定義する：
+\begin{itemize}
+\item 対象：$U(X, r) = X$、
+\item 射：$U(f) = f.\mathtt{map}$。
+\end{itemize}
+\end{definition}
+
+\begin{proposition}
+$U$ は関手である。
+\end{proposition}
+
+\begin{proof}
+$U(\mathrm{id}_T) = (\mathrm{id}_T).\mathtt{map} = \mathrm{id}_X = \mathrm{id}_{U(T)}$、
+および $U(g \circ f) = (g \circ f).\mathtt{map} = g.\mathtt{map} \circ f.\mathtt{map} = U(g) \circ U(f)$。
+\end{proof}
+
+\begin{remark}
+$U$ は一般には忠実（faithful）ではない。
+なぜなら、異なる添字写像 $\mathtt{indexMap}$ を持つが同じ台写像を持つ射が存在しうるからである。
+忠実な忘却関手を得るには、データフィールド $(\mathtt{map}, \mathtt{indexMap})$ の対を保持し、
+証明フィールドのみを忘却すればよい。
+\end{remark}
+
+% ============================================================
+\section{3つのモルフィズム層}
+% ============================================================
+
+異なる強度の条件を持つ3種類のモルフィズムを定義する。
+
+\subsection{等式層：\texorpdfstring{$\RankHomEq$}{RankHomEq}}
+
+最も強い条件を持つ層。
+
+\begin{definition}[$\RankHomEq$ モルフィズム]\label{def:rankHomeq}
+$\RankHomEq$ モルフィズム $f : R \to S$ は以下のデータからなる：
+\begin{itemize}
+\item 台写像 $f.\mathtt{map} : X \to Y$、
+\item 添字写像 $f.\mathtt{indexMap} : \alpha \to \beta$、
+\item モノトニシティ：$f.\mathtt{indexMap}$ は単調、
+\item ランク等式（厳密可換性）：
+\[
+  r_Y(f.\mathtt{map}(x)) = f.\mathtt{indexMap}(r_X(x))
+  \qquad (\forall x \in X).
+\]
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+$\RankHomEq$ では、ランクが添字写像によって\emph{等式}で保存される。
+これは図式が厳密に可換であることを意味する。
+\end{remark}
+
+\subsection{不等式層：\texorpdfstring{$\RankHomLe$}{RankHomLe}}
+
+中間の強度を持つ層（既に詳述）。
+
+定義~\ref{def:rankhomle}で定義した $\RankHomLe$ は、
+ランク不等式 $r_Y(f.\mathtt{map}(x)) \le f.\mathtt{indexMap}(r_X(x))$ を要求する。
+
+\subsection{存在層：\texorpdfstring{$\RankHomD$}{RankHomD}}
+
+最も弱い条件を持つ層。
+
+\begin{definition}[$\RankHomD$ モルフィズム]\label{def:rankhomd}
+$\RankHomD$ モルフィズム $f : R \to S$ は以下のデータからなる：
+\begin{itemize}
+\item 台写像 $f.\mathtt{map} : X \to Y$、
+\item 層の存在条件：任意の $n \in \alpha$ に対し、
+ある $m \in \beta$ が存在して、
+\[
+  \forall x \in X,\ r_X(x) \le n \Rightarrow r_Y(f.\mathtt{map}(x)) \le m.
+\]
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+$\RankHomD$ は添字写像を\emph{持たない}。
+各ソースのランクレベル $n$ に対し、ターゲットのレベル $m$ が存在的に保証されるのみである。
+\end{remark}
+
+\begin{proposition}[層による特徴付け]
+$\RankHomD$ の条件は、以下と同値である：
+\[
+  \forall n \in \alpha,\ \exists m \in \beta,\
+  f.\mathtt{map}(\layer_R(n)) \subseteq \layer_S(m).
+\]
+すなわち、各層が何らかの層に写される。
+\end{proposition}
+
+\begin{proof}
+定義~\ref{def:layer}より、
+$x \in \layer_R(n)$ ⇔ $r_X(x) \le n$、
+$y \in \layer_S(m)$ ⇔ $r_Y(y) \le m$。
+よって条件は同値である。
+\end{proof}
+
+% ============================================================
+\section{層の間のブリッジ}
+% ============================================================
+
+3つの層の間の自然な埋め込みを構成する。
+
+\subsection{全体像}
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=3cm, row sep=1.5cm]
+\RankHomEq \arrow[r, "\mathtt{toLe}"]
+\arrow[rr, bend left=15, "\mathtt{toD}"above]
+& \RankHomLe \arrow[r, "\mathtt{toD}"]
+& \RankHomD
+\end{tikzcd}
+\caption{3つのモルフィズム層とブリッジ}
+\label{fig:bridges}
+\end{figure}
+
+図~\ref{fig:bridges}に示すように、
+等式層から不等式層へ、不等式層から存在層へと、
+自然な「忘却」方向の写像が存在する。
+
+\subsection{ブリッジ1：Eq → Le}
+
+\begin{definition}[Eq → Le ブリッジ]\label{def:eq-to-le}
+$f : R \to S$ を $\RankHomEq$ モルフィズムとする。
+$f.\mathtt{toLe} : R \to S$ を以下の $\RankHomLe$ モルフィズムとして定義する：
+\begin{itemize}
+\item $(f.\mathtt{toLe}).\mathtt{map} = f.\mathtt{map}$、
+\item $(f.\mathtt{toLe}).\mathtt{indexMap} = f.\mathtt{indexMap}$、
+\item モノトニシティ：$f$ から継承、
+\item ランク不等式：任意の $x$ に対し、
+\[
+  r_Y(f.\mathtt{map}(x))
+  = f.\mathtt{indexMap}(r_X(x))
+  \qquad (\text{$f$ のランク等式})
+\]
+より、反射律から
+\[
+  r_Y(f.\mathtt{map}(x)) \le f.\mathtt{indexMap}(r_X(x)).
+\]
+\end{itemize}
+\end{definition}
+
+\begin{remark}
+等式は不等式を含意するため、$\mathtt{toLe}$ は自明なブリッジである。
+Leanでは $\mathtt{le\_of\_eq}$ 補題を使用する。
+\end{remark}
+
+\subsection{ブリッジ2：Le → D}
+
+不等式層から存在層への変換は、添字写像を証人（witness）として選ぶことで実現される。
+
+\begin{definition}[Le → D ブリッジ]\label{def:le-to-d}
+$f : R \to S$ を $\RankHomLe$ モルフィズムとする。
+$f.\mathtt{toD} : R \to S$ を以下の $\RankHomD$ モルフィズムとして定義する：
+\begin{itemize}
+\item $(f.\mathtt{toD}).\mathtt{map} = f.\mathtt{map}$、
+\item 層の存在条件：任意の $n \in \alpha$ に対し、
+$m := f.\mathtt{indexMap}(n)$ を証人として選ぶ。
+このとき、任意の $x \in X$ で $r_X(x) \le n$ ならば、
+\begin{align*}
+r_Y(f.\mathtt{map}(x))
+&\le f.\mathtt{indexMap}(r_X(x))
+  \qquad (\text{$f$ のランク不等式}) \\
+&\le f.\mathtt{indexMap}(n)
+  \qquad (\text{$f.\mathtt{indexMap}$ のモノトニシティと $r_X(x) \le n$}) \\
+&= m.
+\end{align*}
+\end{itemize}
+\end{definition}
+
+\begin{lemma}[選ばれた証人]
+$f : R \to S$ を $\RankHomLe$ モルフィズム、$n \in \alpha$ とする。
+このとき、
+\[
+  \forall x \in X,\ r_X(x) \le n
+  \Rightarrow r_Y(f.\mathtt{map}(x)) \le f.\mathtt{indexMap}(n).
+\]
+\end{lemma}
+
+\begin{proof}
+定義~\ref{def:le-to-d}の計算による。
+\end{proof}
+
+\subsection{合成ブリッジ：Eq → D}
+
+便宜上、$\RankHomEq$ から $\RankHomD$ への直接的なブリッジも定義できる。
+
+\begin{definition}[Eq → D ブリッジ]
+$f : R \to S$ を $\RankHomEq$ モルフィズムとする。
+$f.\mathtt{toD} := (f.\mathtt{toLe}).\mathtt{toD}$
+と定義する。
+\end{definition}
+
+\begin{proposition}
+図~\ref{fig:bridges}において、
+$\RankHomEq$ から $\RankHomD$ への2つの経路は一致する：
+\[
+  f.\mathtt{toD} = (f.\mathtt{toLe}).\mathtt{toD}.
+\]
+\end{proposition}
+
+\begin{proof}
+定義より明らか。台写像はすべて $f.\mathtt{map}$ であり、
+層の存在条件の証人の選び方も同一である。
+\end{proof}
+
+% ============================================================
+\section{層の比較と設計原則}
+% ============================================================
+
+\subsection{強度の階層}
+
+3つの層の間には、以下の含意関係がある：
+
+\begin{theorem}[層の強度比較]
+\[
+  \RankHomEq \Rightarrow \RankHomLe \Rightarrow \RankHomD.
+\]
+すなわち、等式条件は不等式条件を含意し、不等式条件は存在条件を含意する。
+\end{theorem}
+
+\begin{proof}
+ブリッジ $\mathtt{toLe}$ と $\mathtt{toD}$ の存在（定義~\ref{def:eq-to-le}、\ref{def:le-to-d}）による。
+\end{proof}
+
+\begin{remark}
+逆方向の含意は一般には成り立たない。
+例えば、$\RankHomD$ モルフィズムは添字写像を持たないため、
+一般に $\RankHomLe$ に「持ち上げる」ことはできない。
+\end{remark}
+
+\subsection{各層の役割}
+
+\begin{itemize}
+\item \textbf{$\RankHomEq$（等式層）}：
+ランクが厳密に保存される最も強い条件。
+同型射や埋め込みの特徴付けに有用。
+
+\item \textbf{$\RankHomLe$（不等式層）}：
+「真理の源泉」として採用される中核的な層。
+合成の閉包性が簡潔に示され、圏構造が自然に定まる。
+
+\item \textbf{$\RankHomD$（存在層）}：
+最も弱い層で、層を層に写すという集合論的条件のみを要求。
+添字写像が自然に定義できない状況でも使用可能。
+\end{itemize}
+
+\subsection{T3時点での制限事項}
+
+本研究（T3スナップショット）では、以下の内容を\emph{意図的に含めていない}：
+
+\begin{itemize}
+\item $\RankCatLe$ と既存の圏族（例：$\mathtt{Cat\_le}$、$\mathtt{Cat\_D}$、$\mathtt{Cat\_WithMin}$）との関係、
+\item $\RankHomEq$、$\RankHomD$ に対する独立した圏構造の構築、
+\item 各層の間の関手としての特徴付け。
+\end{itemize}
+
+これらは将来の作業項目（WBS: Work Breakdown Structure）として位置づけられている。
+T3の目標は、クリーンなランク中心の圏とその内部的な層比較を確立することである。
+
+% ============================================================
+\section{形式化の詳細}
+% ============================================================
+
+\subsection{Lean 4における実装}
+
+本稿の数学的内容は、すべてLean 4で形式化されている。
+主なファイル構成は以下の通り：
+
+\begin{description}
+\item[\texttt{RankHomLe.lean}]
+データ層モルフィズム $\RankHomLe$ の定義、恒等射、合成。
+
+\item[\texttt{RankCatLe.lean}]
+圏 $\RankCatLe$ の構築と圏公理の証明。
+
+\item[\texttt{RankBridge\_EqLeD.lean}]
+3つの層の定義とブリッジ関数 $\mathtt{toLe}$、$\mathtt{toD}$。
+
+\item[\texttt{RankCat.lean}]
+便利なラッパーとスケルトン（最小限の実装）。
+\end{description}
+
+\subsection{主要な証明のスケッチ}
+
+\paragraph{合成の結合律（定理~\ref{thm:rankcatle-category}）}
+
+Leanでの証明は以下のように進む：
+\begin{verbatim}
+assoc := by
+  intro A B C D f g h
+  cases f; cases g; cases h; rfl
+\end{verbatim}
+
+すなわち、モルフィズムを構造体として分解（$\mathtt{cases}$）し、
+データフィールドの等式は関数合成の結合律から反射的に成り立ち（$\mathtt{rfl}$）、
+証明フィールドは命題的に一意なので自動的に一致する。
+
+\paragraph{ブリッジ Le → D の証明（定義~\ref{def:le-to-d}）}
+
+Leanコードの核心部分：
+\begin{verbatim}
+def toD (f : RankHomLe R S) : RankHomD R S where
+  map := f.map
+  map_layer := by
+    intro n
+    refine ⟨f.indexMap n, ?_⟩
+    intro x hx
+    exact le_trans (f.rank_le x) (f.mono hx)
+\end{verbatim}
+
+証人として $f.\mathtt{indexMap}(n)$ を提示し、
+不等式の連鎖 $r_Y(f.\mathtt{map}(x)) \le f.\mathtt{indexMap}(r_X(x)) \le f.\mathtt{indexMap}(n)$
+を $\mathtt{le\_trans}$ で構成する。
+
+\subsection{型安全性と依存型}
+
+Lean 4の依存型システムにより、以下の安全性が保証される：
+
+\begin{itemize}
+\item ランク関数の値域の型（前順序 $\alpha$, $\beta$）が明示的にトラッキングされる。
+\item モルフィズムの合成において、中間対象の型の整合性が型チェックで検証される。
+\item 添字写像のモノトニシティが証明義務として明示的に要求される。
+\end{itemize}
+
+% ============================================================
+\section{図式による可視化}
+% ============================================================
+
+\subsection{ランク可換図式}
+
+$\RankHomLe$ モルフィズム $f : R \to S$ は、以下の図式の緩可換性を表す：
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=2.5cm, row sep=2cm]
+X \arrow[r, "f.\mathtt{map}"] \arrow[d, "r_X"']
+& Y \arrow[d, "r_Y"] \\
+\alpha \arrow[r, "f.\mathtt{indexMap}"']
+& \beta
+\end{tikzcd}
+\caption{$\RankHomLe$ の緩可換図式（$\le$ の意味で可換）}
+\label{fig:rankhomle-diagram}
+\end{figure}
+
+ここで「$\le$ の意味で可換」とは、
+$r_Y \circ f.\mathtt{map} \le f.\mathtt{indexMap} \circ r_X$
+（点ごとの不等式）を意味する。
+
+\subsection{合成の視覚化}
+
+$f : R \to S$、$g : S \to T$ の合成を図示すると：
+
+\begin{figure}[h]
+\centering
+\begin{tikzcd}[column sep=2cm, row sep=1.8cm]
+X \arrow[r, "f.\mathtt{map}"] \arrow[d, "r_X"']
+& Y \arrow[r, "g.\mathtt{map}"] \arrow[d, "r_Y"]
+& Z \arrow[d, "r_Z"] \\
+\alpha \arrow[r, "f.\mathtt{indexMap}"']
+& \beta \arrow[r, "g.\mathtt{indexMap}"']
+& \gamma
+\end{tikzcd}
+\caption{合成 $g \circ f$ の図式}
+\label{fig:composition}
+\end{figure}
+
+外側の長方形も $\le$ の意味で可換となる。
+
+\subsection{層の包含関係}
+
+層のブリッジを図示すると：
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=2.5cm and 3.5cm]
+  \node (eq) [draw, rectangle, minimum width=3cm, minimum height=1.2cm, align=center]
+    {\textbf{等式層} \\ $\RankHomEq$ \\ $r_Y(f(x)) = \varphi(r_X(x))$};
+  \node (le) [draw, rectangle, minimum width=3cm, minimum height=1.2cm, align=center, below=of eq]
+    {\textbf{不等式層} \\ $\RankHomLe$ \\ $r_Y(f(x)) \le \varphi(r_X(x))$};
+  \node (d) [draw, rectangle, minimum width=3cm, minimum height=1.2cm, align=center, below=of le]
+    {\textbf{存在層} \\ $\RankHomD$ \\ $\forall n\,\exists m\,\forall x\ldots$};
+
+  \draw[->, thick, >=stealth] (eq) -- (le) node[midway, right] {$\mathtt{toLe}$};
+  \draw[->, thick, >=stealth] (le) -- (d) node[midway, right] {$\mathtt{toD}$};
+  \draw[->, thick, >=stealth, dashed] (eq) to[bend right=30] (d) node[midway, left] {$\mathtt{toD}$};
+
+  \node[right=0.5cm of eq] {\footnotesize 最強};
+  \node[right=0.5cm of d] {\footnotesize 最弱};
+\end{tikzpicture}
+\caption{3つの層の強度階層}
+\label{fig:layer-hierarchy}
+\end{figure}
+
+% ============================================================
+\section{応用と今後の展望}
+% ============================================================
+
+\subsection{計算複雑性理論への応用}
+
+ランク付き構造は、計算複雑性のクラス間の還元を記述するのに適している。
+例えば、問題 $A$ から問題 $B$ への多項式時間還元を、
+ランク $=$ 計算時間として $\RankHomLe$ モルフィズムでモデル化できる可能性がある。
+
+\subsection{順序構造の圏論}
+
+$\RankCatLe$ は、順序集合の圏（posets）と通常の圏論の中間に位置する構造を提供する。
+今後の研究では、以下の方向が考えられる：
+
+\begin{itemize}
+\item 極限・余極限の存在性、
+\item モナド構造の導入、
+\item エンリッチ圏としての特徴付け。
+\end{itemize}
+
+\subsection{他の圏族との統合}
+
+既存の圏族（$\mathtt{Cat\_le}$、$\mathtt{Cat\_WithMin}$ など）と $\RankCatLe$ の関係を明確化し、
+忘却関手や比較関手を構成することが次のステップである。
+
+\subsection{形式化の拡張}
+
+Lean 4での形式化を拡張し、以下を目指す：
+
+\begin{itemize}
+\item $\RankHomEq$、$\RankHomD$ の圏構造、
+\item ブリッジを関手として定式化、
+\item 随伴関手の構成（もし存在すれば）。
+\end{itemize}
+
+% ============================================================
+\section{結論}
+% ============================================================
+
+本稿では、ランク付き構造の圏論的枠組みを構築した。
+主な成果は以下の通りである：
+
+\begin{enumerate}
+\item \textbf{データ層モルフィズム $\RankHomLe$ の定義}：
+ランク不等式による緩可換性を要求し、簡潔な合成証明を実現。
+
+\item \textbf{圏 $\RankCatLe$ の構成}：
+圏の公理をLean 4で機械的に検証し、構造の健全性を確立。
+
+\item \textbf{3つの層の定義とブリッジ}：
+等式層 $\RankHomEq$、不等式層 $\RankHomLe$、存在層 $\RankHomD$ の間の
+自然な埋め込みを構成し、強度の階層を明確化。
+\end{enumerate}
+
+本研究は、形式化数学の利点を活用し、
+抽象的な圏論的構造を具体的な計算オブジェクト（Leanコード）として実現した。
+今後の展開により、計算複雑性理論や順序構造の研究への応用が期待される。
+
+% ============================================================
+% 参考文献（簡略版）
+% ============================================================
+
+\begin{thebibliography}{9}
+
+\bibitem{lean4}
+Leonardo de Moura, Sebastian Ullrich,
+\textit{The Lean 4 Theorem Prover and Programming Language},
+\url{https://leanprover.github.io/}, 2021.
+
+\bibitem{mathlib}
+The mathlib Community,
+\textit{The Lean Mathematical Library},
+\url{https://github.com/leanprover-community/mathlib4}, 2024.
+
+\bibitem{maclane}
+Saunders Mac Lane,
+\textit{Categories for the Working Mathematician},
+Springer, 2nd edition, 1998.
+
+\bibitem{categorytheory-lean}
+Scott Morrison, et al.,
+\textit{Category Theory in Lean},
+Mathlib documentation, 2024.
+
+\end{thebibliography}
+
+% ============================================================
+% 付録
+% ============================================================
+
+\appendix
+
+\section{Leanコードの抜粋}
+
+以下に、主要な定義のLeanコードを示す。
+
+\subsection{\texttt{RankHomLe}の定義}
+
+\begin{verbatim}
+structure RankHomLe {α : Type v} {β : Type w}
+    {X : Type u} {Y : Type u}
+    [Preorder α] [Preorder β]
+    (R : Ranked α X) (S : Ranked β Y) where
+  map      : X → Y
+  indexMap : α → β
+  mono     : Monotone indexMap
+  rank_le  : ∀ x : X, S.rank (map x) ≤ indexMap (R.rank x)
+\end{verbatim}
+
+\subsection{合成の定義}
+
+\begin{verbatim}
+def comp {R : Ranked α X} {S : Ranked β Y} {T : Ranked γ Z}
+    (f : RankHomLe R S) (g : RankHomLe S T) :
+    RankHomLe R T where
+  map := g.map ∘ f.map
+  indexMap := g.indexMap ∘ f.indexMap
+  mono := g.mono.comp f.mono
+  rank_le := by
+    intro x
+    have hf : S.rank (f.map x) ≤ f.indexMap (R.rank x) :=
+      f.rank_le x
+    have hg : T.rank (g.map (f.map x)) ≤
+      g.indexMap (S.rank (f.map x)) := g.rank_le (f.map x)
+    exact le_trans hg (g.mono hf)
+\end{verbatim}
+
+\subsection{ブリッジ Le → D}
+
+\begin{verbatim}
+def toD (f : RankHomLe R S) : RankHomD R S where
+  map := f.map
+  map_layer := by
+    intro n
+    refine ⟨f.indexMap n, ?_⟩
+    intro x hx
+    exact le_trans (f.rank_le x) (f.mono hx)
+\end{verbatim}
+
+\section{記号表}
+
+\begin{description}
+\item[$\alpha, \beta, \gamma$] 前順序型（ランクの値域）
+\item[$X, Y, Z$] 台型（carrier type）
+\item[$r, r_X, r_Y$] ランク関数
+\item[$\Ranked(\alpha, X)$] 型 $X$ 上の $\alpha$-ランク付き構造
+\item[$\layer_R(n)$] ランク付き対象 $R$ の $n$-層
+\item[$\RankHomLe$] データ層モルフィズム（不等式による）
+\item[$\RankHomEq$] 等式層モルフィズム
+\item[$\RankHomD$] 存在層モルフィズム
+\item[$\RankCatLe(\alpha)$] $\alpha$-ランク付き対象の圏
+\item[$\mathtt{map}$] 台写像
+\item[$\mathtt{indexMap}$] 添字写像
+\item[$\mathtt{toLe}$] Eq → Le ブリッジ
+\item[$\mathtt{toD}$] Le → D または Eq → D ブリッジ
+\end{description}
+
+\end{document}

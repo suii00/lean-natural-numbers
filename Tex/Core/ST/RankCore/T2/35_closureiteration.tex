@@ -1,0 +1,58 @@
+\section{ClosureIteration}
+\label{sec:ex-closureiteration}
+
+\subsection{Lean source}
+\begin{itemize}
+\item Module: \texttt{MyProjects.ST.RankCore.P3.ClosureIteration}
+\item Core structure: \texttt{ST.ExpansionOperator}
+\item Ranked instance: \texttt{ST.instRankedExpansion}
+\end{itemize}
+
+\subsection{Definition: expansion operator and iteration rank}
+Let $X$ be a type and let $\step : \mathcal{P}(X)\to \mathcal{P}(X)$ be a one-step expansion.
+\begin{definition}[Expansion operator]
+An \emph{expansion operator} is a function $\step$ with:
+\begin{enumerate}
+\item \textbf{Extensive:} $S \subseteq \step(S)$.
+\item \textbf{Monotone:} $S \subseteq T \Rightarrow \step(S) \subseteq \step(T)$.
+\end{enumerate}
+No idempotence is assumed.
+\end{definition}
+
+\begin{definition}[Iteration rank]
+Write $\iter(n,S)$ for iterating $\step$ $n$ times.
+We define the rank of $S$ as the least $n$ such that $\iter(n,S)=\iter(n+1,S)$, if it exists;
+otherwise, the rank is $\top$.
+Formally, the rank takes values in $\WithTop(\mathbb{N})$.
+\end{definition}
+
+\paragraph{Design note (why non-idempotent).}
+If idempotence $\step(\step(S))=\step(S)$ is assumed, every set stabilizes after at most one step,
+so the rank collapses to $0/1$. The idempotent case is therefore recorded in a separate Bonus file.
+
+\subsection{Key lemmas (T2)}
+\begin{itemize}
+\item Iteration equations: \texttt{iter\_zero}, \texttt{iter\_succ}.
+\item Fixed points have rank $0$: \texttt{fixed\_has\_rank\_zero}.
+\item Rank-$0$ iff fixed: \texttt{rank\_zero\_iff\_fixed}.
+\item Finite rank iff convergence: \texttt{finite\_rank\_iff\_converges}.
+\item Iteration is extensive: \texttt{iter\_mono}.
+\end{itemize}
+
+\subsection{Constructed examples}
+The file provides:
+\begin{itemize}
+\item \textbf{discreteExpansion} (identity step): all ranks are $0$.
+\item \textbf{wholeExpansion} (collapse to $\univ$): $\emptyset$ converges quickly.
+\item \textbf{natStepExpansion} using \texttt{stepExpansion Nat.succ}: a concrete test showing
+  $\iter(1,\{0\}) \neq \iter(2,\{0\})$.
+\end{itemize}
+
+\subsection{Bridge to towers}
+This example is indexed by $\WithTop(\mathbb{N})$, so the standard
+\texttt{StructureTowerWithMin} bridge (which expects $\mathbb{N}$) is \emph{omitted} at T2.
+(See the Lean note at the end of the file.)
+
+\subsection{Bonus isolation}
+Idempotent expansions and the resulting rank-degeneracy are documented in
+\texttt{ClosureIteration\_Bonus.lean} and are not used in the T2 main chapter.

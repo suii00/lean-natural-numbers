@@ -1,0 +1,50 @@
+\section{Ranked objects and layers (T1)}
+\label{sec:rankcore}
+
+This section is the \textbf{T1 specification freeze} corresponding to
+\texttt{MyProjects.ST.RankCore.Basic} (Lean file \texttt{Basic.lean}).
+
+\subsection{Ranked objects (\texttt{ST.Ranked})}
+
+Let $\alpha$ be a type (later equipped with a preorder), and let $X$ be a type.
+A \emph{ranked object} is a pair consisting of $X$ and a rank function into $\alpha$.
+
+\begin{definition}[Ranked object]\label{def:ranked}
+A \emph{ranked object} is a structure
+\[
+  R = (X, \operatorname{rank}_R) \qquad\text{with}\qquad \operatorname{rank}_R : X \to \alpha.
+\]
+This is the Lean structure \texttt{ST.Ranked (α) (X)} with field \texttt{rank : X → α}.
+\end{definition}
+
+\subsection{Layers induced by rank (\texttt{ST.Ranked.layer})}
+
+Assume $\alpha$ is a preorder. For each $n \in \alpha$, we define the $n$-th layer as the set of
+elements of rank $\le n$.
+
+\begin{definition}[Layer]\label{def:layer}
+Let $\alpha$ be a preorder and $R=(X,\operatorname{rank}_R)$ a ranked object.
+For $n\in \alpha$, define the \emph{layer} of $R$ at $n$ by
+\[
+  \operatorname{layer}_R(n) := \{\,x \in X \mid \operatorname{rank}_R(x) \le n\,\}.
+\]
+This is \texttt{ST.Ranked.layer R n} in Lean.
+\end{definition}
+
+\begin{lemma}[Membership characterization]\label{lem:mem-layer-iff}
+For any $x\in X$ and $n\in \alpha$,
+\[
+  x \in \operatorname{layer}_R(n) \iff \operatorname{rank}_R(x) \le n.
+\]
+In Lean: \texttt{ST.Ranked.mem\_layer\_iff}.
+\end{lemma}
+
+\begin{lemma}[Monotonicity of layers]\label{lem:layer-mono}
+If $n \le m$ in $\alpha$, then $\operatorname{layer}_R(n) \subseteq \operatorname{layer}_R(m)$.
+In Lean: \texttt{ST.Ranked.layer\_mono}.
+\end{lemma}
+
+\paragraph{Note (bridge to towers).}
+The bridge from ranked objects to towers (e.g.\ \texttt{StructureTowerWithMin})
+is \emph{not} part of the T1 freeze of this section; it is placed in
+\texttt{ToTowerWithMin.lean}.

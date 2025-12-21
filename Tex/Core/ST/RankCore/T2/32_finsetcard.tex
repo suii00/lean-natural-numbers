@@ -1,0 +1,47 @@
+\section{FinsetCard}
+\label{sec:ex-finsetcard}
+
+\subsection{Lean source}
+\begin{itemize}
+\item Module: \texttt{MyProjects.ST.RankCore.P3.FinsetCard}
+\item Instance: \texttt{ST.instRankedFinset}
+\end{itemize}
+
+\subsection{Definition}
+Fix a type $\alpha$. Consider $X := \mathrm{Finset}(\alpha)$ and index set $\mathbb{N}$.
+\begin{definition}[Finite set cardinality rank]
+Define $\rank(S) := |S|$ (i.e.\ \texttt{Finset.card}).
+Then
+\[
+  \layer(n) := \{\, S : \mathrm{Finset}(\alpha) \mid |S| \le n \,\}.
+\]
+\end{definition}
+
+\subsection{Key lemmas (T2)}
+\begin{itemize}
+\item \textbf{Layer membership:} \texttt{finset\_layer\_iff}.
+\item \textbf{Monotonicity:} \texttt{finset\_layer\_mono}.
+\item \textbf{Self-membership:} \texttt{finset\_in\_layer\_self}.
+\item \textbf{Subset monotonicity of rank:} \texttt{rank\_subset}.
+\end{itemize}
+
+\subsection{Executable demos}
+Rank evaluation is computable (examples in Lean):
+\begin{itemize}
+\item \texttt{#eval (instRankedFinset : Ranked ℕ (Finset ℕ)).rank \{1,2,3\}}.
+\item Layer membership checks via \texttt{simp}.
+\end{itemize}
+
+\subsection{Bridge to towers}
+As in ListLength, this example supports a direct \texttt{toNatTowerWithMin} conversion.
+We record:
+\begin{itemize}
+\item Layer equality: \texttt{finset\_tower\_layer\_eq}.
+\item minLayer equality: \texttt{finset\_tower\_minLayer\_eq}.
+\end{itemize}
+
+\subsection{Interface point for RankHomLe}
+This example supplies a reusable bound used by ListLength $\to$ FinsetCard:
+\begin{itemize}
+\item \texttt{toFinset\_rank\_le\_length}.
+\end{itemize}

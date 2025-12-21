@@ -1,0 +1,52 @@
+\section{ListLength}
+\label{sec:ex-listlength}
+
+\subsection{Lean source}
+\begin{itemize}
+\item Module: \texttt{MyProjects.ST.RankCore.P3.ListLength}
+\item Instance: \texttt{ST.instRankedList}
+\item RankHomLe: \texttt{ST.listToFinsetRankHomLe}
+\end{itemize}
+
+\subsection{Definition}
+Fix a type $\alpha$. Consider $X := \mathrm{List}(\alpha)$ and index set $\mathbb{N}$.
+\begin{definition}[List length rank]
+Define $\rank(l) := \mathrm{length}(l)$.
+Equivalently, the $n$-th layer is
+\[
+  \layer(n) := \{\, l : \mathrm{List}(\alpha) \mid \mathrm{length}(l) \le n \,\}.
+\]
+\end{definition}
+
+\subsection{Key lemmas (T2)}
+\begin{itemize}
+\item \textbf{Layer membership:} \texttt{list\_layer\_iff}.
+\item \textbf{Monotonicity:} \texttt{list\_layer\_mono}.
+\item \textbf{Self-membership:} \texttt{list\_in\_layer\_self}.
+\end{itemize}
+
+\subsection{Executable demos}
+When $\alpha$ is a concrete type (e.g.\ $\mathbb{N}$ or \texttt{String}), the rank is computable.
+\begin{itemize}
+\item Examples in Lean: \texttt{#eval (instRankedList).rank [...]}
+\end{itemize}
+
+\subsection{Bridge to towers}
+This example uses the bridge \texttt{toNatTowerWithMin}:
+\[
+  \mathrm{TowerWithMin}(\mathrm{List}(\alpha)) \;\;:=\;\; \texttt{toNatTowerWithMin (instRankedList)}.
+\]
+We record:
+\begin{itemize}
+\item Layer equality: \texttt{list\_tower\_layer\_eq}.
+\item minLayer equality: \texttt{list\_tower\_minLayer\_eq}.
+\end{itemize}
+
+\subsection{A RankHomLe arrow: List \texorpdfstring{$\to$}{->} Finset}
+Assuming \texttt{[DecidableEq α]}, the map \texttt{List.toFinset} drops duplicates, hence decreases
+cardinality and yields a \texttt{RankHomLe}:
+\[
+  \map(l) := l.\mathrm{toFinset},\qquad \indexMap := \mathrm{id}_{\mathbb{N}},\qquad
+  \rank(\map(l)) \le \rank(l).
+\]
+In Lean: \texttt{listToFinsetRankHomLe}. This provides a canonical morphism connecting two A3 examples.
