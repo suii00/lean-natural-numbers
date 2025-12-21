@@ -1,0 +1,43 @@
+% tex/00_preamble.tex
+% Shared preamble for the Rank-lane paper (T6 integration).
+% Keep this file stable; put section content in 10/20/30/40 and main.tex.
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+% Lean-friendly code blocks (no shell-escape required).
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  breaklines=true
+}
+
+% --- Theorem environments ---
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{example}{Example}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+
+% --- Project macros (keep short and stable) ---
+\newcommand{\Lean}{\textsc{Lean}}
+\newcommand{\Ranked}{\mathrm{Ranked}}
+\newcommand{\rank}{\mathrm{rank}}
+\newcommand{\layer}{\mathrm{layer}}
+\newcommand{\HomLe}{\mathrm{Hom}_{\le}}
+\newcommand{\HomEq}{\mathrm{Hom}_{=}}
+\newcommand{\HomD}{\mathrm{Hom}_{\exists}}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\leaninline}[1]{\texttt{#1}}
+
+% A light-weight “terminology warning” macro used once in §Theorem.
+\newcommand{\wfmeasure}{\emph{well-founded measure construction}}

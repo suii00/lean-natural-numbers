@@ -1,0 +1,49 @@
+% tex/main.tex
+\documentclass[11pt]{article}
+
+\input{00_preamble}
+
+\title{Rank lane: examples, categories, and a termination kernel}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+\label{sec:intro}
+
+\paragraph{Goal.}
+This document reorganizes T1--T5 into a paper-shaped narrative:
+
+\[
+\text{definitions} \;\to\; \text{examples} \;\to\; \text{categories} \;\to\; \text{theorem}.
+\]
+
+\paragraph{Positioning (frozen).}
+Rank is the source of truth; towers are reconstructed views.
+
+\paragraph{What is included.}
+We focus on the Rank lane: RankCore, the example catalog, \leaninline{RankCatLe},
+and the termination kernel.
+
+\paragraph{What is excluded (by design).}
+Discussion of the older \code{Cat_*} families and probability-theory applications is deferred to Outlook.
+
+\input{10_rankcore}
+\input{20_examples}
+\input{30_rankcat}
+\input{40_termination}
+
+\section{Outlook}
+\label{sec:outlook}
+
+\subsection{Connections to older \code{Cat_*} families}
+At this milestone we keep older files intact and only provide explainable bridges (B4).
+
+\subsection{Probability theory as an application}
+The original probability-theoretic tower (filtration / stopping time / martingale) remains an application target.
+This paper intentionally does not pull those dependencies into the main development.
+
+\end{document}

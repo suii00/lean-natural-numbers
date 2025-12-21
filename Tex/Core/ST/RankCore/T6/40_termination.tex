@@ -1,0 +1,44 @@
+% tex/40_termination.tex
+\section{Theorem: termination via well-founded rank}
+\label{sec:termination}
+
+This section records the ``general theorem C'' as a finished Lean artifact (C2) and shows visible reuse (C3).
+
+\subsection{Well-foundedness from a rank into \texorpdfstring{$\mathbb{N}$}{N}}
+Let \((X,\rank)\) be a ranked object with \(\rank : X\to\mathbb{N}\). Define the descending relation
+\[
+  \mathrm{Desc}(x,y) :\!\!\iff \rank(x) < \rank(y).
+\]
+
+\begin{theorem}[C2: \(\mathrm{Desc}\) is well-founded]
+\label{thm:wf-desc}
+\(\mathrm{Desc}\) is well-founded.
+\end{theorem}
+
+\paragraph{Proof sketch (one line).}
+Use the \wfmeasure\ induced by \(\rank : X\to\mathbb{N}\):
+\[
+  \text{\leaninline{by simpa [Desc] using (measure rank).wf}.}
+\]
+\emph{Terminology warning:} this is not measure theory (\code{MeasureTheory}); it is the standard
+well-founded construction from a function into \(\mathbb{N}\).
+
+\subsection{Two applications (C3)}
+Keep these short and visibly reusing the kernel.
+
+\begin{example}[List peeling terminates]
+Define \(\mathrm{TailRel}(x,y) :\!\!\iff \exists a,\ y=a::x\). Then \(\mathrm{TailRel}\) is well-founded.
+\end{example}
+
+\begin{example}[Absolute-value descent on \(\mathbb{Z}\)]
+Define \(\mathrm{AbsDesc}(x,y) :\!\!\iff |x|<|y|\) with \( |x| = \mathrm{Int.natAbs}(x)\).
+Then \(\mathrm{AbsDesc}\) is well-founded.
+\end{example}
+
+\subsection{Where to paste T4--T5}
+Paste (or paraphrase) the frozen T4/T5 text here:
+\begin{itemize}
+\item the C1/C2 statement and the measure proof sketch,
+\item the two C3 examples (as above),
+\item the contribution statement (allowed from T5).
+\end{itemize}

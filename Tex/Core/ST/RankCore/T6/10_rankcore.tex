@@ -1,0 +1,34 @@
+% tex/10_rankcore.tex
+\section{Preliminaries: Rank core}
+\label{sec:rankcore}
+
+This section fixes the basic interface of the Rank lane.
+
+\subsection{Ranked objects}
+\begin{definition}[Ranked object]
+A ranked object is a pair $(X,\rank)$ where $X$ is a type and
+$\rank : X \to \alpha$ is a \emph{rank function} into a preorder $(\alpha,\le)$.
+In \Lean\ this is \leaninline{Ranked α X}.
+\end{definition}
+
+\subsection{Rank-induced layers}
+Given $(X,\rank)$, define the $n$-th layer by
+\[
+  \layer(n) := \{x \in X \mid \rank(x)\le n\}.
+\]
+In the Lean code base this is \leaninline{Ranked.layer} with the lemma
+\leaninline{Ranked.mem_layer_iff}.
+
+\subsection{Where to paste T1}
+Paste (or paraphrase) the frozen T1 content here:
+\begin{itemize}
+\item the API surface of \leaninline{Ranked} used later (e.g. \leaninline{layer}, \leaninline{mem_layer_iff});
+\item the canonical morphism interface \leaninline{RankHomLe} may be deferred to \S\ref{sec:rankcat}.
+\end{itemize}
+
+% Optional: include a short Lean snippet.
+\begin{lstlisting}[language=]
+-- Ranked α X
+-- layer : α → Set X
+-- mem_layer_iff : x ∈ layer n ↔ rank x ≤ n
+\end{lstlisting}

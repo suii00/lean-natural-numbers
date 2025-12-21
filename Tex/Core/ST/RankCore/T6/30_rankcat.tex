@@ -1,0 +1,37 @@
+% tex/30_rankcat.tex
+\section{Categories: the canonical \texorpdfstring{$\le$}{Le}-lane}
+\label{sec:rankcat}
+
+This section packages rank morphisms into a category and fixes the lane story.
+
+\subsection{Morphisms in the \texorpdfstring{$\le$}{Le}-lane}
+\begin{definition}[\leaninline{RankHomLe}]
+A \emph{\(\le\)-morphism} \(f : (X,\rank_X)\to (Y,\rank_Y)\) consists of:
+\begin{itemize}
+\item a map \(f.\mathrm{map}:X\to Y\),
+\item an index map \(f.\mathrm{indexMap}:\alpha\to\beta\),
+\item monotonicity of \(f.\mathrm{indexMap}\),
+\item the inequality \(\rank_Y(f(x)) \le f.\mathrm{indexMap}(\rank_X(x))\).
+\end{itemize}
+Composition is designed to use only transitivity and monotonicity.
+\end{definition}
+
+\subsection{The category \leaninline{RankCatLe}}
+\begin{definition}[\leaninline{RankCatLe α}]
+Objects are pairs \(\Sigma X, \Ranked\,\alpha\,X\) and morphisms are \leaninline{RankHomLe}.
+\end{definition}
+
+\subsection{Lane bridge: Eq \texorpdfstring{$\to$}{->} Le \texorpdfstring{$\to$}{->} D}
+We support weakening morphisms:
+\[
+  \HomEq \longrightarrow \HomLe \longrightarrow \HomD.
+\]
+Keep this diagrammatic and implementation-oriented (not heavy category theory).
+
+\subsection{Where to paste T3}
+Paste (or paraphrase) the frozen T3 text here:
+\begin{itemize}
+\item \leaninline{RankHomLe}: definition + \leaninline{id}/\leaninline{comp} and the “stable proof” story;
+\item \leaninline{RankCatLe}: category instance;
+\item bridge file \leaninline{RankBridge_EqLeD.lean}: the Eq→Le→D adapters.
+\end{itemize}
