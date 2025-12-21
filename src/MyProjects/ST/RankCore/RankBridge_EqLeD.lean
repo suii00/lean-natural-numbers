@@ -29,7 +29,7 @@ variable {X : Type u} {Y : Type u}
 /-- Equality lane morphism between ranked structures.
 
 This is the “strongest” data lane: the rank is preserved by equality up to an `indexMap`. -/
-structure RankHomEq (R : Ranked α X) (S : Ranked β Y) where
+structure RankHomEq [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β Y) where
   /-- underlying map on carriers -/
   map : X → Y
   /-- index map between rank values -/
@@ -43,7 +43,7 @@ structure RankHomEq (R : Ranked α X) (S : Ranked β Y) where
 
 This is the “weakest” lane: for each bound `n` in the source, there exists a bound `m` in the target
 such that the image of `layer n` lands in `layer m`. -/
-structure RankHomD (R : Ranked α X) (S : Ranked β Y) where
+structure RankHomD [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β Y) where
   /-- underlying map on carriers -/
   map : X → Y
   /-- existence-style layer bound transport -/
