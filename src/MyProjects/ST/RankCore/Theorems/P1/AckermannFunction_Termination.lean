@@ -1,6 +1,7 @@
 import Mathlib.Data.Nat.Basic
 import Mathlib.Tactic
 import Mathlib.Order.WellFounded
+import MyProjects.ST.RankCore.Basic
 
 /-!
 # Ackermann Function: Termination Proof via Goal-Driven Design
@@ -39,8 +40,10 @@ A(m+1, n+1) = A(m, A(m+1, n))
 
 /--
 Ackermann関数の型シグネチャ（目標）
+
+実装本体は下の `ackermann` を参照。
 -/
-def ackermann_goal : ℕ → ℕ → ℕ := sorry
+abbrev AckermannGoalType := ℕ → ℕ → ℕ
 
 /--
 **Termination証明の目標定理**:
@@ -50,7 +53,7 @@ theorem ackermann_relation_wellfounded :
     WellFounded (Prod.Lex (· < ·) (· < ·) : ℕ × ℕ → ℕ × ℕ → Prop) := by
   -- Proof strategy: Prod.Lex preserves WellFoundedness
   -- Use wellFounded_lt on both components
-  sorry
+  exact WellFounded.prod_lex wellFounded_lt wellFounded_lt
 
 end GoalTheorem
 
@@ -84,7 +87,7 @@ abbrev AckState := ℕ × ℕ
 - m が同じなら n を比較（第2成分）
 - (m', n') <lex (m, n) iff (m' < m) ∨ (m' = m ∧ n' < n)
 -/
-def ack_rank : AckState → ℕ × ℕ := id
+def ack_rank : AckState → AckState := id
 
 /--
 **Lexicographic order**: Mathlib の Prod.Lex を使用。
@@ -114,22 +117,25 @@ RankCoreを辞書式順序に拡張。
 - rank は順序付き型（ここでは ℕ × ℕ）
 - 複数のstep関数を持つ可能性（Ackermann: 3種類）
 -/
-structure RankCoreLex (α : Type*) (β : Type*) [LT β] where
+structure RankCoreLex (α : Type*) (β : Type*) where
   /-- The rank function into an ordered type -/
   rank : α → β
-  /-- Well-foundedness of the ordering on β -/
-  wf : WellFounded ((· < ·) : β → β → Prop)
+  /-- The decreasing relation on `β` -/
+  rel : β → β → Prop
+  /-- Well-foundedness of the relation on `β` -/
+  wf : WellFounded rel
 
 /--
 **Ackermann RankCore instance**:
 辞書式順序を使用したRankCore実装。
 -/
-def ackermannRankCore : RankCoreLex AckState (ℕ × ℕ) where
+def ackermannRankCore : RankCoreLex AckState AckState where
   rank := ack_rank
+  rel := ack_lex_rel
   wf := by
     -- WellFounded (Prod.Lex (<) (<))
     -- これはMathlibで証明済み
-    sorry
+    exact WellFounded.prod_lex wellFounded_lt wellFounded_lt
 
 /-
 **Ackermann関数の個別ステップとrank減少の証明**
@@ -140,23 +146,20 @@ lemma ack_step1_decreases (m : ℕ) :
     ack_lex_rel (m, 1) (m + 1, 0) := by
   -- (m, 1) <lex (m+1, 0) because m < m+1
   left
-  omega
+  exact Nat.lt_succ_self m
 
 /-- Step 2: (m+1, n+1) → (m+1, n) (first recursive call) -/
 lemma ack_step2_decreases (m n : ℕ) :
     ack_lex_rel (m + 1, n) (m + 1, n + 1) := by
   -- (m+1, n) <lex (m+1, n+1) because m+1 = m+1 and n < n+1
-  right
-  constructor
-  · rfl
-  · omega
+  exact Prod.Lex.right (a := m + 1) (Nat.lt_succ_self n)
 
 /-- Step 3: (m+1, n+1) → (m, k) for any k (second recursive call) -/
 lemma ack_step3_decreases (m n k : ℕ) :
     ack_lex_rel (m, k) (m + 1, n + 1) := by
   -- (m, k) <lex (m+1, n+1) because m < m+1
   left
-  omega
+  exact Nat.lt_succ_self m
 
 /--
 **WellFoundedness from lexicographic rank**:
@@ -166,7 +169,7 @@ theorem ack_lex_wellfounded :
     WellFounded (ack_lex_rel : AckState → AckState → Prop) := by
   -- Prod.Lex preserves well-foundedness
   unfold ack_lex_rel
-  exact Prod.Lex.wellFounded wellFounded_lt wellFounded_lt
+  exact WellFounded.prod_lex wellFounded_lt wellFounded_lt
 
 end MinimalImplementation
 
@@ -198,14 +201,12 @@ termination_by (m, n)
 decreasing_by
   · -- Case 1: (m, 1) < (m+1, 0)
     apply Prod.Lex.left
-    omega
+    exact Nat.lt_succ_self m
   · -- Case 2: (m+1, n) < (m+1, n+1)
-    apply Prod.Lex.right
-    · rfl
-    · omega
+    exact Prod.Lex.right (a := m + 1) (Nat.lt_succ_self n)
   · -- Case 3: (m, k) < (m+1, n+1)
     apply Prod.Lex.left
-    omega
+    exact Nat.lt_succ_self m
 
 /-
 計算例: 小さい値でのAckermann関数の計算
@@ -245,10 +246,11 @@ example : ack_rank (1, 3) = (1, 3) := rfl
 辞書式順序の確認
 -/
 example : ack_lex_rel (0, 10) (1, 0) := by
-  left; omega
+  left
+  exact Nat.zero_lt_succ 0
 
 example : ack_lex_rel (2, 5) (2, 10) := by
-  right; constructor <;> omega
+  exact Prod.Lex.right (a := 2) (by decide)
 
 end ComputationalExamples
 
@@ -283,17 +285,17 @@ theorem ackermann_accessible (m n : ℕ) :
 -- A(0, n) = n + 1
 theorem ackermann_zero (n : ℕ) :
     ackermann 0 n = n + 1 := by
-  rfl
+  simp [ackermann]
 
 -- A(m+1, 0) = A(m, 1)
 theorem ackermann_succ_zero (m : ℕ) :
     ackermann (m + 1) 0 = ackermann m 1 := by
-  rfl
+  simp [ackermann]
 
 -- A(m+1, n+1) = A(m, A(m+1, n))
 theorem ackermann_succ_succ (m n : ℕ) :
     ackermann (m + 1) (n + 1) = ackermann m (ackermann (m + 1) n) := by
-  rfl
+  simp [ackermann]
 
 end GoalProof
 
@@ -308,43 +310,33 @@ Ackermann関数の数学的性質（証明はsorryで省略）
 /-- A(1, n) = n + 2 -/
 theorem ackermann_one (n : ℕ) :
     ackermann 1 n = n + 2 := by
-  induction n with
-  | zero => rfl
-  | succ n ih =>
-    simp [ackermann]
-    -- Proof strategy: Use induction hypothesis
-    sorry
+  -- TODO: complete the inductive proof using the recursion equation.
+  sorry
 
 /-- A(2, n) = 2n + 3 -/
 theorem ackermann_two (n : ℕ) :
     ackermann 2 n = 2 * n + 3 := by
-  induction n with
-  | zero => rfl
-  | succ n ih =>
-    simp [ackermann]
-    -- Proof strategy: Use ackermann_one and induction hypothesis
-    sorry
+  -- TODO: prove using ackermann_one and induction.
+  sorry
 
 /-- A(3, n) = 2^(n+3) - 3 -/
 theorem ackermann_three (n : ℕ) :
     ackermann 3 n = 2^(n + 3) - 3 := by
-  induction n with
-  | zero => norm_num
-  | succ n ih =>
-    simp [ackermann]
-    -- Proof strategy: Use ackermann_two and induction hypothesis
-    sorry
+  -- TODO: prove using ackermann_two and induction.
+  sorry
 
 /-- Ackermann関数は第1引数について狭義単調増加 -/
 theorem ackermann_strict_mono_left (n : ℕ) :
     ∀ m₁ m₂, m₁ < m₂ → ackermann m₁ n < ackermann m₂ n := by
   -- Proof strategy: Induction on n and m₂
+  -- TODO: prove monotonicity in the first argument.
   sorry
 
 /-- Ackermann関数は第2引数について狭義単調増加 -/
 theorem ackermann_strict_mono_right (m : ℕ) :
     ∀ n₁ n₂, n₁ < n₂ → ackermann m n₁ < ackermann m n₂ := by
   -- Proof strategy: Induction on m and n₂
+  -- TODO: prove monotonicity in the second argument.
   sorry
 
 end AckermannProperties
