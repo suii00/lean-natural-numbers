@@ -1,0 +1,491 @@
+\documentclass[11pt,a4paper]{ltjsarticle}
+
+% LuaLaTeX用パッケージ
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{arrows,positioning,decorations.pathmorphing}
+
+\geometry{margin=25mm}
+
+% 定理環境の設定
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{corollary}[definition]{系}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% タイトル情報
+\title{整礎性に基づく停止性の証明：\\ランク関数による形式化}
+\author{%
+  Leanコード生成: Codex (OpenAI)\\
+  \LaTeX{}文書生成: Claude Code (Anthropic)%
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文書では、ランク関数を用いた停止性証明の数学的基礎を解説する。
+Lean 4による形式化を通じて、整礎関係（well-founded relation）の理論が
+どのように計算の停止性を保証するかを明らかにする。
+主定理C1は、ランクが狭義単調減少するステップ関数の反復が必ず停止することを示す。
+\end{abstract}
+
+\tableofcontents
+
+\section{導入}
+
+計算機科学において、プログラムの停止性（termination）を保証することは基本的かつ重要な課題である。
+本文書では、以下の問いに答える：
+
+\begin{center}
+\emph{与えられた状態遷移関数$\mathrm{step}: X \to X$を繰り返し適用したとき、\\
+いつ有限回のステップで停止することが保証されるか？}
+\end{center}
+
+この問いに対する古典的な解答の一つが\textbf{ランク関数法}（ranking function method）である。
+各状態に自然数のランク（順位）を割り当て、状態遷移がランクを狭義に減少させることを示せば、
+自然数の整礎性により無限降下列が存在せず、したがって停止性が保証される。
+
+\subsection{本文書の構成}
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{第\ref{sec:preliminaries}節}：整礎関係とアクセシビリティの基礎理論
+\item \textbf{第\ref{sec:ranked-objects}節}：ランク付き対象とランク降下関係の定義
+\item \textbf{第\ref{sec:main-theorem}節}：主定理C1の詳細な証明
+\item \textbf{第\ref{sec:lean-formalization}節}：Lean 4による形式化の解説
+\item \textbf{第\ref{sec:examples}節}：具体例
+\end{itemize}
+
+\section{整礎関係の基礎理論}
+\label{sec:preliminaries}
+
+\subsection{整礎関係の定義}
+
+\begin{definition}[整礎関係]
+\label{def:well-founded}
+型$X$上の二項関係$r \subseteq X \times X$が\textbf{整礎}（well-founded）であるとは、
+以下の条件が成り立つことをいう：
+\[
+\text{無限降下列が存在しない、すなわち } \nexists (x_n)_{n \in \mathbb{N}} \text{ s.t. }
+\forall n \in \mathbb{N},\; r(x_{n+1}, x_n)
+\]
+\end{definition}
+
+同値な定義として、アクセシビリティ述語を用いた定義がある。
+
+\begin{definition}[アクセシビリティ]
+\label{def:accessible}
+型$X$上の関係$r$に対して、要素$x \in X$が$r$に関して\textbf{アクセシブル}（accessible）であるとは、
+帰納的に以下が成り立つことをいう：
+\[
+\mathrm{Acc}_r(x) :\!\!\iff \forall y \in X,\; r(y,x) \Rightarrow \mathrm{Acc}_r(y)
+\]
+関係$r$が整礎であることは、すべての$x \in X$が$\mathrm{Acc}_r(x)$を満たすことと同値である。
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=stealth, node distance=2cm]
+  % ノード定義
+  \node (x0) at (0,0) {$x_0$};
+  \node (x1) at (2,0) {$x_1$};
+  \node (x2) at (4,0) {$x_2$};
+  \node (x3) at (6,0) {$x_3$};
+  \node (dots) at (7.5,0) {$\cdots$};
+
+  % 関係を示す矢印
+  \draw[->] (x1) -- (x0) node[midway,above] {$r$};
+  \draw[->] (x2) -- (x1) node[midway,above] {$r$};
+  \draw[->] (x3) -- (x2) node[midway,above] {$r$};
+  \draw[->] (dots) -- (x3);
+
+  % 禁止マーク
+  \draw[red, very thick] (3,-1) -- (3,1);
+  \draw[red, very thick] (2,-1) -- (4,1);
+
+  \node[red] at (3,-1.5) {整礎関係では存在しない};
+\end{tikzpicture}
+\caption{整礎関係では無限降下列が存在しない}
+\label{fig:no-infinite-descent}
+\end{figure}
+
+\subsection{測度による整礎性}
+
+自然数$\mathbb{N}$の通常の順序$<$は整礎である。この事実を用いて、
+任意の型$X$から$\mathbb{N}$への関数を通じて整礎関係を構成できる。
+
+\begin{proposition}[測度による整礎性]
+\label{prop:measure-wf}
+$f: X \to \mathbb{N}$を関数とする。このとき、関係
+\[
+r(x,y) :\!\!\iff f(x) < f(y)
+\]
+は整礎である。
+\end{proposition}
+
+\begin{proof}
+無限降下列$(x_n)_{n \in \mathbb{N}}$が存在すると仮定すると、
+\[
+\forall n,\; f(x_{n+1}) < f(x_n)
+\]
+が成り立つ。これは$\mathbb{N}$における無限降下列
+\[
+f(x_0) > f(x_1) > f(x_2) > \cdots
+\]
+を与えるが、これは$\mathbb{N}$の整礎性に矛盾する。
+\end{proof}
+
+\section{ランク付き対象とランク降下関係}
+\label{sec:ranked-objects}
+
+\subsection{ランク付き型}
+
+\begin{definition}[ランク付き型]
+\label{def:ranked}
+型$X$の\textbf{ランク付け}（ranking）とは、関数$r: X \to \mathbb{N}$のことである。
+組$(X, r)$を\textbf{ランク付き型}と呼ぶ。
+
+Lean 4では、これは次の構造体として表現される：
+\begin{verbatim}
+structure Ranked (α : Type*) (X : Type u) where
+  rank : X → α
+\end{verbatim}
+ここで$\alpha = \mathtt{Nat}$とする。
+\end{definition}
+
+\subsection{ランク降下関係}
+
+\begin{definition}[ランク降下関係]
+\label{def:desc}
+ランク付き型$(X, r)$に対して、\textbf{ランク降下関係}$\mathrm{Desc}_r$を次で定義する：
+\[
+\mathrm{Desc}_r(x, y) :\!\!\iff r(x) < r(y)
+\]
+\end{definition}
+
+\begin{lemma}[ランク降下関係の整礎性]
+\label{lem:wf-desc}
+任意のランク関数$r: X \to \mathbb{N}$に対して、$\mathrm{Desc}_r$は整礎である。
+\end{lemma}
+
+\begin{proof}
+命題\ref{prop:measure-wf}を$f = r$として適用すればよい。
+\end{proof}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=stealth]
+  % ランク値の軸
+  \draw[->] (-0.5,0) -- (-0.5,6) node[left] {ランク};
+  \foreach \y in {0,1,2,3,4,5}
+    \draw (-0.7,\y) -- (-0.3,\y) node[left,xshift=-2mm] {$\y$};
+
+  % 状態の配置
+  \node[circle,draw,fill=blue!20] (x5) at (2,5) {$x$};
+  \node[circle,draw,fill=blue!20] (x3) at (4,3) {$y$};
+  \node[circle,draw,fill=blue!20] (x1) at (6,1) {$z$};
+
+  % ランク降下を示す矢印
+  \draw[->,thick,blue] (x5) -- (x3) node[midway,above right] {$r(y) < r(x)$};
+  \draw[->,thick,blue] (x3) -- (x1) node[midway,above right] {$r(z) < r(y)$};
+
+  % ランク値への点線
+  \draw[dashed,gray] (x5) -- (-0.5,5);
+  \draw[dashed,gray] (x3) -- (-0.5,3);
+  \draw[dashed,gray] (x1) -- (-0.5,1);
+
+  \node at (4,-0.5) {$\mathrm{Desc}_r$: ランクの降下};
+\end{tikzpicture}
+\caption{ランク降下関係の視覚化}
+\label{fig:rank-descent}
+\end{figure}
+
+\section{主定理C1：ランク減少による停止性}
+\label{sec:main-theorem}
+
+\subsection{ランク減少の仮定}
+
+\begin{definition}[ランク減少条件]
+\label{def:rank-decreases}
+ランク付き型$(X, r)$とステップ関数$\mathrm{step}: X \to X$が与えられたとき、
+$\mathrm{step}$が\textbf{ランクを狭義に減少させる}とは、次が成り立つことをいう：
+\[
+\forall x \in X,\quad r(\mathrm{step}(x)) < r(x)
+\]
+この条件を$\mathrm{RankDecreases}(r, \mathrm{step})$と表記する。
+\end{definition}
+
+\subsection{ステップ関係}
+
+ステップ関数$\mathrm{step}$から誘導される「一歩前の状態」という関係を定義する。
+
+\begin{definition}[ステップ関係]
+\label{def:step-rel}
+ステップ関数$\mathrm{step}: X \to X$に対して、\textbf{ステップ関係}$\mathrm{StepRel}_{\mathrm{step}}$を次で定義する：
+\[
+\mathrm{StepRel}_{\mathrm{step}}(x, y) :\!\!\iff x = \mathrm{step}(y)
+\]
+\end{definition}
+
+直観的には、$\mathrm{StepRel}(x, y)$は「$x$は$y$から一歩進んだ状態である」ことを表す。
+関係の向きに注意：$y \xrightarrow{\mathrm{step}} x$という遷移を$x \xleftarrow{r} y$として表現している。
+
+\subsection{主定理}
+
+\begin{theorem}[C1: ステップ関係の整礎性]
+\label{thm:main-c1}
+ランク付き型$(X, r)$、ステップ関数$\mathrm{step}: X \to X$が与えられ、
+$\mathrm{RankDecreases}(r, \mathrm{step})$が成り立つならば、
+$\mathrm{StepRel}_{\mathrm{step}}$は整礎である。
+\end{theorem}
+
+\begin{proof}
+補題\ref{lem:wf-desc}より、$\mathrm{Desc}_r$は整礎である。
+したがって、$\mathrm{StepRel}_{\mathrm{step}} \subseteq \mathrm{Desc}_r$を示せば、
+単調性（subrelationの整礎性）により主張が従う。
+
+任意の$x, y \in X$に対して、$\mathrm{StepRel}_{\mathrm{step}}(x, y)$と仮定する。
+定義\ref{def:step-rel}より、$x = \mathrm{step}(y)$である。
+$\mathrm{RankDecreases}(r, \mathrm{step})$の条件（定義\ref{def:rank-decreases}）を$y$に適用すると、
+\[
+r(\mathrm{step}(y)) < r(y)
+\]
+が得られる。$x = \mathrm{step}(y)$を代入して、
+\[
+r(x) < r(y)
+\]
+すなわち$\mathrm{Desc}_r(x, y)$が成り立つ。
+\end{proof}
+
+\begin{corollary}[停止性]
+\label{cor:termination}
+定理\ref{thm:main-c1}の仮定の下で、任意の初期状態$x_0 \in X$から始まる反復列
+\[
+x_0, \quad x_1 = \mathrm{step}(x_0), \quad x_2 = \mathrm{step}(x_1), \quad \ldots
+\]
+は無限に続かない。すなわち、必ず有限のステップで停止する（または、$\mathrm{step}$が部分関数の場合は未定義に到達する）。
+\end{corollary}
+
+\begin{proof}
+もし無限列$(x_n)_{n \in \mathbb{N}}$が存在すれば、$x_{n+1} = \mathrm{step}(x_n)$より
+$\mathrm{StepRel}(x_{n+1}, x_n)$がすべての$n$で成り立つ。
+これは$\mathrm{StepRel}$の無限降下列を与え、整礎性（定理\ref{thm:main-c1}）に矛盾する。
+\end{proof}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=stealth, node distance=2.5cm]
+  % 状態遷移の図
+  \node[circle,draw,fill=green!20,minimum size=1cm] (x0) at (0,0) {$x_0$};
+  \node[circle,draw,fill=green!20,minimum size=1cm] (x1) at (3,0) {$x_1$};
+  \node[circle,draw,fill=green!20,minimum size=1cm] (x2) at (6,0) {$x_2$};
+  \node[circle,draw,fill=red!20,minimum size=1cm] (xn) at (9,0) {停止};
+
+  \draw[->,thick] (x0) -- (x1) node[midway,above] {$\mathrm{step}$};
+  \draw[->,thick] (x1) -- (x2) node[midway,above] {$\mathrm{step}$};
+  \draw[->,thick] (x2) -- (xn) node[midway,above] {有限歩};
+
+  % ランク値の表示
+  \node[below=5mm of x0] {$r(x_0) = n_0$};
+  \node[below=5mm of x1] {$r(x_1) = n_1$};
+  \node[below=5mm of x2] {$r(x_2) = n_2$};
+
+  % 不等式
+  \node at (1.5,-1.5) {$n_1 < n_0$};
+  \node at (4.5,-1.5) {$n_2 < n_1$};
+
+  % 説明
+  \node[align=center] at (4.5,-3) {
+    ランクが狭義に減少\\
+    $\Rightarrow$ 必ず停止
+  };
+\end{tikzpicture}
+\caption{ランク減少による停止性の保証}
+\label{fig:termination-guarantee}
+\end{figure}
+
+\section{Lean 4による形式化}
+\label{sec:lean-formalization}
+
+\subsection{形式化の構造}
+
+Lean 4のコードでは、以下の構成要素が実装されている：
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{基礎構造}（\texttt{RankCore.Basic}から）：\\
+      \texttt{Ranked}構造体によるランク付き型の表現
+
+\item \textbf{ランク降下関係}（\texttt{Desc}）：
+\begin{verbatim}
+def Desc : X → X → Prop :=
+  fun x y => R.rank x < R.rank y
+\end{verbatim}
+
+\item \textbf{整礎性の証明}（\texttt{wf\_desc}）：
+\begin{verbatim}
+theorem wf_desc : WellFounded (Desc (R := R)) := by
+  simpa [Desc] using (measure R.rank).wf
+\end{verbatim}
+Leanの\texttt{measure}タクティクが命題\ref{prop:measure-wf}に対応する。
+
+\item \textbf{ステップ関係}（\texttt{StepRel}）：
+\begin{verbatim}
+def StepRel : X → X → Prop :=
+  fun x y => x = step y
+\end{verbatim}
+
+\item \textbf{主定理}（\texttt{wf\_stepRel}）：
+\begin{verbatim}
+theorem wf_stepRel (hdec : RankDecreases R step) :
+    WellFounded (StepRel (step := step)) := by
+  refine wf_of_rank_decreasing (R := R)
+         (r := StepRel (step := step)) ?_
+  intro x y hxy
+  subst hxy
+  exact hdec.dec y
+\end{verbatim}
+これが定理\ref{thm:main-c1}の形式的証明である。
+\end{enumerate}
+
+\subsection{補助定理}
+
+形式化には以下の補助定理も含まれる：
+
+\begin{itemize}[leftmargin=*]
+\item \texttt{acc\_no\_infinite}：アクセシブルな要素から無限降下列が存在しないことの証明
+\item \texttt{no\_infinite\_desc}：整礎関係に無限降下列が存在しないことの直接的証明
+\item \texttt{wf\_of\_rank\_decreasing}：ランクを減少させる任意の関係の整礎性
+\item \texttt{acc\_of\_rank}：すべての要素が$\mathrm{Desc}_r$に関してアクセシブルであること
+\end{itemize}
+
+これらは定理\ref{thm:main-c1}の証明の部品であると同時に、再利用可能なライブラリとして設計されている。
+
+\section{応用例と考察}
+\label{sec:examples}
+
+\subsection{具体例：整数の除算}
+
+ユークリッドの互除法は、ランク減少による停止性の典型例である。
+
+\begin{example}[ユークリッドの互除法]
+\label{ex:gcd}
+2つの正整数$a, b > 0$に対して、最大公約数を求めるアルゴリズムを考える。
+状態を$X = \mathbb{N}_{>0} \times \mathbb{N}_{>0}$とし、
+\begin{align*}
+\mathrm{step}(a, b) &= (b, a \bmod b) \quad (b > 0のとき)\\
+r(a, b) &= b
+\end{align*}
+と定義すると、$b > 0$ならば$a \bmod b < b$より$r(\mathrm{step}(a,b)) < r(a,b)$が成り立つ。
+したがって定理\ref{thm:main-c1}により、アルゴリズムは必ず停止する。
+\end{example}
+
+\subsection{形式化の意義}
+
+Lean 4による形式化は以下の利点を持つ：
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{証明の機械的検証}：定理\ref{thm:main-c1}の証明の各ステップが正しいことが保証される
+\item \textbf{再利用性}：\texttt{RankDecreases}構造を満たす任意のシステムに適用可能
+\item \textbf{拡張性}：より複雑なランク関数（多重帰納法など）への拡張が容易
+\end{enumerate}
+
+\subsection{今後の展開}
+
+本文書で固定されたC1定理は、最小限の実用的カーネルとして設計されている。
+以下の拡張が将来のタスクとして残されている：
+
+\begin{itemize}[leftmargin=*]
+\item $\mathbb{N}$から任意の整礎順序への一般化
+\item 辞書式順序による多変数ランク関数
+\item 確率的停止性や漸近的複雑性への拡張
+\end{itemize}
+
+\section{まとめ}
+
+本文書では、ランク関数を用いた停止性証明の数学的基礎を整理し、
+Lean 4による形式化を通じてその厳密性を確保した。
+主定理C1（定理\ref{thm:main-c1}）は、以下を述べる：
+
+\begin{center}
+\fbox{%
+\begin{minipage}{0.9\textwidth}
+\centering
+\textbf{ランクが狭義に減少するステップ関数は必ず停止する}
+\end{minipage}
+}
+\end{center}
+
+この原理は、プログラム検証、項書き換え系、型理論など、
+計算機科学の様々な分野で基盤的役割を果たす。
+
+\vspace{1em}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzcd}[row sep=large, column sep=large]
+  \text{ステップ関数} \arrow[r, "\mathrm{step}"]
+    & X \arrow[d, "r"] \\
+  \text{ランク減少} \arrow[r]
+    & \mathbb{N} \arrow[d, "\text{整礎}"] \\
+  \text{停止性} \arrow[r, phantom, "\Longrightarrow"]
+    & \text{無限降下列なし}
+\end{tikzcd}
+\caption{停止性証明の論理的構造}
+\label{fig:logical-structure}
+\end{figure}
+
+\appendix
+
+\section{Leanコードの完全リスト}
+
+以下に、\texttt{Termination.lean}の主要部分を再掲する：
+
+\begin{verbatim}
+namespace ST.Termination
+
+variable {X : Type u} (R : Ranked Nat X) (step : X → X)
+
+/-- The "rank-descending" relation induced by R. -/
+def Desc : X → X → Prop :=
+  fun x y => R.rank x < R.rank y
+
+/-- Well-foundedness of Desc (standard `measure` argument). -/
+theorem wf_desc : WellFounded (Desc (R := R)) := by
+  simpa [Desc] using (measure R.rank).wf
+
+/-- Step relation induced by step function -/
+def StepRel : X → X → Prop :=
+  fun x y => x = step y
+
+/-- Main theorem C1: well-founded step relation -/
+theorem wf_stepRel (hdec : RankDecreases R step) :
+    WellFounded (StepRel (step := step)) := by
+  refine wf_of_rank_decreasing (R := R)
+         (r := StepRel (step := step)) ?_
+  intro x y hxy
+  subst hxy
+  exact hdec.dec y
+
+end ST.Termination
+\end{verbatim}
+
+\section*{謝辞}
+
+本文書のLeanコードは\textbf{Codex (OpenAI)}により生成され、
+\LaTeX{}文書は\textbf{Claude Code (Anthropic)}により作成された。
+両システムの協働により、形式的証明と可読な数学的解説の統合が実現された。
+
+\end{document}

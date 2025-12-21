@@ -1,0 +1,197 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- パッケージ設定 (LuaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[top=25mm, bottom=25mm, left=20mm, right=20mm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes.geometric, positioning, backgrounds, fit, calc, arrows.meta}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan
+}
+
+% --- 定理環境 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+\theoremstyle{plain}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{corollary}[definition]{系}
+
+% --- マクロ ---
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\Desc}{\mathrm{Desc}}
+\newcommand{\StepRel}{\mathrm{StepRel}}
+\newcommand{\step}{\mathrm{step}}
+\newcommand{\N}{\mathbb{N}}
+
+% --- タイトル ---
+\title{\textbf{ランク減少による停止性保証 (C1)}\\ \large --- T4 Snapshot: Termination via Well-Founded Rank ---}
+\author{
+    \textbf{TeX解説生成}: Gemini (Google) \\
+    \textbf{Leanコード生成}: Codex (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Leanライブラリ \code{MyProjects.ST.RankCore} のT4開発フェーズで凍結された「C1定理」について解説する。これは、任意のデータ型 $X$ 上のステップ関数 $\step$ が、あるランク関数 $\rank: X \to \N$ に関して狭義単調減少するならば、その反復適用は必ず有限回で停止する（無限降下列を持たない）という定理である。測度論的議論を排し、整礎関係（Well-Founded Relation）の包含のみを用いた簡潔な証明構造を特徴とする。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに: T4の到達点}
+T4フェーズの目的は、ランク付きオブジェクトの応用として最も基本的かつ重要な「停止性（Termination）」の証明基盤を確立することである。
+
+具体的には、以下の構成要素を定義し、主要定理を証明する。
+\begin{enumerate}
+    \item \textbf{ランク降下関係 ($\Desc_R$):} ランクの大小関係によって誘導される $X$ 上の関係。
+    \item \textbf{ランク減少性 (\code{RankDecreases}):} ステップ関数がランクを減らすという性質。
+    \item \textbf{C1定理:} ランク減少性が満たされるとき、ステップ関係は整礎（well-founded）となり、無限ループが存在しないことが保証される。
+\end{enumerate}
+
+\section{基本定義と整礎性}
+
+\subsection{ランク付きオブジェクト（再訪）}
+型 $X$ と、自然数へのランク関数を持つオブジェクトを考える。T4ではランクの余域を $\N$ に固定している（一般の整礎順序への拡張は将来の課題である）。
+
+\begin{definition}[ランク付きオブジェクト]
+構造 $R = (X, \rank_R)$ を以下のように定める。
+\[ \rank_R : X \to \N \]
+\end{definition}
+
+\subsection{ランク降下関係 ($\Desc$)}
+ランク関数を利用して、$X$ 上に「よりランクが小さい」という関係を定義する。
+
+\begin{definition}[ランク降下関係]
+2つの要素 $x, y \in X$ に対し、関係 $\Desc_R(x, y)$ を以下で定義する。
+\[ \Desc_R(x, y) \iff \rank_R(x) < \rank_R(y) \]
+\end{definition}
+
+\begin{lemma}[$\Desc$ の整礎性]
+$\N$ 上の標準的な順序 $<$ は整礎であるため、写像 $\rank_R$ による逆像である関係 $\Desc_R$ もまた整礎である。
+\end{lemma}
+\noindent \textbf{Lean実装:} \code{ST.Termination.wf\_desc}
+
+この事実は、測度関数（measure function）による整礎性の証明として知られる標準的な議論である。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=2cm, auto]
+  % Nodes
+  \node (y) at (0, 2) {$y$};
+  \node (x) at (0, 0) {$x$};
+  \node (Ny) at (4, 2) {$\rank(y)$};
+  \node (Nx) at (4, 0) {$\rank(x)$};
+
+  % Sets
+  \node[draw, ellipse, fit=(x) (y), label=above:$X$] {};
+  \node[draw, rectangle, fit=(Nx) (Ny), label=above:$\N$] {};
+
+  % Arrows
+  \draw[->, thick, blue] (y) -- node[left] {$\Desc$} (x);
+  \draw[->, dashed] (y) -- node[above] {$\rank$} (Ny);
+  \draw[->, dashed] (x) -- node[below] {$\rank$} (Nx);
+  \draw[->, thick, red] (Ny) -- node[right] {$<$} (Nx);
+
+  % Description
+  \node at (2, -1.5) {\small $\N$ の整礎性が $\Desc$ に遺伝する};
+\end{tikzpicture}
+\caption{ランク降下関係の整礎性}
+\end{figure}
+
+\section{C1定理: ランク減少による停止}
+
+\subsection{ステップ関係と減少条件}
+ある計算ステップを表す関数 $\step : X \to X$ を考える。
+
+\begin{definition}[ステップ関係]
+$\step$ による「1ステップ前の状態」を表す関係 $\StepRel_{\step}$ を定義する。
+\[ \StepRel_{\step}(x, y) \iff x = \step(y) \]
+つまり、$y$ から $x$ への遷移が存在することを意味する。
+\end{definition}
+
+\begin{definition}[ランク減少性]
+関数 $\step$ がランク減少性 \code{RankDecreases R step} を満たすとは、すべての $x \in X$ に対して以下が成り立つことである。
+\[ \rank_R(\step(x)) < \rank_R(x) \]
+\end{definition}
+
+\subsection{主定理}
+
+\begin{theorem}[C1: ステップ関係の整礎性]
+\label{thm:c1}
+ランク付きオブジェクト $R$ と関数 $\step$ が \code{RankDecreases R step} を満たすならば、関係 $\StepRel_{\step}$ は整礎である。
+\end{theorem}
+
+\noindent \textbf{証明のアイデア:}
+この証明は非常にシンプルかつ堅牢（Stable）である。
+仮定より、任意の $x, y$ について以下が成り立つ。
+\[ \StepRel_{\step}(x, y) \implies x = \step(y) \implies \rank_R(x) < \rank_R(y) \implies \Desc_R(x, y) \]
+すなわち、$\StepRel_{\step}$ は整礎関係 $\Desc_R$ の部分関係（subrelation）である。整礎関係の部分関係は常に整礎であるため、定理は直ちに従う。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.2]
+  \node (x0) at (0, 0) {$x_0$};
+  \node (x1) at (2, 0) {$x_1$};
+  \node (x2) at (4, 0) {$x_2$};
+  \node (xn) at (6, 0) {$\dots$};
+
+  \draw[->, thick] (x0) -- node[above] {$\step$} (x1);
+  \draw[->, thick] (x1) -- node[above] {$\step$} (x2);
+  \draw[->, thick] (x2) -- (xn);
+
+  \node (r0) at (0, -1.5) {$n_0$};
+  \node (r1) at (2, -1.5) {$n_1$};
+  \node (r2) at (4, -1.5) {$n_2$};
+  \node (rn) at (6, -1.5) {$\dots$};
+
+  \draw[->, dashed, gray] (x0) -- node[left] {\small $\rank$} (r0);
+  \draw[->, dashed, gray] (x1) -- (r1);
+  \draw[->, dashed, gray] (x2) -- (r2);
+
+  \draw[->, thick, red] (r0) -- node[above] {$>$} (r1);
+  \draw[->, thick, red] (r1) -- node[above] {$>$} (r2);
+  \draw[->, thick, red] (r2) -- (rn);
+
+  \node[align=center, red] at (3, -2.5) {$\N$ に無限降下列は存在しないため、\\ 計算列 $x_0, x_1, \dots$ も必ず停止する};
+\end{tikzpicture}
+\caption{ランク減少と計算の停止}
+\end{figure}
+
+\section{系: 無限降下列の不在と到達可能性}
+
+定理C1から、実用上重要な以下の系が得られる。これらはLeanファイル内で再利用可能な補題として提供されている。
+
+\begin{corollary}[無限連鎖の不在]
+\code{RankDecreases R step} が成り立つとき、以下のような無限列は存在しない。
+\[ x_0, x_1, x_2, \dots \quad \text{s.t.} \quad x_{n+1} = \step(x_n) \]
+\end{corollary}
+\noindent \textbf{Lean実装:} \code{ST.Termination.no\_infinite\_desc}
+
+\begin{corollary}[到達可能性 (Accessibility)]
+すべての要素 $x \in X$ は、$\Desc_R$ に関して到達可能（Accessible）である。すなわち、任意の $x$ から始まる降下列は有限長で終わる。
+\end{corollary}
+\noindent \textbf{Lean実装:} \code{ST.Termination.acc\_of\_rank}
+
+\section{まとめ}
+本稿では、T4スナップショットにおける停止性証明の理論的枠組みを解説した。
+\begin{itemize}
+    \item ランク関数 $\rank : X \to \N$ を介して、自然数の整礎性を $X$ 上の関係 $\Desc$ に持ち上げた。
+    \item アルゴリズムのステップ $\step$ がランクを減少させる（$\rank(\step(x)) < \rank(x)$）ことを示せば、その計算が必ず停止することが数学的に保証されることを確認した。
+    \item この手法は、特定の再帰関数の停止性証明だけでなく、状態遷移システムや書き換えシステムの停止性解析にも応用可能である。
+\end{itemize}
+
+\end{document}
