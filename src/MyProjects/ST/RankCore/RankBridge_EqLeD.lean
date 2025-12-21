@@ -114,6 +114,10 @@ lemma map_layer_layer (f : RankHomD R S) (n : α) :
   have hx'' : S.rank (f.map x) ≤ m := hm x hx'
   exact (Ranked.mem_layer_iff _ _ _).2 hx''
 
+lemma mapsTo_layer (f : RankHomD R S) (n : α) :
+    ∃ m : β, Set.MapsTo f.map (R.layer n) (S.layer m) :=
+  map_layer_layer (f := f) n
+
 end RankHomD
 
 /-! ## Optional convenience: Eq → D via the two-step bridge -/
