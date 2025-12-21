@@ -1,5 +1,7 @@
 import Mathlib
 import MyProjects.ST.RankCore.Basic
+import MyProjects.ST.RankCore.P3.ListLength
+import MyProjects.ST.RankCore.P3.IntAbs
 
 /-!
 Termination via rank.
@@ -96,12 +98,20 @@ variable {α : Type u}
 def TailRel : List α → List α → Prop := fun x y => ∃ a, y = a :: x
 
 theorem wf_tailRel : WellFounded (TailRel (α := α)) := by
-  let R : Ranked Nat (List α) := { rank := List.length }
+  let R : Ranked Nat (List α) := (instRankedList : Ranked ℕ (List α))
   refine wf_of_rank_decreasing (R := R) (r := TailRel (α := α)) ?_
   intro x y h
   rcases h with ⟨a, rfl⟩
   change List.length x < Nat.succ (List.length x)
   exact Nat.lt_succ_self (List.length x)
+
+def AbsDesc : ℤ → ℤ → Prop := fun x y => Int.natAbs x < Int.natAbs y
+
+theorem wf_absDesc : WellFounded AbsDesc := by
+  let R : Ranked Nat ℤ := (instRankedInt : Ranked ℕ ℤ)
+  refine wf_of_rank_decreasing (R := R) (r := AbsDesc) ?_
+  intro x y h
+  exact h
 
 def PredRel : Nat → Nat → Prop := fun x y => y = x + 1
 
