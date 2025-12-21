@@ -1,0 +1,82 @@
+\section{T4 Snapshot: Termination via well-founded rank (C1)}
+\label{sec:t4-termination}
+
+This note freezes the statement of the core ``outside-the-sandbox'' theorem \textbf{C1}:
+\emph{termination from a strictly decreasing rank}.
+The goal is a reusable, measure-theory-free kernel that supports many examples.
+
+\paragraph{Lean source (as of T4).}
+The canonical statement and its supporting lemmas live in
+\texttt{Theorems/Termination.lean} (see also the extracted listing \texttt{Termination.txt}).
+
+\subsection{Ranked objects (recap)}
+Fix a type $X$ and a rank function $r : X \to \mathbb{N}$.
+In Lean, this is a structure \texttt{ST.Ranked Nat X} with field \texttt{rank : X → Nat}.
+
+\begin{definition}[Rank-descending relation]
+\label{def:desc}
+Given $R=(X,r)$, define the \emph{rank-descending} relation
+\[
+  \mathrm{Desc}_R(x,y) \;:\!\!\iff\; r(x) < r(y).
+\]
+\end{definition}
+
+\begin{lemma}[Well-foundedness of $\mathrm{Desc}_R$]
+\label{lem:wf-desc}
+$\mathrm{Desc}_R$ is well-founded.
+\end{lemma}
+
+\noindent
+The proof is the standard \emph{measure} argument: any relation induced by a function into $\mathbb{N}$
+with strict $<$ is well-founded.
+
+\subsection{The C1 assumption: strict rank decrease}
+\begin{definition}[\texttt{RankDecreases}]
+\label{def:rankdecreases}
+Let $R=(X,r)$ and a step function $\mathrm{step}:X\to X$ be given.
+We say \emph{\texttt{step strictly decreases rank}} if
+\[
+  \forall x\in X,\quad r(\mathrm{step}(x)) < r(x).
+\]
+In Lean this is the predicate \texttt{ST.RankDecreases R step}.
+\end{definition}
+
+\subsection{The C1 conclusion: termination / no infinite chain}
+To express termination, we encode the ``one-step predecessor'' relation induced by \texttt{step}:
+
+\begin{definition}[Step relation]
+\label{def:steprel}
+\[
+  \mathrm{StepRel}_{\mathrm{step}}(x,y) \;:\!\!\iff\; x = \mathrm{step}(y).
+\]
+\end{definition}
+
+\begin{theorem}[C1: well-founded step relation]
+\label{thm:c1-wf-steprel}
+If \texttt{RankDecreases R step} holds, then $\mathrm{StepRel}_{\mathrm{step}}$ is well-founded.
+Equivalently, there is no infinite sequence
+\[
+  x_0,\; x_1,\; x_2,\;\dots
+\]
+such that $x_{n+1} = \mathrm{step}(x_n)$ for all $n$.
+\end{theorem}
+
+\paragraph{Proof idea (frozen).}
+The well-foundedness proof is intentionally ``one-line'' and stable:
+\[
+  \mathrm{StepRel}(x,y)\Rightarrow x=\mathrm{step}(y)\Rightarrow r(x)<r(y).
+\]
+Thus $\mathrm{StepRel}$ is a subrelation of $\mathrm{Desc}_R$, and inherits well-foundedness.
+
+\subsection{Convenience corollaries (non-goal, but useful)}
+The Lean file also includes reusable corollaries:
+\begin{itemize}
+\item \texttt{wf\_of\_rank\_decreasing}: any relation whose steps strictly decrease rank is well-founded.
+\item \texttt{no\_infinite\_desc}: a well-founded relation admits no infinite descending chain.
+\item \texttt{acc\_of\_rank}: accessibility for $\mathrm{Desc}_R$ at every point.
+\end{itemize}
+
+\paragraph{What we intentionally do \emph{not} do at T4.}
+We do not connect this theorem to the older ``Cat\_*'' families, nor do we generalize the codomain
+$\mathbb{N}$ to an arbitrary well-founded order. Those belong to later tasks; C1 is frozen as the
+minimal, practical kernel.
