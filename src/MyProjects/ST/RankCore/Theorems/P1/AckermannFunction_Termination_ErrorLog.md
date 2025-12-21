@@ -1,0 +1,24 @@
+# AckermannFunction_Termination エラー修正ログ
+
+- エラー概要：
+  - `Prod.Lex.right` の適用で型不一致が発生。
+  - `WellFoundedLT` の型クラス探索が停止。
+  - `#eval` が `sorry` 依存で中断。
+- 原因：
+  - `Prod.Lex.right` の引数推論が不安定で、`rfl` が「共通第1成分」ではなく別引数に解釈されていた。
+  - `RankCoreLex` が `LT`/`WellFoundedLT` 依存の設計になっており、`Prod.Lex` との整合が悪かった。
+  - `ackermann_goal` に `sorry` を残していたため `#eval` が停止。
+- 修正内容：
+  - `ackermann_goal` を `AckermannGoalType` の別名に変更し、`sorry` を除去。
+  - `RankCoreLex` を relation 持ち（`rel` + `wf`）に変更し、`ackermannRankCore` を `ack_lex_rel` で構築。
+  - `Prod.Lex.right` を `a := ...` 付きで明示適用し、推論の揺れを排除。
+- 修正が正しい理由：
+  - `Prod.Lex.right` の構成子は「共通第1成分」が明示できるため、`a := ...` を与えるのが最も堅牢。
+  - `RankCoreLex` を「順序そのもの」で持つと、`Prod.Lex` のような関係を直接指定でき、型クラス探索が不要になる。
+  - `ackermann_goal` を別名化することで `#eval` が `sorry` 非依存となり、評価が停止しない。
+- 動作確認：
+  - `lake build MyProjects.ST.RankCore.Theorems.P1.AckermannFunction_Termination`
+- どういう意図でこの実装に至ったかメモ：
+  - Ackermann では単純な `Nat` 下降でなく辞書式順序が本質なので、`Prod.Lex` を中心に据えた。
+  - 「関係を持つ RankCore」に寄せることで、Lex 順序と termination を直結し、将来的な拡張（他の順序への置換）を容易にする狙い。
+  - Advanced 節は DoD 外のため `TODO` 付き `sorry` に留め、本体ビルドを最優先した。
