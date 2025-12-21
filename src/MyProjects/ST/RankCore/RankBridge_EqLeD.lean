@@ -23,13 +23,11 @@ namespace ST
 
 universe u v w
 
-variable {α : Type v} {β : Type w}
-variable {X : Type u} {Y : Type u}
-
 /-- Equality lane morphism between ranked structures.
 
 This is the “strongest” data lane: the rank is preserved by equality up to an `indexMap`. -/
-structure RankHomEq [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β Y) where
+structure RankHomEq {α : Type v} {β : Type w} {X : Type u} {Y : Type u}
+    [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β Y) where
   /-- underlying map on carriers -/
   map : X → Y
   /-- index map between rank values -/
@@ -43,7 +41,8 @@ structure RankHomEq [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β
 
 This is the “weakest” lane: for each bound `n` in the source, there exists a bound `m` in the target
 such that the image of `layer n` lands in `layer m`. -/
-structure RankHomD [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β Y) where
+structure RankHomD {α : Type v} {β : Type w} {X : Type u} {Y : Type u}
+    [Preorder α] [Preorder β] (R : Ranked α X) (S : Ranked β Y) where
   /-- underlying map on carriers -/
   map : X → Y
   /-- existence-style layer bound transport -/
@@ -86,6 +85,12 @@ def toD (f : RankHomLe R S) : RankHomD R S where
     -- S.rank (f.map x) ≤ f.indexMap (R.rank x) ≤ f.indexMap n
     exact le_trans (f.rank_le x) (f.mono hx)
 
+/-- The chosen witness for `toD` is `indexMap n`. -/
+lemma toD_bound (f : RankHomLe R S) (n : α) :
+    ∀ x, R.rank x ≤ n → S.rank (f.map x) ≤ f.indexMap n := by
+  intro x hx
+  exact le_trans (f.rank_le x) (f.mono hx)
+
 @[simp] lemma toD_map (f : RankHomLe R S) :
     (f.toD).map = f.map := rfl
 
@@ -99,6 +104,15 @@ variable {R : Ranked α X} {S : Ranked β Y}
 @[simp] lemma map_layer_witness (f : RankHomD R S) (n : α) :
     ∃ m : β, ∀ x : X, R.rank x ≤ n → S.rank (f.map x) ≤ m :=
   f.map_layer n
+
+lemma map_layer_layer (f : RankHomD R S) (n : α) :
+    ∃ m : β, Set.MapsTo f.map (R.layer n) (S.layer m) := by
+  rcases f.map_layer n with ⟨m, hm⟩
+  refine ⟨m, ?_⟩
+  intro x hx
+  have hx' : R.rank x ≤ n := (Ranked.mem_layer_iff _ _ _).1 hx
+  have hx'' : S.rank (f.map x) ≤ m := hm x hx'
+  exact (Ranked.mem_layer_iff _ _ _).2 hx''
 
 end RankHomD
 
