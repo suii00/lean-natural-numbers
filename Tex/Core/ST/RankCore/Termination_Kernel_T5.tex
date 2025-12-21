@@ -1,0 +1,201 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- パッケージ設定 (LuaTeX用) ---
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage[top=25mm, bottom=25mm, left=20mm, right=20mm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usetikzlibrary{cd, shapes.geometric, positioning, backgrounds, fit, calc, arrows.meta}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan
+}
+
+% --- 定理環境 ---
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注釈}
+\theoremstyle{plain}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{corollary}[definition]{系}
+
+% --- マクロ ---
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\Desc}{\mathrm{Desc}}
+\newcommand{\StepRel}{\mathrm{StepRel}}
+\newcommand{\step}{\mathrm{step}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\List}{\mathrm{List}}
+
+% --- タイトル ---
+\title{\textbf{ランクに基づく停止性保証カーネル (T5)}\\ \large --- Termination Kernel as a Finished Product ---}
+\author{
+    \textbf{TeX構成}: Gemini (Google) \\
+    \textbf{Lean実装}: Codex (OpenAI)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿では、Leanライブラリ \code{MyProjects.ST.RankCore} のT5開発フェーズで完成した「停止性カーネル (Termination Kernel)」について解説する。自然数へのランク関数を持つ任意のオブジェクトに対し、狭義単調減少するステップ関数が必ず停止することを保証する汎用的な定理（C1, C2）と、その具体的な適用例（C3）を数学的に定式化する。
+\end{abstract}
+
+\tableofcontents
+
+\section{はじめに: T5の到達点}
+T5フェーズにおける目標は、停止性（Termination）に関する理論を「完成品（Finished Product）」として凍結することである。具体的には以下の3点が達成された。
+
+\begin{enumerate}
+    \item \textbf{C1 (核となる定理):} ランクの減少が整礎性（Well-foundedness）を導くことの証明。
+    \item \textbf{C2 (最小限の実装):} 測度関数（measure function）を用いた、堅牢かつ短い証明実装。
+    \item \textbf{C3 (再利用性の実証):} リストや整数といった異なる構造に対して、同一のカーネルを適用可能であることの確認。
+\end{enumerate}
+
+\section{停止性カーネルの理論}
+
+\subsection{ランク付きオブジェクトと降下関係}
+
+型 $X$ とランク関数 $\rank: X \to \N$ を持つランク付きオブジェクト $R = (X, \rank)$ を固定する。
+
+\begin{definition}[ランク降下関係 $\Desc_R$]
+$X$ 上の二項関係 $\Desc_R$ を以下のように定義する。
+\[ \Desc_R(x, y) \iff \rank(x) < \rank(y) \]
+これは「$y$ から $x$ へランクが下がる」ことを意味する関係である。
+\end{definition}
+
+\begin{theorem}[$\Desc_R$ の整礎性]
+関係 $\Desc_R$ は整礎 (Well-founded) である。すなわち、$\Desc_R$ に関する無限降下列 $x_0, x_1, x_2, \dots$ （ここで $\Desc_R(x_{i+1}, x_i)$）は存在しない。
+\end{theorem}
+
+\begin{proof}
+自然数 $\N$ 上の通常の順序 $<$ は整礎である。$\Desc_R$ はランク関数 $\rank$ を通じて $\N$ 上の $<$ を逆引きした関係であるため、整礎性が遺伝する。
+Leanでは \code{measure} 関数（数学用語の測度関数に相当するが、測度論 \code{MeasureTheory} ではない）を用いて構成される。
+\end{proof}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto]
+  % X side
+  \node (y) {$y$};
+  \node (x) [below=of y] {$x$};
+  \node [draw, ellipse, fit=(x) (y), label=above:$X$] {};
+  
+  % N side
+  \node (ny) [right=4cm of y] {$\rank(y)$};
+  \node (nx) [below=of ny] {$\rank(x)$};
+  \node [draw, rectangle, fit=(nx) (ny), label=above:$\N$] {};
+
+  % Mappings
+  \draw[->, dashed] (y) -- node[above] {$\rank$} (ny);
+  \draw[->, dashed] (x) -- node[above] {$\rank$} (nx);
+
+  % Relations
+  \draw[->, thick, blue] (y) -- node[left] {$\Desc_R$} (x);
+  \draw[->, thick, red] (ny) -- node[right] {$>$} (nx);
+
+  \node at (2.5, -2) {\small 自然数の整礎性が $X$ に持ち上げられる};
+\end{tikzpicture}
+\caption{測度関数による整礎性の証明}
+\end{figure}
+
+\subsection{ステップ関数の停止性}
+
+アルゴリズムの1ステップを表す関数 $\step: X \to X$ を考える。
+
+\begin{definition}[ステップ関係 $\StepRel$]
+関数 $\step$ によって誘導される「1ステップ前の関係」を定義する。
+\[ \StepRel_{\step}(x, y) \iff x = \step(y) \]
+\end{definition}
+
+\begin{definition}[ランク減少性 \code{RankDecreases}]
+$\step$ がランクを狭義に減少させるとは、以下を満たすことである。
+\[ \forall x \in X,\quad \rank(\step(x)) < \rank(x) \]
+\end{definition}
+
+\begin{theorem}[C1: 停止性定理]
+\code{RankDecreases} が成り立つならば、関係 $\StepRel_{\step}$ は整礎である。
+従って、$\step$ による無限ループ $x_{n+1} = \step(x_n)$ は存在しない。
+\end{theorem}
+
+\begin{proof}
+仮定より、$\StepRel_{\step}(x, y)$ ならば $x = \step(y)$ であり、ランク減少性から $\rank(x) < \rank(y)$ となる。
+これはすなわち $\Desc_R(x, y)$ が成り立つことを意味する。
+\[ \StepRel_{\step} \subseteq \Desc_R \]
+整礎関係の部分関係（subrelation）は常に整礎であるため、$\StepRel_{\step}$ も整礎となる。
+\end{proof}
+
+\section{応用例 (C3): カーネルの再利用}
+
+定義されたカーネルは、具体的な問題に対して「ランク関数」と「減少の事実」を提供するだけで適用可能である。T5では以下の2つの例が実装された。
+
+\subsection{リストの皮むき (List Peeling)}
+
+\begin{itemize}
+    \item \textbf{対象:} $X = \List(\alpha)$
+    \item \textbf{ランク:} $\rank(l) = \mathrm{length}(l)$
+    \item \textbf{関係:} $\mathrm{TailRel}(xs, ys) \iff \exists a, ys = a :: xs$ （先頭要素を取り除く操作）
+\end{itemize}
+
+\begin{theorem}
+$\mathrm{TailRel}$ は整礎である。
+\end{theorem}
+\begin{proof}
+$ys = a :: xs$ ならば $\mathrm{length}(xs) < \mathrm{length}(ys)$ である。これはランク減少性を満たすため、カーネル定理より直ちに従う。
+\end{proof}
+
+\subsection{整数の絶対値降下 (Integer Descent)}
+
+\begin{itemize}
+    \item \textbf{対象:} $X = \Z$
+    \item \textbf{ランク:} $\rank(z) = |z|$ （絶対値）
+    \item \textbf{関係:} $\mathrm{AbsDesc}(x, y) \iff |x| < |y|$
+\end{itemize}
+
+\begin{theorem}
+$\mathrm{AbsDesc}$ は整礎である。
+\end{theorem}
+\begin{proof}
+この関係は $\Desc_R$ そのものであるため、定理により整礎である。これにより、絶対値を減らし続けるような整数の遷移は必ず停止することが保証される。
+\end{proof}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1.0]
+  \draw[->] (-4,0) -- (4,0) node[right] {$\Z$};
+  \foreach \x in {-3,-2,-1,0,1,2,3} \draw (\x,0.1) -- (\x,-0.1);
+  
+  \node[circle,fill,inner sep=1.5pt, label=below:$0$] at (0,0) {};
+  
+  % Descent arrows
+  \draw[->, thick, blue, bend right] (3,0.2) to (1,0.2);
+  \draw[->, thick, blue, bend right] (-3,0.2) to (-2,0.2);
+  \draw[->, thick, blue, bend right] (-2,0.2) to (1,0.2);
+  \draw[->, thick, blue, bend left] (1,0.2) to (0,0.2);
+
+  \node at (0, 1.5) {\small 原点 $0$ に向かう任意のプロセスは停止する};
+\end{tikzpicture}
+\caption{整数の絶対値による停止性}
+\end{figure}
+
+\section{まとめ}
+
+T5スナップショットにより、ランク付きオブジェクトの理論は「実用的な停止性証明ツール」としての側面を確立した。
+\begin{itemize}
+    \item \textbf{最小性:} 証明は $\N$ の性質のみに依存し、外部ライブラリへの依存度が低い。
+    \item \textbf{汎用性:} 構造がランクを持つ限り、同じ定理をリスト、整数、その他のデータ構造に適用できる。
+    \item \textbf{安定性:} 測度関数（measure function）による構成を採用することで、測度論（MeasureTheory）などの重厚なライブラリに依存せず、将来的なリファクタリングに対しても堅牢な証明となっている。
+\end{itemize}
+
+\end{document}

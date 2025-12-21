@@ -1,0 +1,117 @@
+\section{T5 Snapshot: Termination kernel is a finished product (C2+C3)}
+\label{sec:t5-termination}
+
+This note freezes the \textbf{T5 (week 10)} milestone: the termination kernel is implemented in Lean
+(\textbf{C2}) and demonstrably reused on two concrete examples (\textbf{C3}).
+
+\paragraph{Lean sources (as of T5).}
+\begin{itemize}
+\item \texttt{Theorems/Termination.lean}: the termination kernel (C1+C2).
+\item \texttt{Termination.txt}: extracted listing used for review.
+\item Two small applications (C3): \texttt{wf\_tailRel} (lists) and \texttt{wf\_absDesc} (integers).
+\end{itemize}
+
+\subsection{The kernel statement (C1) and finished proof (C2)}
+Fix a type $X$ and a rank function $r : X \to \mathbb{N}$.
+In Lean this is \texttt{ST.Ranked Nat X} with field \texttt{rank : X → Nat}.
+
+\begin{definition}[Rank-descending relation]
+Given $R=(X,r)$, define
+\[
+  \mathrm{Desc}_R(x,y) \;:\!\!\iff\; r(x) < r(y).
+\]
+\end{definition}
+
+\begin{theorem}[C2: well-foundedness from a rank into $\mathbb{N}$]
+\label{thm:t5-wf-desc}
+The relation $\mathrm{Desc}_R$ is well-founded.
+\end{theorem}
+
+\paragraph{Proof sketch (measure, one line).}
+Let $m := r : X \to \mathbb{N}$. The standard \emph{measure} construction provides a well-founded
+relation \texttt{measure m} whose definition is exactly $m(x) < m(y)$.
+Therefore,
+\[
+  \mathrm{Desc}_R \;=\; \texttt{measure}\;r,
+\]
+and well-foundedness follows immediately. In Lean:
+\[
+  \texttt{by simpa [Desc] using (measure R.rank).wf}.
+\]
+This is intentionally minimal: it depends only on the well-foundedness of $<$ on $\mathbb{N}$ and is
+robust under refactors.
+
+\subsection{Termination for step functions (C1)}
+To express ``termination'' of a deterministic step $\mathrm{step}:X\to X$, we assume strict rank decrease.
+
+\begin{definition}[\texttt{RankDecreases}]
+\label{def:t5-rankdecreases}
+\[
+  \texttt{RankDecreases}(R,\mathrm{step}) \;:\!\!\iff\; \forall x,\ r(\mathrm{step}(x)) < r(x).
+\]
+\end{definition}
+
+\begin{definition}[Step relation]
+\[
+  \mathrm{StepRel}_{\mathrm{step}}(x,y) \;:\!\!\iff\; x = \mathrm{step}(y).
+\]
+\end{definition}
+
+\begin{theorem}[C1 (termination): $\mathrm{StepRel}$ is well-founded]
+If \texttt{RankDecreases R step} holds, then $\mathrm{StepRel}_{\mathrm{step}}$ is well-founded.
+Equivalently, there is no infinite sequence $x_0,x_1,\dots$ with $x_{n+1}=\mathrm{step}(x_n)$.
+\end{theorem}
+
+\paragraph{Proof sketch (subrelation of $\mathrm{Desc}$).}
+If $\mathrm{StepRel}(x,y)$ then $x=\mathrm{step}(y)$, hence $r(x)=r(\mathrm{step}(y))<r(y)$ by
+\texttt{RankDecreases}. Therefore $\mathrm{StepRel}$ is a subrelation of $\mathrm{Desc}_R$ and inherits
+well-foundedness.
+
+\subsection{Two applications (C3): the theorem is visibly reused}
+The purpose of C3 is not to produce new mathematics, but to show that the kernel is reusable with
+near-zero overhead.
+
+\subsubsection{Example 1: List-length termination}
+Fix a type $A$ and consider lists $X:=\mathrm{List}(A)$ with rank $r(x):=\mathrm{length}(x)$
+(the A3 example \texttt{instRankedList}).
+
+Define a one-step ``peel'' relation:
+\[
+  \mathrm{TailRel}(x,y) \;:\!\!\iff\; \exists a,\ y = a :: x.
+\]
+Then $\mathrm{TailRel}(x,y)$ implies $\mathrm{length}(x) < \mathrm{length}(y)$, so by the kernel we get:
+
+\begin{itemize}
+\item $\mathrm{TailRel}$ is well-founded (\texttt{wf\_tailRel}).
+\item Consequently, there is no infinite chain of strict tail-peeling steps.
+\end{itemize}
+
+\subsubsection{Example 2: Absolute-value descent on integers}
+Let $X:=\mathbb{Z}$ and rank $r(x):=|x|$ (the A3 example \texttt{instRankedInt} via \texttt{Int.natAbs}).
+Define
+\[
+  \mathrm{AbsDesc}(x,y) \;:\!\!\iff\; |x| < |y|.
+\]
+This is literally $\mathrm{Desc}_R$ for the chosen rank, hence:
+
+\begin{itemize}
+\item $\mathrm{AbsDesc}$ is well-founded (\texttt{wf\_absDesc}).
+\item Any process that strictly decreases $|x|$ cannot run forever.
+\end{itemize}
+
+\subsection{Contribution statement (first allowed at T5)}
+At this milestone we can articulate the contribution of the ``general theorem C'':
+
+\begin{enumerate}
+\item We isolate a \textbf{minimal, measure-theory-free} termination kernel for rank-based mathematics:
+  \emph{strict decrease into $\mathbb{N}$ implies well-foundedness}.
+\item The proof is \textbf{structurally stable}: the implementation is a one-line \texttt{measure} argument,
+  and higher-level termination results are obtained by subrelation transport.
+\item The kernel is \textbf{immediately reusable} across the A3 example catalog: once a rank is defined,
+  termination arguments reduce to short rank inequalities, as demonstrated by two independent examples.
+\end{enumerate}
+
+\paragraph{Non-goals (to avoid technical debt).}
+We do \emph{not} generalize from $\mathbb{N}$ to arbitrary well-founded orders here, and we do not connect
+this kernel to the older \texttt{Cat\_*} families at T5. Those belong to later milestones; T5 freezes the
+``finished product'' kernel and its first reuse.
