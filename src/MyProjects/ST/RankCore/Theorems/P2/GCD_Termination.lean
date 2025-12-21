@@ -83,11 +83,17 @@ lemma gcd_rank_decreases : ∀ (s : GCDState), s.2 ≠ 0 →
   -- gcd_rank (a, b) = b
   -- a % b < b (by Nat.mod_lt)
   simp [gcd_rank, gcd_step]
-  exact Nat.mod_lt a hb
+  exact Nat.mod_lt a (Nat.pos_of_ne_zero hb)
 
-/-- GCD計算の関係: stepによる遷移 -/
+/-- GCD step relation (next, current). -/
 def gcd_rel : GCDState → GCDState → Prop :=
-  fun s1 s2 => s2 = gcd_step s1 ∧ s1.2 ≠ 0
+  fun s2 s1 => s2 = gcd_step s1 ∧ s1.2 ≠ 0
+
+/-- Rank strictly decreases along `gcd_rel`. -/
+lemma gcd_rel_rank_lt {s1 s2 : GCDState} (h : gcd_rel s2 s1) :
+    gcd_rank s2 < gcd_rank s1 := by
+  rcases h with ⟨rfl, hne⟩
+  exact gcd_rank_decreases s1 hne
 
 /-! ## Step 4: 計算例での確認 (Time: ~2 min) -/
 
@@ -108,6 +114,10 @@ def gcd_rel : GCDState → GCDState → Prop :=
 #eval gcd_rank (6, 0)    -- = 0 < 6 ✓
 -- b = 0 で停止
 
+-- Example test: the step relation holds on a concrete state.
+example : gcd_rel (gcd_step (48, 18)) (48, 18) := by
+  exact ⟨rfl, by decide⟩
+
 /-
 別の例: gcd(100, 35)
 -/
@@ -125,16 +135,18 @@ def gcd_rel : GCDState → GCDState → Prop :=
   4. よってgcd_relもWellFounded
 -/
 theorem gcd_terminates : WellFounded gcd_rel := by
-  -- Proof strategy: Use invImage to lift ℕ's < to gcd_rel via gcd_rank
-  -- The key is that gcd_rank strictly decreases (by gcd_rank_decreases)
-  sorry
+  -- Proof strategy: use well-foundedness of InvImage (<) and monotonicity.
+  refine (WellFounded.mono (r := InvImage (· < ·) gcd_rank) (r' := gcd_rel) ?wf ?h)
+  · exact InvImage.wf gcd_rank (wellFounded_lt)
+  · intro s2 s1 hrel
+    exact gcd_rel_rank_lt hrel
 
 /-- 実用的な定義: GCD関数（terminationヒント付き）
 Leanのterminationチェッカーに、rankが減少することを伝える -/
 def gcd (a b : ℕ) : ℕ :=
   if h : b = 0 then a
   else
-    have : b % a < b := Nat.mod_lt a (Nat.pos_of_ne_zero h)
+    have : a % b < b := Nat.mod_lt a (Nat.pos_of_ne_zero h)
     gcd b (a % b)
 termination_by b
 decreasing_by assumption
