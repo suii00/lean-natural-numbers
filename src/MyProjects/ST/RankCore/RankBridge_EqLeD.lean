@@ -110,9 +110,9 @@ lemma map_layer_layer (f : RankHomD R S) (n : α) :
   rcases f.map_layer n with ⟨m, hm⟩
   refine ⟨m, ?_⟩
   intro x hx
-  have hx' : R.rank x ≤ n := (Ranked.mem_layer_iff _ _ _).1 hx
+  have hx' : R.rank x ≤ n := (Ranked.mem_layer_iff (R := R) (n := n) (x := x)).1 hx
   have hx'' : S.rank (f.map x) ≤ m := hm x hx'
-  exact (Ranked.mem_layer_iff _ _ _).2 hx''
+  exact (Ranked.mem_layer_iff (R := S) (n := m) (x := f.map x)).2 hx''
 
 lemma mapsTo_layer (f : RankHomD R S) (n : α) :
     ∃ m : β, Set.MapsTo f.map (R.layer n) (S.layer m) :=
