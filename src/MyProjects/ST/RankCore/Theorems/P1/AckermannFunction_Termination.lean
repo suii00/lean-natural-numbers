@@ -1,6 +1,7 @@
 import Mathlib.Data.Nat.Basic
 import Mathlib.Tactic
 import Mathlib.Order.WellFounded
+import Mathlib.Computability.Ackermann
 import MyProjects.ST.RankCore.Basic
 
 /-!
@@ -254,6 +255,17 @@ example : ack_lex_rel (2, 5) (2, 10) := by
 
 end ComputationalExamples
 
+@[simp] lemma ackermann_eq_ack (m n : ℕ) : ackermann m n = ack m n := by
+  induction m generalizing n with
+  | zero =>
+      cases n <;> simp [ackermann, ack]
+  | succ m ih =>
+      induction n with
+      | zero =>
+          simp [ackermann, ack, ih]
+      | succ n ihn =>
+          simp [ackermann, ack, ih, ihn]
+
 /-! ## Step 5: 目標定理の証明 (Time: ~5 min) -/
 
 section GoalProof
@@ -311,33 +323,36 @@ Ackermann関数の数学的性質（証明はsorryで省略）
 theorem ackermann_one (n : ℕ) :
     ackermann 1 n = n + 2 := by
   -- TODO: complete the inductive proof using the recursion equation.
-  sorry
+  simpa using (ack_one n)
 
 /-- A(2, n) = 2n + 3 -/
 theorem ackermann_two (n : ℕ) :
     ackermann 2 n = 2 * n + 3 := by
   -- TODO: prove using ackermann_one and induction.
-  sorry
+  simpa using (ack_two n)
 
 /-- A(3, n) = 2^(n+3) - 3 -/
 theorem ackermann_three (n : ℕ) :
     ackermann 3 n = 2^(n + 3) - 3 := by
   -- TODO: prove using ackermann_two and induction.
-  sorry
+  simpa using (ack_three n)
 
 /-- Ackermann関数は第1引数について狭義単調増加 -/
 theorem ackermann_strict_mono_left (n : ℕ) :
     ∀ m₁ m₂, m₁ < m₂ → ackermann m₁ n < ackermann m₂ n := by
   -- Proof strategy: Induction on n and m₂
   -- TODO: prove monotonicity in the first argument.
-  sorry
+  simpa [StrictMono] using (ack_strictMono_left n)
 
 /-- Ackermann関数は第2引数について狭義単調増加 -/
 theorem ackermann_strict_mono_right (m : ℕ) :
     ∀ n₁ n₂, n₁ < n₂ → ackermann m n₁ < ackermann m n₂ := by
   -- Proof strategy: Induction on m and n₂
   -- TODO: prove monotonicity in the second argument.
-  sorry
+  simpa [StrictMono] using (ack_strictMono_right m)
+
+example : ackermann 1 2 = 4 := by
+  simpa using (ackermann_one 2)
 
 end AckermannProperties
 
