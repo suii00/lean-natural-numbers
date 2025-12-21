@@ -34,13 +34,13 @@ structure BasicOpenFamily where
 variable (B : BasicOpenFamily (X := X) (ι := ι))
 
 /-- Finite-union expressions of basic opens. -/
-abbrev OpenExpr : Type (max u v) := Finset ι
+abbrev OpenExpr (ι : Type v) : Type v := Finset ι
 
 /-- Interpret an expression as an open set (a union over the chosen basis). -/
-def eval (s : OpenExpr (ι := ι)) : Set X :=
+def eval (s : OpenExpr ι) : Set X :=
   ⋃ i, ⋃ (_ : i ∈ s), B.b i
 
-lemma isOpen_eval (s : OpenExpr (ι := ι)) : IsOpen (eval (B := B) s) := by
+lemma isOpen_eval (s : OpenExpr ι) : IsOpen (eval (B := B) s) := by
   classical
   -- Union of open sets is open (even infinite unions); membership-index union is harmless.
   refine isOpen_iUnion ?_
@@ -50,10 +50,10 @@ lemma isOpen_eval (s : OpenExpr (ι := ι)) : IsOpen (eval (B := B) s) := by
   simpa using B.isOpen_b i
 
 /-- Ranked structure on `OpenExpr`: rank = number of basis pieces. -/
-def openExprRanked : Ranked Nat (OpenExpr (ι := ι)) where
+def openExprRanked : Ranked Nat (OpenExpr ι) where
   rank := fun s => s.card
 
-@[simp] lemma rank_def (s : OpenExpr (ι := ι)) :
+@[simp] lemma rank_def (s : OpenExpr ι) :
     (openExprRanked (ι := ι)).rank s = s.card := rfl
 
 end OpenSetTower
