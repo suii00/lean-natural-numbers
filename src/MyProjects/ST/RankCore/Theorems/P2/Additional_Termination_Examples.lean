@@ -1,10 +1,15 @@
 import Mathlib.Data.Nat.Basic
 import Mathlib.Order.WellFounded
+import MyProjects.ST.RankCore.Basic
 
 /-!
 # RankCore と Termination: 追加の具体例集
 
 Goal-Driven Designアプローチによる、より簡単な例から段階的に学ぶための補完教材。
+
+Key lemmas: `countdown_terminates`, `factorial_tail_aux_eq`, `fib_fast_aux_eq` (succ form),
+`tree_height_le_size`.
+Example: `countdown 3 = [3, 2, 1, 0]`.
 
 **学習順序**:
 1. カウントダウン（最も簡単、5分）
@@ -66,7 +71,7 @@ termination_by n => n
 
 theorem countdown_terminates : WellFounded (fun m n : ℕ => m < n) := by
   -- This is just Nat.lt_wfRel
-  sorry
+  exact Nat.lt_wfRel.wf
 
 /-
 **学習ポイント**:
@@ -141,16 +146,21 @@ def factorial_tail (n : ℕ) : ℕ := factorial_tail_aux n 1
 
 /-! ## Step 5: 等価性の証明（補題） -/
 
-lemma factorial_tail_aux_eq : ∀ n acc, 
+lemma factorial_tail_aux_eq : ∀ n acc,
     factorial_tail_aux n acc = factorial n * acc := by
   -- Proof strategy: Induction on n
-  sorry
+  intro n acc
+  induction n generalizing acc with
+  | zero =>
+      simp [factorial_tail_aux, factorial]
+  | succ n ih =>
+      simp [factorial_tail_aux, factorial, ih, Nat.mul_assoc, Nat.mul_comm]
 
 theorem factorial_tail_eq : ∀ n, factorial_tail n = factorial n := by
   intro n
   simp [factorial_tail]
   -- Use factorial_tail_aux_eq with acc = 1
-  sorry
+  simp [factorial_tail_aux_eq]
 
 /-
 **学習ポイント**:
@@ -233,16 +243,44 @@ def fib_fast (n : ℕ) : ℕ := fib_fast_aux n 0 1
 
 /-! ## Step 5: 等価性の証明（補題） -/
 
-lemma fib_fast_aux_eq : ∀ n a b, 
-    fib_fast_aux n a b = fib n * b + fib (n + 1) * a := by
+lemma fib_fast_aux_eq : ∀ n a b,
+    fib_fast_aux (n + 1) a b = fib (n + 1) * b + fib n * a := by
   -- Proof strategy: Induction on n, use fib recurrence
-  sorry
+  intro n a b
+  induction n generalizing a b with
+  | zero =>
+      simp [fib_fast_aux, fib]
+  | succ n ih =>
+      have hmul :
+          fib (n + 1) * b + fib n * b = (fib (n + 1) + fib n) * b := by
+        simpa using (Nat.add_mul (fib (n + 1)) (fib n) b).symm
+      calc
+        fib_fast_aux (n + 2) a b = fib_fast_aux (n + 1) b (a + b) := by
+          simp [fib_fast_aux]
+        _ = fib (n + 1) * (a + b) + fib n * b := by
+          simpa using (ih b (a + b))
+        _ = fib (n + 1) * a + (fib (n + 1) * b + fib n * b) := by
+          simp [Nat.mul_add, Nat.add_assoc]
+        _ = fib (n + 1) * a + (fib (n + 1) + fib n) * b := by
+          simp [hmul]
+        _ = fib (n + 1) * a + fib (n + 2) * b := by
+          simp [fib]
+        _ = fib (n + 2) * b + fib (n + 1) * a := by
+          simp [Nat.add_comm]
 
 theorem fib_fast_eq : ∀ n, fib_fast n = fib n := by
   intro n
   simp [fib_fast]
   -- Use fib_fast_aux_eq with a = 0, b = 1
-  sorry
+  cases n with
+  | zero =>
+      simp [fib_fast_aux, fib]
+  | succ n =>
+      simpa using (fib_fast_aux_eq n 0 1)
+
+-- Example test: the fast Fibonacci agrees on a small input.
+example : fib_fast 1 = 1 := by
+  simp [fib_fast, fib_fast_aux]
 
 /-
 **学習ポイント**:
@@ -293,6 +331,20 @@ def tree_size {α : Type} : Tree α → ℕ
   | Tree.leaf => 0
   | Tree.node _ l r => 1 + tree_size l + tree_size r
 
+lemma tree_size_lt_node_left {α : Type} (a : α) (l r : Tree α) :
+    tree_size l < tree_size (Tree.node a l r) := by
+  have hpos : 0 < 1 + tree_size r := by
+    simpa [Nat.succ_eq_add_one, Nat.add_comm] using (Nat.succ_pos (tree_size r))
+  have h := Nat.lt_add_of_pos_right (n := tree_size l) hpos
+  simpa [tree_size, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using h
+
+lemma tree_size_lt_node_right {α : Type} (a : α) (l r : Tree α) :
+    tree_size r < tree_size (Tree.node a l r) := by
+  have hpos : 0 < 1 + tree_size l := by
+    simpa [Nat.succ_eq_add_one, Nat.add_comm] using (Nat.succ_pos (tree_size l))
+  have h := Nat.lt_add_of_pos_left (n := tree_size r) hpos
+  simpa [tree_size, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using h
+
 /-- Rank関数: 木のサイズ -/
 def tree_rank {α : Type} : Tree α → ℕ := tree_size
 
@@ -314,6 +366,9 @@ def tree_height_explicit {α : Type} : Tree α → ℕ
   | Tree.leaf => 0
   | Tree.node _ l r => 1 + max (tree_height_explicit l) (tree_height_explicit r)
 termination_by t => tree_size t
+decreasing_by
+  · simpa using tree_size_lt_node_left _ _ _
+  · simpa using tree_size_lt_node_right _ _ _
 
 /-! ## Step 4: 計算例 -/
 
@@ -342,7 +397,7 @@ def t4 : Tree ℕ := node 1 (node 2 (node 3 (node 4 leaf leaf) leaf) leaf) leaf
 
 /-! ## Step 5: サイズと高さの関係（補題） -/
 
-lemma tree_height_le_size {α : Type} : ∀ (t : Tree α), 
+lemma tree_height_le_size {α : Type} : ∀ (t : Tree α),
     tree_height t ≤ tree_size t := by
   -- Proof strategy: Induction on tree structure
   intro t
@@ -351,7 +406,15 @@ lemma tree_height_le_size {α : Type} : ∀ (t : Tree α),
   | node _ l r ihl ihr =>
     simp [tree_height, tree_size]
     -- max (height l) (height r) ≤ size l + size r
-    sorry
+    have hl : tree_height l ≤ tree_size l := ihl
+    have hr : tree_height r ≤ tree_size r := ihr
+    have hl' : tree_height l ≤ tree_size l + tree_size r :=
+      Nat.le_trans hl (Nat.le_add_right _ _)
+    have hr' : tree_height r ≤ tree_size l + tree_size r :=
+      Nat.le_trans hr (Nat.le_add_left _ _)
+    have hmax : max (tree_height l) (tree_height r) ≤ tree_size l + tree_size r :=
+      (max_le_iff.mpr ⟨hl', hr'⟩)
+    simpa [Nat.add_assoc] using (Nat.add_le_add_left hmax 1)
 
 /-
 **学習ポイント**:
