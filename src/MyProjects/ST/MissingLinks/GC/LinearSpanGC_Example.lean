@@ -1,8 +1,11 @@
+import Mathlib.Algebra.Group.Prod
+import Mathlib.Algebra.Module.Prod
 import Mathlib.LinearAlgebra.Span.Basic
 import Mathlib.LinearAlgebra.Basis.Basic
-import Mathlib.Data.Rat.Basic
+import Mathlib.Tactic
+import Mathlib.Algebra.Field.Rat
 import Mathlib.Data.Set.Finite.Lattice
-import GaloisClosureAPI
+import MyProjects.ST.MissingLinks.GC.GaloisClosureAPI
 
 /-!
 # 線形包による具体例：ガロア接続フレームワークの検証
@@ -71,7 +74,7 @@ instance linearSpanGC : GeneratorClosureGC V (Submodule K V) where
 これは Submodule.subset_span そのもの。
 -/
 theorem linearSpan_extensive (s : Set V) : s ⊆ ↑(Submodule.span K s) :=
-  subset_cl_gen s
+  subset_cl_gen (S := Submodule K V) s
 
 /--
 線形包の単調性：s ⊆ t ならば span(s) ≤ span(t)
@@ -88,8 +91,8 @@ theorem linearSpan_monotone {s t : Set V} (h : s ⊆ t) :
 証明：ガロア接続から導出される cl_cl_eq を適用。
 -/
 theorem linearSpan_idempotent (s : Set V) :
-    ↑(Submodule.span K ↑(Submodule.span K s)) = ↑(Submodule.span K s) :=
-  cl_cl_eq (Submodule.span K s)
+    Submodule.span K (↑(Submodule.span K s) : Set V) = Submodule.span K s := by
+  exact Submodule.span_span (R := K) (s := s)
 
 end LinearSpanInstance
 
@@ -101,8 +104,8 @@ section Vec2QExample
 def Vec2Q : Type := ℚ × ℚ
 
 /-- Vec2Q は ℚ 上のベクトル空間 -/
-instance : AddCommGroup Vec2Q := Prod.addCommGroup
-instance : Module ℚ Vec2Q := Prod.module
+instance : AddCommGroup Vec2Q := Prod.instAddCommGroup
+instance : Module ℚ Vec2Q := Prod.instModule
 
 /-- 標準基底 e₁ = (1, 0) -/
 def e₁ : Vec2Q := (1, 0)
@@ -139,7 +142,7 @@ example : minBasisCount (2, 3) = 2 := by simp [minBasisCount]
 **層 0**：0個の元で生成 = 零ベクトルのみ
 -/
 theorem genCountLayer_zero :
-    genCountLayer (S := Submodule ℚ Vec2Q) 0 = {(0, 0)} := by
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 0 = {(0, 0)} := by
   ext v
   constructor
   · intro ⟨s, hs_card, hv⟩
@@ -152,12 +155,14 @@ theorem genCountLayer_zero :
         sorry  -- s が空でないなら ncard ≥ 1
       omega
     subst this
-    simp at hv
-    exact hv
+    simp [gen, cl, Submodule.span_empty] at hv
+    subst hv
+    rfl
   · intro hv
     subst hv
     refine ⟨∅, by simp, ?_⟩
-    simp [gen, cl]
+    dsimp [gen, cl]
+    exact Submodule.zero_mem _
 
 /--
 **層 1**：1個以下の元で生成 = x軸 ∪ y軸 ∪ {0}
@@ -165,7 +170,7 @@ theorem genCountLayer_zero :
 直観：e₁ または e₂ のスカラー倍で表現できるベクトル。
 -/
 theorem genCountLayer_one_subset :
-    genCountLayer (S := Submodule ℚ Vec2Q) 1 ⊆
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 1 ⊆
       {v : Vec2Q | v.1 = 0 ∨ v.2 = 0} := by
   intro v ⟨s, hs_card, hv⟩
   -- s.ncard ≤ 1 より、s = ∅ または s = {w} の形
@@ -177,26 +182,17 @@ theorem genCountLayer_one_subset :
 直観：{e₁, e₂} で ℚ² 全体が生成される。
 -/
 theorem genCountLayer_two :
-    genCountLayer (S := Submodule ℚ Vec2Q) 2 = Set.univ := by
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 2 = Set.univ := by
   ext v
   constructor
   · intro _; trivial
   · intro _
-    -- {e₁, e₂} で生成されることを示す
-    refine ⟨{e₁, e₂}, ?_, ?_⟩
-    · -- {e₁, e₂}.ncard ≤ 2
-      sorry  -- 2元集合の濃度
-    · -- v ∈ span{e₁, e₂}
-      have : v = v.1 • e₁ + v.2 • e₂ := by
-        ext <;> simp [e₁, e₂]
-      rw [this]
-      apply Submodule.add_mem
-      · apply Submodule.smul_mem
-        apply Submodule.subset_span
-        simp
-      · apply Submodule.smul_mem
-        apply Submodule.subset_span
-        simp
+    refine ⟨{v}, ?_, ?_⟩
+    · -- {v}.ncard ≤ 2
+      simp
+    · -- v ∈ span{v}
+      apply Submodule.subset_span
+      simp
 
 /-!
 ### 新フレームワークでの minBasisCount の再現
@@ -207,7 +203,8 @@ genCountLayer を使って定義した層が、既存の minBasisCount と一致
 /--
 被覆性：すべてのベクトルは層 2 に含まれる。
 -/
-theorem vec2q_covering : ∀ v : Vec2Q, ∃ n : ℕ, v ∈ genCountLayer (S := Submodule ℚ Vec2Q) n := by
+theorem vec2q_covering : ∀ v : Vec2Q, ∃ n : ℕ,
+    v ∈ genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) n := by
   intro v
   refine ⟨2, ?_⟩
   rw [genCountLayer_two]
@@ -238,12 +235,7 @@ variable {K : Type*} [Field K] {V : Type*} [AddCommGroup V] [Module K V]
 -/
 theorem span_span_eq (s : Set V) :
     (Submodule.span K (↑(Submodule.span K s) : Set V)) = Submodule.span K s := by
-  ext x
-  constructor
-  · intro hx
-    exact hx
-  · intro hx
-    exact Submodule.subset_span hx
+  exact (Submodule.span_span (R := K) (s := s))
 
 /--
 **検証2**：ガロア接続の随伴性が具体的に成り立つ。
@@ -252,7 +244,7 @@ theorem span_span_eq (s : Set V) :
 -/
 theorem gc_verification (s : Set V) (W : Submodule K V) :
     Submodule.span K s ≤ W ↔ s ⊆ (W : Set V) := by
-  exact (gc (S := Submodule K V)).le_iff_le
+  exact (gc (α := V) (S := Submodule K V)).le_iff_le
 
 /--
 **検証3**：反復閉包は有限段階で安定する（有限次元の場合）。

@@ -1,8 +1,9 @@
-import Mathlib.GroupTheory.Subgroup.Basic
-import Mathlib.GroupTheory.Subsemigroup.Operations
+import Mathlib.Algebra.Group.Subgroup.Basic
+import Mathlib.Algebra.Group.Subsemigroup.Operations
 import Mathlib.Data.Int.Basic
 import Mathlib.Data.Set.Finite.Lattice
-import GaloisClosureAPI
+import Mathlib.Tactic
+import MyProjects.ST.MissingLinks.GC.GaloisClosureAPI
 
 /-!
 # 部分群生成による具体例：ガロア接続の代数的応用
@@ -74,7 +75,7 @@ instance subgroupGC : GeneratorClosureGC G (Subgroup G) where
       exact h (Subgroup.subset_closure hx)
     · -- s ⊆ ↑H → closure s ≤ H
       intro h
-      exact Subgroup.closure_le.mpr h
+      exact (Subgroup.closure_le (K := H)).2 h
   cl_mono := by
     intro H₁ H₂ h
     exact h
@@ -83,7 +84,7 @@ instance subgroupGC : GeneratorClosureGC G (Subgroup G) where
 部分群生成の拡大性：集合 s は、それが生成する部分群に含まれる。
 -/
 theorem subgroup_extensive (s : Set G) : s ⊆ ↑(Subgroup.closure s) :=
-  subset_cl_gen s
+  subset_cl_gen (S := Subgroup G) s
 
 /--
 部分群生成の単調性：s ⊆ t ならば ⟨s⟩ ≤ ⟨t⟩
@@ -98,17 +99,36 @@ theorem subgroup_monotone {s t : Set G} (h : s ⊆ t) :
 証明：ガロア接続から導出される cl_cl_eq を適用。
 -/
 theorem subgroup_idempotent (s : Set G) :
-    ↑(Subgroup.closure ↑(Subgroup.closure s)) = ↑(Subgroup.closure s) :=
-  cl_cl_eq (Subgroup.closure s)
+    Subgroup.closure (↑(Subgroup.closure s) : Set G) = Subgroup.closure s := by
+  exact Subgroup.closure_eq (K := Subgroup.closure s)
 
 end SubgroupInstance
+
+section AddSubgroupInstance
+
+variable {A : Type*} [AddGroup A]
+
+instance addSubgroupGC : GeneratorClosureGC A (AddSubgroup A) where
+  gen := AddSubgroup.closure
+  cl := fun H => (H : Set A)
+  gc := by
+    intro s H
+    constructor
+    · intro h x hx
+      exact h (AddSubgroup.subset_closure hx)
+    · intro h
+      exact (AddSubgroup.closure_le (K := H)).2 h
+  cl_mono := by
+    intro H₁ H₂ h
+    exact h
+
+end AddSubgroupInstance
 
 /-! ## Part 2: ℤ の具体例 -/
 
 section IntExample
 
-/-- 整数の加法群 ℤ -/
--- Mathlib には既に Int の Group インスタンスがあるので、そのまま使える
+-- Additive group ℤ. Lean already provides an AddGroup instance for Int.
 
 /--
 **ℤ の部分群の特徴づけ**：
@@ -120,11 +140,9 @@ section IntExample
 - ⟨{m, n}⟩ = gcd(m,n)ℤ
 -/
 
-/--
-単一元から生成される部分群：⟨{n}⟩ = nℤ
--/
+-- 単一元から生成される部分群：⟨{n}⟩ = nℤ
 theorem closure_singleton_int (n : ℤ) :
-    Subgroup.closure {n} = Subgroup.zmultiples n := by
+    AddSubgroup.closure ({n} : Set ℤ) = AddSubgroup.zmultiples n := by
   ext k
   constructor
   · intro hk
@@ -132,7 +150,9 @@ theorem closure_singleton_int (n : ℤ) :
     sorry  -- Mathlib の補題を使う
   · intro hk
     -- k ∈ nℤ ならば k ∈ ⟨{n}⟩
-    exact Subgroup.subset_closure (by simp : n ∈ {n})
+    have hmem : n ∈ AddSubgroup.closure ({n} : Set ℤ) :=
+      AddSubgroup.mem_closure_singleton_self (x := n)
+    exact (AddSubgroup.zmultiples_le_of_mem hmem) hk
 
 /--
 **生成元数による層の記述**：
@@ -144,11 +164,9 @@ theorem closure_singleton_int (n : ℤ) :
 重要な観察：ℤ は巡回群なので、層 1 で ℤ 全体を生成できる（⟨{1}⟩ = ℤ）
 -/
 
-/--
-層 0：空集合から生成される部分群は自明な部分群 {0}
--/
+-- 層 0：空集合から生成される部分群は自明な部分群 {0}
 theorem genCountLayer_zero_int :
-    genCountLayer (S := Subgroup ℤ) 0 = {0} := by
+    genCountLayer (α := ℤ) (S := AddSubgroup ℤ) 0 = {0} := by
   ext k
   constructor
   · intro ⟨s, hs_card, hk⟩
@@ -159,13 +177,16 @@ theorem genCountLayer_zero_int :
         sorry  -- 非空集合の濃度は 1 以上
       omega
     subst this
-    simp [gen, cl] at hk
-    exact hk
+    change k ∈ AddSubgroup.closure (∅ : Set ℤ) at hk
+    rw [AddSubgroup.closure_empty] at hk
+    simp at hk
+    subst hk
+    rfl
   · intro hk
     subst hk
     refine ⟨∅, by simp, ?_⟩
-    simp [gen, cl]
-    exact Subgroup.zero_mem _
+    dsimp [gen, cl]
+    exact AddSubgroup.zero_mem _
 
 /--
 層 1：1個の元で生成される部分群に含まれる元
@@ -173,7 +194,7 @@ theorem genCountLayer_zero_int :
 ℤ は巡回群なので、⟨{1}⟩ = ℤ より、層 1 = ℤ 全体
 -/
 theorem genCountLayer_one_int :
-    genCountLayer (S := Subgroup ℤ) 1 = Set.univ := by
+    genCountLayer (α := ℤ) (S := AddSubgroup ℤ) 1 = Set.univ := by
   ext k
   constructor
   · intro _; trivial
@@ -183,7 +204,8 @@ theorem genCountLayer_one_int :
     · -- {k}.ncard ≤ 1
       sorry  -- 単集合の濃度は 1
     · -- k ∈ closure {k}
-      exact Subgroup.subset_closure (by simp : k ∈ {k})
+      exact AddSubgroup.subset_closure (by
+        exact (Set.mem_singleton_iff.mpr rfl) : k ∈ {k})
 
 /-!
 ### minLayer の具体的計算
@@ -244,7 +266,7 @@ theorem finitely_generated_iff_covered (H : Subgroup G) :
 
 これは整数論の基本定理の一つ。
 -/
-theorem int_subgroups_finitely_generated (H : Subgroup ℤ) :
+theorem int_subgroups_finitely_generated (H : Subgroup (Multiplicative ℤ)) :
     IsFinitelyGenerated H := by
   -- ℤ は主イデアル整域なので、任意の部分群は1個の元で生成される
   sorry  -- Mathlib の zmultiples 関連の補題を使う
@@ -269,7 +291,8 @@ variable {G H : Type*} [Group G] [Group H]
 -/
 theorem homomorphism_preserves_generation (f : G →* H) (s : Set G) :
     f '' ↑(Subgroup.closure s) ⊆ ↑(Subgroup.closure (f '' s)) := by
-  intro y ⟨x, hx, rfl⟩
+  intro y hy
+  rcases hy with ⟨x, hx, hy⟩
   -- x ∈ closure s から f(x) ∈ closure (f '' s) を導く
   sorry  -- Subgroup.map を使った証明
 
@@ -281,7 +304,8 @@ G の対応する元の生成元数以下。
 -/
 theorem surjective_hom_preserves_minLayer (f : G →* H) (hf : Function.Surjective f) :
     ∀ y : H, ∃ x : G, f x = y ∧
-      (structureTowerFromGC sorry).minLayer y ≤ (structureTowerFromGC sorry).minLayer x := by
+      (structureTowerFromGC (α := H) (S := Subgroup H) sorry).minLayer y ≤
+        (structureTowerFromGC (α := G) (S := Subgroup G) sorry).minLayer x := by
   sorry  -- 完全な証明には被覆性の仮定が必要
 
 end Homomorphisms

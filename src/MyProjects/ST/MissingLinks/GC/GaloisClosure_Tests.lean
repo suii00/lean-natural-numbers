@@ -1,6 +1,6 @@
-import GaloisClosureAPI
-import LinearSpanGC_Example
-import SubgroupGC_Example
+import MyProjects.ST.MissingLinks.GC.GaloisClosureAPI
+import MyProjects.ST.MissingLinks.GC.LinearSpanGC_Example
+import MyProjects.ST.MissingLinks.GC.SubgroupGC_Example
 
 /-!
 # ガロア接続フレームワーク検証スイート
@@ -34,7 +34,7 @@ section BasicPropertiesTests
 example : 
     let s : Set Vec2Q := {(1, 0), (0, 1)}
     s ⊆ ↑(Submodule.span ℚ s) := by
-  apply subset_cl_gen
+  apply subset_cl_gen (S := Submodule ℚ Vec2Q)
 
 /-!
 ### Test 1.2: 単調性の検証（線形包）
@@ -45,8 +45,9 @@ example :
     let s : Set Vec2Q := {(1, 0)}
     let t : Set Vec2Q := {(1, 0), (0, 1)}
     (s ⊆ t) → (Submodule.span ℚ s ≤ Submodule.span ℚ t) := by
+  dsimp
   intro h
-  exact gen_mono h
+  exact gen_mono (α := Vec2Q) (S := Submodule ℚ Vec2Q) h
 
 /-!
 ### Test 1.3: 冪等性の検証（線形包）
@@ -54,10 +55,9 @@ example :
 span(span(s)) = span(s)
 -/
 example :
-    let s : Set Vec2Q := {(1, 1)}
-    ↑(Submodule.span ℚ (↑(Submodule.span ℚ s) : Set Vec2Q)) = 
-    ↑(Submodule.span ℚ s) := by
-  exact cl_cl_eq (Submodule.span ℚ s)
+    Submodule.span ℚ (↑(Submodule.span ℚ ({(1, 1)} : Set Vec2Q)) : Set Vec2Q) =
+    Submodule.span ℚ ({(1, 1)} : Set Vec2Q) := by
+  exact Submodule.span_span (R := ℚ) (s := ({(1, 1)} : Set Vec2Q))
 
 end BasicPropertiesTests
 
@@ -105,9 +105,7 @@ example : minBasisCount (-1, 5) = 2 := by
 -/
 example (r : ℚ) (hr : r ≠ 0) :
     minBasisCount (r * 1, r * 1) = minBasisCount (1, 1) := by
-  have h1 : r * 1 ≠ 0 := by
-    simp [hr]
-  simp [minBasisCount, h1]
+  simp [minBasisCount, hr]
 
 end LinearSpanComputations
 
@@ -122,8 +120,8 @@ section SubgroupTests
 -/
 example :
     let s : Set ℤ := {6, 10}
-    s ⊆ ↑(Subgroup.closure s) := by
-  apply subset_cl_gen
+    s ⊆ ↑(AddSubgroup.closure s) := by
+  apply subset_cl_gen (S := AddSubgroup ℤ)
 
 /-!
 ### Test 3.2: ℤ の minLayer 計算
@@ -173,6 +171,11 @@ example (s : Set Vec2Q) :
     ↑(Submodule.span ℚ s) := by
   rfl
 
+example (s : Set Vec2Q) :
+    closureIter (S := Submodule ℚ Vec2Q) 2 s =
+    closureIter (S := Submodule ℚ Vec2Q) 1 s := by
+  simp [closureIter, cl_cl_eq]
+
 /-!
 ### Test 4.3: 反復の単調性
 
@@ -196,15 +199,15 @@ section LayerInclusionTests
 n ≤ m ならば genCountLayer n ⊆ genCountLayer m
 -/
 example :
-    genCountLayer (S := Submodule ℚ Vec2Q) 0 ⊆
-    genCountLayer (S := Submodule ℚ Vec2Q) 1 := by
-  apply genCountLayer_mono
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 0 ⊆
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 1 := by
+  apply genCountLayer_mono (α := Vec2Q) (S := Submodule ℚ Vec2Q)
   exact Nat.zero_le 1
 
 example :
-    genCountLayer (S := Submodule ℚ Vec2Q) 1 ⊆
-    genCountLayer (S := Submodule ℚ Vec2Q) 2 := by
-  apply genCountLayer_mono
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 1 ⊆
+    genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 2 := by
+  apply genCountLayer_mono (α := Vec2Q) (S := Submodule ℚ Vec2Q)
   exact Nat.le_succ 1
 
 /-!
@@ -213,9 +216,9 @@ example :
 0 ∈ genCountLayer 0
 -/
 example :
-    (0, 0) ∈ genCountLayer (S := Submodule ℚ Vec2Q) 0 := by
+    (0, 0) ∈ genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 0 := by
   refine ⟨∅, by simp, ?_⟩
-  simp [gen, cl]
+  dsimp [gen, cl]
   exact Submodule.zero_mem _
 
 /-!
@@ -224,9 +227,9 @@ example :
 (1, 0) ∈ genCountLayer 1
 -/
 example :
-    (1, 0) ∈ genCountLayer (S := Submodule ℚ Vec2Q) 1 := by
-  refine ⟨{(1, 0)}, ?_, ?_⟩
-  · sorry  -- 単集合の ncard = 1
+    ((1, 0) : Vec2Q) ∈ genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) 1 := by
+  refine ⟨{((1, 0) : Vec2Q)}, ?_, ?_⟩
+  · simp
   · apply Submodule.subset_span
     simp
 
@@ -236,13 +239,19 @@ end LayerInclusionTests
 
 section TowerProjectionTests
 
+open Classical
+attribute [local instance] Classical.propDecidable
+
 /-!
 ### Test 6.1: structureTowerFromGC の層定義
 
 構成された塔の層が genCountLayer と一致する
 -/
-example (h : ∀ x : Vec2Q, ∃ n : ℕ, x ∈ genCountLayer (S := Submodule ℚ Vec2Q) n) (n : ℕ) :
-    (structureTowerFromGC h).layer n = genCountLayer (S := Submodule ℚ Vec2Q) n := by
+example
+    (h : ∀ x : Vec2Q, ∃ n : ℕ, x ∈ genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) n)
+    (n : ℕ) :
+    (structureTowerFromGC (α := Vec2Q) (S := Submodule ℚ Vec2Q) h).layer n =
+      genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) n := by
   rfl
 
 /-!
@@ -250,9 +259,13 @@ example (h : ∀ x : Vec2Q, ∃ n : ℕ, x ∈ genCountLayer (S := Submodule ℚ
 
 minLayer x は x が初めて現れる層の番号
 -/
-example (h : ∀ x : Vec2Q, ∃ n : ℕ, x ∈ genCountLayer (S := Submodule ℚ Vec2Q) n) (x : Vec2Q) :
-    (structureTowerFromGC h).minLayer x = Nat.find (h x) := by
-  exact minLayer_characterization h x
+example
+    (h : ∀ x : Vec2Q, ∃ n : ℕ, x ∈ genCountLayer (α := Vec2Q) (S := Submodule ℚ Vec2Q) n)
+    (x : Vec2Q) :
+    (structureTowerFromGC (α := Vec2Q) (S := Submodule ℚ Vec2Q) h).minLayer x =
+      Nat.find (h x) := by
+  classical
+  exact minLayer_characterization (α := Vec2Q) (S := Submodule ℚ Vec2Q) h x
 
 end TowerProjectionTests
 
@@ -267,16 +280,16 @@ span(s) ≤ V ↔ s ⊆ ↑V
 -/
 example (s : Set Vec2Q) (V : Submodule ℚ Vec2Q) :
     Submodule.span ℚ s ≤ V ↔ s ⊆ (V : Set Vec2Q) := by
-  exact (gc (S := Submodule ℚ Vec2Q)).le_iff_le
+  exact (gc (α := Vec2Q) (S := Submodule ℚ Vec2Q)).le_iff_le
 
 /-!
 ### Test 7.2: 部分群のガロア接続公理
 
 ⟨s⟩ ≤ H ↔ s ⊆ ↑H
 -/
-example (s : Set ℤ) (H : Subgroup ℤ) :
-    Subgroup.closure s ≤ H ↔ s ⊆ (H : Set ℤ) := by
-  exact (gc (S := Subgroup ℤ)).le_iff_le
+example (s : Set ℤ) (H : AddSubgroup ℤ) :
+    AddSubgroup.closure s ≤ H ↔ s ⊆ (H : Set ℤ) := by
+  exact (gc (α := ℤ) (S := AddSubgroup ℤ)).le_iff_le
 
 end GaloisAxiomTests
 
@@ -294,8 +307,8 @@ example :
   exact Submodule.span_empty
 
 example :
-    Subgroup.closure (∅ : Set ℤ) = ⊥ := by
-  exact Subgroup.closure_empty
+    AddSubgroup.closure (∅ : Set ℤ) = ⊥ := by
+  exact AddSubgroup.closure_empty
 
 /-!
 ### Test 8.2: 全体集合での生成
@@ -330,10 +343,10 @@ section ComputationalExamples
 #check minBasisCount (1, 1)  -- : ℕ
 
 -- 層の包含関係の確認
-#check genCountLayer_mono (S := Submodule ℚ Vec2Q) (Nat.le_refl 1)
+#check genCountLayer_mono (α := Vec2Q) (S := Submodule ℚ Vec2Q) (Nat.le_refl 1)
 
 -- ガロア接続の使用例
-#check subset_cl_gen ({(1, 0)} : Set Vec2Q)
+#check subset_cl_gen (α := Vec2Q) (S := Submodule ℚ Vec2Q) ({(1, 0)} : Set Vec2Q)
 
 end ComputationalExamples
 

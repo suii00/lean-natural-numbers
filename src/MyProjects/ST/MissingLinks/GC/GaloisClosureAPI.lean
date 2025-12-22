@@ -2,7 +2,6 @@ import Mathlib.Order.GaloisConnection.Basic
 import Mathlib.Order.Closure
 import Mathlib.Data.Set.Lattice
 import Mathlib.Data.Nat.Lattice
-import Mathlib.Order.TypeTags
 import Mathlib.Order.CompleteLattice.Basic
 import Mathlib.Tactic
 
@@ -59,6 +58,9 @@ StructureTowerWithMin          ← 既存の塔定義
 2. **反復回数塔の構成**：ガロア接続から自然に iteration count tower が誘導される
 3. **minLayer の特徴づけ**：`minLayer(x) = min {|s| : x ∈ Cl(Gen(s))}`
 
+Note: `S` is assumed to carry a `Preorder` so that the Galois connection and monotonicity
+statements are well-typed.
+
 -/
 
 /-! ## Part 1: ガロア接続の基本型クラス -/
@@ -76,7 +78,7 @@ namespace GaloisClosure
 Gen : Set α ⇄ S : Forget
 ```
 -/
-class GeneratorClosureGC (α : Type*) (S : Type*) [LE S] where
+class GeneratorClosureGC (α : Type*) (S : Type*) [Preorder S] where
   /-- 生成関数：部分集合から部分構造を生成 -/
   gen : Set α → S
 
@@ -84,7 +86,7 @@ class GeneratorClosureGC (α : Type*) (S : Type*) [LE S] where
   cl : S → Set α
 
   /-- Gen と Cl はガロア接続を成す -/
-  gc : GaloisConnection gen (OrderDual.toDual ∘ cl)
+  gc : GaloisConnection gen cl
 
   /-- 閉包の単調性（ガロア接続から導出可能だが明示） -/
   cl_mono : Monotone cl
@@ -95,54 +97,43 @@ export GeneratorClosureGC (gen cl gc cl_mono)
 
 section BasicProperties
 
-variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
+variable {α : Type*} {S : Type*} [Preorder S] [GeneratorClosureGC α S]
 
 /--
 **拡大性（Extensivity）**：集合 s は、それが生成する構造の台集合に含まれる。
 
 これは「生成」の直観に合致する基本性質。
 -/
-theorem subset_cl_gen (s : Set α) : s ⊆ cl (gen s) := by
+theorem subset_cl_gen (s : Set α) :
+    s ⊆ cl (α := α) (S := S) (gen (α := α) (S := S) s) := by
   -- ガロア接続の左随伴の余単位（counit）から従う
-  have h := (gc (S := S)).le_iff_le (a := gen s) (b := OrderDual.toDual (gen s))
-  simp at h
-  exact h.mp (le_refl _)
+  simpa using (GeneratorClosureGC.gc (α := α) (S := S)).le_u_l s
 
 /--
 **単調性（Monotonicity）**：小さい集合から生成される構造は小さい。
 
 証明：ガロア接続の左随伴は単調。
 -/
-theorem gen_mono {s t : Set α} (h : s ⊆ t) : gen s ≤ gen t := by
-  -- GaloisConnection.monotone_l を使いたいが、双対があるので注意
-  have gc_prop := gc (S := S)
-  have : gen s ≤ gen t := by
-    apply gc_prop.monotone_l
-    -- s ⊆ t を order dual で解釈
-    exact h
-  exact this
+theorem gen_mono {s t : Set α} (h : s ⊆ t) :
+    gen (α := α) (S := S) s ≤ gen (α := α) (S := S) t := by
+  exact (GeneratorClosureGC.gc (α := α) (S := S)).monotone_l h
 
 /--
 **閉包の冪等性（Idempotence）**：閉包を2回取っても変わらない。
 
 これは余モナドの comultiplication の退化した形。
 -/
-theorem cl_cl_eq (t : S) : cl (gen (cl t)) = cl t := by
-  apply Set.Subset.antisymm
-  · -- cl (gen (cl t)) ⊆ cl t
-    -- gen (cl t) ≤ t をガロア接続から得る
-    have h : gen (cl t) ≤ t := by
-      have gc_prop := (gc (S := S)).le_iff_le (a := gen (cl t)) (b := OrderDual.toDual t)
-      simp at gc_prop
-      exact gc_prop.mp (subset_refl (cl t))
-    exact cl_mono h
-  · -- cl t ⊆ cl (gen (cl t))
-    exact subset_cl_gen (cl t)
+theorem cl_cl_eq (t : S) :
+    cl (α := α) (S := S) (gen (α := α) (S := S) (cl (α := α) (S := S) t)) =
+      cl (α := α) (S := S) t := by
+  simpa using (GeneratorClosureGC.gc (α := α) (S := S)).u_l_u_eq_u t
 
 /--
 閉包演算子の等冪性の別形式：`cl t ⊆ cl s → cl (gen (cl t)) ⊆ cl s`
 -/
-theorem cl_gen_cl_subset {s t : S} (h : cl t ⊆ cl s) : cl (gen (cl t)) ⊆ cl s := by
+theorem cl_gen_cl_subset {s t : S} (h : cl (α := α) (S := S) t ⊆ cl (α := α) (S := S) s) :
+    cl (α := α) (S := S) (gen (α := α) (S := S) (cl (α := α) (S := S) t)) ⊆
+      cl (α := α) (S := S) s := by
   rw [cl_cl_eq]
   exact h
 
@@ -152,7 +143,7 @@ end BasicProperties
 
 section IterationTower
 
-variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
+variable {α : Type*} {S : Type*} [Preorder S] [GeneratorClosureGC α S]
 
 /--
 **反復閉包関数**：n回の生成⇄閉包操作を反復する。
@@ -166,25 +157,33 @@ variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
 -/
 def closureIter : ℕ → Set α → Set α
   | 0 => id
-  | n + 1 => fun s => cl (gen (closureIter n s))
+  | n + 1 => fun s => cl (α := α) (S := S) (gen (α := α) (S := S) (closureIter n s))
 
 /--
 反復の単調性：n ≤ m ならば iter n ⊆ iter m
 -/
 theorem closureIter_mono (s : Set α) {n m : ℕ} (h : n ≤ m) :
-    closureIter n s ⊆ closureIter m s := by
+    closureIter (α := α) (S := S) n s ⊆ closureIter (α := α) (S := S) m s := by
   induction h with
   | refl => exact subset_refl _
-  | step h ih =>
+  | @step m h ih =>
     apply Set.Subset.trans ih
-    exact subset_cl_gen (closureIter _ s)
+    have hm :
+        closureIter (α := α) (S := S) m s ⊆
+          closureIter (α := α) (S := S) (Nat.succ m) s := by
+      -- unfold one step and apply extensivity
+      dsimp [closureIter]
+      exact subset_cl_gen (α := α) (S := S) (closureIter (α := α) (S := S) m s)
+    exact hm
 
 /--
 閉包演算の等冪性により、反復は有限段階で安定する（形式的には省略）。
 -/
 theorem closureIter_eventually_constant (s : Set α) :
-    ∃ N : ℕ, ∀ n ≥ N, closureIter n s = closureIter N s := by
-  sorry  -- 証明は省略（有限次元性や鎖条件が必要）
+    ∃ N : ℕ, ∀ n ≥ N,
+      closureIter (α := α) (S := S) n s = closureIter (α := α) (S := S) N s := by
+  sorry  -- TODO: reason="needs ACC/finite-dimensionality to stop the chain",
+         -- follow-up="formalize stabilization via chain condition"
 
 /--
 **反復回数による層の定義**：n回以内の反復で到達可能な元の集合。
@@ -192,14 +191,15 @@ theorem closureIter_eventually_constant (s : Set α) :
 これが「iteration count tower」の各層を与える。
 -/
 def iterLayer (n : ℕ) : Set α :=
-  {x : α | ∃ s : Set α, s.Finite ∧ x ∈ closureIter n s}
+  {x : α | ∃ s : Set α, s.Finite ∧ x ∈ closureIter (α := α) (S := S) n s}
 
 /--
 層の単調性：n ≤ m ならば layer n ⊆ layer m
 -/
-theorem iterLayer_mono {n m : ℕ} (h : n ≤ m) : iterLayer n ⊆ iterLayer m := by
+theorem iterLayer_mono {n m : ℕ} (h : n ≤ m) :
+    iterLayer (α := α) (S := S) n ⊆ iterLayer (α := α) (S := S) m := by
   intro x ⟨s, hs_fin, hx⟩
-  exact ⟨s, hs_fin, closureIter_mono s h hx⟩
+  exact ⟨s, hs_fin, closureIter_mono (α := α) (S := S) s h hx⟩
 
 end IterationTower
 
@@ -207,7 +207,7 @@ end IterationTower
 
 section GeneratorCountTower
 
-variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
+variable {α : Type*} {S : Type*} [Preorder S] [GeneratorClosureGC α S]
 
 /--
 **生成子数による層**：n個以下の元で生成される構造に含まれる元の集合。
@@ -220,13 +220,14 @@ variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
 これは「minLayer = 生成に必要な最小基数」を特徴づける。
 -/
 def genCountLayer (n : ℕ) : Set α :=
-  {x : α | ∃ s : Set α, s.ncard ≤ n ∧ x ∈ cl (gen s)}
+  {x : α | ∃ s : Set α, s.ncard ≤ n ∧
+    x ∈ cl (α := α) (S := S) (gen (α := α) (S := S) s)}
 
 /--
 生成子数の層は単調。
 -/
 theorem genCountLayer_mono {n m : ℕ} (h : n ≤ m) :
-    genCountLayer n ⊆ genCountLayer m := by
+    genCountLayer (α := α) (S := S) n ⊆ genCountLayer (α := α) (S := S) m := by
   intro x ⟨s, hs_card, hx⟩
   exact ⟨s, le_trans hs_card h, hx⟩
 
@@ -236,14 +237,18 @@ theorem genCountLayer_mono {n m : ℕ} (h : n ≤ m) :
 完全な証明には具体的な構造の性質が必要。
 -/
 theorem genCountLayer_subset_iterLayer (n : ℕ) :
-    genCountLayer n ⊆ iterLayer n := by
-  sorry  -- 証明のスケッチ：n個の元から生成 ⊆ n回の反復で到達
+    genCountLayer (α := α) (S := S) n ⊆ iterLayer (α := α) (S := S) n := by
+  sorry  -- TODO: reason="needs a concrete bridge from n generators to n iterations",
+         -- follow-up="prove by constructing a finite generating set and iterating cl∘gen"
 
 end GeneratorCountTower
 
 /-! ## Part 5: ガロア接続から StructureTowerWithMin への射影 -/
 
 section ToStructureTower
+
+open Classical
+attribute [local instance] Classical.propDecidable
 
 /-- 最小層を持つ構造塔（添字は ℕ に固定した簡約版）の再定義 -/
 structure StructureTowerWithMin where
@@ -255,7 +260,7 @@ structure StructureTowerWithMin where
   minLayer_mem : ∀ x, x ∈ layer (minLayer x)
   minLayer_minimal : ∀ x i, x ∈ layer i → minLayer x ≤ i
 
-variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
+variable {α : Type*} {S : Type*} [Preorder S] [GeneratorClosureGC α S]
 
 /--
 **ガロア接続から構造塔を構成**：生成子数による層を使う。
@@ -263,21 +268,23 @@ variable {α : Type*} {S : Type*} [LE S] [GeneratorClosureGC α S]
 この構成により、ガロア接続は構造塔の「上流」概念となる。
 -/
 noncomputable def structureTowerFromGC
-    (h_covers : ∀ x : α, ∃ n : ℕ, x ∈ genCountLayer (S := S) n) :
-    StructureTowerWithMin where
-  carrier := α
-  layer := genCountLayer (S := S)
-  covering := h_covers
-  monotone := fun hij => genCountLayer_mono hij
-  minLayer := fun x => Nat.find (h_covers x)
-  minLayer_mem := fun x => Nat.find_spec (h_covers x)
-  minLayer_minimal := fun x i hx => Nat.find_min' (h_covers x) hx
+    (h_covers : ∀ x : α, ∃ n : ℕ, x ∈ genCountLayer (α := α) (S := S) n) :
+    StructureTowerWithMin := by
+  classical
+  refine
+    { carrier := α
+      layer := genCountLayer (α := α) (S := S)
+      covering := h_covers
+      monotone := fun hij => genCountLayer_mono (α := α) (S := S) hij
+      minLayer := fun x => Nat.find (h_covers x)
+      minLayer_mem := fun x => Nat.find_spec (h_covers x)
+      minLayer_minimal := fun x i hx => Nat.find_min' (h_covers x) hx }
 
 /--
 構成した塔の minLayer の意味：「元 x を生成するのに必要な最小の生成子数」
 -/
 theorem minLayer_characterization
-    (h_covers : ∀ x : α, ∃ n : ℕ, x ∈ genCountLayer (S := S) n) (x : α) :
+    (h_covers : ∀ x : α, ∃ n : ℕ, x ∈ genCountLayer (α := α) (S := S) n) (x : α) :
     (structureTowerFromGC h_covers).minLayer x =
       Nat.find (h_covers x) := rfl
 

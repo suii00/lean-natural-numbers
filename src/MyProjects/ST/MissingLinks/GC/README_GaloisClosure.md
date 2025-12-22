@@ -62,10 +62,10 @@ Level 0: 数学的応用
 ### ガロア接続の公理
 
 ```lean
-class GeneratorClosureGC (α : Type*) (S : Type*) [LE S] where
+class GeneratorClosureGC (α : Type*) (S : Type*) [Preorder S] where
   gen : Set α → S              -- 生成関数
   cl : S → Set α                -- 閉包関数
-  gc : GaloisConnection gen (OrderDual.toDual ∘ cl)
+  gc : GaloisConnection gen cl
   cl_mono : Monotone cl
 ```
 
