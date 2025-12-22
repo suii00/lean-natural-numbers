@@ -78,9 +78,9 @@ theorem minLayer_eq_of_nat {rank_nat : X → ℕ}
     rw [h] at this
     exact WithTop.coe_le_coe.mp this
   have hle2 : R.minLayer x ≤ rank_nat x := by
-    apply R.minLayer_minimal
-    rw [h]
-    exact le_rfl
+    have h' : R.rank x ≤ (rank_nat x : WithTop ℕ) := by
+      simp [h]
+    exact R.minLayer_minimal x (rank_nat x) (by simpa using h')
   exact le_antisymm hle2 hle1
 
 /-- 層への所属と minLayer の関係 -/
@@ -200,14 +200,11 @@ theorem natIdentityRanked_minLayer_eq_id (n : ℕ) :
   rfl
 
 /-- 層の特徴付け -/
-example : 5 ∈ natIdentityRanked.toRanked.layer 5 := by
-  unfold Ranked.layer natIdentityRanked
-  simp
+example : 5 ∈ natIdentityRanked.toRanked.layer ((5 : ℕ) : WithTop ℕ) := by
+  simp [Ranked.layer, natIdentityRanked]
 
-example : 5 ∈ natIdentityRanked.toRanked.layer 10 := by
-  unfold Ranked.layer natIdentityRanked
-  simp
-  omega
+example : 5 ∈ natIdentityRanked.toRanked.layer ((10 : ℕ) : WithTop ℕ) := by
+  simp [Ranked.layer, natIdentityRanked]
 
 end NatIdentityExample
 
@@ -252,9 +249,9 @@ noncomputable def StoppingTimeFinite.toNat (τ : StoppingTimeFinite Ω) :
 
 /-- 変換後の値は元のτ以下 -/
 theorem StoppingTimeFinite.toNat_le (τ : StoppingTimeFinite Ω) (ω : Ω) :
-    (τ.τ ω : WithTop ℕ) ≤ τ.toNat ω := by
-  unfold toNat
-  exact Nat.find_spec (τ.almost_surely_finite ω)
+    (τ.τ ω : WithTop ℕ) ≤ ((StoppingTimeFinite.toNat (Ω := Ω) τ) ω : WithTop ℕ) := by
+  unfold StoppingTimeFinite.toNat
+  simpa using (Nat.find_spec (τ.almost_surely_finite ω))
 
 end StoppingTimeExample
 
