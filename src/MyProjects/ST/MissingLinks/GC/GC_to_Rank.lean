@@ -1,6 +1,8 @@
 import Mathlib.Data.Nat.Lattice
 import Mathlib.Data.Set.Lattice
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Fintype.Powerset
+import Mathlib.Data.Fintype.Pigeonhole
 import Mathlib.Algebra.Order.Group.Unbundled.Abs
 import Mathlib.Order.Closure
 import Mathlib.Order.Iterate
@@ -108,7 +110,40 @@ theorem iter_subset_succ (s : Set X) (n : ℕ) :
 /-- [有限集合の場合] 必ず安定化する -/
 theorem finite_stabilizes [Finite X] (s : Set X) :
     ∃ n, C.StabilizesAt s n := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  let f : ℕ → Set X := fun n => C.iter n s
+  have hid : (id : Set X → Set X) ≤ C.cl := by
+    intro t
+    exact C.le_closure t
+  have hmono_iter : Monotone fun n => (C.cl^[n]) :=
+    Function.monotone_iterate_of_id_le hid
+  have hmono : Monotone fun n => C.iter n s := by
+    intro m n hmn x hx
+    exact (hmono_iter hmn s) hx
+  obtain ⟨m, n, hmn, hEq⟩ := (Finite.exists_ne_map_eq_of_infinite f)
+  have hEq' : C.iter m s = C.iter n s := by
+    simpa [f] using hEq
+  cases (lt_or_gt_of_ne hmn) with
+  | inl hlt =>
+      refine ⟨m, ?_⟩
+      ext x
+      constructor
+      · intro hx
+        exact (C.iter_subset_succ s m) hx
+      · intro hx
+        have hx' : x ∈ C.iter n s := by
+          exact (hmono (Nat.succ_le_of_lt hlt) hx)
+        simpa [hEq'.symm] using hx'
+  | inr hlt =>
+      refine ⟨n, ?_⟩
+      ext x
+      constructor
+      · intro hx
+        exact (C.iter_subset_succ s n) hx
+      · intro hx
+        have hx' : x ∈ C.iter m s := by
+          exact (hmono (Nat.succ_le_of_lt hlt) hx)
+        simpa [hEq'] using hx'
 
 /-- [有限集合の場合] rankStab は有限 -/
 theorem finite_rankStab_ne_top [Finite X] (s : Set X) :

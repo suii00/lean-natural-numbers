@@ -1,0 +1,10 @@
+theorem finite_stabilizes、theorem rankStab_le_sup_rankReach、どちらが難しいですか
+
+
+難しいのは rankStab_le_sup_rankReach です。
+
+理由（簡潔に）
+
+finite_stabilizes は「有限集合上の単調・拡大的写像の反復がいつか止まる」という標準事実で、Finite と「増加列は有限で打ち止め」を使えば比較的素直に詰められます。
+rankStab_le_sup_rankReach は WithTop の sInf/iSup を絡めた不等式で、rankReach の定義展開や iSup の比較・sInf の操作が必要になり、補助補題も多めです。
+どちらから着手しますか？
