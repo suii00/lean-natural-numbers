@@ -307,26 +307,36 @@ example (n : ℤ) :
 
 end IntAbsClosure
 
-/-! ## 具体例3: 自然数の上界閉包 -/
+/-! ## 具体例3: 自然数の下方閉包 -/
 
 section NatUpperClosure
 
-/-- 自然数集合の閉包：最大値以下の全要素 -/
+/-- 自然数集合の閉包：集合の要素以下の全要素（下方閉包） -/
 def natUpperCl (s : Set ℕ) : Set ℕ :=
-  if h : s.Nonempty ∧ BddAbove s then
-    {n : ℕ | n ≤ sSup s}
-  else
-    s
+  {n : ℕ | ∃ m ∈ s, n ≤ m}
+
+example (n : ℕ) : n ∈ natUpperCl ({3} : Set ℕ) ↔ n ≤ 3 := by
+  simp [natUpperCl]
 
 theorem natUpperCl_mono : Monotone natUpperCl := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  intro s t hst x hx
+  rcases hx with ⟨m, hm, hxm⟩
+  exact ⟨m, hst hm, hxm⟩
 
 theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  intro x hx
+  exact ⟨x, hx, le_rfl⟩
 
 theorem natUpperCl_idem (s : Set ℕ) : 
     natUpperCl (natUpperCl s) = natUpperCl s := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  ext x
+  constructor
+  · intro hx
+    rcases hx with ⟨m, hm, hxm⟩
+    rcases hm with ⟨k, hk, hmk⟩
+    exact ⟨k, hk, le_trans hxm hmk⟩
+  · intro hx
+    exact (natUpperCl_le (s := natUpperCl s)) hx
 
 def natUpperClosureOp : ClosureOp ℕ :=
   mkClosureOp natUpperCl natUpperCl_mono natUpperCl_le natUpperCl_idem
@@ -334,7 +344,8 @@ def natUpperClosureOp : ClosureOp ℕ :=
 /-- 有限集合は1回で安定 -/
 example (S : Finset ℕ) : 
     natUpperClosureOp.StabilizesAt (S : Set ℕ) 1 := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  unfold ClosureOp.StabilizesAt ClosureOp.iter natUpperClosureOp mkClosureOp
+  simp [Function.iterate_succ_apply', natUpperCl_idem]
 
 end NatUpperClosure
 
