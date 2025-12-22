@@ -21,10 +21,16 @@ GaloisConnection ⇒ ClosureOperator への導出
 - Extensivity (拡大性: s ⊆ cl s)
 - Idempotency (冪等性: cl ∘ cl = cl)
 
+## 注意（反復ランクとの関係）
+
+GC から得る `closure := Gen ∘ Cl` は冪等です。
+そのため反復回数を rank にすると、多くの場合 0/1 段で自明化します。
+反復ランクを資産化したい場合は、非冪等な step-closure を反復する設計が有効です。
+
 ## 小例
 
 ```lean
-example {α β : Type*} [CompleteLattice α] [CompleteLattice β]
+example {α β : Type*} [PartialOrder α] [Preorder β]
     (G : GaloisClosure.GCClosureA α β) (x : α) :
     G.closure (G.closure x) = G.closure x :=
   G.closure_idempotent x
@@ -33,14 +39,14 @@ example {α β : Type*} [CompleteLattice α] [CompleteLattice β]
 
 namespace GaloisClosure
 
-/-! ## 設計案A: 同一束上のGalois接続 -/
+/-! ## 設計案A: 二つの順序上のGalois接続 -/
 
-section SameLattice
+section TwoLattices
 
-variable {α β : Type*} [CompleteLattice α] [CompleteLattice β]
+variable {α β : Type*} [PartialOrder α] [Preorder β]
 
 /-- 設計案A: Gen と Cl が随伴を成す場合の閉包作用素 -/
-structure GCClosureA (α β : Type*) [CompleteLattice α] [CompleteLattice β] where
+structure GCClosureA (α β : Type*) [Preorder α] [Preorder β] where
   /-- 生成関数: β → α -/
   Gen : β → α
   /-- 閉包関数: α → β -/
@@ -68,10 +74,14 @@ theorem closure_mono : Monotone G.closure := by
   exact G.gc.monotone_u (G.gc.monotone_l hxy)
 
 /-- (2) 拡大性: x ≤ Gen (Cl x) -/
-theorem closure_le_self (x : α) : x ≤ G.closure x := by
+theorem self_le_closure (x : α) : x ≤ G.closure x := by
   unfold closure
   simp only [Function.comp_apply]
   exact G.gc.le_u_l x
+
+@[deprecated self_le_closure (since := "2025-12-22")]
+theorem closure_le_self (x : α) : x ≤ G.closure x :=
+  G.self_le_closure x
 
 /-- (3) 冪等性: Gen (Cl (Gen (Cl x))) = Gen (Cl x) -/
 theorem closure_idempotent (x : α) : G.closure (G.closure x) = G.closure x := by
@@ -86,10 +96,14 @@ theorem coclosure_mono : Monotone G.coclosure := by
   exact G.gc.monotone_l (G.gc.monotone_u hxy)
 
 /-- 双対閉包の縮小性: Cl (Gen x) ≤ x -/
-theorem self_le_coclosure (x : β) : G.coclosure x ≤ x := by
+theorem coclosure_le_self (x : β) : G.coclosure x ≤ x := by
   unfold coclosure
   simp only [Function.comp_apply]
   exact G.gc.l_u_le x
+
+@[deprecated coclosure_le_self (since := "2025-12-22")]
+theorem self_le_coclosure (x : β) : G.coclosure x ≤ x :=
+  G.coclosure_le_self x
 
 /-- 簡単な動作確認 -/
 example (x : α) : G.closure (G.closure x) = G.closure x := by
@@ -97,16 +111,16 @@ example (x : α) : G.closure (G.closure x) = G.closure x := by
 
 end GCClosureA
 
-end SameLattice
+end TwoLattices
 
 /-! ## 設計案B: Set X と閉集合束のGC -/
 
 section SetClosed
 
-variable {X : Type*} {C : Type*} [CompleteLattice C] [SetLike C X]
+variable {X : Type*} {C : Type*} [Preorder C] [SetLike C X]
 
 /-- 設計案B: Set X と閉集合型 C の間のGC -/
-structure GCClosureB (X : Type*) (C : Type*) [CompleteLattice C] [SetLike C X] where
+structure GCClosureB (X : Type*) (C : Type*) [Preorder C] [SetLike C X] where
   /-- 生成関数: Set X → C（包含による最小閉集合） -/
   genClosed : Set X → C
   /-- 随伴性: genClosed ⊣ (↑) -/
@@ -114,7 +128,7 @@ structure GCClosureB (X : Type*) (C : Type*) [CompleteLattice C] [SetLike C X] w
 
 namespace GCClosureB
 
-variable {X C : Type*} [CompleteLattice C] [SetLike C X] (G : GCClosureB X C)
+variable {X C : Type*} [Preorder C] [SetLike C X] (G : GCClosureB X C)
 
 /-- Set X 上の閉包作用素 -/
 def setClosure : Set X → Set X := fun s => (G.genClosed s : Set X)
