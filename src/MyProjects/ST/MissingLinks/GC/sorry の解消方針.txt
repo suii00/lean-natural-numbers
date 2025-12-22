@@ -1,0 +1,78 @@
+残っている sorry の解消方針を一緒に決める
+
+
+了解しました。残っている sorry は「すぐ埋められるもの」と「定義や主張の見直しが必要なもの」が混ざっています。まず一覧と所見、その上で意思決定ポイントを提案します（数学的な整合性を優先）。
+
+残 sorry 一覧と所見（要点）
+
+GaloisClosureAPI.lean
+
+closureIter_eventually_constant
+→ 実は一般に N=1 で安定（closureIter 2 s = closureIter 1 s を cl_cl_eq で示せる）。ACC 仮定不要。
+genCountLayer_subset_iterLayer
+→ 現在の genCountLayer 定義だと一般には偽の可能性。Set.ncard は無限集合で 0 になるため、s.ncard ≤ n から有限性が出ない。
+LinearSpanGC_Example.lean
+
+genCountLayer_zero（s.ncard ≤ 0 → s=∅）
+→ s が無限でも ncard=0 なので一般には偽。有限性を定義に入れる必要。
+genCountLayer_one_subset
+→ 主張そのものが偽：{(1,1)} の span は軸上に乗らない。
+つまり 「基底の個数」 と 「任意の生成元個数」 が混同されている。
+minLayer_eq_minBasisCount
+→ 上の概念不一致が原因で 現状は成立しない。
+closureIter_stabilizes_finite_dim
+→ closureIter が一般に N=1 で安定するなら、有限次元仮定不要。
+SubgroupGC_Example.lean
+
+closure_singleton_int
+→ AddSubgroup.zmultiples_eq_closure など既存補題で 即解決可。
+genCountLayer_zero_int, genCountLayer_one_int
+→ ncard の有限性問題。定義修正が必要。
+minLayer_eq_minLayerInt
+→ genCountLayer_zero_int / one_int が確立すれば可能。
+finitely_generated_iff_covered
+→ 主張が強すぎる（各 x の生成集合がバラバラでも良いので、有限生成に戻らない）。
+片方向に弱める or 仮定を強める必要。
+int_subgroups_finitely_generated
+→ Int.subgroup_cyclic が既にある（Mathlib）。ただし現在は Subgroup (Multiplicative ℤ) なので移送の方針が必要。
+homomorphism_preserves_generation
+→ Subgroup.map_closure で 即解決可。
+surjective_hom_preserves_minLayer
+→ 被覆性仮定が欠落。仮定追加 or 断念。
+決めるべき方針（重要）
+
+genCountLayer の定義を修正するか？
+
+案A（推奨・意味を正す）：
+∃ s, s.Finite ∧ s.ncard ≤ n ∧ x ∈ cl (gen s)
+これで “n個以下の生成元” が本当に「有限生成」になる。
+→ ただし API 変更（破壊的）。承認が必要。
+案B（現状維持）：
+ncard の「無限で 0」仕様のまま。
+→ 多くの主張が実質 偽 になり、sorry を埋められない。
+minBasisCount を“標準基底の個数”として残すか？
+
+案A：minBasisCount を “任意の生成元の最小数” に変更（非零なら 1）。
+→ minLayer_eq_minBasisCount は成立するが、元の直観が変わる。
+案B：genCountLayer を “固定基底に対する生成” に変える（例：標準基底の部分集合のみ許可）。
+→ Bourbaki風に「基底という構造データ」を明示した定義が必要。
+案C：minLayer_eq_minBasisCount は削除 or TODO のまま残す。
+finitely_generated_iff_covered / surjective_hom_preserves_minLayer の扱い
+
+案A：弱い方向だけ残す（IsFinitelyGenerated H → … など）。
+案B：必要な仮定（被覆性・一様な生成集合の存在）を追加して強化する。
+すぐ埋められる sorry（方針に依存しないもの）
+
+closureIter_eventually_constant（N=1で即証明）
+closureIter_stabilizes_finite_dim（上に還元）
+closure_singleton_int（AddSubgroup.zmultiples_eq_closure 系）
+homomorphism_preserves_generation（Subgroup.map_closure）
+まず、上の 1) と 2) のどれで行くか決めたいです。
+特に 「genCountLayer は有限生成を数える」 でよければ案Aで一貫して整理できます。
+方針が決まれば、残りの sorry 埋めは具体的な補題名までこちらで落とし込みます。
+
+どう進めますか？
+
+genCountLayer 定義を finite に修正（推奨）
+現状維持のまま、主張を弱めたり削除して進める
+minBasisCount の意味を変更 or genCountLayer を「固定基底版」にする方向で進める
