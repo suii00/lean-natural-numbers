@@ -48,7 +48,7 @@ Level 0: 数学的応用
 2. **LinearSpanGC_Example.lean** (約400行)
    - 線形包のガロア接続インスタンス
    - ℚ² の具体例
-   - 既存の minBasisCount との整合性検証
+   - minBasisCount as standard-basis support (kept independent of genCountLayer)
    - 層の具体的記述
 
 3. **SubgroupGC_Example.lean** (約400行)
@@ -93,12 +93,15 @@ def iterLayer (n : ℕ) : Set α :=
   {x | ∃ s : Set α, s.Finite ∧ x ∈ closureIter n s}
 ```
 
-#### 生成子数による塔
+#### Generator-count tower (Finset-based)
 
 ```lean
 def genCountLayer (n : ℕ) : Set α :=
-  {x | ∃ s : Set α, s.ncard ≤ n ∧ x ∈ cl (gen s)}
+  {x | ∃ s : Finset α, s.card ≤ n ∧ x ∈ cl (gen (s : Set α))}
 ```
+
+Note: the previous `Set.ncard`-based definition is kept as `genCountLayer_ncard` (deprecated),
+since it treats infinite sets as `ncard = 0` and can be misleading.
 
 ## 具体例の理解
 
@@ -112,13 +115,14 @@ def genCountLayer (n : ℕ) : Set α :=
 - Gen(s) = span(s)：線形包
 - Cl(V) = V.carrier：台集合
 
-**層の記述**：
+**層の記述（generator-count tower）**：
 - 層 0：{(0,0)}（零ベクトル）
-- 層 1：x軸 ∪ y軸（1つの基底ベクトルで表現）
-- 層 2：ℚ² 全体（2つの基底で表現）
+- 層 1：1次元部分空間の合併（任意の 1 元生成の span）
+- 層 2：ℚ² 全体（2つのベクトルで生成可能）
 
 **minLayer の意味**：
-- minLayer(v) = ベクトル v を表現するのに必要な最小基底数
+- minLayer(v) = v を生成するのに必要な生成元数の最小値
+- minBasisCount（標準基底のサポート数）とは同一視しない
 
 ### 例2：部分群生成（SubgroupGC_Example.lean）
 

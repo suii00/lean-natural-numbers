@@ -1,4 +1,6 @@
 import Mathlib.Algebra.Group.Subgroup.Basic
+import Mathlib.Algebra.Group.Subgroup.Map
+import Mathlib.Algebra.Group.Subgroup.ZPowers.Basic
 import Mathlib.Algebra.Group.Subsemigroup.Operations
 import Mathlib.Data.Int.Basic
 import Mathlib.Data.Set.Finite.Lattice
@@ -144,15 +146,7 @@ section IntExample
 theorem closure_singleton_int (n : ℤ) :
     AddSubgroup.closure ({n} : Set ℤ) = AddSubgroup.zmultiples n := by
   ext k
-  constructor
-  · intro hk
-    -- k ∈ ⟨{n}⟩ を示す
-    sorry  -- Mathlib の補題を使う
-  · intro hk
-    -- k ∈ nℤ ならば k ∈ ⟨{n}⟩
-    have hmem : n ∈ AddSubgroup.closure ({n} : Set ℤ) :=
-      AddSubgroup.mem_closure_singleton_self (x := n)
-    exact (AddSubgroup.zmultiples_le_of_mem hmem) hk
+  simp [AddSubgroup.mem_closure_singleton, AddSubgroup.mem_zmultiples_iff]
 
 /--
 **生成元数による層の記述**：
@@ -170,17 +164,14 @@ theorem genCountLayer_zero_int :
   ext k
   constructor
   · intro ⟨s, hs_card, hk⟩
-    -- s.ncard ≤ 0 より s = ∅
-    have : s = ∅ := by
-      by_contra h_ne
-      have : s.ncard ≥ 1 := by
-        sorry  -- 非空集合の濃度は 1 以上
-      omega
-    subst this
-    change k ∈ AddSubgroup.closure (∅ : Set ℤ) at hk
-    rw [AddSubgroup.closure_empty] at hk
-    simp at hk
-    subst hk
+    -- s.card ≤ 0 より s = ∅
+    have hs : s = ∅ := by
+      apply Finset.card_eq_zero.mp
+      exact Nat.eq_zero_of_le_zero hs_card
+    subst hs
+    have hk' : k = 0 := by
+      simpa [gen, cl, AddSubgroup.closure_empty] using hk
+    subst hk'
     rfl
   · intro hk
     subst hk
@@ -202,10 +193,11 @@ theorem genCountLayer_one_int :
     -- k ∈ ⟨{k}⟩ を示す（自明）
     refine ⟨{k}, ?_, ?_⟩
     · -- {k}.ncard ≤ 1
-      sorry  -- 単集合の濃度は 1
+      simp
     · -- k ∈ closure {k}
-      exact AddSubgroup.subset_closure (by
-        exact (Set.mem_singleton_iff.mpr rfl) : k ∈ {k})
+      have hk' : k ∈ (({k} : Finset ℤ) : Set ℤ) := by
+        simp
+      exact AddSubgroup.subset_closure hk'
 
 /-!
 ### minLayer の具体的計算
@@ -293,8 +285,10 @@ theorem homomorphism_preserves_generation (f : G →* H) (s : Set G) :
     f '' ↑(Subgroup.closure s) ⊆ ↑(Subgroup.closure (f '' s)) := by
   intro y hy
   rcases hy with ⟨x, hx, hy⟩
-  -- x ∈ closure s から f(x) ∈ closure (f '' s) を導く
-  sorry  -- Subgroup.map を使った証明
+  subst hy
+  have hx_map : f x ∈ (Subgroup.closure s).map f :=
+    Subgroup.mem_map_of_mem f hx
+  simpa [MonoidHom.map_closure] using hx_map
 
 /--
 全射準同型は minLayer を減らさない（または保つ）
