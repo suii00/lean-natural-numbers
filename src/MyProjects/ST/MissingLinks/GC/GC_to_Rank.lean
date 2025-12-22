@@ -277,7 +277,16 @@ def intAbsCl (s : Set ℤ) : Set ℤ :=
 
 /-- intAbsCl は単調 -/
 theorem intAbsCl_mono : Monotone intAbsCl := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  intro s t hst
+  by_cases hs : s.Nonempty
+  · have ht : t.Nonempty := hs.mono hst
+    intro z hz
+    simp [intAbsCl, hs, ht] at hz ⊢
+    rcases hz with ⟨w, hw, hzw⟩
+    exact ⟨w, hst hw, hzw⟩
+  · intro z hz
+    have : False := by simpa [intAbsCl, hs] using hz
+    exact this.elim
 
 /-- intAbsCl は拡大的 -/
 theorem intAbsCl_le (s : Set ℤ) : s ⊆ intAbsCl s := by
