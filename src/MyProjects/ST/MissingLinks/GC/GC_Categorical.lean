@@ -1,5 +1,9 @@
 import Mathlib.CategoryTheory.Category.Basic
 import Mathlib.CategoryTheory.Functor.Basic
+import Mathlib.CategoryTheory.Types.Basic
+import Mathlib.Data.Nat.Lattice
+import Mathlib.Data.Set.Lattice
+import Mathlib.Data.Finite.Defs
 import Mathlib.Order.Hom.Basic
 
 /-!
@@ -44,6 +48,20 @@ structure ClosureOp (X : Type*) where
 structure Ranked (α : Type*) (X : Type*) where
   rank : X → α
 
+namespace Ranked
+
+variable {α : Type*} {X : Type*}
+
+/-- 層の標準定義: rank ≤ n の要素全体 -/
+def layer [Preorder α] (R : Ranked α X) (n : α) : Set X :=
+  {x | R.rank x ≤ n}
+
+@[simp]
+theorem mem_layer_iff [Preorder α] (R : Ranked α X) (n : α) (x : X) :
+    x ∈ R.layer n ↔ R.rank x ≤ n := Iff.rfl
+
+end Ranked
+
 /-- RankedFinite 構造（Layer 1） -/
 structure RankedFinite (X : Type*) extends Ranked (WithTop ℕ) X where
   finite_rank : ∀ x, ∃ n : ℕ, rank x ≤ n
@@ -64,26 +82,25 @@ end BasicStructures
 section OrderPreservingMorphisms
 
 /-- Ranked 構造間の順序保存射 -/
-structure RankedHom {α β : Type*} [Preorder α] [Preorder β]
-    {X Y : Type*} (R : Ranked α X) (S : Ranked β Y) where
+structure RankedHom {α : Type*} [Preorder α]
+    {X Y : Type*} (R : Ranked α X) (S : Ranked α Y) where
   /-- 基礎写像 -/
   toFun : X → Y
-  /-- rank の順序保存（弱い版） -/
-  rank_le : ∀ x, R.rank x ≤ S.rank (toFun x)
+  /-- rank の非増加性（層保存に十分な弱い条件） -/
+  rank_le : ∀ x, S.rank (toFun x) ≤ R.rank x
 
 namespace RankedHom
 
-variable {α β : Type*} [Preorder α] [Preorder β]
-variable {X Y : Type*} {R : Ranked α X} {S : Ranked β Y}
+variable {α : Type*} [Preorder α]
+variable {X Y : Type*} {R : Ranked α X} {S : Ranked α Y}
 
 /-- 射の合成 -/
-def comp {γ : Type*} [Preorder γ] {Z : Type*} {T : Ranked γ Z}
+def comp {Z : Type*} {T : Ranked α Z}
     (g : RankedHom S T) (f : RankedHom R S) : RankedHom R T where
   toFun := g.toFun ∘ f.toFun
   rank_le := by
     intro x
-    calc R.rank x ≤ S.rank (f.toFun x) := f.rank_le x
-      _ ≤ T.rank (g.toFun (f.toFun x)) := g.rank_le (f.toFun x)
+    exact le_trans (g.rank_le (f.toFun x)) (f.rank_le x)
 
 /-- 恒等射 -/
 def id (R : Ranked α X) : RankedHom R R where
@@ -91,10 +108,14 @@ def id (R : Ranked α X) : RankedHom R R where
   rank_le := fun _ => le_refl _
 
 /-- 層保存の証明 -/
-theorem layer_preserving {n : α} (f : RankedHom R S) (m : β) 
+theorem layer_preserving {n m : α} (f : RankedHom R S)
     (h : n ≤ m) :
-    ∀ x ∈ R.toRanked.layer n, f.toFun x ∈ S.toRanked.layer m := by
-  sorry
+    ∀ x ∈ R.layer n, f.toFun x ∈ S.layer m := by
+  intro x hx
+  have hRn : R.rank x ≤ n := by
+    simpa [Ranked.layer] using hx
+  have hS : S.rank (f.toFun x) ≤ R.rank x := f.rank_le x
+  exact (le_trans hS (le_trans hRn h))
 
 end RankedHom
 
@@ -234,7 +255,7 @@ noncomputable def liftRankedHomToTower {X Y : Type*}
   toFun := f.toFun
   minLayer_preserving := by
     intro x
-    sorry
+    sorry -- TODO: reason="minLayer monotonicity proof missing", follow_up="derive from rank_le and Nat.find"
 
 end RankedToTowerFunctor
 
@@ -311,9 +332,9 @@ variable {X : Type*}
 noncomputable def closureToRankedFinite [Finite X] (C : ClosureOp X) 
     (s₀ : Set X) : RankedFinite X where
   toRanked := {
-    rank := sorry  -- rankStab を使用
+    rank := sorry  -- TODO: reason="rankStab未実装", follow_up="define rank via rankStab"
   }
-  finite_rank := sorry  -- Finite X から導出
+  finite_rank := sorry  -- TODO: reason="finite_rank証明未実装", follow_up="use Finite X"
 
 /-- 全体の合成: GC → Tower -/
 noncomputable def gcToTower [Finite X] (C : ClosureOp X) (s₀ : Set X) :
