@@ -1,6 +1,7 @@
 import Mathlib.Data.Nat.Lattice
 import Mathlib.Data.Set.Lattice
 import Mathlib.Data.Finset.Basic
+import Mathlib.Algebra.Order.Group.Unbundled.Abs
 import Mathlib.Order.Closure
 import Mathlib.Order.Iterate
 
@@ -78,7 +79,9 @@ theorem stabilizes_at_rankStab (s : Set X) (n : ℕ)
   · have := Nat.find_spec hex
     simp only [WithTop.coe_inj] at h
     rwa [← h]
-  · exact absurd rfl (WithTop.coe_ne_top)
+  ·
+    exact (False.elim <| (WithTop.coe_ne_top (a := n)) <| by
+      simpa using h.symm)
 
 /-- 反復の単調性 -/
 theorem iter_mono {s t : Set X} (hst : s ⊆ t) (n : ℕ) :
@@ -105,7 +108,7 @@ theorem iter_subset_succ (s : Set X) (n : ℕ) :
 /-- [有限集合の場合] 必ず安定化する -/
 theorem finite_stabilizes [Finite X] (s : Set X) :
     ∃ n, C.StabilizesAt s n := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- [有限集合の場合] rankStab は有限 -/
 theorem finite_rankStab_ne_top [Finite X] (s : Set X) :
@@ -128,12 +131,12 @@ noncomputable def rankGen (s : Set X) : WithTop ℕ :=
 /-- s が有限生成可能 ⇔ rankGen が有限 -/
 theorem rankGen_ne_top_iff (s : Set X) :
     C.rankGen s ≠ ⊤ ↔ ∃ S : Finset X, C.IsGenerated s S := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- rankGen の単調性 -/
 theorem rankGen_mono {s t : Set X} (hst : s ⊆ t) :
     C.rankGen s ≤ C.rankGen t := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-! ## Type 3: 要素ごとの到達Rank -/
 
@@ -150,19 +153,19 @@ noncomputable def rankReach (x : X) (s₀ : Set X) : WithTop ℕ :=
 /-- x が到達可能 ⇔ rankReach が有限 -/
 theorem rankReach_ne_top_iff (x : X) (s₀ : Set X) :
     C.rankReach x s₀ ≠ ⊤ ↔ ∃ n, C.ReachableIn x s₀ n := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- s₀ に含まれる要素は rank 0 -/
 theorem rankReach_mem_zero {x : X} {s₀ : Set X} (hx : x ∈ s₀) :
-    C.rankReach x s₀ = 0 := by
-  sorry
+    C.rankReach x s₀ = ((0 : ℕ) : WithTop ℕ) := by
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-! ## Rank 関数間の関係 -/
 
 /-- 安定化 rank と到達 rank の関係 -/
 theorem rankStab_le_sup_rankReach (s₀ : Set X) [Finite X] :
     C.rankStab s₀ ≤ ⨆ x : X, C.rankReach x s₀ := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 end ClosureOp
 
@@ -202,15 +205,15 @@ def intAbsCl (s : Set ℤ) : Set ℤ :=
 
 /-- intAbsCl は単調 -/
 theorem intAbsCl_mono : Monotone intAbsCl := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- intAbsCl は拡大的 -/
 theorem intAbsCl_le (s : Set ℤ) : s ⊆ intAbsCl s := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- intAbsCl は冪等的 -/
 theorem intAbsCl_idem (s : Set ℤ) : intAbsCl (intAbsCl s) = intAbsCl s := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- ℤ の閉包作用素 -/
 def intAbsClosureOp : ClosureOp ℤ :=
@@ -219,7 +222,7 @@ def intAbsClosureOp : ClosureOp ℤ :=
 /-- 単集合の安定化は1回 -/
 example (n : ℤ) : 
     intAbsClosureOp.StabilizesAt {n} 1 := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 end IntAbsClosure
 
@@ -235,14 +238,14 @@ def natUpperCl (s : Set ℕ) : Set ℕ :=
     s
 
 theorem natUpperCl_mono : Monotone natUpperCl := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 theorem natUpperCl_idem (s : Set ℕ) : 
     natUpperCl (natUpperCl s) = natUpperCl s := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 def natUpperClosureOp : ClosureOp ℕ :=
   mkClosureOp natUpperCl natUpperCl_mono natUpperCl_le natUpperCl_idem
@@ -250,7 +253,7 @@ def natUpperClosureOp : ClosureOp ℕ :=
 /-- 有限集合は1回で安定 -/
 example (S : Finset ℕ) : 
     natUpperClosureOp.StabilizesAt (S : Set ℕ) 1 := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 end NatUpperClosure
 
