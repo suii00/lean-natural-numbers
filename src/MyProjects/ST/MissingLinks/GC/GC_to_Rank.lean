@@ -131,12 +131,45 @@ noncomputable def rankGen (s : Set X) : WithTop ℕ :=
 /-- s が有限生成可能 ⇔ rankGen が有限 -/
 theorem rankGen_ne_top_iff (s : Set X) :
     C.rankGen s ≠ ⊤ ↔ ∃ S : Finset X, C.IsGenerated s S := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  let T : Set (WithTop ℕ) :=
+    {n : WithTop ℕ | ∃ S : Finset X, S.card ≤ n ∧ C.IsGenerated s S}
+  constructor
+  · intro hne
+    by_contra hgen
+    have hT : T = ∅ := by
+      apply Set.eq_empty_iff_forall_notMem.mpr
+      intro n hn
+      rcases hn with ⟨S, _hSn, hSgen⟩
+      exact hgen ⟨S, hSgen⟩
+    have : C.rankGen s = ⊤ := by
+      simp [rankGen, T, hT]
+    exact hne this
+  · rintro ⟨S, hS⟩ htop
+    have htop' : sInf T = ⊤ := by
+      simpa [rankGen, T] using htop
+    have hforall : ∀ a ∈ T, a = (⊤ : WithTop ℕ) := (sInf_eq_top).mp htop'
+    have hmem : ((S.card : ℕ) : WithTop ℕ) ∈ T := by
+      exact ⟨S, le_rfl, hS⟩
+    have : ((S.card : ℕ) : WithTop ℕ) = ⊤ := hforall _ hmem
+    exact (WithTop.coe_ne_top (a := S.card)) this
 
 /-- rankGen の単調性 -/
 theorem rankGen_mono {s t : Set X} (hst : s ⊆ t) :
     C.rankGen s ≤ C.rankGen t := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  let Ts : Set (WithTop ℕ) :=
+    {n : WithTop ℕ | ∃ S : Finset X, S.card ≤ n ∧ C.IsGenerated s S}
+  let Tt : Set (WithTop ℕ) :=
+    {n : WithTop ℕ | ∃ S : Finset X, S.card ≤ n ∧ C.IsGenerated t S}
+  have hsubset : Tt ⊆ Ts := by
+    intro n hn
+    rcases hn with ⟨S, hcard, hgen⟩
+    refine ⟨S, hcard, ?_⟩
+    intro x hx
+    exact hgen (hst hx)
+  have hle : sInf Ts ≤ sInf Tt := sInf_le_sInf (s := Tt) (t := Ts) hsubset
+  simpa [rankGen, Ts, Tt] using hle
 
 /-! ## Type 3: 要素ごとの到達Rank -/
 
