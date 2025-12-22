@@ -153,7 +153,30 @@ noncomputable def rankReach (x : X) (s₀ : Set X) : WithTop ℕ :=
 /-- x が到達可能 ⇔ rankReach が有限 -/
 theorem rankReach_ne_top_iff (x : X) (s₀ : Set X) :
     C.rankReach x s₀ ≠ ⊤ ↔ ∃ n, C.ReachableIn x s₀ n := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  let S : Set (WithTop ℕ) :=
+    {n : WithTop ℕ | n < ⊤ ∧ ∃ m : ℕ, n = m ∧ C.ReachableIn x s₀ m}
+  constructor
+  · intro hne
+    by_contra hreach
+    have hSempty : S = ∅ := by
+      apply Set.eq_empty_iff_forall_notMem.mpr
+      intro n hn
+      rcases hn with ⟨_hnlt, m, rfl, hm⟩
+      exact hreach ⟨m, hm⟩
+    have : C.rankReach x s₀ = ⊤ := by
+      simp [rankReach, S, hSempty]
+    exact hne this
+  · rintro ⟨m, hm⟩ htop
+    have hmem : ((m : ℕ) : WithTop ℕ) ∈ S := by
+      refine ⟨by simpa using (WithTop.coe_lt_top m), ?_⟩
+      exact ⟨m, rfl, hm⟩
+    have hle : C.rankReach x s₀ ≤ ((m : ℕ) : WithTop ℕ) := by
+      simpa [rankReach, S] using (sInf_le hmem)
+    have htop_le : (⊤ : WithTop ℕ) ≤ ((m : ℕ) : WithTop ℕ) := by
+      simpa [htop] using hle
+    have : ((m : ℕ) : WithTop ℕ) = ⊤ := (top_le_iff.mp htop_le)
+    exact (WithTop.coe_ne_top (a := m)) this
 
 /-- s₀ に含まれる要素は rank 0 -/
 theorem rankReach_mem_zero {x : X} {s₀ : Set X} (hx : x ∈ s₀) :
