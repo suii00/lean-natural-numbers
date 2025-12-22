@@ -127,7 +127,7 @@ noncomputable def rankedFromElemRank (C : ClosureOp X) (s₀ : Set X) :
 theorem elemRank_ne_top_of_finite [Finite X] (C : ClosureOp X) 
     (x : X) (s₀ : Set X) :
     ∃ n : ℕ, elemRank C x s₀ ≤ n := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- [Finite X条件下] TowerWithTop を構成 -/
 noncomputable def towerFromClosure [Finite X] (C : ClosureOp X) (s₀ : Set X) :
@@ -143,20 +143,20 @@ section NatUpperExample
 
 /-- 自然数集合の上界閉包 -/
 def natUpperCl (s : Set ℕ) : Set ℕ :=
-  if h : s.Nonempty ∧ BddAbove s then
+  if _h : s.Nonempty ∧ BddAbove s then
     {n : ℕ | n ≤ sSup s}
   else
     s
 
 theorem natUpperCl_mono : Monotone natUpperCl := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 theorem natUpperCl_idem (s : Set ℕ) : 
     natUpperCl (natUpperCl s) = natUpperCl s := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- 閉包作用素として構成 -/
 def natUpperClosureOp : ClosureOp ℕ where
@@ -165,7 +165,7 @@ def natUpperClosureOp : ClosureOp ℕ where
   le_closure := natUpperCl_le
   idempotent := natUpperCl_idem
 
-/-- ℕ は有限ではないが、各要素は有限rank -/
+-- ℕ は有限ではないが、各要素は有限rank
 -- instance : Finite ℕ := inferInstance -- これは偽
 
 /-- 計算可能な簡易版: 単一要素からの到達 -/
@@ -178,7 +178,7 @@ def simpleNatRank (n : ℕ) (start : ℕ) : ℕ :=
 def simpleNatRanked (start : ℕ) : Ranked ℕ ℕ where
   rank := fun n => simpleNatRank n start
 
-/-- 計算例 -/
+-- 計算例
 #eval (simpleNatRanked 5).rank 3  -- 0 (5以下)
 #eval (simpleNatRanked 5).rank 7  -- 1 (5+10以下)
 #eval (simpleNatRanked 5).rank 20 -- 2
@@ -202,20 +202,20 @@ variable {α : Type*} [DecidableEq α]
 
 /-- Finset の包含閉包（上界） -/
 def finsetUpperCl (S : Set (Finset α)) : Set (Finset α) :=
-  if h : S.Nonempty then
+  if _h : S.Nonempty then
     {T : Finset α | ∃ U ∈ S, T ⊆ U}
   else
     ∅
 
-theorem finsetUpperCl_mono : Monotone (@finsetUpperCl α _) := by
-  sorry
+theorem finsetUpperCl_mono : Monotone (fun S => finsetUpperCl (α := α) S) := by
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 theorem finsetUpperCl_le (S : Set (Finset α)) : S ⊆ finsetUpperCl S := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 theorem finsetUpperCl_idem (S : Set (Finset α)) : 
     finsetUpperCl (finsetUpperCl S) = finsetUpperCl S := by
-  sorry
+  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
 /-- Finset の閉包作用素 -/
 def finsetUpperClosureOp : ClosureOp (Finset α) where
@@ -232,7 +232,7 @@ def finsetCardRank {α : Type*} (T : Finset α) : ℕ :=
 def finsetCardRanked (α : Type*) : Ranked ℕ (Finset α) where
   rank := @finsetCardRank α
 
-/-- 計算例（型注釈が必要） -/
+-- 計算例（型注釈が必要）
 #eval (finsetCardRanked ℕ).rank (∅ : Finset ℕ)           -- 0
 #eval (finsetCardRanked ℕ).rank ({1} : Finset ℕ)         -- 1
 #eval (finsetCardRanked ℕ).rank ({1, 2, 3} : Finset ℕ)   -- 3
@@ -252,7 +252,7 @@ def listLengthRank (l : List α) : ℕ := l.length
 def listLengthRanked (α : Type*) : Ranked ℕ (List α) where
   rank := @listLengthRank α
 
-/-- 計算例 -/
+-- 計算例
 #eval (listLengthRanked ℕ).rank []           -- 0
 #eval (listLengthRanked ℕ).rank [1]          -- 1
 #eval (listLengthRanked ℕ).rank [1, 2, 3]    -- 3
@@ -263,9 +263,7 @@ example : [1, 2] ∈ (listLengthRanked ℕ).layer 2 := by
   simp
 
 example : ¬([1, 2, 3] ∈ (listLengthRanked ℕ).layer 2) := by
-  unfold Ranked.layer listLengthRanked listLengthRank
-  simp
-  omega
+  simp [Ranked.layer, listLengthRanked, listLengthRank]
 
 end ListLengthExample
 
