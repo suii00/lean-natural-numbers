@@ -158,7 +158,23 @@ theorem rankReach_ne_top_iff (x : X) (s₀ : Set X) :
 /-- s₀ に含まれる要素は rank 0 -/
 theorem rankReach_mem_zero {x : X} {s₀ : Set X} (hx : x ∈ s₀) :
     C.rankReach x s₀ = ((0 : ℕ) : WithTop ℕ) := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  let S : Set (WithTop ℕ) :=
+    {n : WithTop ℕ | n < ⊤ ∧ ∃ m : ℕ, n = m ∧ C.ReachableIn x s₀ m}
+  have hmem : ((0 : ℕ) : WithTop ℕ) ∈ S := by
+    refine ⟨by simpa using (WithTop.coe_lt_top (0 : ℕ)), ?_⟩
+    refine ⟨0, rfl, ?_⟩
+    simpa [ReachableIn, ClosureOp.iter] using hx
+  have hle : sInf S ≤ ((0 : ℕ) : WithTop ℕ) := sInf_le hmem
+  have hge : ((0 : ℕ) : WithTop ℕ) ≤ sInf S := by
+    refine le_sInf ?_
+    intro b hb
+    exact bot_le
+  simpa [rankReach, S] using le_antisymm hle hge
+
+example {x : X} {s₀ : Set X} (hx : x ∈ s₀) :
+    C.rankReach x s₀ = ((0 : ℕ) : WithTop ℕ) :=
+  C.rankReach_mem_zero (x := x) (s₀ := s₀) hx
 
 /-! ## Rank 関数間の関係 -/
 
