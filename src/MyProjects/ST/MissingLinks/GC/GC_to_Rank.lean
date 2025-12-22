@@ -288,13 +288,54 @@ theorem intAbsCl_mono : Monotone intAbsCl := by
     have : False := by simpa [intAbsCl, hs] using hz
     exact this.elim
 
-/-- intAbsCl は拡大的 -/
+/-- intAbsCl は拡大的（`w = z` を取ればよい）-/
 theorem intAbsCl_le (s : Set ℤ) : s ⊆ intAbsCl s := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  by_cases hs : s.Nonempty
+  · intro z hz
+    have : ∃ w ∈ s, |z| ≤ |w| := ⟨z, hz, le_rfl⟩
+    simpa [intAbsCl, hs] using this
+  · intro z hz
+    exact (hs ⟨z, hz⟩).elim
+
+example (z : ℤ) : z ∈ intAbsCl ({z} : Set ℤ) := by
+  have hz : z ∈ ({z} : Set ℤ) := by simp
+  exact (intAbsCl_le (s := ({z} : Set ℤ))) hz
 
 /-- intAbsCl は冪等的 -/
 theorem intAbsCl_idem (s : Set ℤ) : intAbsCl (intAbsCl s) = intAbsCl s := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  by_cases hs : s.Nonempty
+  · have mem_intAbsCl {s : Set ℤ} (hs : s.Nonempty) {z : ℤ} :
+        z ∈ intAbsCl s ↔ ∃ w ∈ s, |z| ≤ |w| := by
+      simp [intAbsCl, hs]
+    have hs' : (intAbsCl s).Nonempty := by
+      rcases hs with ⟨w, hw⟩
+      exact ⟨w, intAbsCl_le (s := s) hw⟩
+    ext z
+    constructor
+    · intro hz
+      have hz' : ∃ w ∈ intAbsCl s, |z| ≤ |w| :=
+        (mem_intAbsCl (s := intAbsCl s) (hs := hs') (z := z)).1 hz
+      rcases hz' with ⟨w, hw, hzw⟩
+      have hw' : ∃ u ∈ s, |w| ≤ |u| :=
+        (mem_intAbsCl (s := s) (hs := hs) (z := w)).1 hw
+      rcases hw' with ⟨u, hu, hwu⟩
+      have : ∃ u ∈ s, |z| ≤ |u| := ⟨u, hu, le_trans hzw hwu⟩
+      exact (mem_intAbsCl (s := s) (hs := hs) (z := z)).2 this
+    · intro hz
+      have : ∃ w ∈ intAbsCl s, |z| ≤ |w| := ⟨z, hz, le_rfl⟩
+      exact (mem_intAbsCl (s := intAbsCl s) (hs := hs') (z := z)).2 this
+  · have hs' : intAbsCl s = (∅ : Set ℤ) := by
+      simp [intAbsCl, hs]
+    have hne : ¬ (∅ : Set ℤ).Nonempty := by
+      exact Set.not_nonempty_empty
+    calc
+      intAbsCl (intAbsCl s) = intAbsCl (∅ : Set ℤ) := by
+        simpa [hs']
+      _ = (∅ : Set ℤ) := by
+        simp [intAbsCl, hne]
+      _ = intAbsCl s := by
+        symm
+        exact hs'
 
 /-- ℤ の閉包作用素 -/
 def intAbsClosureOp : ClosureOp ℤ :=
