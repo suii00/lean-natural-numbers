@@ -344,7 +344,8 @@ def intAbsClosureOp : ClosureOp ℤ :=
 /-- 単集合の安定化は1回 -/
 example (n : ℤ) : 
     intAbsClosureOp.StabilizesAt {n} 1 := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  unfold ClosureOp.StabilizesAt ClosureOp.iter intAbsClosureOp mkClosureOp
+  simp [Function.iterate_succ_apply', intAbsCl_idem]
 
 end IntAbsClosure
 
