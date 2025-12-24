@@ -164,7 +164,14 @@ theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
 
 theorem natUpperCl_idem (s : Set ℕ) :
     natUpperCl (natUpperCl s) = natUpperCl s := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  ext n
+  constructor
+  · intro hn
+    rcases hn with ⟨m, hm, hnm⟩
+    rcases hm with ⟨k, hk, hmk⟩
+    exact ⟨k, hk, le_trans hnm hmk⟩
+  · intro hn
+    exact (natUpperCl_le (s := natUpperCl s) hn)
 
 /-- 閉包作用素として構成 -/
 def natUpperClosureOp : ClosureOp ℕ where
