@@ -24,16 +24,28 @@ namespace Layer4_GC
 variable {α β : Type*} [PartialOrder α] [Preorder β]
 
 /--
-Galois接続から閉包作用素 (Closure Operator) を構成する。
-これは標準的な構成 l ⊣ u ⇒ c = u ∘ l である。
+Galois接続から閉包作用素 (Closure Operator) を構成する標準構成。
 
-**重要**: 閉包は **左側 (α) に作られる**。
-- l : α → β は下随伴（"生成"方向）
-- u : β → α は上随伴（"忘却"方向）
-- u ∘ l : α → α が α 上の閉包作用素となる
+## 構成の詳細
+Galois接続 `l ⊣ u` から、**左側 (α) 上の閉包作用素** `c := u ∘ l : α → α` を定義する。
 
-典型的用途：α = Set ι（生成元の集合）、β = Subobject X（部分対象の格子）のとき、
-u ∘ l は「生成元集合を生成閉包に送る」閉包作用素となる。
+- `l : α → β` は下随伴（"生成"/"自由構成"方向）
+- `u : β → α` は上随伴（"忘却"/"underlying"方向）
+- 合成 `u ∘ l : α → α` が α 上の閉包作用素となる
+
+**注意**: 閉包は **α 側に乗る**。β 側の双対（余閉包）は `l ∘ u : β → β` となるが、
+これは一般には閉包作用素ではなく、余閉包作用素 (co-closure) となる。
+
+## 圏論的解釈（モナド構造）
+この構成は、随伴 `l ⊣ u` から誘導される **モナド** `T := u ∘ l` に他ならない：
+- unit: `η_x : x ≤ u(l(x))` (gc.le_u_l)
+- multiplication: `μ_x : u(l(u(l(x)))) → u(l(x))` (counit `l ∘ u ≤ id` から誘導)
+- monad 則（結合律・単位律）は GC の性質から自動的に成立
+
+## 典型的用途
+- `α = Set ι`（生成元の集合）、`β = Subobject X`（部分対象の格子）のとき、
+  `u ∘ l` は「生成元集合 S を、S が生成する部分対象 l(S) の underlying 集合 u(l(S)) に送る」
+  という生成閉包を与える。
 -/
 def closureFromGC (l : α → β) (u : β → α) (gc : GaloisConnection l u) :
     ClosureOperator α where
@@ -92,17 +104,45 @@ noncomputable def rankGen (l : Set ι → α) (x : α) : WithTop ℕ :=
 /--
 Galois接続から直接ランク関数を導出する（GC → Rank の接着点）。
 
-GC の左随伴 l : Set ι → α を用いて、「x を生成する最小の有限集合のサイズ」をランクとする。
-上随伴 u : α → Set ι は、この定義では直接使われないが、GC の存在が l の性質
-（単調性、ある種の普遍性）を保証する理論的根拠となる。
+GC の **両辺を活用**：u x を「x の候補生成元集合」として、
+その部分集合 S ⊆ u x で l S = x を満たす最小の有限集合のサイズをランクとする。
 
-より強い変種として、u を活用した制約付き生成ランク：
-  rankGenGC x := sInf {n | ∃ S : Finset ι, S ⊆ u x ∧ card S ≤ n ∧ l S = x}
-も考えられる（u x が「x の候補生成元集合」を与える）。
+**重要な事実**：GC の性質 (gc.le_u_l) により、l S = x ならば S ⊆ u x が自動的に成立するため、
+この制約付き定義は rankGen と **同値** である（rankGenFromGC_eq_rankGen 参照）。
+
+この定義の意義：
+- API として GC の両辺（l と u）を使うことを明示
+- u x が「x を生成しうる元の集合」という意味を持つことを表現
+- 理論的には冗長だが、導出の鎖（GC → 候補集合 → ランク）を可視化
 -/
 noncomputable def rankGenFromGC {α : Type*} [CompleteLattice α]
     (l : Set ι → α) (u : α → Set ι) (gc : GaloisConnection l u) (x : α) : WithTop ℕ :=
-  rankGen l x
+  sInf {n : WithTop ℕ | ∃ S : Finset ι, (↑S : Set ι) ⊆ u x ∧ (S.card : WithTop ℕ) ≤ n ∧ l S = x}
+
+/--
+rankGenFromGC と rankGen の同値性。
+
+証明の核心：l S = x ならば、GC の unit (gc.le_u_l) より S ≤ u (l S) = u x。
+したがって、制約 S ⊆ u x は自動的に満たされ、両定義の集合は一致する。
+-/
+lemma rankGenFromGC_eq_rankGen {α : Type*} [CompleteLattice α]
+    (l : Set ι → α) (u : α → Set ι) (gc : GaloisConnection l u) (x : α) :
+    rankGenFromGC l u gc x = rankGen l x := by
+  -- 両辺の sInf の引数集合が一致することを示す
+  have h_set_eq : {n : WithTop ℕ | ∃ S : Finset ι, (↑S : Set ι) ⊆ u x ∧ (S.card : WithTop ℕ) ≤ n ∧ l S = x} =
+                  {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+    ext n
+    constructor
+    · intro ⟨S, _, hcard, hS⟩
+      exact ⟨S, hcard, hS⟩
+    · intro ⟨S, hcard, hS⟩
+      refine ⟨S, ?_, hcard, hS⟩
+      -- l S = x から S ⊆ u x を導く（GC の性質）
+      calc (↑S : Set ι)
+          ≤ u (l S) := gc.le_u_l S
+        _ = u x := by rw [hS]
+  unfold rankGenFromGC rankGen
+  rw [h_set_eq]
 
 /--
 Rank Type 2: Stabilization Rank (rankStab)
@@ -127,11 +167,7 @@ lemma rankGen_finite_of_fg (l : Set ι → α) (x : α)
   obtain ⟨S, hS⟩ := h_fg
   have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
     use S, le_rfl, hS
-  have h_bdd : BddBelow {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
-    use ⊥
-    intro y hy
-    exact bot_le
-  have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := csInf_le h_bdd h_mem
+  have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := sInf_le h_mem
   exact lt_of_le_of_lt h_le (WithTop.coe_lt_top S.card)
 
 /-- rankStab の単調性は一般には自明ではないため、対象の性質に依存する -/
@@ -140,11 +176,7 @@ lemma rankStab_le_of_stabilizes (f : PreClosureStep α) (x : α) (n : ℕ)
     rankStab f x ≤ n := by
   have h_mem : (n : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ m : ℕ, (m : WithTop ℕ) = n ∧ f.toFun^[m] x = f.toFun^[m + 1] x} := by
     use n, rfl, h_stab
-  have h_bdd : BddBelow {n : WithTop ℕ | ∃ m : ℕ, (m : WithTop ℕ) = n ∧ f.toFun^[m] x = f.toFun^[m + 1] x} := by
-    use ⊥
-    intro y hy
-    exact bot_le
-  exact csInf_le h_bdd h_mem
+  exact sInf_le h_mem
 
 end Layer3_Rank
 
@@ -198,11 +230,7 @@ lemma rankGen_is_nat (l : Set ι → α)
   obtain ⟨S, hS⟩ := h_all_fg x
   have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
     use S, le_rfl, hS
-  have h_bdd : BddBelow {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
-    use ⊥
-    intro y hy
-    exact bot_le
-  have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := csInf_le h_bdd h_mem
+  have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := sInf_le h_mem
   exact ⟨S.card, h_le⟩
 
 /--
@@ -230,47 +258,86 @@ open Layer3_Rank Layer1_Selection
 
 variable {ι α : Type*} [CompleteLattice α]
 
+/-- 補助述語：「n 個以下の生成元で x を生成できる」 -/
+private def GenPred (l : Set ι → α) (x : α) (n : ℕ) : Prop :=
+  ∃ S : Finset ι, S.card ≤ n ∧ l S = x
+
+/--
+核心補題：rankGen ≤ n と「n 個以下の生成集合の存在」の同値性。
+
+証明戦略（Nat.find による最小値の構成的取り出し）：
+1. 有限生成性から、GenPred を満たす n が存在する
+2. Nat.find で最小の m を取る
+3. rankGen の sInf が実際にこの最小値 m を達成することを示す
+4. rankGen ≤ n ↔ m ≤ n ↔ GenPred (., ., n) を得る
+
+これにより、sInf の一般論だけでは難しい「inf が集合の最小元」を、
+ℕ の well-foundedness から構成的に証明する。
+-/
+lemma rankGen_le_iff_exists
+    (l : Set ι → α) (x : α) (h_fg : ∃ S : Finset ι, l S = x) (n : ℕ) :
+    rankGen l x ≤ n ↔ ∃ S : Finset ι, S.card ≤ n ∧ l S = x := by
+  -- まず「どこかでは生成できる」ので GenPred が満たされる n が存在
+  have hex : ∃ k : ℕ, GenPred l x k := by
+    obtain ⟨S, hS⟩ := h_fg
+    exact ⟨S.card, S, le_rfl, hS⟩
+
+  -- Nat.find で最小の m を取る（Classical を使用）
+  open Classical in
+  let m : ℕ := Nat.find hex
+  have hm_spec : GenPred l x m := Nat.find_spec hex
+  have hm_min : ∀ k : ℕ, GenPred l x k → m ≤ k := fun k hk => Nat.find_min' hex hk
+
+  -- rankGen = m を示す（最小値達成）
+  have hrank : rankGen l x = (m : WithTop ℕ) := by
+    apply le_antisymm
+    -- (≤) inf ≤ m は、m が集合に入ることから
+    · have hmem : (m : WithTop ℕ) ∈
+          {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+        obtain ⟨S, hcard, hS⟩ := hm_spec
+        exact ⟨S, WithTop.coe_le_coe.mpr hcard, hS⟩
+      exact sInf_le hmem
+    -- (≥) m は下界：任意の候補 y に m ≤ y
+    · refine le_sInf ?_
+      intro y hy
+      obtain ⟨S, hcard, hS⟩ := hy
+      -- y の場合分け
+      by_cases hy_top : y = ⊤
+      · rw [hy_top]; exact le_top
+      · -- y < ⊤ なら、ある k : ℕ で y = k
+        obtain ⟨k, hk⟩ := WithTop.ne_top_iff_exists.mp hy_top
+        rw [← hk]
+        have hk_ge : S.card ≤ k := WithTop.coe_le_coe.mp (hk ▸ hcard)
+        have : m ≤ k := hm_min k ⟨S, hk_ge, hS⟩
+        exact WithTop.coe_le_coe.mpr this
+
+  constructor
+  · intro h
+    -- rankGen ≤ n から m ≤ n
+    have hm_le_n : m ≤ n := WithTop.coe_le_coe.mp (hrank ▸ h)
+    obtain ⟨S, hSm, hS⟩ := hm_spec
+    exact ⟨S, le_trans hSm hm_le_n, hS⟩
+  · intro h
+    obtain ⟨S, hcard, hS⟩ := h
+    -- S が集合に入るので inf ≤ S.card ≤ n
+    have hmem : (S.card : WithTop ℕ) ∈
+        {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+      exact ⟨S, le_rfl, hS⟩
+    calc rankGen l x
+        ≤ (S.card : WithTop ℕ) := sInf_le hmem
+      _ ≤ (n : WithTop ℕ) := WithTop.coe_le_coe.mpr hcard
+
 /--
 GC と 構造塔の整合性チェック (Meta-property)。
 生成された塔において、layer n の要素は「n個以下の生成元で生成可能」であることの確認。
+
+証明：上記の rankGen_le_iff_exists 補題を直接適用。
 -/
 example (l : Set ι → α) (h_fg : ∀ x, ∃ S : Finset ι, l S = x) (n : ℕ) (x : α) :
     x ∈ (buildGenTower l h_fg).layer n ↔
     ∃ S : Finset ι, S.card ≤ n ∧ l S = x := by
   -- StructureTowerWithMin の仕様 (layer n = {x | ρ x ≤ n}) に基づく
   change rankGen l x ≤ n ↔ _
-  constructor
-  · intro h
-    -- rankGen l x ≤ n から、生成集合の存在を導く
-    --
-    -- 理論的注記（Bourbaki の精神による分析）：
-    -- rankGen := sInf {m | ∃ S, card S ≤ m ∧ l S = x}
-    -- この集合は上方閉（upward closed）：m ∈ S かつ m ≤ m' ならば m' ∈ S
-    --
-    -- 命題：上方閉集合 T ⊆ WithTop ℕ に対し、sInf T < ⊤ ならば sInf T ∈ T
-    -- 証明骨子：WithTop ℕ は well-ordered で離散的。sInf T = k < ⊤ とすると、
-    --   (a) k が下界：∀ t ∈ T, k ≤ t
-    --   (b) k より大きい任意の m に対し、m は下界でない：∃ t ∈ T, t < m
-    --   特に k+1 は下界でないから、ある t ∈ T で t ≤ k
-    --   (a) より k ≤ t だから t = k、すなわち k ∈ T
-    --
-    -- この補題を直接 Lean で証明するには、WithTop ℕ の順序構造の詳細な性質が必要。
-    -- 現在の sInf ベースの定義では、この gap を埋めるのは技術的に複雑。
-    --
-    -- **改善の方向性**（レビュー指摘の通り）：
-    -- - rankGen を Nat.find ベースで再定義すると、この同値は構成的に証明可能
-    -- - または、Index = WithTop ℕ の塔レーンを別途用意し、layer の定義を
-    --   直接「生成集合の存在」に基づかせることで、この gap を回避できる
-    sorry
-  · intro h
-    obtain ⟨S, hcard, hgen⟩ := h
-    have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
-      use S, le_rfl, hgen
-    have h_bdd : BddBelow {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
-      use ⊥
-      intro y hy
-      exact bot_le
-    have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := csInf_le h_bdd h_mem
-    exact le_trans h_le (WithTop.coe_le_coe.mpr hcard)
+  exact rankGen_le_iff_exists l x (h_fg x) n
 
 end Layer0_Glue
