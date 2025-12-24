@@ -21,7 +21,7 @@ Galois接続から閉包作用素を導出する層
 -/
 namespace Layer4_GC
 
-variable {α β : Type*} [Preorder α] [Preorder β]
+variable {α β : Type*} [PartialOrder α] [Preorder β]
 
 /--
 Galois接続から閉包作用素 (Closure Operator) を構成する。
@@ -43,8 +43,8 @@ def closureFromGC (l : α → β) (u : β → α) (gc : GaloisConnection l u) :
     simp only [Function.comp_apply]
     -- u(l(u(l(x)))) = u(l(x)) using GC properties
     apply le_antisymm
-    · exact gc.monotone_u (gc.l_u_le_l (l x)) -- u(l(x)) ≤ x is not generally true, but l(u(y)) ≤ y is.
-      -- Correct logic: l ⊣ u. u(l(u(l(x)))) ≤ u(l(x)) comes from l(u(y)) ≤ y with y=l(x).
+    · -- u(l(u(l(x)))) ≤ u(l(x)) comes from l(u(l(x))) ≤ l(x) by counit
+      exact gc.monotone_u (gc.l_u_le (l x))
     · exact gc.monotone_u (gc.monotone_l (gc.le_u_l x))
 
 /--
@@ -80,10 +80,10 @@ noncomputable def rankGen (l : Set ι → α) (x : α) : WithTop ℕ :=
 
 /--
 Rank Type 2: Stabilization Rank (rankStab)
-PreClosureStep f に対して、f^[n] x が安定する（不動点に達する）最小のステップ数。
+PreClosureStep f に対して、f^[n] x が安定する（最小のステップ数。
 -/
 noncomputable def rankStab (f : PreClosureStep α) (x : α) : WithTop ℕ :=
-  sInf {n : WithTop ℕ | f.toFun^[n] x = f.toFun^[n + 1] x}
+  sInf {n : WithTop ℕ | ∃ m : ℕ, (m : WithTop ℕ) = n ∧ f.toFun^[m] x = f.toFun^[m + 1] x}
 
 /-! ### Covering/Properties Lemmas (Proofs can use sorry) -/
 
@@ -92,21 +92,26 @@ lemma rankGen_finite_of_fg (l : Set ι → α) (x : α)
     (h_fg : ∃ S : Finset ι, l S = x) :
     rankGen l x < ⊤ := by
   obtain ⟨S, hS⟩ := h_fg
-  apply csInf_le
-  · refine ⟨S.card, ?_⟩
-    use S
-    constructor
-    · exact le_rfl
-    · exact hS
-  · exact OrderBot.bot_le _
+  have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+    use S, le_rfl, hS
+  have h_bdd : BddBelow {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+    use ⊥
+    intro y hy
+    exact bot_le
+  have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := csInf_le h_bdd h_mem
+  exact lt_of_le_of_lt h_le (WithTop.coe_lt_top S.card)
 
 /-- rankStab の単調性は一般には自明ではないため、対象の性質に依存する -/
 lemma rankStab_le_of_stabilizes (f : PreClosureStep α) (x : α) (n : ℕ)
     (h_stab : f.toFun^[n] x = f.toFun^[n + 1] x) :
     rankStab f x ≤ n := by
-  apply csInf_le
-  · exact OrderBot.bot_le _
-  · exact h_stab
+  have h_mem : (n : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ m : ℕ, (m : WithTop ℕ) = n ∧ f.toFun^[m] x = f.toFun^[m + 1] x} := by
+    use n, rfl, h_stab
+  have h_bdd : BddBelow {n : WithTop ℕ | ∃ m : ℕ, (m : WithTop ℕ) = n ∧ f.toFun^[m] x = f.toFun^[m + 1] x} := by
+    use ⊥
+    intro y hy
+    exact bot_le
+  exact csInf_le h_bdd h_mem
 
 end Layer3_Rank
 
@@ -158,8 +163,14 @@ lemma rankGen_is_nat (l : Set ι → α)
     ∀ x, ∃ n : ℕ, rankGen l x ≤ n := by
   intro x
   obtain ⟨S, hS⟩ := h_all_fg x
-  exists S.card
-  apply rankGen_finite_of_fg l x ⟨S, hS⟩
+  have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+    use S, le_rfl, hS
+  have h_bdd : BddBelow {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+    use ⊥
+    intro y hy
+    exact bot_le
+  have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := csInf_le h_bdd h_mem
+  exact ⟨S.card, h_le⟩
 
 /--
 条件付きで StructureTowerWithMin を構築するファクトリ関数。
@@ -182,12 +193,16 @@ Layer 0: Cat/Glue (Optional)
 -/
 namespace Layer0_Glue
 
+open Layer3_Rank Layer1_Selection
+
+variable {ι α : Type*} [CompleteLattice α]
+
 /--
 GC と 構造塔の整合性チェック (Meta-property)。
 生成された塔において、layer n の要素は「n個以下の生成元で生成可能」であることの確認。
 -/
 example (l : Set ι → α) (h_fg : ∀ x, ∃ S : Finset ι, l S = x) (n : ℕ) (x : α) :
-    x ∈ (Layer1_Selection.buildGenTower l h_fg).layer n ↔
+    x ∈ (buildGenTower l h_fg).layer n ↔
     ∃ S : Finset ι, S.card ≤ n ∧ l S = x := by
   -- StructureTowerWithMin の仕様 (layer n = {x | ρ x ≤ n}) に基づく
   change rankGen l x ≤ n ↔ _
@@ -197,7 +212,13 @@ example (l : Set ι → α) (h_fg : ∀ x, ∃ S : Finset ι, l S = x) (n : ℕ)
     sorry -- Proof of logic utilizing properties of sInf in WithTop ℕ
   · intro h
     obtain ⟨S, hcard, hgen⟩ := h
-    apply le_trans (rankGen_finite_of_fg l x ⟨S, hgen⟩)
-    exact WithTop.coe_le_coe.mpr hcard
+    have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+      use S, le_rfl, hgen
+    have h_bdd : BddBelow {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
+      use ⊥
+      intro y hy
+      exact bot_le
+    have h_le : rankGen l x ≤ (S.card : WithTop ℕ) := csInf_le h_bdd h_mem
+    exact le_trans h_le (WithTop.coe_le_coe.mpr hcard)
 
 end Layer0_Glue
