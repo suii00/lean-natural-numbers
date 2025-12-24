@@ -223,7 +223,19 @@ def finsetUpperCl (S : Set (Finset α)) : Set (Finset α) :=
     ∅
 
 theorem finsetUpperCl_mono : Monotone (fun S => finsetUpperCl (α := α) S) := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  intro S T hST
+  by_cases hS : S.Nonempty
+  · have hT : T.Nonempty := by
+      rcases hS with ⟨U, hU⟩
+      exact ⟨U, hST hU⟩
+    intro x hx
+    rcases (by
+      simpa [finsetUpperCl, hS] using hx) with ⟨U, hU, hxU⟩
+    have hU' : U ∈ T := hST hU
+    exact (by
+      simpa [finsetUpperCl, hT] using ⟨U, hU', hxU⟩)
+  · simp [finsetUpperCl, hS]
 
 theorem finsetUpperCl_le (S : Set (Finset α)) : S ⊆ finsetUpperCl S := by
   sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
