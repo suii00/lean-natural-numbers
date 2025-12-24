@@ -222,6 +222,11 @@ def finsetUpperCl (S : Set (Finset α)) : Set (Finset α) :=
   else
     ∅
 
+private theorem mem_finsetUpperCl_iff {S : Set (Finset α)} {T : Finset α}
+    (hS : S.Nonempty) :
+    T ∈ finsetUpperCl (α := α) S ↔ ∃ U ∈ S, T ⊆ U := by
+  simp [finsetUpperCl, hS]
+
 theorem finsetUpperCl_mono : Monotone (fun S => finsetUpperCl (α := α) S) := by
   classical
   intro S T hST
@@ -250,7 +255,33 @@ theorem finsetUpperCl_le (S : Set (Finset α)) : S ⊆ finsetUpperCl S := by
 
 theorem finsetUpperCl_idem (S : Set (Finset α)) :
     finsetUpperCl (finsetUpperCl S) = finsetUpperCl S := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  by_cases hS : S.Nonempty
+  ·
+    have hFS : (finsetUpperCl (α := α) S).Nonempty := by
+      set U : Finset α := Classical.choose hS with hUdef
+      have hU : U ∈ S := by
+        simpa [hUdef] using (Classical.choose_spec hS)
+      exact ⟨U, finsetUpperCl_le (S := S) hU⟩
+    ext T
+    constructor
+    · intro hT
+      have hT' : ∃ U ∈ finsetUpperCl (α := α) S, T ⊆ U :=
+        (mem_finsetUpperCl_iff (α := α)
+            (S := finsetUpperCl (α := α) S) (T := T) hFS).1 hT
+      rcases hT' with ⟨U, hU, hTU⟩
+      have hU'' : ∃ V ∈ S, U ⊆ V :=
+        (mem_finsetUpperCl_iff (α := α) (S := S) (T := U) hS).1 hU
+      rcases hU'' with ⟨V, hV, hUV⟩
+      have hTV : T ⊆ V := fun x hx => hUV (hTU hx)
+      have : ∃ V ∈ S, T ⊆ V := ⟨V, hV, hTV⟩
+      exact (mem_finsetUpperCl_iff (α := α) (S := S) (T := T) hS).2 this
+    · intro hT
+      exact finsetUpperCl_le (S := finsetUpperCl (α := α) S) hT
+  ·
+    have hFS : finsetUpperCl (α := α) S = ∅ := by
+      simp [finsetUpperCl, hS]
+    simp [hFS, finsetUpperCl, hS]
 
 /-- Finset の閉包作用素 -/
 def finsetUpperClosureOp : ClosureOp (Finset α) where
