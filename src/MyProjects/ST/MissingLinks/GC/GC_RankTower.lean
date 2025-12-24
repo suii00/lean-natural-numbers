@@ -4,7 +4,7 @@ import Mathlib.Data.Set.Lattice
 -- プロジェクトファイルのインポート
 -- import MyProjects.ST.RankCore.Basic
 -- import MyProjects.ST.Rank.P3.RankTower
--- import MyProjects.ST.Rank.P3.ToTowerWithMin
+-- import MyProjects.ST.RankCore.Bridge.ToTowerWithMin
 
 -- 一時的にスタンドアロン版として実装
 -- 実際の統合時には上記インポートを使用
@@ -46,7 +46,7 @@ variable {α : Type*} {X : Type*}
 def layer [Preorder α] (R : Ranked α X) (n : α) : Set X :=
   {x | R.rank x ≤ n}
 
-@[simp] 
+@[simp]
 theorem mem_layer_iff [Preorder α] (R : Ranked α X) (n : α) (x : X) :
     x ∈ R.layer n ↔ R.rank x ≤ n := Iff.rfl
 
@@ -106,7 +106,7 @@ def StabilizesAt (s : Set X) (n : ℕ) : Prop :=
   C.iter n s = C.iter (n + 1) s
 
 noncomputable def rankStab (s : Set X) : WithTop ℕ :=
-  if h : ∃ n, C.StabilizesAt s n 
+  if h : ∃ n, C.StabilizesAt s n
   then ↑(Nat.find h)
   else ⊤
 
@@ -124,16 +124,24 @@ noncomputable def rankedFromElemRank (C : ClosureOp X) (s₀ : Set X) :
   rank := fun x => elemRank C x s₀
 
 /-- [Finite X条件下] elemRank は有限 -/
-theorem elemRank_ne_top_of_finite [Finite X] (C : ClosureOp X) 
-    (x : X) (s₀ : Set X) :
+theorem elemRank_ne_top_of_finite [Finite X] (C : ClosureOp X)
+    (x : X) (s₀ : Set X) (hreach : ∃ m, x ∈ C.iter m s₀) :
     ∃ n : ℕ, elemRank C x s₀ ≤ n := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  rcases hreach with ⟨m, hm⟩
+  refine ⟨m, ?_⟩
+  have hm' :
+      ((m : ℕ) : WithTop ℕ) ∈
+        {n : WithTop ℕ | ∃ m : ℕ, n = m ∧ x ∈ C.iter m s₀} := by
+    exact ⟨m, rfl, hm⟩
+  simpa [elemRank] using (sInf_le hm')
 
 /-- [Finite X条件下] TowerWithTop を構成 -/
-noncomputable def towerFromClosure [Finite X] (C : ClosureOp X) (s₀ : Set X) :
+noncomputable def towerFromClosure [Finite X] (C : ClosureOp X) (s₀ : Set X)
+    (hcover : ∀ x, ∃ m, x ∈ C.iter m s₀) :
     TowerWithTop X where
   rank := fun x => elemRank C x s₀
-  covering := fun x => elemRank_ne_top_of_finite C x s₀
+  covering := fun x => elemRank_ne_top_of_finite C x s₀ (hcover x)
 
 end FromClosure
 
@@ -154,7 +162,7 @@ theorem natUpperCl_mono : Monotone natUpperCl := by
 theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
   sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
-theorem natUpperCl_idem (s : Set ℕ) : 
+theorem natUpperCl_idem (s : Set ℕ) :
     natUpperCl (natUpperCl s) = natUpperCl s := by
   sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
@@ -213,7 +221,7 @@ theorem finsetUpperCl_mono : Monotone (fun S => finsetUpperCl (α := α) S) := b
 theorem finsetUpperCl_le (S : Set (Finset α)) : S ⊆ finsetUpperCl S := by
   sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
-theorem finsetUpperCl_idem (S : Set (Finset α)) : 
+theorem finsetUpperCl_idem (S : Set (Finset α)) :
     finsetUpperCl (finsetUpperCl S) = finsetUpperCl S := by
   sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
 
@@ -274,7 +282,7 @@ section IntegrationPattern
 /-
 既存の RankTower.lean の towerFromRank パターンとの統合例：
 
-noncomputable def towerFromClosureRank 
+noncomputable def towerFromClosureRank
     (C : ClosureOp X) (s₀ : Set X) [Finite X] :
     StructureTowerWithMin where
   carrier := X
