@@ -26,6 +26,14 @@ variable {α β : Type*} [PartialOrder α] [Preorder β]
 /--
 Galois接続から閉包作用素 (Closure Operator) を構成する。
 これは標準的な構成 l ⊣ u ⇒ c = u ∘ l である。
+
+**重要**: 閉包は **左側 (α) に作られる**。
+- l : α → β は下随伴（"生成"方向）
+- u : β → α は上随伴（"忘却"方向）
+- u ∘ l : α → α が α 上の閉包作用素となる
+
+典型的用途：α = Set ι（生成元の集合）、β = Subobject X（部分対象の格子）のとき、
+u ∘ l は「生成元集合を生成閉包に送る」閉包作用素となる。
 -/
 def closureFromGC (l : α → β) (u : β → α) (gc : GaloisConnection l u) :
     ClosureOperator α where
@@ -74,13 +82,38 @@ variable {ι α : Type*} [CompleteLattice α]
 Rank Type 1: Generator Rank (rankGen)
 生成元 (Set ι) と対象 α の間の Galois接続 (l ⊣ u) があるとき、
 要素 x を生成する最小の有限集合のサイズをランクとする。
+
+注：この定義は生成関数 l のみに依存するが、典型的には l が GC の左随伴として
+与えられることを想定している（rankGenFromGC 参照）。
 -/
 noncomputable def rankGen (l : Set ι → α) (x : α) : WithTop ℕ :=
   sInf {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x}
 
 /--
+Galois接続から直接ランク関数を導出する（GC → Rank の接着点）。
+
+GC の左随伴 l : Set ι → α を用いて、「x を生成する最小の有限集合のサイズ」をランクとする。
+上随伴 u : α → Set ι は、この定義では直接使われないが、GC の存在が l の性質
+（単調性、ある種の普遍性）を保証する理論的根拠となる。
+
+より強い変種として、u を活用した制約付き生成ランク：
+  rankGenGC x := sInf {n | ∃ S : Finset ι, S ⊆ u x ∧ card S ≤ n ∧ l S = x}
+も考えられる（u x が「x の候補生成元集合」を与える）。
+-/
+noncomputable def rankGenFromGC {α : Type*} [CompleteLattice α]
+    (l : Set ι → α) (u : α → Set ι) (gc : GaloisConnection l u) (x : α) : WithTop ℕ :=
+  rankGen l x
+
+/--
 Rank Type 2: Stabilization Rank (rankStab)
-PreClosureStep f に対して、f^[n] x が安定する（最小のステップ数。
+PreClosureStep f に対して、f^[n] x が安定する（不動点に達する）**最小のステップ数**。
+
+意味：単調拡大写像 f を反復適用したとき、f^[n](x) = f^[n+1](x) が初めて成立する n の値。
+- f が閉包作用素から来る場合、これは「閉包に到達するまでの段数」を測る
+- 構造塔の文脈では、「被覆段数」や「層の安定化段数」に対応する
+
+注：この rank は f の冪等性がない場合でも定義できるが、一般には ⊤（無限）になりうる。
+f が ClosureOperator から来る場合、1段で安定するため rankStab ≤ 1 となる。
 -/
 noncomputable def rankStab (f : PreClosureStep α) (x : α) : WithTop ℕ :=
   sInf {n : WithTop ℕ | ∃ m : ℕ, (m : WithTop ℕ) = n ∧ f.toFun^[m] x = f.toFun^[m + 1] x}
@@ -208,8 +241,27 @@ example (l : Set ι → α) (h_fg : ∀ x, ∃ S : Finset ι, l S = x) (n : ℕ)
   change rankGen l x ≤ n ↔ _
   constructor
   · intro h
-    -- rankGenの定義より、inf S ≤ n ならば... (ここは詳細なlatticeの性質が必要)
-    sorry -- Proof of logic utilizing properties of sInf in WithTop ℕ
+    -- rankGen l x ≤ n から、生成集合の存在を導く
+    --
+    -- 理論的注記（Bourbaki の精神による分析）：
+    -- rankGen := sInf {m | ∃ S, card S ≤ m ∧ l S = x}
+    -- この集合は上方閉（upward closed）：m ∈ S かつ m ≤ m' ならば m' ∈ S
+    --
+    -- 命題：上方閉集合 T ⊆ WithTop ℕ に対し、sInf T < ⊤ ならば sInf T ∈ T
+    -- 証明骨子：WithTop ℕ は well-ordered で離散的。sInf T = k < ⊤ とすると、
+    --   (a) k が下界：∀ t ∈ T, k ≤ t
+    --   (b) k より大きい任意の m に対し、m は下界でない：∃ t ∈ T, t < m
+    --   特に k+1 は下界でないから、ある t ∈ T で t ≤ k
+    --   (a) より k ≤ t だから t = k、すなわち k ∈ T
+    --
+    -- この補題を直接 Lean で証明するには、WithTop ℕ の順序構造の詳細な性質が必要。
+    -- 現在の sInf ベースの定義では、この gap を埋めるのは技術的に複雑。
+    --
+    -- **改善の方向性**（レビュー指摘の通り）：
+    -- - rankGen を Nat.find ベースで再定義すると、この同値は構成的に証明可能
+    -- - または、Index = WithTop ℕ の塔レーンを別途用意し、layer の定義を
+    --   直接「生成集合の存在」に基づかせることで、この gap を回避できる
+    sorry
   · intro h
     obtain ⟨S, hcard, hgen⟩ := h
     have h_mem : (S.card : WithTop ℕ) ∈ {n : WithTop ℕ | ∃ S : Finset ι, (S.card : WithTop ℕ) ≤ n ∧ l S = x} := by
