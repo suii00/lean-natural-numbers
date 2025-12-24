@@ -151,13 +151,12 @@ section NatUpperExample
 
 /-- 自然数集合の上界閉包 -/
 def natUpperCl (s : Set ℕ) : Set ℕ :=
-  if _h : s.Nonempty ∧ BddAbove s then
-    {n : ℕ | n ≤ sSup s}
-  else
-    s
+  {n : ℕ | ∃ m ∈ s, n ≤ m}
 
 theorem natUpperCl_mono : Monotone natUpperCl := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  intro s t hst x hx
+  rcases hx with ⟨m, hm, hxm⟩
+  exact ⟨m, hst hm, hxm⟩
 
 theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
   sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
