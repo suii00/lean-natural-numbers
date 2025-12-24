@@ -159,7 +159,8 @@ theorem natUpperCl_mono : Monotone natUpperCl := by
   exact ⟨m, hst hm, hxm⟩
 
 theorem natUpperCl_le (s : Set ℕ) : s ⊆ natUpperCl s := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  intro x hx
+  exact ⟨x, hx, le_rfl⟩
 
 theorem natUpperCl_idem (s : Set ℕ) :
     natUpperCl (natUpperCl s) = natUpperCl s := by
