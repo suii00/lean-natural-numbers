@@ -238,7 +238,15 @@ theorem finsetUpperCl_mono : Monotone (fun S => finsetUpperCl (α := α) S) := b
   · simp [finsetUpperCl, hS]
 
 theorem finsetUpperCl_le (S : Set (Finset α)) : S ⊆ finsetUpperCl S := by
-  sorry -- TODO: reason="proof pending", follow_up="formalize in mathlib"
+  classical
+  intro T hT
+  by_cases hS : S.Nonempty
+  ·
+    simpa [finsetUpperCl, hS] using
+      (show ∃ U ∈ S, T ⊆ U from ⟨T, hT, by simp⟩)
+  ·
+    have : False := hS ⟨T, hT⟩
+    simpa [finsetUpperCl, hS] using this
 
 theorem finsetUpperCl_idem (S : Set (Finset α)) :
     finsetUpperCl (finsetUpperCl S) = finsetUpperCl S := by
