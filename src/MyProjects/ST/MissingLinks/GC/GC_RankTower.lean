@@ -213,7 +213,7 @@ end NatUpperExample
 
 section FinsetPowerExample
 
-variable {α : Type*} [DecidableEq α]
+variable {α : Type*}
 
 /-- Finset の包含閉包（上界） -/
 def finsetUpperCl (S : Set (Finset α)) : Set (Finset α) :=
