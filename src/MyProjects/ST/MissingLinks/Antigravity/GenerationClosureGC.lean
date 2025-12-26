@@ -365,11 +365,38 @@ open WithTop
 /-- **Finset integration**: `rankTop (↑s) = ↑(rankFinNat s)`
 
 This establishes that Lane C and Lane B agree for finite sets.
-TODO: Complete proof (requires Finset.sup ↔ sSup correspondence).
 -/
 theorem rankTop_coe_finset (s : Finset ℕ) :
     rankTop (↑s : Set ℕ) = (rankFinNat s : WithTop ℕ) := by
-  sorry
+  by_cases hs : s.Nonempty
+  · -- Nonempty case: prove by le_antisymm
+    unfold rankTop rankFinNat minLayerTop minLayerNat
+    apply le_antisymm
+    · -- sSup ≤ ↑(s.sup id): each element of image is ≤ sup
+      apply sSup_le
+      rintro j ⟨x, hx, rfl⟩
+      simp only [Finset.mem_coe] at hx
+      exact coe_le_coe.mpr (Finset.le_sup (f := fun x => x) hx)
+    · -- ↑(s.sup id) ≤ sSup: show max' is in the image
+      -- Use that s.max' hs ∈ s and s.max' hs = s.sup id for ℕ
+      have hmem : s.max' hs ∈ s := Finset.max'_mem s hs
+      have hle_max : ∀ x ∈ s, x ≤ s.max' hs := fun x hx => Finset.le_max' s x hx
+      have hmax_le_sup : s.max' hs ≤ s.sup (fun x => x) := by
+        apply Finset.le_sup (f := fun x => x) hmem
+      have hsup_le_max : s.sup (fun x => x) ≤ s.max' hs := by
+        apply Finset.sup_le
+        intro x hx
+        exact hle_max x hx
+      have heq : s.sup (fun x => x) = s.max' hs := le_antisymm hsup_le_max hmax_le_sup
+      rw [heq]
+      apply le_sSup
+      simp only [Set.mem_image, Finset.mem_coe]
+      exact ⟨s.max' hs, hmem, rfl⟩
+  · -- Empty case
+    simp only [Finset.not_nonempty_iff_eq_empty] at hs
+    subst hs
+    simp only [Finset.coe_empty, rankTop_empty, rankFinNat_empty]
+    rfl
 
 /-- **Closure integration**: `closureTop (↑s) = closureFinNat s` -/
 theorem closureTop_coe_finset (s : Finset ℕ) :
