@@ -76,9 +76,6 @@ noncomputable def spanClosureOp : ClosureOperator (Set V) where
       have hs : s ⊆ (Submodule.span K s : Set V) := Submodule.subset_span
       exact Submodule.span_mono hs hx
 
--- Verification: DoD-1 is satisfied
-#check @span_gc  -- GaloisConnection instance exists
-#check @spanClosureOp  -- ClosureOperator instance exists
 
 end LinearSpanGC
 
@@ -96,37 +93,34 @@ section LinearSpanTower
 
 open StructureTowerWithMin
 
-/-- The type of 2D rational vectors -/
-abbrev Vec2Q := ℚ × ℚ
+/-- The type of 2D rational vectors (alias of existing definition) -/
+abbrev Vec2Q := ClosureTowerExample.Vec2Q
 
-/-- Minimum basis count: number of standard basis vectors needed to generate v
+/-- Minimum basis count: number of standard basis vectors needed to generate v.
+
+This is an alias of `ClosureTowerExample.minBasisCount` for direct re-use.
 
 - 0 if v = (0, 0)
 - 1 if v is on an axis (one coordinate is 0)
 - 2 if v is in general position (both coordinates nonzero)
 -/
-noncomputable def minBasisCount (v : Vec2Q) : ℕ :=
-  if v.1 = 0 ∧ v.2 = 0 then 0
-  else if v.1 = 0 ∨ v.2 = 0 then 1
-  else 2
+noncomputable abbrev minBasisCount := ClosureTowerExample.minBasisCount
 
--- Basic properties of minBasisCount
-theorem minBasisCount_zero : minBasisCount (0, 0) = 0 := by
-  simp [minBasisCount]
+-- Re-export basic properties from existing module
+-- Note: Vec2Q.zero = (0, 0), e₁ = (1, 0), e₂ = (0, 1) by definition
+theorem minBasisCount_zero : minBasisCount (0, 0) = 0 :=
+  ClosureTowerExample.minBasisCount_zero  -- Vec2Q.zero = (0, 0) definitionally
 
-theorem minBasisCount_e1 : minBasisCount (1, 0) = 1 := by
-  simp [minBasisCount]
+theorem minBasisCount_e1 : minBasisCount (1, 0) = 1 :=
+  ClosureTowerExample.minBasisCount_e1  -- e₁ = (1, 0) definitionally
 
-theorem minBasisCount_e2 : minBasisCount (0, 1) = 1 := by
-  simp [minBasisCount]
+theorem minBasisCount_e2 : minBasisCount (0, 1) = 1 :=
+  ClosureTowerExample.minBasisCount_e2  -- e₂ = (0, 1) definitionally
 
 theorem minBasisCount_general {a b : ℚ} (ha : a ≠ 0) (hb : b ≠ 0) :
-    minBasisCount (a, b) = 2 := by
-  simp [minBasisCount, ha, hb]
+    minBasisCount (a, b) = 2 :=
+  ClosureTowerExample.minBasisCount_general a b ha hb
 
-theorem minBasisCount_le_two (v : Vec2Q) : minBasisCount v ≤ 2 := by
-  simp only [minBasisCount]
-  split_ifs <;> omega
 
 /-- The linear span tower for ℚ²
 
@@ -169,23 +163,28 @@ theorem linearSpanTower_mem_layer_iff (v : Vec2Q) (n : ℕ) :
 
 -- Verification examples: DoD-2 is satisfied
 
--- Layer structure (using explicit Nat type annotations)
+-- Layer structure
 example : ((0 : ℚ), (0 : ℚ)) ∈ linearSpanTower.layer (0 : ℕ) := by
-  simp only [linearSpanTower, Set.mem_setOf_eq, minBasisCount_zero, le_refl]
+  show minBasisCount (0, 0) ≤ 0
+  simp only [minBasisCount_zero, le_refl]
 
 example : ((1 : ℚ), (0 : ℚ)) ∈ linearSpanTower.layer (1 : ℕ) := by
-  simp only [linearSpanTower, Set.mem_setOf_eq, minBasisCount_e1, le_refl]
+  show minBasisCount (1, 0) ≤ 1
+  simp only [minBasisCount_e1, le_refl]
 
 example : ((0 : ℚ), (1 : ℚ)) ∈ linearSpanTower.layer (1 : ℕ) := by
-  simp only [linearSpanTower, Set.mem_setOf_eq, minBasisCount_e2, le_refl]
+  show minBasisCount (0, 1) ≤ 1
+  simp only [minBasisCount_e2, le_refl]
 
 example : ¬ ((1 : ℚ), (1 : ℚ)) ∈ linearSpanTower.layer (1 : ℕ) := by
-  simp only [linearSpanTower, Set.mem_setOf_eq, not_le]
-  simp [minBasisCount]
+  show ¬ (minBasisCount (1, 1) ≤ 1)
+  simp only [minBasisCount_general (by norm_num : (1 : ℚ) ≠ 0) (by norm_num : (1 : ℚ) ≠ 0)]
+  norm_num
 
 example : ((1 : ℚ), (1 : ℚ)) ∈ linearSpanTower.layer (2 : ℕ) := by
-  simp only [linearSpanTower, Set.mem_setOf_eq]
-  simp [minBasisCount]
+  show minBasisCount (1, 1) ≤ 2
+  simp only [minBasisCount_general (by norm_num : (1 : ℚ) ≠ 0) (by norm_num : (1 : ℚ) ≠ 0), le_refl]
+
 
 -- minLayer computation
 example : minBasisCount ((0 : ℚ), (0 : ℚ)) = 0 := minBasisCount_zero
@@ -213,27 +212,19 @@ theorem Vec2Q_eq_existing : Vec2Q = ClosureTowerExample.Vec2Q := rfl
 /-- **Core identity theorem**: `ST.minBasisCount` is identical to the existing
 `ClosureTowerExample.minBasisCount` from `MyProjects.ST.Closure.P1.Basic`.
 
-This proves that DoD-2 is satisfied by **re-using** (not just re-implementing)
-the established minLayer example definition.
+Since `minBasisCount` is defined as an alias, this is trivially `rfl`.
 -/
 theorem minBasisCount_eq_existing :
-    ∀ v : Vec2Q, minBasisCount v = ClosureTowerExample.minBasisCount v := by
-  intro v
-  rfl  -- Both are definitionally equal (same if-then-else structure)
+    ∀ v : Vec2Q, minBasisCount v = ClosureTowerExample.minBasisCount v :=
+  fun _ => rfl
 
 /-- Layer membership is equivalent between our tower and the concept from existing module -/
 theorem linearSpanTower_layer_eq_existing (n : ℕ) :
-    linearSpanTower.layer n = {v : Vec2Q | ClosureTowerExample.minBasisCount v ≤ n} := by
-  ext v
-  simp only [linearSpanTower, Set.mem_setOf_eq]
-  rw [← minBasisCount_eq_existing v]
+    linearSpanTower.layer n = {v : Vec2Q | ClosureTowerExample.minBasisCount v ≤ n} := rfl
 
 /-- The minLayer function of our tower equals the existing minBasisCount -/
 theorem linearSpanTower_minLayer_eq_existing :
-    linearSpanTower.minLayer = ClosureTowerExample.minBasisCount := by
-  ext v
-  simp only [linearSpanTower]
-  exact minBasisCount_eq_existing v
+    linearSpanTower.minLayer = ClosureTowerExample.minBasisCount := rfl
 
 end LinearSpanTower
 
