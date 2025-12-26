@@ -1,23 +1,12 @@
-﻿✖ [592/593] Running Mathlib.Data.Finset.Lattice
-error: no such file or directory (error code: 2)
-  file: C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\mathlib\Mathlib\Data\Finset\Lattice.lean
-✖ [593/593] Running MyProjects.ST.MissingLinks.Antigravity.GenerationClosureGC
-error: src\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.lean: bad import 'Mathlib.Data.Finset.Lattice'
+✖ [782/782] Building MyProjects.ST.MissingLinks.Antigravity.GenerationClosureGC (5.6s)
+trace: .> LEAN_PATH=C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\Cli\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\batteries\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\Qq\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\aesop\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\proofwidgets\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\importGraph\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\LeanSearchClient\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\plausible\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\mathlib\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\build\lib\lean c:\Users\swan0\.elan\toolchains\leanprover--lean4---v4.25.2\bin\lean.exe C:\Users\swan0\repo\lean-natural-numbers\src\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.lean -o C:\Users\swan0\repo\lean-natural-numbers\.lake\build\lib\lean\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.olean -i C:\Users\swan0\repo\lean-natural-numbers\.lake\build\lib\lean\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.ilean -c C:\Users\swan0\repo\lean-natural-numbers\.lake\build\ir\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.c --setup C:\Users\swan0\repo\lean-natural-numbers\.lake\build\ir\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.setup.json --json
+error: src/MyProjects/ST/MissingLinks/Antigravity/GenerationClosureGC.lean:250:2: Type mismatch
+  rankFinNat_le_iff {1, 2} 3
+has type
+  rankFinNat {1, 2} ≤ 3 ↔ ↑{1, 2} ⊆ layerNat 3
+but is expected to have type
+  rankFinNat {1, 2} ≤ 3 ↔ {1, 2} ⊆ layerNat 3
+error: Lean exited with code 1
 Some required targets logged failures:
-- Mathlib.Data.Finset.Lattice
 - MyProjects.ST.MissingLinks.Antigravity.GenerationClosureGC
-lake : error: build failed
-At line:1 char:20
-+ ... ./../../..; lake build
- MyProjects.ST.MissingLinks.
-Antigravity.Generat ...
-+                 ~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          
-    : NotSpecified: (error  
-  : build failed:String)    
- [], RemoteException
-    + FullyQualifiedErrorId 
-    : NativeCommandError
- 
+error: build failed
