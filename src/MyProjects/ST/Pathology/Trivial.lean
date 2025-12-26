@@ -72,7 +72,9 @@ theorem singletonLayer_fails_monotone :
   have h01 : singletonLayer 0 ⊆ singletonLayer 1 := h (Nat.zero_le 1)
   have h0_in : (0 : ℕ) ∈ singletonLayer 0 := rfl
   have h0_in_1 : (0 : ℕ) ∈ singletonLayer 1 := h01 h0_in
-  simp only [singletonLayer, mem_singleton_iff] at h0_in_1
+  -- h0_in_1 : 0 ∈ {1} means 0 = 1, which is false
+  change (0 : ℕ) = 1 at h0_in_1
+  exact absurd h0_in_1 (by decide)
 
 /-!
 ## 3. thresholdTower
@@ -103,14 +105,10 @@ theorem thresholdLayer_covering : ∀ x : ℕ, ∃ i : ℕ, x ∈ thresholdLayer
 theorem thresholdLayer_monotone :
     ∀ {i j : ℕ}, i ≤ j → thresholdLayer i ⊆ thresholdLayer j := by
   intro i j hij x hx
-  simp only [thresholdLayer] at hx ⊢
+  unfold thresholdLayer at hx ⊢
   split_ifs at hx ⊢ with hj hi
-  · trivial
-  · simp only [mem_setOf_eq] at hx ⊢
-    omega
-  · omega
-  · simp only [mem_setOf_eq] at hx ⊢
-    omega
+  all_goals simp_all only [mem_univ, mem_setOf_eq]
+  all_goals omega
 
 /-!
 ## 4. intAbsTower
@@ -137,8 +135,10 @@ theorem intAbsLayer_monotone :
   omega
 
 /-- minLayer の所属性 -/
-theorem intAbsMinLayer_mem : ∀ x : ℤ, x ∈ intAbsLayer (intAbsMinLayer x) :=
-  fun _ => le_refl _
+theorem intAbsMinLayer_mem : ∀ x : ℤ, x ∈ intAbsLayer (intAbsMinLayer x) := by
+  intro x
+  simp only [intAbsLayer, intAbsMinLayer, mem_setOf_eq]
+  exact le_refl _
 
 /-- minLayer の最小性 -/
 theorem intAbsMinLayer_minimal :
@@ -170,7 +170,9 @@ theorem codepthLayer_covering : ∀ x : ℕ, ∃ i : ℕ, x ∈ codepthLayer i :
 def codepthMinLayer : ℕ → ℕ := id
 
 /-- minLayer の所属性 -/
-theorem codepthMinLayer_mem : ∀ x : ℕ, x ∈ codepthLayer (codepthMinLayer x) :=
-  fun _ => le_refl _
+theorem codepthMinLayer_mem : ∀ x : ℕ, x ∈ codepthLayer (codepthMinLayer x) := by
+  intro x
+  simp only [codepthLayer, codepthMinLayer, id_eq, mem_setOf_eq]
+  exact le_refl _
 
 end Pathology.Trivial

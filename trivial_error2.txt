@@ -1,0 +1,6 @@
+src/MyProjects/ST/Pathology/Trivial.lean:70:68: error: unsolved goals
+h : ∀ {i j : ℕ}, i ≤ j → singletonLayer i ⊆ singletonLayer j
+h01 : singletonLayer 0 ⊆ singletonLayer 1
+h0_in : 0 ∈ singletonLayer 0
+h0_in_1 : 0 ∈ {1}
+⊢ False

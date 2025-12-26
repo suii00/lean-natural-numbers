@@ -1,0 +1,30 @@
+src/MyProjects/ST/Pathology/Trivial.lean:75:29: error(lean.unknownIdentifier): Unknown identifier `mem_singleton_iff`
+src/MyProjects/ST/Pathology/Trivial.lean:70:68: error: unsolved goals
+h : ∀ {i j : ℕ}, i ≤ j → singletonLayer i ⊆ singletonLayer j
+h01 : singletonLayer 0 ⊆ singletonLayer 1
+h0_in : 0 ∈ singletonLayer 0
+h0_in_1 : 0 ∈ {1}
+⊢ False
+src/MyProjects/ST/Pathology/Trivial.lean:110:4: error: omega could not prove the goal:
+a possible counterexample may satisfy the constraints
+  c ≥ 0
+  0 ≤ b ≤ 9
+  b - c ≥ 0
+  a ≥ 10
+  a - b ≥ 0
+where
+ a := ↑j
+ b := ↑i
+ c := ↑x
+src/MyProjects/ST/Pathology/Trivial.lean:141:11: error: Type mismatch
+  le_refl ?m.7
+has type
+  ?m.7 ≤ ?m.7
+but is expected to have type
+  x✝ ∈ intAbsLayer (intAbsMinLayer x✝)
+src/MyProjects/ST/Pathology/Trivial.lean:174:11: error: Type mismatch
+  le_refl ?m.7
+has type
+  ?m.7 ≤ ?m.7
+but is expected to have type
+  x✝ ∈ codepthLayer (codepthMinLayer x✝)
