@@ -1,0 +1,481 @@
+\documentclass[a4paper,12pt]{ltjsarticle}
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathmorphing}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% 定理環境
+\newtheorem{definition}{定義}[section]
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{example}[definition]{例}
+\newtheorem{remark}[definition]{注意}
+
+% コマンド
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Lean}[1]{\texttt{\color{blue}#1}}
+\newcommand{\Layer}[1]{\textbf{Layer #1}}
+
+\title{Galois接続からランク塔へ:\\構造塔の生成理論}
+\author{
+  \textbf{Leanコード生成}: Codex (OpenAI) \\
+  \textbf{数学解説作成}: Claude Code (Anthropic)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、Galois接続（随伴）から出発して、閉包作用素を経由し、最終的にランク関数と構造塔（\texttt{StructureTowerWithMin}）を構成する理論的フレームワークを解説する。この構成は、代数構造の生成理論、順序理論、圏論（モナド）、そして確率論における濾過・停止時刻の理論を統一的に扱う基盤を提供する。
+
+形式化は Lean 4 で実装され（\Lean{GenRankTower.lean}）、4層のアーキテクチャ（Layer 4 $\to$ Layer 0）により段階的に構成される。各層の数学的意味、Lean実装との対応、および核心となる補題 \Lean{rankGen\_le\_iff\_exists} の証明戦略を詳述する。
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+\section{導入：Galois接続から構造塔への橋渡し}
+
+\subsection{動機と背景}
+
+代数学において、「生成」という概念は基本的である。例えば：
+\begin{itemize}
+  \item 群論：部分集合 $S$ が生成する部分群 $\langle S \rangle$
+  \item 環論：イデアル生成 $I = (a_1, \ldots, a_n)$
+  \item 格子論：生成閉包 $\mathrm{cl}(S)$
+\end{itemize}
+
+これらはすべて、ある種の \textbf{Galois接続}（随伴）の枠組みで統一的に理解できる：
+\[
+\begin{tikzcd}
+  \text{Set } \iota \arrow[r, shift left, "l"] & \alpha \arrow[l, shift left, "u"]
+\end{tikzcd}
+\quad (l \dashv u)
+\]
+ここで $l : \mathrm{Set}\, \iota \to \alpha$ は「生成」、$u : \alpha \to \mathrm{Set}\, \iota$ は「underlying集合への忘却」を表す。
+
+本フレームワークの目的は、このGalois接続から出発して、
+\begin{enumerate}
+  \item 閉包作用素 $c := u \circ l : \alpha \to \alpha$ を導出し、
+  \item ランク関数 $\rho : \alpha \to \N \cup \{\infty\}$ を定義し（生成元の最小濃度）、
+  \item 構造塔 $\{\text{layer}\, n\}_{n \in \N}$ を構成する（$\text{layer}\, n = \{x \mid \rho(x) \le n\}$）
+\end{enumerate}
+という3段階の導出を厳密に形式化することである。
+
+\subsection{Lean実装の層構造}
+
+\Lean{GenRankTower.lean} は以下の4層アーキテクチャで構成される：
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, draw, minimum width=8cm, minimum height=1.2cm, align=center, fill=blue!10},
+  arrow/.style={-Stealth, thick}
+]
+  \node[box] (L4) at (0,0) {\Layer{4}: \texttt{closureFromGC} \\ Galois接続 $\to$ 閉包作用素};
+  \node[box, below=0.5cm of L4] (L3) {\Layer{3}: \texttt{rankGen}, \texttt{rankStab} \\ 閉包/生成 $\to$ ランク関数};
+  \node[box, below=0.5cm of L3] (L2) {\Layer{2}: \texttt{towerFromRankWithCondition} \\ ランク関数 $\to$ 構造塔 (WithTop版)};
+  \node[box, below=0.5cm of L2] (L1) {\Layer{1}: \texttt{buildGenTower} \\ 有限生成性 $\to$ StructureTowerWithMin};
+  \node[box, below=0.5cm of L1, fill=green!10] (L0) {\Layer{0}: \texttt{rankGen\_le\_iff\_exists} \\ 核心補題（Nat.find による最小値構成）};
+
+  \draw[arrow] (L4) -- (L3);
+  \draw[arrow] (L3) -- (L2);
+  \draw[arrow] (L2) -- (L1);
+  \draw[arrow] (L1) -- (L0);
+\end{tikzpicture}
+\end{center}
+
+以下、各層の数学的内容を詳述する。
+
+\section{Layer 4: Galois接続と閉包作用素}
+
+\subsection{Galois接続の復習}
+
+\begin{definition}[Galois接続]
+半順序集合 $(\alpha, \le_\alpha)$, $(\beta, \le_\beta)$ 間の写像 $l : \alpha \to \beta$, $u : \beta \to \alpha$ が \textbf{Galois接続} (Galois connection) を成すとは：
+\[
+  \forall x \in \alpha,\, y \in \beta,\quad l(x) \le_\beta y \iff x \le_\alpha u(y)
+\]
+が成り立つことを言う。記法：$l \dashv u$ （$l$ が左随伴、$u$ が右随伴）。
+\end{definition}
+
+\begin{proposition}[Galois接続の基本性質]
+$l \dashv u$ のとき、以下が成り立つ：
+\begin{enumerate}
+  \item $l, u$ はともに単調（\Lean{gc.monotone\_l}, \Lean{gc.monotone\_u}）
+  \item \textbf{unit}: $\mathrm{id}_\alpha \le u \circ l$ （すなわち $\forall x,\, x \le u(l(x))$）\quad (\Lean{gc.le\_u\_l})
+  \item \textbf{counit}: $l \circ u \le \mathrm{id}_\beta$ （すなわち $\forall y,\, l(u(y)) \le y$）\quad (\Lean{gc.l\_u\_le})
+\end{enumerate}
+\end{proposition}
+
+\subsection{閉包作用素への導出}
+
+\begin{definition}[閉包作用素 from GC]
+Galois接続 $l : \alpha \to \beta \dashv u : \beta \to \alpha$ が与えられたとき、合成
+\[
+  c := u \circ l : \alpha \to \alpha
+\]
+は $\alpha$ 上の \textbf{閉包作用素} (closure operator) を定める。
+\end{definition}
+
+\begin{proposition}[閉包作用素の公理検証]
+上記 $c = u \circ l$ は以下を満たす：
+\begin{enumerate}
+  \item \textbf{単調性}: $x \le y \Rightarrow c(x) \le c(y)$
+  \item \textbf{拡大性}: $x \le c(x)$
+  \item \textbf{冪等性}: $c(c(x)) = c(x)$
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+\begin{enumerate}
+  \item Galois接続の単調性から明らか。
+  \item unit $x \le u(l(x))$ より従う。
+  \item 任意の $x$ に対し：
+  \begin{align*}
+    c(c(x)) &= u(l(u(l(x)))) \\
+    &\le u(l(x)) \quad \text{（counit $l(u(y)) \le y$ を $y = l(x)$ に適用し、$u$ で持ち上げ）} \\
+    &= c(x).
+  \end{align*}
+  逆向き（$c(x) \le c(c(x))$）は拡大性より自明。よって $c(c(x)) = c(x)$。\qedhere
+\end{enumerate}
+\end{proof}
+
+\begin{remark}[圏論的解釈：モナド構造]
+この構成は、随伴 $l \dashv u$ から誘導される \textbf{モナド} $T := u \circ l$ に他ならない：
+\begin{itemize}
+  \item 関手：$T : \alpha \to \alpha$
+  \item 単位：$\eta : \mathrm{id} \Rightarrow T$ （unit $x \le u(l(x))$）
+  \item 乗法：$\mu : T \circ T \Rightarrow T$ （counit から誘導）
+  \item モナド則（結合律・単位律）は Galois 接続の性質から自動的に成立
+\end{itemize}
+
+Lean実装：\Lean{closureFromGC} （\texttt{GenRankTower.lean:50}）
+\end{remark}
+
+\subsection{双対：余閉包作用素}
+
+合成の向きを逆にした $l \circ u : \beta \to \beta$ は、一般には \textbf{余閉包作用素} (co-closure operator) となる：
+\begin{itemize}
+  \item 単調性：✓
+  \item \textbf{縮小性}：$l(u(y)) \le y$ （counit）
+  \item 冪等性：同様に成立
+\end{itemize}
+
+本フレームワークでは、$\alpha$ 側の閉包作用素 $u \circ l$ に焦点を当てる（生成理論の文脈では $\alpha$ が対象の空間）。
+
+\section{Layer 3: ランク関数の導出}
+
+\subsection{生成元ランク（Generator Rank）}
+
+\begin{definition}[rankGen]
+Galois接続 $(l, u)$ において、$\alpha$ の要素 $x$ の \textbf{生成元ランク} を：
+\[
+  \mathrm{rankGen}_l(x) := \inf \left\{ n \in \N \cup \{\infty\} \mid \exists S : \mathrm{Finset}\, \iota,\, |S| \le n \land l(S) = x \right\}
+\]
+と定義する。すなわち、$x$ を生成する有限集合の濃度の下限。
+
+Lean実装：\Lean{rankGen} （\texttt{GenRankTower.lean:101}）
+\end{definition}
+
+\begin{remark}[型理論的詳細]
+Leanでは $\N \cup \{\infty\}$ を \texttt{WithTop ℕ} 型で表現し、\texttt{sInf} (条件付き下限) により下限を定義する。集合が空の場合は $\infty$ （\texttt{⊤}）を返す。
+\end{remark}
+
+\subsection{GC両辺を活用した定義（候補集合制約版）}
+
+\begin{definition}[rankGenFromGC]
+Galois接続の右随伴 $u$ も明示的に活用し：
+\[
+  \mathrm{rankGenFromGC}(x) := \inf \left\{ n \mid \exists S : \mathrm{Finset}\, \iota,\, S \subseteq u(x) \land |S| \le n \land l(S) = x \right\}
+\]
+と定義する。（制約 $S \subseteq u(x)$ を追加）
+
+Lean実装：\Lean{rankGenFromGC} （\texttt{GenRankTower.lean:118}）
+\end{definition}
+
+\begin{proposition}[両定義の同値性]
+任意の $x$ に対し、$\mathrm{rankGenFromGC}(x) = \mathrm{rankGen}(x)$。
+
+Lean証明：\Lean{rankGenFromGC\_eq\_rankGen} （\texttt{GenRankTower.lean:128-145}）
+\end{proposition}
+
+\begin{proof}
+$l(S) = x$ ならば、unit より $S \le u(l(S)) = u(x)$ が自動的に成立。よって制約 $S \subseteq u(x)$ は冗長であり、両定義の集合は一致する。
+\end{proof}
+
+\begin{remark}[導出の可視化]
+\texttt{rankGenFromGC} の意義は、理論的な冗長性にもかかわらず、
+\[
+  \text{GC} \xrightarrow{u(x)} \text{候補生成元集合} \xrightarrow{\text{最小化}} \text{ランク}
+\]
+という導出の鎖を明示的に表現することにある（API設計の意図）。
+\end{remark}
+
+\subsection{安定化ランク（Stabilization Rank）}
+
+閉包作用素が一般化されて「まだ冪等でない単調拡大写像」の場合を扱うための第2のランク概念：
+
+\begin{definition}[PreClosureStep]
+単調拡大写像 $f : \alpha \to \alpha$ （$f(x) \ge x$、単調）を \textbf{pre-closure step} と呼ぶ。
+
+Lean実装：\Lean{PreClosureStep} （\texttt{GenRankTower.lean:74}）
+\end{definition}
+
+\begin{definition}[rankStab]
+PreClosureStep $f$ に対し、$x$ の \textbf{安定化ランク} を：
+\[
+  \mathrm{rankStab}_f(x) := \inf \left\{ n \in \N \mid f^n(x) = f^{n+1}(x) \right\}
+\]
+と定義する。すなわち、反復適用が不動点に達する最小ステップ数。
+
+Lean実装：\Lean{rankStab} （\texttt{GenRankTower.lean:158}）
+\end{definition}
+
+\begin{remark}[閉包作用素との関係]
+$f$ が閉包作用素（冪等）の場合、$f(x) = f(f(x))$ より $\mathrm{rankStab}_f(x) \le 1$。一般の pre-closure では $\mathrm{rankStab}$ は任意の自然数または $\infty$ をとりうる。
+\end{remark}
+
+\section{Layer 2 \& 1: 構造塔への接続}
+
+\subsection{ランク正規形（WithTop版）}
+
+任意のランク関数 $\rho : X \to \mathrm{WithTop}\, \N$ から、層構造を定義できる：
+\[
+  \text{layer}\, n := \{ x \in X \mid \rho(x) \le n \}.
+\]
+
+しかし、\texttt{StructureTowerWithMin} は型として $\mathrm{minLayer} : X \to \N$ を要求する（$\infty$ を許容しない）。
+
+\begin{definition}[towerFromRankWithCondition]
+有限性条件 $\forall x,\, \exists n : \N,\, \rho(x) \le n$ を満たす場合のみ、\texttt{StructureTowerWithMin} を構成する。
+
+Lean実装：\Lean{towerFromRankWithCondition} （\texttt{GenRankTower.lean:202}）
+\end{definition}
+
+\subsection{条件付き降格（Conditional Downgrade）}
+
+\begin{lemma}[有限生成性からの有限性保証]
+「すべての要素が有限生成」
+\[
+  \forall x : \alpha,\, \exists S : \mathrm{Finset}\, \iota,\, l(S) = x
+\]
+が成り立つとき、$\forall x,\, \exists n,\, \mathrm{rankGen}_l(x) \le n$。
+
+Lean証明：\Lean{rankGen\_is\_nat} （\texttt{GenRankTower.lean:226}）
+\end{lemma}
+
+\begin{proof}
+$x$ を生成する有限集合 $S$ の存在より、$\mathrm{rankGen}(x) \le |S| < \infty$。
+\end{proof}
+
+\begin{definition}[buildGenTower]
+上記補題を利用し、有限生成性の仮定のもと \texttt{StructureTowerWithMin} を構築：
+\[
+  \Lean{buildGenTower}\, l\, h_{\text{all\_fg}} := \Lean{towerFromRank}\, (\mathrm{rankGen}_l)\, (\Lean{rankGen\_is\_nat}\, l\, h_{\text{all\_fg}}).
+\]
+
+Lean実装：\Lean{buildGenTower} （\texttt{GenRankTower.lean:240}）
+\end{definition}
+
+\section{Layer 0: 核心補題（Well-Foundedness による構成的証明）}
+
+\subsection{補題の主張}
+
+\begin{theorem}[rankGen\_le\_iff\_exists]
+有限生成性 $\exists S : \mathrm{Finset}\, \iota,\, l(S) = x$ を仮定するとき：
+\[
+  \mathrm{rankGen}_l(x) \le n \iff \exists S : \mathrm{Finset}\, \iota,\, |S| \le n \land l(S) = x.
+\]
+
+Lean証明：\Lean{rankGen\_le\_iff\_exists} （\texttt{GenRankTower.lean:277-329}）
+\end{theorem}
+
+\subsection{証明戦略の詳細}
+
+一般に、$\inf A \le n$ と「$A$ に $n$ 以下の元が存在する」の同値性は自明ではない（$\inf$ は下界の上限であり、最小元とは限らない）。
+
+本証明は $\N$ の \textbf{well-foundedness}（整列性）を活用し、\texttt{Nat.find} により最小値を \textbf{構成的に取り出す}：
+
+\begin{proof}[証明の骨子]
+\begin{enumerate}
+  \item \textbf{存在性}：有限生成性より、$\exists k,\, \mathrm{GenPred}(l, x, k)$（$k$ 個以下で生成可能）。
+
+  \item \textbf{最小値の構成}：$m := \mathrm{Nat.find}\, (\exists k,\, \mathrm{GenPred}(k))$ とおく。
+  \begin{itemize}
+    \item $\mathrm{GenPred}(m)$ は成立（\texttt{Nat.find\_spec}）
+    \item $\forall k < m,\, \neg \mathrm{GenPred}(k)$（\texttt{Nat.find\_min}）
+  \end{itemize}
+
+  \item \textbf{$\mathrm{rankGen}(x) = m$ の証明}：
+  \begin{itemize}
+    \item $\mathrm{rankGen}(x) \le m$：$m$ が集合 $\{n \mid \exists S,\, |S| \le n \land l(S) = x\}$ のメンバーであることから $\inf \le m$。
+    \item $m \le \mathrm{rankGen}(x)$：任意の候補 $y$ に対し、$y < \infty$ なら対応する $k : \N$ が存在し、最小性より $m \le k$。ゆえに $m$ は下界。$\inf$ は最大の下界なので $m \le \inf$。
+  \end{itemize}
+
+  \item \textbf{同値性の証明}：
+  \begin{itemize}
+    \item $(\Rightarrow)$：$\mathrm{rankGen}(x) \le n \iff m \le n \implies$ $m$ を達成する集合 $S$ に対し $|S| \le m \le n$。
+    \item $(\Leftarrow)$：$\exists S,\, |S| \le n \land l(S) = x$ なら、$\mathrm{rankGen}(x) \le |S| \le n$。\qedhere
+  \end{itemize}
+\end{enumerate}
+\end{proof}
+
+\begin{remark}[技術的ポイント]
+この証明は Classical 論理（排中律）を使用する（\texttt{Nat.find} の定義に必要）。しかし、構成的数学の文脈でも、「有限集合の濃度」という decidable な述語であれば、同様の議論が成立する可能性がある。
+\end{remark}
+
+\subsection{整合性チェック（Meta-Property）}
+
+上記補題により、構成された構造塔の層が意図通りの意味を持つことが保証される：
+
+\begin{proposition}[層の特徴づけ]
+\[
+  x \in (\Lean{buildGenTower}\, l\, h_{\text{fg}}).\text{layer}\, n \iff \exists S : \mathrm{Finset}\, \iota,\, |S| \le n \land l(S) = x.
+\]
+
+Lean検証：\Lean{example} （\texttt{GenRankTower.lean:336-341}）
+\end{proposition}
+
+\section{統合図式：全体像}
+
+以下の図式は、Galois接続から構造塔への導出全体を表す：
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=1.8cm,
+  box/.style={rectangle, draw, thick, minimum width=3cm, minimum height=1cm, align=center},
+  arrow/.style={-Stealth, thick},
+  label/.style={font=\small, midway, fill=white}
+]
+  % Nodes
+  \node[box, fill=yellow!20] (GC) {Galois接続 \\ $l \dashv u$};
+  \node[box, below left=1.2cm and -0.5cm of GC, fill=blue!15] (Closure) {閉包作用素 \\ $c = u \circ l$};
+  \node[box, below right=1.2cm and -0.5cm of GC, fill=orange!15] (Rank) {ランク関数 \\ $\rho = \mathrm{rankGen}_l$};
+  \node[box, below=2cm of Closure, fill=green!15] (PreClosure) {前閉包 \\ $f : \alpha \to \alpha$};
+  \node[box, below=2cm of Rank, fill=purple!15] (RankStab) {安定化ランク \\ $\mathrm{rankStab}_f$};
+  \node[box, below=3.5cm of GC, fill=red!15] (Tower) {構造塔 \\ layer $n = \{x \mid \rho(x) \le n\}$};
+
+  % Arrows
+  \draw[arrow] (GC) -- node[label, left] {合成} (Closure);
+  \draw[arrow] (GC) -- node[label, right] {$\inf$ 生成元} (Rank);
+  \draw[arrow] (Closure) -- node[label, left, font=\scriptsize] {一般化} (PreClosure);
+  \draw[arrow] (PreClosure) -- node[label, left] {反復} (RankStab);
+  \draw[arrow] (Rank) -- (Tower);
+  \draw[arrow] (RankStab) -| (Tower);
+
+  % Layer labels
+  \node[left=0.5cm of GC, font=\small\bfseries, color=blue] {Layer 4};
+  \node[left=0.5cm of Rank, font=\small\bfseries, color=blue] {Layer 3};
+  \node[left=0.5cm of Tower, font=\small\bfseries, color=blue] {Layer 1/2};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Galois接続の具体的図式}
+
+典型的な生成状況を表す可換図式：
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=3cm,
+  arrow/.style={-Stealth, thick}
+]
+  \node (SetIota) {$\mathrm{Set}\, \iota$};
+  \node[right=of SetIota] (Alpha) {$\alpha$};
+
+  \draw[arrow, bend left=20] (SetIota) to node[above] {$l$（生成）} (Alpha);
+  \draw[arrow, bend left=20] (Alpha) to node[below] {$u$（underlying）} (SetIota);
+
+  \node[below=0.3cm of SetIota, font=\small] {生成元の集合};
+  \node[below=0.3cm of Alpha, font=\small] {対象の格子};
+
+  % Adjunction symbol
+  \node at ($(SetIota)!0.5!(Alpha) + (0, 1.2)$) {$l \dashv u$};
+
+  % Examples
+  \node[below=1.5cm of SetIota, align=left, font=\scriptsize] (Ex1) {
+    例：群論 \\
+    $\iota = $ 元の集合 \\
+    $\alpha = $ 部分群の格子
+  };
+  \node[below=1.5cm of Alpha, align=left, font=\scriptsize] (Ex2) {
+    例：位相空間 \\
+    $\iota = $ 点の集合 \\
+    $\alpha = $ 開集合の格子
+  };
+\end{tikzpicture}
+\end{center}
+
+\section{応用と展望}
+
+\subsection{確率論への応用}
+
+本フレームワークは、確率論における \textbf{濾過} (filtration) と \textbf{停止時刻} (stopping time) の理論に直接応用される：
+
+\begin{itemize}
+  \item $\iota = \Omega \times \N$（標本点と時刻のペア）
+  \item $\alpha = \sigma$-加法族の格子
+  \item $l(S) = \sigma(S)$（生成される $\sigma$-加法族）
+  \item 構造塔の層 = 有限時刻までの情報で測定可能な事象
+\end{itemize}
+
+\subsection{圏論的一般化}
+
+本構成は、より一般の \textbf{随伴関手} $F \dashv U : \mathcal{C} \to \mathcal{D}$ に拡張可能である：
+\begin{itemize}
+  \item モナド $T = U \circ F$ の Kleisli圏との関係
+  \item 代数的理論（Lawvere理論）との対応
+  \item 計算効果の意味論（Haskellのモナド）
+\end{itemize}
+
+\subsection{今後の課題}
+
+\begin{enumerate}
+  \item \textbf{計算可能性}：現状 \texttt{noncomputable} として定義されているランク関数を、decidable な述語のもとで computable に改良
+  \item \textbf{圏論的Lane}：Cat\_D / Cat\_le / Cat\_WithMin の各Laneでの振る舞いの厳密化
+  \item \textbf{公理依存性}：Classical論理への依存を最小化（Constructive版の探求）
+\end{enumerate}
+
+\section{付録：Lean識別子一覧}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Lean識別子} & \textbf{定義種別} & \textbf{行番号} \\ \hline
+\Lean{closureFromGC} & def & 50 \\ \hline
+\Lean{PreClosureStep} & structure & 74 \\ \hline
+\Lean{rankGen} & noncomputable def & 101 \\ \hline
+\Lean{rankGenFromGC} & noncomputable def & 118 \\ \hline
+\Lean{rankGenFromGC\_eq\_rankGen} & lemma & 128 \\ \hline
+\Lean{rankStab} & noncomputable def & 158 \\ \hline
+\Lean{rankGen\_finite\_of\_fg} & lemma & 164 \\ \hline
+\Lean{towerFromRankWithCondition} & noncomputable def & 202 \\ \hline
+\Lean{rankGen\_is\_nat} & lemma & 226 \\ \hline
+\Lean{buildGenTower} & noncomputable def & 240 \\ \hline
+\Lean{rankGen\_le\_iff\_exists} & lemma (核心) & 277 \\ \hline
+\end{tabular}
+\caption{GenRankTower.lean の主要定義一覧}
+\end{table}
+
+\section{結語}
+
+本稿では、Galois接続という抽象的かつ普遍的な構造から出発し、閉包作用素、ランク関数、そして構造塔という具体的な数学的対象を段階的に導出するフレームワークを解説した。
+
+Lean 4 による形式化（\texttt{GenRankTower.lean}）は、4層アーキテクチャにより理論的な導出の各段階を明示的に分離し、型理論的厳密性を保ちながら、代数・順序・圏論・確率論を横断する統一的基盤を提供する。
+
+特に、\textbf{Layer 0の核心補題} \Lean{rankGen\_le\_iff\_exists} は、$\N$ の整列性を活用した構成的証明により、抽象的な $\inf$ 演算と具体的な「最小生成集合の存在」を橋渡しし、構造塔の意味論的正当性を保証する。
+
+この理論は、停止時刻の Optional Stopping Theorem をはじめとする確率論の高度な定理の形式化において、今後不可欠な役割を果たすことが期待される。
+
+\vspace{1em}
+\noindent
+\textbf{謝辞}：本形式化は、Codex (OpenAI) による Lean コード生成と、Claude Code (Anthropic) による数学的解説の協働により実現された。両AI システムの相補的能力が、形式数学の新たな可能性を示唆している。
+
+\end{document}

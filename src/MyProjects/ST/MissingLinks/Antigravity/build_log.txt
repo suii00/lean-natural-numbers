@@ -1,0 +1,23 @@
+﻿✖ [592/593] Running Mathlib.Data.Finset.Lattice
+error: no such file or directory (error code: 2)
+  file: C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\mathlib\Mathlib\Data\Finset\Lattice.lean
+✖ [593/593] Running MyProjects.ST.MissingLinks.Antigravity.GenerationClosureGC
+error: src\MyProjects\ST\MissingLinks\Antigravity\GenerationClosureGC.lean: bad import 'Mathlib.Data.Finset.Lattice'
+Some required targets logged failures:
+- Mathlib.Data.Finset.Lattice
+- MyProjects.ST.MissingLinks.Antigravity.GenerationClosureGC
+lake : error: build failed
+At line:1 char:20
++ ... ./../../..; lake build
+ MyProjects.ST.MissingLinks.
+Antigravity.Generat ...
++                 ~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (error  
+  : build failed:String)    
+ [], RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
