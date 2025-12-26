@@ -1,0 +1,11 @@
+✖ [959/959] Building MyProjects.ST.MissingLinks.Antigravity.LinearSpan_GC (6.4s)
+trace: .> LEAN_PATH=C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\Cli\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\batteries\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\Qq\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\aesop\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\proofwidgets\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\importGraph\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\LeanSearchClient\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\plausible\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\mathlib\.lake\build\lib\lean;C:\Users\swan0\repo\lean-natural-numbers\.lake\build\lib\lean c:\Users\swan0\.elan\toolchains\leanprover--lean4---v4.25.2\bin\lean.exe C:\Users\swan0\repo\lean-natural-numbers\src\MyProjects\ST\MissingLinks\Antigravity\LinearSpan_GC.lean -o C:\Users\swan0\repo\lean-natural-numbers\.lake\build\lib\lean\MyProjects\ST\MissingLinks\Antigravity\LinearSpan_GC.olean -i C:\Users\swan0\repo\lean-natural-numbers\.lake\build\lib\lean\MyProjects\ST\MissingLinks\Antigravity\LinearSpan_GC.ilean -c C:\Users\swan0\repo\lean-natural-numbers\.lake\build\ir\MyProjects\ST\MissingLinks\Antigravity\LinearSpan_GC.c --setup C:\Users\swan0\repo\lean-natural-numbers\.lake\build\ir\MyProjects\ST\MissingLinks\Antigravity\LinearSpan_GC.setup.json --json
+error: src/MyProjects/ST/MissingLinks/Antigravity/LinearSpan_GC.lean:63:8: No goals to be solved
+info: src/MyProjects/ST/MissingLinks/Antigravity/LinearSpan_GC.lean:71:0: span_gc : ∀ (K : Type u_3) [inst : DivisionRing K] (V : Type u_4) [inst_1 : AddCommGroup V] [inst_2 : Module K V],
+  GaloisConnection (fun s => Submodule.span K s) fun P => ↑P
+info: src/MyProjects/ST/MissingLinks/Antigravity/LinearSpan_GC.lean:72:0: spanClosureOp : (K : Type u_3) →
+  [inst : DivisionRing K] → (V : Type u_4) → [inst_1 : AddCommGroup V] → [Module K V] → ClosureOperator (Set V)
+error: Lean exited with code 1
+Some required targets logged failures:
+- MyProjects.ST.MissingLinks.Antigravity.LinearSpan_GC
+error: build failed
