@@ -39,8 +39,8 @@ theorem rankNotUniqueLayer_monotone :
   intro p q ⟨h1, h2⟩ x hx
   simp only [rankNotUniqueLayer, mem_setOf_eq] at hx ⊢
   rcases hx with hx1 | hx2
-  · left; omega
-  · right; omega
+  · left; exact le_trans hx1 h1
+  · right; exact le_trans hx2 h2
 
 /-- 最小層が一意でない例：1 は layer (1, 0) と layer (0, 1) 両方に属する -/
 example : (1 : ℕ) ∈ rankNotUniqueLayer (1, 0) := Or.inl (le_refl 1)
@@ -143,18 +143,19 @@ theorem noMinLayer_covering : ∀ x : ℕ, ∃ p : ℕ × ℕ, x ∈ noMinLayer 
 theorem noMinLayer_monotone :
     ∀ {p q : ℕ × ℕ}, p.1 ≤ q.1 ∧ p.2 ≤ q.2 → noMinLayer p ⊆ noMinLayer q := by
   intro ⟨p1, p2⟩ ⟨q1, q2⟩ ⟨h1, h2⟩ x hx
-  simp only [noMinLayer, mem_setOf_eq, Nat.max_def] at hx ⊢
-  split_ifs at hx ⊢ <;> omega
+  simp only [noMinLayer, mem_setOf_eq] at hx ⊢
+  have hmono : max p1 p2 ≤ max q1 q2 := sup_le_sup h1 h2
+  exact le_trans hx hmono
 
 /-- 1 ∈ layer (1, 0) -/
 theorem noMinLayer_1_in_1_0 : (1 : ℕ) ∈ noMinLayer (1, 0) := by
-  simp only [noMinLayer, mem_setOf_eq, Nat.max_def]
-  split_ifs <;> omega
+  simp only [noMinLayer, mem_setOf_eq]
+  decide
 
 /-- 1 ∈ layer (0, 1) -/
 theorem noMinLayer_1_in_0_1 : (1 : ℕ) ∈ noMinLayer (0, 1) := by
-  simp only [noMinLayer, mem_setOf_eq, Nat.max_def]
-  split_ifs <;> omega
+  simp only [noMinLayer, mem_setOf_eq]
+  decide
 
 /-- (1, 0) と (0, 1) は比較不能 -/
 theorem noMinLayer_incomparable :

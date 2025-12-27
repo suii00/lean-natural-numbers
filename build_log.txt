@@ -1,0 +1,18 @@
+✖ [597/602] Running Mathlib.Data.Rat.Order
+error: no such file or directory (error code: 2)
+  file: C:\Users\swan0\repo\lean-natural-numbers\.lake\packages\mathlib\Mathlib\Data\Rat\Order.lean
+✖ [598/602] Running MyProjects.ST.Pathology.DenseLinear
+error: src\MyProjects\ST\Pathology\DenseLinear.lean: bad import 'Mathlib.Data.Rat.Order'
+✖ [599/602] Running MyProjects.ST.Pathology
+error: src\MyProjects\ST\Pathology.lean: bad import 'MyProjects.ST.Pathology.DenseLinear'
+✖ [600/602] Running MyProjects.Main
+error: src\MyProjects\Main.lean: bad import 'MyProjects.ST.Pathology'
+✖ [602/602] Running myexe:exe
+error: bad imports (see the 'MyProjects.Main' job for details)
+Some required targets logged failures:
+- Mathlib.Data.Rat.Order
+- MyProjects.ST.Pathology.DenseLinear
+- MyProjects.ST.Pathology
+- MyProjects.Main
+- myexe:exe
+error: build failed
