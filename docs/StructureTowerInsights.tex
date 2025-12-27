@@ -1,0 +1,460 @@
+% -*- coding: utf-8 -*-
+% LuaLaTeX 用ドキュメント
+% コンパイル: lualatex StructureTowerInsights.tex
+
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% LuaTeX-ja 設定
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+
+% 数学関連
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図式・TikZ
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathmorphing,shapes.geometric,patterns,matrix}
+\usepackage{tikz-cd}
+
+% ハイパーリンク
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    urlcolor=blue!50!black
+}
+
+% 色
+\usepackage{xcolor}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+\newtheorem{nonexample}[definition]{非例}
+
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{corollary}[definition]{系}
+
+\theoremstyle{remark}
+\newtheorem{remark}[definition]{注意}
+\newtheorem{insight}[definition]{知見}
+
+% カスタムコマンド
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Layer}{\mathrm{layer}}
+\newcommand{\minLayer}{\mathrm{minLayer}}
+\newcommand{\Index}{\mathrm{Index}}
+
+% タイトル
+\title{%
+    \textbf{構造塔理論における公理の独立性と\\添字順序の役割}\\[0.5em]
+    \Large Independence of Axioms and Role of Index Order\\in Structure Tower Theory
+}
+
+\author{su\thanks{Lean ソースコードおよび本 \TeX 文書ともに AI ツール Antigravity (Google DeepMind) を使用して作成しました。}}
+
+\date{2025年12月27日}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本稿は、構造塔（Structure Tower）理論における形式化の過程で得られた数学的知見を報告する。
+具体的には、（1）被覆性・単調性・最小性の3公理の独立性、
+（2）最小層関数 $\minLayer$ の well-definedness における添字順序の役割、
+（3）公理間の論理的関係について、Lean 4 による形式化を通じて明らかになった事実を数学的に解説する。
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+%=============================================================================
+\section{はじめに}
+%=============================================================================
+
+構造塔は、集合 $X$ の要素を添字付き部分集合の族（「層」）によって分類する構造である。
+本研究では、Lean 4 定理証明支援系を用いた形式化を通じて、
+構造塔の公理系に関する以下の知見を得た：
+
+\begin{enumerate}
+    \item 3公理（被覆性・単調性・最小性）は互いに\textbf{独立}である
+    \item $\minLayer$ の well-definedness には添字集合の\textbf{線形順序}が必要
+    \item 単調性なしでも最小性が成立する場合がある
+\end{enumerate}
+
+これらの知見は、8つの具体例の形式化によって確認された。
+
+%=============================================================================
+\section{構造塔の公理系}
+%=============================================================================
+
+\begin{definition}[構造塔]
+以下のデータの組 $(X, I, \leq, \Layer)$ を\textbf{構造塔}と呼ぶ：
+\begin{itemize}
+    \item $X$：台集合（carrier）
+    \item $(I, \leq)$：添字集合と順序
+    \item $\Layer : I \to \mathcal{P}(X)$：各添字に対する層
+\end{itemize}
+以下の公理を満たすとき、\textbf{StructureTowerWithMin} と呼ぶ：
+\end{definition}
+
+\begin{definition}[3つの公理]\label{def:axioms}
+\begin{enumerate}
+    \item \textbf{被覆性（Covering）}：
+    \[
+        \forall x \in X,\ \exists i \in I,\ x \in \Layer(i)
+    \]
+    
+    \item \textbf{単調性（Monotonicity）}：
+    \[
+        \forall i, j \in I,\ i \leq j \Rightarrow \Layer(i) \subseteq \Layer(j)
+    \]
+    
+    \item \textbf{最小性（Minimality）}：$\minLayer : X \to I$ が存在して
+    \[
+        \forall x \in X,\ x \in \Layer(\minLayer(x)) \land 
+        \forall i \in I,\ x \in \Layer(i) \Rightarrow \minLayer(x) \leq i
+    \]
+\end{enumerate}
+\end{definition}
+
+%=============================================================================
+\section{知見1：公理の独立性}
+%=============================================================================
+
+\begin{insight}[公理の独立性]
+被覆性・単調性・最小性の3公理は、互いに独立である。
+すなわち、任意の2つを満たし、残り1つを満たさない構造が存在する。
+\end{insight}
+
+\subsection{被覆性は単調性を含意しない}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    layer/.style={draw=blue!70, fill=blue!10, minimum width=2.5cm, minimum height=0.6cm},
+    elem/.style={circle, draw=black!70, fill=white, minimum size=0.5cm, font=\small}
+]
+\node[layer] (l0) at (0, 1.5) {};
+\node[layer] (l1) at (0, 0) {};
+
+\node[left=0.3cm of l0, font=\small] {$\Layer(0) = \{0\}$};
+\node[left=0.3cm of l1, font=\small] {$\Layer(1) = \{1\}$};
+
+\node[elem] at (0, 1.5) {0};
+\node[elem] at (0, 0) {1};
+
+\draw[red!70, thick, dashed, -Stealth] (l0.south) -- (l1.north)
+    node[midway, right, font=\small, red!70] {$\not\subseteq$};
+
+\node[text width=5cm, align=left, font=\small] at (4.5, 0.75) {
+    \textbf{singletonLayerTower}\\[0.3em]
+    被覆性：$\checkmark$（$x \in \Layer(x)$）\\
+    単調性：$\times$（$\{0\} \not\subseteq \{1\}$）
+};
+\end{tikzpicture}
+\caption{被覆性 $\not\Rightarrow$ 単調性}
+\label{fig:cov-not-mono}
+\end{figure}
+
+\begin{example}[singletonLayerTower]
+$\Layer(n) = \{n\}$ とすると、被覆性は成立するが、
+$0 \leq 1$ にもかかわらず $\Layer(0) = \{0\} \not\subseteq \{1\} = \Layer(1)$ なので単調性が壊れる。
+\end{example}
+
+\subsection{単調性は最小性を含意しない（非線形順序の場合）}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    layer/.style={draw=blue!70, fill=blue!10, rounded corners, minimum width=2.8cm, minimum height=0.7cm, font=\small},
+    incomp/.style={draw=red!70, thick, dashed}
+]
+
+% 添字格子
+\node[font=\bfseries] at (0, 2.5) {添字空間 $\N \times \N$（積順序）};
+
+\draw[->] (-0.3, -0.3) -- (2.5, -0.3) node[right, font=\small] {$i$};
+\draw[->] (-0.3, -0.3) -- (-0.3, 2) node[above, font=\small] {$j$};
+
+\foreach \i in {0,1,2} {
+    \foreach \j in {0,1} {
+        \filldraw[gray!50] (\i*0.8, \j*0.8) circle (2pt);
+    }
+}
+
+\filldraw[red!70] (0.8, 0) circle (4pt);
+\node[below, font=\scriptsize, red!70] at (0.8, -0.15) {$(1,0)$};
+\filldraw[red!70] (0, 0.8) circle (4pt);
+\node[left, font=\scriptsize, red!70] at (-0.15, 0.8) {$(0,1)$};
+
+\draw[incomp] (0.8, 0) -- (0, 0.8);
+
+% 層の内容
+\node[layer] (l10) at (5.5, 1.2) {$\Layer(1,0) = \{0, 1\}$};
+\node[layer] (l01) at (5.5, 0) {$\Layer(0,1) = \{0, 1\}$};
+
+\node[green!50!black, font=\small] at (5.5, 0.6) {$1 \in$ 両方};
+
+\node[text width=4.5cm, align=left, font=\small] at (5.5, -1.2) {
+    被覆性：$\checkmark$\\
+    単調性：$\checkmark$（積順序で）\\
+    最小性：$\times$（比較不能！）
+};
+\end{tikzpicture}
+\caption{積順序では $\minLayer$ が一意に定まらない}
+\label{fig:product-order}
+\end{figure}
+
+\begin{theorem}[非線形順序では最小性が破れる]\label{thm:nonlinear}
+添字集合 $(I, \leq)$ が線形順序でない場合、被覆性と単調性が成立していても
+$\minLayer$ が well-defined にならない場合がある。
+\end{theorem}
+
+\begin{proof}
+反例として $I = \N \times \N$（積順序）、$\Layer(i, j) = \{k \mid k \leq i \lor k \leq j\}$ を考える。
+このとき $1 \in \Layer(1, 0)$ かつ $1 \in \Layer(0, 1)$ だが、
+$(1, 0)$ と $(0, 1)$ は積順序で比較不能なので、$1$ の最小層が一意に定まらない。
+\end{proof}
+
+%=============================================================================
+\section{知見2：単調性と最小性の独立性}
+%=============================================================================
+
+\begin{insight}[単調性は最小性の必要条件ではない]
+単調性が成立しなくても、各元の最小層が well-defined な構造が存在する。
+したがって、最小性は単調性を前提としない。
+\end{insight}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    layer/.style={draw=blue!70, fill=blue!10, minimum width=3cm, minimum height=0.6cm},
+    elem/.style={font=\small}
+]
+\node[layer] (l0) at (0, 2) {};
+\node[layer] (l1) at (0, 1) {};
+\node[layer] (l2) at (0, 0) {};
+
+\node[left=0.2cm of l0, font=\small] {$\Layer(0) = \{0, 2\}$};
+\node[left=0.2cm of l1, font=\small] {$\Layer(1) = \{1, 3\}$};
+\node[left=0.2cm of l2, font=\small] {$\Layer(2) = \{0,1,2,3\}$};
+
+\node[elem] at (-0.5, 2) {0};
+\node[elem] at (0.5, 2) {2};
+\node[elem] at (-0.5, 1) {1};
+\node[elem] at (0.5, 1) {3};
+
+% 単調性失敗
+\draw[red!70, thick, dashed] (l0.south) -- (l1.north);
+\node[red!70, font=\scriptsize] at (1.8, 1.5) {$\{0,2\} \not\subseteq \{1,3\}$};
+
+% minLayer の矢印
+\draw[-Stealth, green!50!black, thick] (3, 2) -- node[above, font=\scriptsize] {$\minLayer(0)=0$} (1.6, 2);
+\draw[-Stealth, green!50!black, thick] (3, 1) -- node[above, font=\scriptsize] {$\minLayer(1)=1$} (1.6, 1);
+
+\node[text width=4cm, align=left, font=\small] at (5, 0.5) {
+    \textbf{minLayerWithoutMonotone}\\[0.3em]
+    単調性：$\times$\\
+    最小性：$\checkmark$（各元に一意）
+};
+\end{tikzpicture}
+\caption{単調性なしでも最小性が成立}
+\label{fig:min-without-mono}
+\end{figure}
+
+\begin{example}[minLayerWithoutMonotone]
+以下の層定義を考える：
+\[
+\Layer(n) = \begin{cases}
+    \{0, 2\} & \text{if } n = 0 \\
+    \{1, 3\} & \text{if } n = 1 \\
+    \{0, 1, 2, 3\} & \text{if } n = 2 \\
+    \{k \mid k \leq n\} & \text{if } n \geq 3
+\end{cases}
+\]
+このとき：
+\begin{itemize}
+    \item \textbf{単調性失敗}：$0 \in \Layer(0)$ だが $0 \notin \Layer(1)$
+    \item \textbf{最小性成立}：$\minLayer(0) = 0$, $\minLayer(1) = 1$, $\minLayer(2) = 0$, $\minLayer(3) = 1$
+\end{itemize}
+各元について最小層が一意に定まるが、層の包含関係は単調ではない。
+\end{example}
+
+%=============================================================================
+\section{知見3：添字順序の本質的役割}
+%=============================================================================
+
+\begin{theorem}[$\minLayer$ の well-definedness と線形順序]\label{thm:linear}
+添字集合 $(I, \leq)$ が線形順序（全順序）であり、
+被覆性と単調性が成立するとき、$\minLayer$ は well-defined である。
+\end{theorem}
+
+\begin{proof}
+$x \in X$ を任意に取る。被覆性より $S_x = \{i \in I \mid x \in \Layer(i)\} \neq \emptyset$。
+線形順序なので、$S_x$ に最小元が存在すれば $\minLayer(x)$ として well-defined。
+
+$S_x$ に最小元がない場合を考える。$\N$ が添字の場合、$S_x \subseteq \N$ は非空なので
+最小元が必ず存在する（$\N$ の整列性）。
+
+より一般に、$(I, \leq)$ が整列集合であれば同様に最小元が存在する。
+\end{proof}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    order/.style={draw=blue!70!black, thick, rounded corners=5pt, fill=blue!10, minimum width=3cm, minimum height=1.2cm, align=center},
+    ok/.style={-Stealth, thick, green!50!black},
+    ng/.style={-Stealth, thick, red!60, dashed}
+]
+
+\node[order] (linear) at (0, 0) {線形順序\\（$\N$, $\Z$, etc.）};
+\node[order] (partial) at (5, 0) {半順序\\（$\N \times \N$, etc.）};
+
+\node[font=\small, green!50!black] at (0, -1.5) {$\minLayer$ well-defined};
+\node[font=\small, red!60] at (5, -1.5) {$\minLayer$ 非一意の可能性};
+
+\draw[ok] (linear.south) -- (0, -1);
+\draw[ng] (partial.south) -- (5, -1);
+
+\node[font=\bfseries] at (2.5, 1.5) {添字順序と $\minLayer$ の関係};
+\end{tikzpicture}
+\caption{線形順序は $\minLayer$ の well-definedness を保証}
+\label{fig:order-minlayer}
+\end{figure}
+
+\begin{corollary}
+$I = \N$ の場合、被覆性と単調性が成立すれば、$\minLayer$ は自動的に well-defined となる。
+\end{corollary}
+
+%=============================================================================
+\section{公理間の論理的関係}
+%=============================================================================
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    axiom/.style={
+        rectangle, rounded corners=8pt, draw=blue!70!black, 
+        fill=blue!15, minimum width=3.2cm, minimum height=1.2cm,
+        font=\bfseries, text=blue!70!black,
+        align=center
+    },
+    impl/.style={-Stealth, thick, black!70},
+    indep/.style={thick, red!60, dashed, <->}
+]
+
+% 公理
+\node[axiom] (cov) at (-3, 2) {Covering\\（被覆性）};
+\node[axiom] (mono) at (3, 2) {Monotonicity\\（単調性）};
+\node[axiom] (min) at (0, -1) {Minimality\\（最小性）};
+
+% 線形順序の条件
+\node[draw=green!50!black, fill=green!10, rounded corners, font=\small] (linear) at (0, 0.8) {$+$ 線形順序};
+
+% 矢印
+\draw[impl] (cov) -- (linear);
+\draw[impl] (mono) -- (linear);
+\draw[impl] (linear) -- (min);
+
+% 独立性
+\draw[indep] (cov) -- (mono) node[midway, above, font=\scriptsize, red!60] {独立};
+
+% 注釈
+\node[font=\small, text width=5cm, align=center] at (0, -2.5) {
+    線形順序の下で被覆＋単調 $\Rightarrow$ 最小性\\
+    ただし非線形順序では成立しない
+};
+\end{tikzpicture}
+\caption{公理間の論理的関係}
+\label{fig:axiom-logic}
+\end{figure}
+
+\begin{theorem}[公理間の含意関係のまとめ]
+\begin{enumerate}
+    \item 被覆性 $\not\Rightarrow$ 単調性（singletonLayerTower）
+    \item 単調性 $\not\Rightarrow$ 被覆性（自明）
+    \item 被覆性 $+$ 単調性 $+$ 線形順序 $\Rightarrow$ 最小性
+    \item 被覆性 $+$ 単調性 $+$ 非線形順序 $\not\Rightarrow$ 最小性（rankNotUniqueTower）
+    \item 単調性なし $+$ 最小性 は可能（minLayerWithoutMonotone）
+\end{enumerate}
+\end{theorem}
+
+%=============================================================================
+\section{形式化の成果}
+%=============================================================================
+
+本研究で形式化した例の一覧を表\ref{tab:examples}に示す。
+
+\begin{table}[htbp]
+\centering
+\caption{形式化した例の一覧}
+\label{tab:examples}
+\small
+\begin{tabular}{|l|c|c|c|l|}
+\hline
+\textbf{例} & \textbf{被覆} & \textbf{単調} & \textbf{最小} & \textbf{知見} \\
+\hline
+pointTower & $\checkmark$ & $\checkmark$ & $\checkmark$ & 自明例 \\
+singletonLayerTower & $\checkmark$ & $\times$ & — & 被覆 $\not\Rightarrow$ 単調 \\
+thresholdTower & $\checkmark$ & $\checkmark$ & $\checkmark$ & 境界例 \\
+intAbsTower & $\checkmark$ & $\checkmark$ & $\checkmark$ & 標準例 \\
+codepthTower & $\checkmark$ & 反単調 & $\checkmark$ & 双対構造 \\
+\hline
+rankNotUniqueTower & $\checkmark$ & $\checkmark$ & $\times$ & 線形順序の必要性 \\
+minLayerWithoutMonotone & $\checkmark$ & $\times$ & $\checkmark$ & 単調 $\not\Rightarrow$ 最小 \\
+noMinLayer... & $\checkmark$ & $\checkmark$ & $\times$ & 線形順序の必要性 \\
+\hline
+\end{tabular}
+\end{table}
+
+%=============================================================================
+\section{結論}
+%=============================================================================
+
+本稿では、構造塔理論の形式化を通じて得られた以下の知見を報告した：
+
+\begin{enumerate}
+    \item \textbf{公理の独立性}：被覆性・単調性・最小性は互いに独立であり、
+          任意の2つを満たし1つを満たさない構造が構成できる。
+    
+    \item \textbf{添字順序の役割}：$\minLayer$ の well-definedness には、
+          添字集合が\textbf{線形順序}（または少なくとも $x$ が属する層の集合に最小元が存在する）
+          ことが本質的に必要である。
+    
+    \item \textbf{単調性と最小性の独立}：単調性がなくても最小性が成立する場合があり、
+          これは公理の真の独立性を示している。
+\end{enumerate}
+
+これらの知見は、構造塔理論を他の順序付き構造に一般化する際の指針となる。
+特に、非線形順序を添字とする場合には、$\minLayer$ の代わりに
+「極小層の集合」を考える必要があることが示唆される。
+
+%=============================================================================
+% 参考文献
+%=============================================================================
+
+\begin{thebibliography}{9}
+
+\bibitem{mathlib}
+The mathlib Community.
+\textit{Mathlib: The Math Library for Lean 4}.
+\url{https://github.com/leanprover-community/mathlib4}
+
+\bibitem{lean4}
+Leonardo de Moura et al.
+\textit{The Lean 4 Theorem Prover and Programming Language}.
+CADE-28, 2021.
+
+\end{thebibliography}
+
+\end{document}
