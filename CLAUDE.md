@@ -211,9 +211,11 @@ A document chunk labeled **ASSET** must satisfy:
 ---
 
 ## 8) Language & Communication
-- **This file**: English (agent contract).
-- **Development memos / PR discussion**: Japanese allowed.
+- **This file (CLAUDE.md)**: English (agent contract).
+- **Daily conversation / Development memos / PR discussion**: Japanese by default.
+  - User may request English responses explicitly if needed.
 - **Published TeX**: Japanese or bilingual, but Lean identifiers remain English.
+- **Code comments in Lean files**: English preferred for international readability.
 
 ---
 
