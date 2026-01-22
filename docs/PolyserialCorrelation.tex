@@ -1,0 +1,711 @@
+% -*- coding: utf-8 -*-
+% LuaLaTeX 用ドキュメント
+% コンパイル: lualatex PolyserialCorrelation.tex
+
+\documentclass[a4paper,11pt]{ltjsarticle}
+
+% LuaTeX-ja 設定
+\usepackage{luatexja}
+\usepackage{luatexja-fontspec}
+
+% 数学関連
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% 図式・TikZ
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing,shapes.geometric,patterns}
+\usepackage{tikz-cd}
+
+% ハイパーリンク
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    urlcolor=blue!50!black
+}
+
+% コード表示
+\usepackage{listings}
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue!80!black}\bfseries,
+    commentstyle=\color{green!50!black}\itshape,
+    stringstyle=\color{red!70!black},
+    frame=single,
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    framexleftmargin=1.5em,
+    backgroundcolor=\color{gray!5}
+}
+
+% 色
+\usepackage{xcolor}
+
+% 定理環境
+\theoremstyle{definition}
+\newtheorem{definition}{定義}[section]
+\newtheorem{example}[definition]{例}
+
+\theoremstyle{plain}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{corollary}[definition]{系}
+
+\theoremstyle{remark}
+\newtheorem{remark}[definition]{注意}
+\newtheorem{insight}[definition]{知見}
+
+% カスタムコマンド
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Phi}{\Phi}
+\newcommand{\CDF}{\mathrm{CDF}}
+\newcommand{\PDF}{\mathrm{PDF}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\E}{\mathbb{E}}
+
+% タイトル
+\title{%
+    \textbf{ポリシリアル相関の数学的基礎}\\[0.5em]
+    \Large Mathematical Foundations of Polyserial Correlation
+}
+
+\author{su\thanks{Lean ソースコードに Codex (OpenAI) および本 \TeX 文書に AI ツール Antigravity (Google DeepMind) を使用して作成しました。}}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文書は、連続変数と順序カテゴリ変数の間の相関を測る「ポリシリアル相関」の数学的基礎を
+学部生向けに解説する。潜在変数モデルに基づき、観測されるカテゴリの背後に連続的な
+潜在変数が存在すると仮定し、最尤推定による相関係数の推定手法を定式化する。
+本内容は Lean 4 で形式化されている。
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+%=============================================================================
+\section{導入}
+%=============================================================================
+
+\subsection{ポリシリアル相関とは}
+
+統計学において、変数間の相関を調べることは基礎的かつ重要な分析である。
+連続変数同士の相関にはピアソンの相関係数が用いられるが、
+一方の変数が「順序カテゴリ変数」（例：満足度を「低・中・高」で評価）の場合はどうだろうか？
+
+\begin{definition}[順序カテゴリ変数]
+\textbf{順序カテゴリ変数}（ordinal variable）とは、$k$ 個のカテゴリを持ち、
+カテゴリ間に自然な順序が存在する変数である。例えば：
+\begin{itemize}
+    \item 満足度：「不満」$<$「普通」$<$「満足」
+    \item 教育年数：「中卒」$<$「高卒」$<$「大卒」$<$「大学院卒」
+    \item 評価：$1, 2, 3, 4, 5$ 点
+\end{itemize}
+\end{definition}
+
+\begin{definition}[ポリシリアル相関]
+\textbf{ポリシリアル相関}（polyserial correlation）は、
+連続変数 $X$ と順序カテゴリ変数 $Y$（$k \geq 2$ カテゴリ）の間の
+相関を推定する手法である。
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=1.0,
+    box/.style={draw=blue!70, fill=blue!10, rounded corners, minimum width=2.5cm, minimum height=1cm, align=center},
+    arrow/.style={-Stealth, thick},
+    label/.style={font=\small}
+]
+
+% 変数の種類
+\node[box] (cont1) at (-4, 2) {連続変数\\$X_1$};
+\node[box] (cont2) at (-4, 0) {連続変数\\$X_2$};
+\node[box] (ord) at (0, 1) {順序カテゴリ\\$Y$};
+\node[box] (cont3) at (4, 1) {連続変数\\$X$};
+
+% 相関の種類
+\draw[arrow, green!50!black] (cont1.south) -- (cont2.north) 
+    node[midway, left, label] {ピアソン相関};
+
+\draw[arrow, red!70] (ord.east) -- (cont3.west) 
+    node[midway, above, label] {ポリシリアル相関};
+
+% 背景
+\node[label, gray] at (0, -1) {本文書で扱う};
+
+\end{tikzpicture}
+\caption{変数の種類と相関係数の選択}
+\label{fig:correlation-types}
+\end{figure}
+
+\subsection{なぜ単純なピアソン相関ではダメか}
+
+順序カテゴリ変数に単純に数値（例：$1, 2, 3$）を割り当ててピアソン相関を計算すると、
+以下の問題が生じる：
+
+\begin{itemize}
+    \item カテゴリ間の「距離」が等間隔であると暗黙に仮定してしまう
+    \item 相関係数が過小評価される傾向がある
+    \item 統計的推論の妥当性が失われる
+\end{itemize}
+
+ポリシリアル相関は、これらの問題を「潜在変数モデル」によって解決する。
+
+%=============================================================================
+\section{標準正規分布の復習}
+%=============================================================================
+
+ポリシリアル相関を理解するためには、正規分布の基本事項を押さえておく必要がある。
+
+\subsection{標準正規分布}
+
+\begin{definition}[標準正規分布のPDF]
+標準正規分布の\textbf{確率密度関数}（PDF）は次で定義される：
+\[
+    \phi(x) = \frac{1}{\sqrt{2\pi}} \exp\left(-\frac{x^2}{2}\right)
+\]
+\end{definition}
+
+\begin{definition}[標準正規分布のCDF]
+標準正規分布の\textbf{累積分布関数}（CDF）は次で定義される：
+\[
+    \Phi(x) = \int_{-\infty}^{x} \phi(t)\, dt = \int_{-\infty}^{x} \frac{1}{\sqrt{2\pi}} \exp\left(-\frac{t^2}{2}\right) dt
+\]
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=0.9,
+    domain=-3.5:3.5,
+    samples=100,
+    axis/.style={-Stealth, thick}
+]
+
+% PDF のグラフ
+\begin{scope}[xshift=-5cm]
+    \draw[axis] (-3.5, 0) -- (3.5, 0) node[right] {$x$};
+    \draw[axis] (0, -0.2) -- (0, 2) node[above] {$\phi(x)$};
+    
+    \draw[thick, blue!70, domain=-3.3:3.3] 
+        plot (\x, {1.5*exp(-\x*\x/2)});
+    
+    % ピーク
+    \draw[dashed, gray] (0, 0) -- (0, 1.5);
+    \node[below, font=\small] at (0, -0.3) {$0$};
+    \node[left, font=\small] at (-0.1, 1.5) {$\frac{1}{\sqrt{2\pi}}$};
+    
+    \node[font=\small, blue!70!black] at (0, -1) {確率密度関数 (PDF)};
+\end{scope}
+
+% CDF のグラフ
+\begin{scope}[xshift=5cm]
+    \draw[axis] (-3.5, 0) -- (3.5, 0) node[right] {$x$};
+    \draw[axis] (0, -0.2) -- (0, 2) node[above] {$\Phi(x)$};
+    
+    % 近似的なCDFの形状
+    \draw[thick, red!70, domain=-3.3:3.3] 
+        plot (\x, {1.5/(1 + exp(-1.7*\x))});
+    
+    % 水平線
+    \draw[dashed, gray] (-3.5, 1.5) -- (3.5, 1.5);
+    \node[left, font=\small] at (-3.5, 1.5) {$1$};
+    \node[left, font=\small] at (-3.5, 0.75) {$0.5$};
+    \draw[dashed, gray] (0, 0) -- (0, 0.75);
+    
+    \node[font=\small, red!70!black] at (0, -1) {累積分布関数 (CDF)};
+\end{scope}
+
+\end{tikzpicture}
+\caption{標準正規分布の PDF と CDF}
+\label{fig:normal-dist}
+\end{figure}
+
+\begin{theorem}[正規分布の基本性質]
+以下の性質が成り立つ：
+\begin{enumerate}
+    \item $\phi(x) \geq 0$ （非負性）
+    \item $\displaystyle\int_{-\infty}^{\infty} \phi(x)\, dx = 1$ （正規化）
+    \item $\Phi$ は単調増加
+    \item $\displaystyle\lim_{x \to -\infty} \Phi(x) = 0$, $\displaystyle\lim_{x \to +\infty} \Phi(x) = 1$
+\end{enumerate}
+\end{theorem}
+
+\subsection{二変量正規分布}
+
+\begin{definition}[二変量標準正規分布]
+二変量標準正規分布（相関係数 $\rho$, $|\rho| < 1$）の確率密度関数は：
+\[
+    f(x, y; \rho) = \frac{1}{2\pi\sqrt{1-\rho^2}} 
+    \exp\left(-\frac{x^2 - 2\rho xy + y^2}{2(1-\rho^2)}\right)
+\]
+\end{definition}
+
+\begin{proposition}[条件付き分布]
+$(X, Y^*) \sim \text{BVN}(0, 0, 1, 1, \rho)$ のとき、$X = x$ を与えたときの $Y^*$ の条件付き分布は：
+\begin{align}
+    \E[Y^* \mid X = x] &= \rho x \\
+    \Var[Y^* \mid X = x] &= 1 - \rho^2
+\end{align}
+\end{proposition}
+
+この条件付き分布の性質が、ポリシリアル相関の根幹をなす。
+
+%=============================================================================
+\section{潜在変数モデル}
+%=============================================================================
+
+\subsection{モデルの直感}
+
+ポリシリアル相関の核となるアイデアは、観測される順序カテゴリ変数 $Y$ の背後に
+「連続的な潜在変数 $Y^*$」が存在すると仮定することである。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=1.0,
+    axis/.style={-Stealth, thick},
+    threshold/.style={thick, red!70, dashed}
+]
+
+% 潜在変数の軸
+\draw[axis] (-1, 0) -- (8, 0) node[right] {$Y^*$（潜在変数）};
+
+% 閾値
+\draw[threshold] (2, -0.5) -- (2, 2.5);
+\draw[threshold] (5, -0.5) -- (5, 2.5);
+
+% 閾値のラベル
+\node[below, font=\small, red!70] at (2, -0.5) {$\tau_1$};
+\node[below, font=\small, red!70] at (5, -0.5) {$\tau_2$};
+
+% カテゴリ
+\node[font=\small, blue!70!black, align=center] at (0.5, 1.5) {$Y = 0$\\「低」};
+\node[font=\small, blue!70!black, align=center] at (3.5, 1.5) {$Y = 1$\\「中」};
+\node[font=\small, blue!70!black, align=center] at (6.5, 1.5) {$Y = 2$\\「高」};
+
+% 矢印
+\draw[thick, blue!50, decorate, decoration={brace, amplitude=5pt}] 
+    (-0.5, 2.3) -- (1.9, 2.3) node[midway, above=5pt, font=\small] {$Y^* < \tau_1$};
+\draw[thick, blue!50, decorate, decoration={brace, amplitude=5pt}] 
+    (2.1, 2.3) -- (4.9, 2.3) node[midway, above=5pt, font=\small] {$\tau_1 \leq Y^* < \tau_2$};
+\draw[thick, blue!50, decorate, decoration={brace, amplitude=5pt}] 
+    (5.1, 2.3) -- (7.5, 2.3) node[midway, above=5pt, font=\small] {$Y^* \geq \tau_2$};
+
+% 境界条件
+\node[font=\scriptsize, gray] at (-0.5, -1) {$\tau_0 = -\infty$};
+\node[font=\scriptsize, gray] at (7.5, -1) {$\tau_3 = +\infty$};
+
+\end{tikzpicture}
+\caption{潜在変数モデル：連続的な $Y^*$ が閾値によってカテゴリ化される}
+\label{fig:latent-variable}
+\end{figure}
+
+\subsection{形式的な定義}
+
+\begin{definition}[閾値パラメータ]
+$k$ カテゴリの順序変数に対して、閾値パラメータ $\boldsymbol{\tau} = (\tau_1, \ldots, \tau_{k-1})$ は
+狭義単調増加：
+\[
+    -\infty = \tau_0 < \tau_1 < \tau_2 < \cdots < \tau_{k-1} < \tau_k = +\infty
+\]
+を満たす実数列である。
+\end{definition}
+
+\begin{definition}[潜在変数モデル]
+潜在変数モデルは以下の構造を持つ：
+\begin{itemize}
+    \item 連続変数 $X$ と潜在変数 $Y^*$ は二変量正規分布に従う
+    \item 相関係数 $\rho \in (-1, 1)$
+    \item 観測される順序カテゴリ $Y$ は $Y^*$ を閾値で離散化したもの：
+    \[
+        Y = j \quad \Longleftrightarrow \quad \tau_j \leq Y^* < \tau_{j+1}
+    \]
+\end{itemize}
+\end{definition}
+
+\subsection{条件付きカテゴリ確率}
+
+\begin{definition}[カテゴリ確率]
+連続変数 $X = x$ を与えたとき、順序カテゴリ $Y = j$ となる確率は：
+\[
+    P(Y = j \mid X = x) = \Phi\left(\frac{\tau_{j+1} - \rho x}{\sigma}\right) 
+                        - \Phi\left(\frac{\tau_j - \rho x}{\sigma}\right)
+\]
+ただし $\sigma = \sqrt{1 - \rho^2}$ である。
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=0.85,
+    axis/.style={-Stealth, thick}
+]
+
+% 条件付き正規分布
+\draw[axis] (-1, 0) -- (8, 0) node[right] {$Y^*$};
+\draw[axis] (0, -0.2) -- (0, 2.5) node[above] {密度};
+
+% 分布曲線
+\draw[thick, blue!70, domain=-0.5:7.5, samples=100] 
+    plot (\x, {2*exp(-(\x-3.5)*(\x-3.5)/3)});
+
+% 閾値
+\draw[dashed, red!70] (2, 0) -- (2, 2.2);
+\draw[dashed, red!70] (5, 0) -- (5, 2.2);
+\node[below, font=\small, red!70] at (2, 0) {$\tau_1$};
+\node[below, font=\small, red!70] at (5, 0) {$\tau_2$};
+
+% 塗りつぶし（カテゴリ1）
+\fill[green!30, opacity=0.7, domain=2:5, samples=50] 
+    (2, 0) -- plot (\x, {2*exp(-(\x-3.5)*(\x-3.5)/3)}) -- (5, 0) -- cycle;
+
+% ラベル
+\node[font=\small, green!50!black] at (3.5, 0.8) {$P(Y=1 \mid X=x)$};
+
+% 平均の位置
+\draw[dashed, gray] (3.5, 0) -- (3.5, 2);
+\node[below, font=\small] at (3.5, -0.3) {$\rho x$};
+
+\end{tikzpicture}
+\caption{条件付きカテゴリ確率：$Y^* \mid X = x$ の分布における閾値間の面積}
+\label{fig:category-prob}
+\end{figure}
+
+\begin{theorem}[確率の正規化]
+カテゴリ確率は正規化されている：
+\[
+    \sum_{j=0}^{k-1} P(Y = j \mid X = x) = 1
+\]
+\end{theorem}
+
+\begin{proof}[証明の概略]
+CDFの性質と閾値の境界条件 $\tau_0 = -\infty$, $\tau_k = +\infty$ より、
+\begin{align*}
+    \sum_{j=0}^{k-1} P(Y = j \mid X = x) 
+    &= \sum_{j=0}^{k-1} \left[\Phi\left(\frac{\tau_{j+1} - \rho x}{\sigma}\right) 
+        - \Phi\left(\frac{\tau_j - \rho x}{\sigma}\right)\right] \\
+    &= \Phi(+\infty) - \Phi(-\infty) = 1 - 0 = 1
+\end{align*}
+（望遠鏡和の原理による）
+\end{proof}
+
+%=============================================================================
+\section{最尤推定}
+%=============================================================================
+
+\subsection{尤度関数}
+
+$n$ 個の観測データ $(x_1, y_1), \ldots, (x_n, y_n)$ が与えられたとき、
+パラメータ $(\rho, \boldsymbol{\tau})$ の尤度関数を構成する。
+
+\begin{definition}[単一観測の尤度]
+観測 $(x, y)$ に対する尤度は：
+\[
+    L(\rho, \boldsymbol{\tau}; x, y) = P(Y = y \mid X = x) \cdot \phi(x)
+\]
+ここで $\phi(x)$ は $X$ の周辺密度である。
+\end{definition}
+
+\begin{definition}[対数尤度関数]
+全データに対する対数尤度は：
+\[
+    \ell(\rho, \boldsymbol{\tau}) = \sum_{i=1}^{n} \log L(\rho, \boldsymbol{\tau}; x_i, y_i)
+\]
+\end{definition}
+
+\subsection{ポリシリアル相関の推定}
+
+\begin{definition}[ポリシリアル相関係数]
+ポリシリアル相関係数 $\hat{\rho}$ は、対数尤度を最大化するパラメータとして定義される：
+\[
+    \hat{\rho} = \arg\max_{\rho \in (-1, 1)} \max_{\boldsymbol{\tau}} \ell(\rho, \boldsymbol{\tau})
+\]
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=1.0,
+    box/.style={draw=blue!70, fill=blue!10, rounded corners, minimum width=3cm, minimum height=1.2cm, align=center},
+    arrow/.style={-Stealth, thick}
+]
+
+% フロー
+\node[box] (data) at (0, 0) {データ\\$(x_i, y_i)_{i=1}^n$};
+\node[box] (likelihood) at (4, 0) {尤度関数\\$L(\rho, \boldsymbol{\tau})$};
+\node[box] (optimize) at (8, 0) {最大化\\$\arg\max$};
+\node[box] (result) at (12, 0) {$\hat{\rho}$\\ポリシリアル相関};
+
+\draw[arrow] (data) -- (likelihood);
+\draw[arrow] (likelihood) -- (optimize);
+\draw[arrow] (optimize) -- (result);
+
+\end{tikzpicture}
+\caption{ポリシリアル相関の推定ワークフロー}
+\label{fig:estimation-flow}
+\end{figure}
+
+%=============================================================================
+\section{推定量の統計的性質}
+%=============================================================================
+
+\subsection{一致性}
+
+\begin{theorem}[一致性]
+サンプルサイズ $n \to \infty$ のとき、ポリシリアル相関の推定量 $\hat{\rho}_n$ は
+真の相関係数 $\rho$ に確率収束する：
+\[
+    \forall \varepsilon > 0,\ \exists N,\ \forall n \geq N,\ 
+    |\hat{\rho}_n - \rho| < \varepsilon
+\]
+\end{theorem}
+
+\subsection{漸近正規性}
+
+\begin{theorem}[漸近正規性]
+適切な正則条件のもとで、
+\[
+    \sqrt{n}(\hat{\rho}_n - \rho) \xrightarrow{d} \mathcal{N}(0, I(\rho)^{-1})
+\]
+ここで $I(\rho)$ はフィッシャー情報量である。
+\end{theorem}
+
+\begin{definition}[フィッシャー情報量]
+\[
+    I(\rho) = \E\left[\left(\frac{\partial}{\partial \rho} \log L\right)^2\right]
+\]
+これは推定量の分散の逆数と関連し、$I(\rho) > 0$ である。
+\end{definition}
+
+%=============================================================================
+\section{特殊ケース：二系列相関}
+%=============================================================================
+
+\begin{theorem}[$k = 2$ の場合]
+カテゴリ数 $k = 2$ の場合、ポリシリアル相関は\textbf{二系列相関}（biserial correlation）と一致する：
+\[
+    \hat{\rho}_{\text{polyserial}} = \hat{\rho}_{\text{biserial}}
+\]
+\end{theorem}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=1.0,
+    box/.style={draw=blue!70, fill=blue!10, rounded corners, minimum width=3.5cm, minimum height=1.5cm, align=center},
+    special/.style={draw=red!70, fill=red!10, rounded corners, minimum width=3.5cm, minimum height=1.5cm, align=center}
+]
+
+% 一般ケース
+\node[box] (general) at (0, 0) {ポリシリアル相関\\$k \geq 2$ カテゴリ};
+
+% 特殊ケース
+\node[special] (biserial) at (5, 0) {二系列相関\\$k = 2$ カテゴリ};
+
+% 矢印
+\draw[-Stealth, thick] (general.east) -- (biserial.west) 
+    node[midway, above, font=\small] {$k = 2$};
+
+% 例
+\node[font=\small, gray, align=center] at (0, -1.5) {5段階評価\\4カテゴリ以上};
+\node[font=\small, gray, align=center] at (5, -1.5) {合格/不合格\\はい/いいえ};
+
+\end{tikzpicture}
+\caption{ポリシリアル相関と二系列相関の関係}
+\label{fig:biserial}
+\end{figure}
+
+%=============================================================================
+\section{具体例}
+%=============================================================================
+
+\subsection{3カテゴリの例}
+
+\begin{example}[満足度調査]
+顧客満足度を「低」「中」「高」の3カテゴリで測定し、
+購入金額（連続変数）との相関を調べる。
+
+\textbf{設定}：
+\begin{itemize}
+    \item $k = 3$（カテゴリ数）
+    \item 閾値：$\tau_1 = -1$, $\tau_2 = 1$
+    \item 相関係数：$\rho = 0.5$
+\end{itemize}
+
+この設定では：
+\begin{itemize}
+    \item $Y = 0$（低）$\Leftrightarrow$ $Y^* < -1$
+    \item $Y = 1$（中）$\Leftrightarrow$ $-1 \leq Y^* < 1$
+    \item $Y = 2$（高）$\Leftrightarrow$ $Y^* \geq 1$
+\end{itemize}
+\end{example}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=0.9,
+    axis/.style={-Stealth, thick}
+]
+
+% 座標軸
+\draw[axis] (-0.5, 0) -- (6, 0) node[right] {$X$（購入金額）};
+\draw[axis] (0, -0.5) -- (0, 4) node[above] {$Y$（満足度）};
+
+% データ点（模擬）
+\foreach \x/\y in {0.5/0, 1/0, 1.2/0, 0.8/0, 1.5/1, 2/1, 2.2/1, 2.5/1, 2.8/1, 3/1, 
+                   3.2/2, 3.5/2, 4/2, 4.5/2, 5/2, 5.2/2} {
+    \filldraw[blue!70, opacity=0.7] (\x, \y+0.5) circle (3pt);
+}
+
+% カテゴリラベル
+\node[left, font=\small] at (0, 0.5) {低 (0)};
+\node[left, font=\small] at (0, 1.5) {中 (1)};
+\node[left, font=\small] at (0, 2.5) {高 (2)};
+
+% 水平線
+\draw[dashed, gray] (0, 1) -- (6, 1);
+\draw[dashed, gray] (0, 2) -- (6, 2);
+
+% トレンド
+\draw[thick, red!70, -Stealth] (0.5, 0.3) -- (5.5, 2.7) 
+    node[right, font=\small] {$\rho = 0.5$};
+
+\end{tikzpicture}
+\caption{3カテゴリの順序変数と連続変数の散布図（模擬データ）}
+\label{fig:example-data}
+\end{figure}
+
+%=============================================================================
+\section{Lean形式化の概要}
+%=============================================================================
+
+本文書の内容は Lean 4 で形式化されている。主要な構成要素を紹介する。
+
+\subsection{データ構造}
+
+\begin{lstlisting}[language=ML, caption={順序カテゴリ変数の定義}]
+structure OrdinalVariable (k : Nat) where
+  value : Fin k
+  deriving DecidableEq
+\end{lstlisting}
+
+\begin{lstlisting}[language=ML, caption={閾値パラメータの定義}]
+structure Thresholds (k : Nat) where
+  tau : Fin (k - 1) -> Real
+  strictly_increasing : StrictMono tau
+\end{lstlisting}
+
+\begin{lstlisting}[language=ML, caption={潜在変数モデルの定義}]
+structure LatentVariableModel (k : Nat) where
+  thresholds : Thresholds k
+  rho : Real
+  h_rho : |rho| < 1
+  h_k : 1 < k
+\end{lstlisting}
+
+\subsection{主要定理}
+
+\begin{lstlisting}[language=ML, caption={確率の正規化}]
+theorem categoryProbability_sum_eq_one {k : Nat} (hk : 0 < k)
+    (model : LatentVariableModel k) (x : Real) :
+    sum j : Fin k, categoryProbability model x j = 1
+\end{lstlisting}
+
+\begin{lstlisting}[language=ML, caption={二系列相関との一致}]
+theorem polyserial_eq_biserial_when_k_eq_2 {n : Nat}
+    (data : Fin n -> Real * Fin 2) :
+    polyserialCorrelation data = biserialCorrelation data
+\end{lstlisting}
+
+\subsection{形式化のアプローチ}
+
+本形式化では、以下のように公理的アプローチを採用している：
+
+\begin{enumerate}
+    \item 標準正規分布の性質（非負性、正規化、単調性など）を公理として導入
+    \item これらの公理から定理を導出
+    \item 将来的に mathlib の測度論・確率論の結果で公理を置換予定
+\end{enumerate}
+
+%=============================================================================
+\section{用語対応表}
+%=============================================================================
+
+\begin{table}[htbp]
+\centering
+\caption{Lean識別子と数学記号の対応}
+\small
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Lean 識別子} & \textbf{数学記号} & \textbf{説明} \\
+\hline
+\texttt{stdNormalPDF} & $\phi(x)$ & 標準正規分布のPDF \\
+\texttt{stdNormalCDF} & $\Phi(x)$ & 標準正規分布のCDF \\
+\texttt{Thresholds.tau} & $\tau_j$ & 閾値パラメータ \\
+\texttt{LatentVariableModel.rho} & $\rho$ & 相関係数 \\
+\texttt{categoryProbability} & $P(Y = j \mid X = x)$ & カテゴリ確率 \\
+\texttt{polyserialCorrelation} & $\hat{\rho}$ & ポリシリアル相関推定量 \\
+\texttt{fisherInformation} & $I(\rho)$ & フィッシャー情報量 \\
+\hline
+\end{tabular}
+\end{table}
+
+%=============================================================================
+\section{まとめと発展}
+%=============================================================================
+
+\subsection{本文書のまとめ}
+
+\begin{enumerate}
+    \item ポリシリアル相関は、連続変数と順序カテゴリ変数の間の相関を推定する手法
+    \item 潜在変数モデルに基づき、観測カテゴリの背後に連続変数を仮定
+    \item 最尤推定により相関係数を推定
+    \item 推定量は一致性と漸近正規性を持つ
+    \item $k = 2$ の場合は二系列相関と一致
+\end{enumerate}
+
+\subsection{発展的話題}
+
+\begin{itemize}
+    \item \textbf{ポリコリック相関}：両変数が順序カテゴリの場合への一般化
+    \item \textbf{欠測データ処理}：不完全なデータへの対応
+    \item \textbf{ベイズ推定}：事前分布を用いた推定手法
+    \item \textbf{多変量への拡張}：複数の変数間の相関構造
+\end{itemize}
+
+%=============================================================================
+% 参考文献
+%=============================================================================
+
+\begin{thebibliography}{9}
+
+\bibitem{olsson1979}
+U. Olsson, F. Drasgow, and N. J. Dorans.
+\textit{The polyserial correlation coefficient}.
+Psychometrika, 47(3):337--347, 1982.
+
+\bibitem{mathlib}
+The mathlib Community.
+\textit{Mathlib: The Math Library for Lean 4}.
+\url{https://github.com/leanprover-community/mathlib4}
+
+\bibitem{lean4}
+Leonardo de Moura et al.
+\textit{The Lean 4 Theorem Prover and Programming Language}.
+CADE-28, 2021.
+
+\end{thebibliography}
+
+\end{document}
