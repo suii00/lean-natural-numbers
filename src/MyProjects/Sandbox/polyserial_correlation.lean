@@ -352,6 +352,7 @@ theorem polyserial_eq_biserial_when_k_eq_2 {n : ℕ}
     What: a Prop stating asymptotic normality for the estimator.
     Why: separates the probabilistic statement from its future formalization.
     Technique: axiom placeholder; replace with distributional convergence.
+    Future: formalize √n (ρ̂_n - ρ) →^d N(0, 1 / I(ρ)) with Fisher information I(ρ).
 -/
 axiom AsymptoticallyNormal {k : ℕ} (model : LatentVariableModel k) : Prop
 
@@ -361,6 +362,7 @@ namespace PolyserialAxioms
     What: eventual closeness to the true rho for all data sets.
     Why: foundational asymptotic property for the estimator.
     Technique: axiom placeholder; prove in a probability theory layer.
+    Note: this is deterministic; a probabilistic (measure-based) formulation is planned.
 -/
 axiom Axiom_polyserial_consistent {k : ℕ} (model : LatentVariableModel k) :
     ∀ ε > 0, ∃ N, ∀ n ≥ N, ∀ (data : Fin n → ℝ × Fin k),
@@ -418,6 +420,14 @@ def exampleModel : LatentVariableModel 3 where
 
 /-! ## 計算補助定理 -/
 
+/-! ### 条件付き分布の性質（参考）
+    二変量正規分布 (X, Y*) ~ BVN(0, 0, 1, 1, ρ) において：
+    - E[Y* | X = x] = ρx
+    - Var[Y* | X = x] = 1 - ρ²
+    これらは categoryProbability の導出根拠となる。
+    将来的に MeasureTheory.Probability での形式化を検討。
+-/
+
 namespace PolyserialAxioms
 
 /-- Axiom: score function definition.
@@ -444,26 +454,6 @@ axiom Axiom_fisherInformation_pos {k : ℕ} (model : LatentVariableModel k) :
     0 < Axiom_fisherInformation model
 
 end PolyserialAxioms
-
-/-- 条件付き期待値 E[Y* | X = x] = rho * x.
-    What: conditional mean formula in the bivariate normal model.
-    Why: sanity check for the latent-variable parametrization.
-    Technique: definitional equality (rfl).
--/
-theorem conditional_expectation_latent (ρ : ℝ) (hρ : |ρ| < 1) (x : ℝ) :
-    -- E[Y* | X = x] where (X, Y*) ~ BVN(0, 0, 1, 1, ρ)
-    ρ * x = ρ * x := by
-  rfl
-
-/-- 条件付き分散 Var[Y* | X = x] = 1 - rho^2.
-    What: conditional variance formula in the bivariate normal model.
-    Why: sanity check for the latent-variable parametrization.
-    Technique: definitional equality (rfl).
--/
-theorem conditional_variance_latent (ρ : ℝ) (hρ : |ρ| < 1) (x : ℝ) :
-    -- Var[Y* | X = x] = 1 - ρ²
-    1 - ρ^2 = 1 - ρ^2 := by
-  rfl
 
 /-- スコア関数（ρに関する対数尤度の微分）。
     What: score function for rho at a single observation.
