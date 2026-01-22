@@ -253,7 +253,10 @@
 \end{definition}
 
 \begin{proposition}[条件付き分布]
-$(X, Y^*) \sim \text{BVN}(0, 0, 1, 1, \rho)$ のとき、$X = x$ を与えたときの $Y^*$ の条件付き分布は：
+$(X, Y^*) \sim \text{BVN}(0, 0, 1, 1, \rho)$%
+\footnote{$\text{BVN}(\mu_X, \mu_{Y^*}, \sigma_X^2, \sigma_{Y^*}^2, \rho)$ は二変量正規分布を表し、
+ここでは平均 $(0, 0)$、分散 $(1, 1)$、相関 $\rho$ を意味する。}
+のとき、$X = x$ を与えたときの $Y^*$ の条件付き分布は：
 \begin{align}
     \E[Y^* \mid X = x] &= \rho x \\
     \Var[Y^* \mid X = x] &= 1 - \rho^2
@@ -344,6 +347,8 @@ $k$ カテゴリの順序変数に対して、閾値パラメータ $\boldsymbol
                         - \Phi\left(\frac{\tau_j - \rho x}{\sigma}\right)
 \]
 ただし $\sigma = \sqrt{1 - \rho^2}$ である。
+
+\textbf{注}：$j \in \{0, 1, \ldots, k-1\}$ であり、Lean 4 では \texttt{Fin k} で表現される。
 \end{definition}
 
 \begin{figure}[htbp]
@@ -379,7 +384,7 @@ $k$ カテゴリの順序変数に対して、閾値パラメータ $\boldsymbol
 \node[below, font=\small] at (3.5, -0.3) {$\rho x$};
 
 \end{tikzpicture}
-\caption{条件付きカテゴリ確率：$Y^* \mid X = x$ の分布における閾値間の面積}
+\caption{条件付きカテゴリ確率：条件付き分布 $Y^* \mid X = x \sim N(\rho x, 1-\rho^2)$ における閾値間の面積がカテゴリ確率を与える}
 \label{fig:category-prob}
 \end{figure}
 
@@ -467,10 +472,15 @@ $n$ 個の観測データ $(x_1, y_1), \ldots, (x_n, y_n)$ が与えられたと
 サンプルサイズ $n \to \infty$ のとき、ポリシリアル相関の推定量 $\hat{\rho}_n$ は
 真の相関係数 $\rho$ に確率収束する：
 \[
-    \forall \varepsilon > 0,\ \exists N,\ \forall n \geq N,\ 
-    |\hat{\rho}_n - \rho| < \varepsilon
+    \hat{\rho}_n \xrightarrow{P} \rho \quad (n \to \infty)
 \]
 \end{theorem}
+
+\begin{remark}[Lean形式化との対応]
+上記は確率論的な表現である。Lean4形式化では現在、決定論的バージョン
+$\forall \varepsilon > 0,\ \exists N,\ \forall n \geq N,\ |\hat{\rho}_n - \rho| < \varepsilon$
+を採用しており、将来的に測度論に基づく確率収束の定式化への拡張を予定している。
+\end{remark}
 
 \subsection{漸近正規性}
 
@@ -620,7 +630,7 @@ structure LatentVariableModel (k : Nat) where
 \begin{lstlisting}[language=ML, caption={確率の正規化}]
 theorem categoryProbability_sum_eq_one {k : Nat} (hk : 0 < k)
     (model : LatentVariableModel k) (x : Real) :
-    sum j : Fin k, categoryProbability model x j = 1
+    Finset.sum Finset.univ (fun j => categoryProbability model x j) = 1
 \end{lstlisting}
 
 \begin{lstlisting}[language=ML, caption={二系列相関との一致}]
@@ -638,6 +648,15 @@ theorem polyserial_eq_biserial_when_k_eq_2 {n : Nat}
     \item これらの公理から定理を導出
     \item 将来的に mathlib の測度論・確率論の結果で公理を置換予定
 \end{enumerate}
+
+主要な公理（\texttt{PolyserialAxioms} 名前空間）：
+\begin{itemize}
+    \item \texttt{Axiom\_stdNormalPDF\_nonneg} --- $\phi(x) \geq 0$
+    \item \texttt{Axiom\_stdNormalPDF\_integral\_eq\_one} --- $\int \phi = 1$
+    \item \texttt{Axiom\_stdNormalCDF\_mono} --- $\Phi$ の単調性
+    \item \texttt{Axiom\_categoryProbability\_sum\_eq\_one} --- カテゴリ確率の正規化
+    \item \texttt{Axiom\_polyserial\_consistent} --- 推定量の一致性
+\end{itemize}
 
 %=============================================================================
 \section{用語対応表}
@@ -705,6 +724,12 @@ The mathlib Community.
 Leonardo de Moura et al.
 \textit{The Lean 4 Theorem Prover and Programming Language}.
 CADE-28, 2021.
+
+\bibitem{degenne2023}
+Rémy Degenne et al.
+\textit{Probability Theory in Mathlib}.
+ITP 2023.
+\url{https://doi.org/10.4230/LIPIcs.ITP.2023.12}
 
 \end{thebibliography}
 
