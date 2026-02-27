@@ -1,0 +1,226 @@
+---
+title: "ポリシリアル相関のシミュレーション"
+author: "Polyserial Correlation Simulation"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# 1. はじめに
+
+このドキュメントでは、ポリシリアル相関（Polyserial Correlation）の性質を
+シミュレーションを通じて確認します。
+
+## 必要なパッケージ
+
+```{r packages}
+# パッケージのインストール（初回のみ）
+# install.packages(c("polycor", "MASS", "ggplot2"))
+
+library(MASS)      # 多変量正規分布
+library(polycor)   # ポリシリアル相関
+library(ggplot2)   # 可視化
+```
+
+# 2. 潜在変数モデルからのデータ生成
+
+## 2.1 データ生成関数
+
+```{r data-generation}
+generate_polyserial_data <- function(n, rho, thresholds) {
+  # 二変量正規分布からデータを生成
+  # X: 連続変数, Y*: 潜在変数
+  Sigma <- matrix(c(1, rho, rho, 1), 2, 2)
+  data <- mvrnorm(n, mu = c(0, 0), Sigma = Sigma)
+  
+  X <- data[, 1]
+  Y_star <- data[, 2]
+  
+  # Y* を閾値で離散化 → 観測カテゴリ Y
+  breaks <- c(-Inf, thresholds, Inf)
+  Y <- cut(Y_star, breaks = breaks, labels = FALSE) - 1
+  
+  return(data.frame(X = X, Y_star = Y_star, Y = factor(Y, ordered = TRUE)))
+}
+```
+
+## 2.2 サンプルデータの生成
+
+```{r sample-data}
+set.seed(42)
+
+# パラメータ設定
+n <- 500           # サンプルサイズ
+rho_true <- 0.6    # 真の相関係数
+thresholds <- c(-0.5, 0.8)  # 閾値 τ₁, τ₂
+
+# データ生成
+df <- generate_polyserial_data(n, rho_true, thresholds)
+
+# カテゴリ分布の確認
+table(df$Y)
+```
+
+## 2.3 データの可視化
+
+```{r visualization, fig.width=10, fig.height=4}
+# 2つのプロットを並べる
+par(mfrow = c(1, 2))
+
+# (a) 潜在変数 Y* vs X
+plot(df$X, df$Y_star, 
+     pch = 19, col = rgb(0.2, 0.4, 0.8, 0.5),
+     xlab = "X (連続変数)", ylab = "Y* (潜在変数)",
+     main = "(a) 潜在変数モデル")
+abline(h = thresholds, col = "red", lty = 2, lwd = 2)
+legend("topleft", c("閾値 τ₁, τ₂"), col = "red", lty = 2)
+
+# (b) 観測される Y vs X
+colors <- c("#e74c3c", "#3498db", "#2ecc71")
+plot(df$X, jitter(as.numeric(df$Y) - 1, amount = 0.1),
+     pch = 19, col = colors[as.numeric(df$Y)], 
+     xlab = "X (連続変数)", ylab = "Y (観測カテゴリ)",
+     main = "(b) 観測データ", yaxt = "n")
+axis(2, at = 0:2, labels = c("低", "中", "高"))
+legend("topleft", c("低 (0)", "中 (1)", "高 (2)"), 
+       col = colors, pch = 19)
+
+par(mfrow = c(1, 1))
+```
+
+# 3. ポリシリアル相関の推定
+
+## 3.1 polycor パッケージによる推定
+
+```{r estimation}
+# ポリシリアル相関の推定（最尤法）
+rho_hat <- polyserial(df$X, df$Y, ML = TRUE)
+
+cat("真の相関係数 ρ:", rho_true, "\n")
+cat("推定値 ρ̂:", round(rho_hat, 4), "\n")
+cat("誤差:", round(rho_hat - rho_true, 4), "\n")
+```
+
+## 3.2 ピアソン相関との比較
+
+```{r comparison}
+# 単純にカテゴリを数値として扱った場合
+rho_pearson <- cor(df$X, as.numeric(df$Y))
+
+cat("ポリシリアル相関:", round(rho_hat, 4), "\n")
+cat("ピアソン相関（不適切）:", round(rho_pearson, 4), "\n")
+cat("過小推定の程度:", round((rho_true - rho_pearson) / rho_true * 100, 1), "%\n")
+```
+
+**結論**: ピアソン相関は相関を過小評価する傾向があります。
+
+# 4. 一致性の検証
+
+サンプルサイズを増やすと、推定量が真の値に収束することを確認します。
+
+```{r consistency, fig.width=8, fig.height=5}
+sample_sizes <- c(50, 100, 200, 500, 1000, 2000, 5000)
+n_rep <- 30  # 各サンプルサイズでの繰り返し回数
+
+results <- data.frame()
+
+for (n in sample_sizes) {
+  estimates <- numeric(n_rep)
+  for (i in 1:n_rep) {
+    df_sim <- generate_polyserial_data(n, rho_true, thresholds)
+    estimates[i] <- polyserial(df_sim$X, df_sim$Y, ML = TRUE)
+  }
+  results <- rbind(results, data.frame(
+    n = n,
+    mean_est = mean(estimates),
+    sd_est = sd(estimates),
+    bias = mean(estimates) - rho_true
+  ))
+}
+
+# 結果の表示
+knitr::kable(results, digits = 4, 
+             col.names = c("n", "平均推定値", "標準偏差", "バイアス"))
+
+# プロット
+ggplot(results, aes(x = n, y = mean_est)) +
+  geom_line(color = "#3498db", size = 1) +
+  geom_point(color = "#3498db", size = 3) +
+  geom_errorbar(aes(ymin = mean_est - sd_est, ymax = mean_est + sd_est),
+                width = 0.1, color = "#3498db") +
+  geom_hline(yintercept = rho_true, color = "red", linetype = "dashed", size = 1) +
+  scale_x_log10() +
+  labs(x = "サンプルサイズ (log scale)", 
+       y = "推定値 ρ̂",
+       title = "ポリシリアル相関の一致性",
+       subtitle = paste("真の相関係数 ρ =", rho_true)) +
+  theme_minimal() +
+  annotate("text", x = max(sample_sizes), y = rho_true + 0.02, 
+           label = "真の値", color = "red", hjust = 1)
+```
+
+# 5. 漸近正規性の検証
+
+```{r asymptotic-normality, fig.width=10, fig.height=4}
+# 大きなサンプルサイズでの推定量の分布
+n_large <- 1000
+n_sim <- 500
+
+estimates_large <- numeric(n_sim)
+for (i in 1:n_sim) {
+  df_sim <- generate_polyserial_data(n_large, rho_true, thresholds)
+  estimates_large[i] <- polyserial(df_sim$X, df_sim$Y, ML = TRUE)
+}
+
+# ヒストグラムと正規分布の重ね合わせ
+par(mfrow = c(1, 2))
+
+# (a) ヒストグラム
+hist(estimates_large, breaks = 30, probability = TRUE,
+     main = paste("推定量の分布 (n =", n_large, ")"),
+     xlab = "ρ̂", col = "lightblue", border = "white")
+curve(dnorm(x, mean = mean(estimates_large), sd = sd(estimates_large)),
+      add = TRUE, col = "red", lwd = 2)
+abline(v = rho_true, col = "darkgreen", lty = 2, lwd = 2)
+legend("topright", c("正規分布", "真の値"), 
+       col = c("red", "darkgreen"), lty = c(1, 2))
+
+# (b) Q-Q プロット
+qqnorm(estimates_large, main = "Q-Q プロット")
+qqline(estimates_large, col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+# 6. k = 2 の特殊ケース（二系列相関）
+
+```{r biserial}
+# 2カテゴリの場合
+thresholds_k2 <- c(0)  # 閾値1つ
+df_k2 <- generate_polyserial_data(500, rho_true, thresholds_k2)
+
+rho_polyserial_k2 <- polyserial(df_k2$X, df_k2$Y, ML = TRUE)
+cat("k = 2 でのポリシリアル相関:", round(rho_polyserial_k2, 4), "\n")
+cat("（これは二系列相関と一致する）\n")
+```
+
+# 7. まとめ
+
+1. **ポリシリアル相関**は、連続変数と順序カテゴリ変数の間の相関を正しく推定する
+2. **一致性**: サンプルサイズ → ∞ で真の値に収束
+3. **漸近正規性**: 大標本では推定量は正規分布に従う
+4. **ピアソン相関との違い**: ピアソン相関は相関を過小評価する
+
+# セッション情報
+
+```{r session-info}
+sessionInfo()
+```

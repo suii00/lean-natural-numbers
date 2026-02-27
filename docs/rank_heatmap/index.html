@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Structure Tower - ランク関数ヒートマップ可視化</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a1a;
+            --bg-secondary: #12122a;
+            --bg-tertiary: #1a1a3a;
+            --text-primary: #e0e0ff;
+            --text-secondary: #a0a0c0;
+            --accent-cyan: #00ffff;
+            --accent-purple: #9966ff;
+            --accent-pink: #ff66cc;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Yu Gothic UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(102, 51, 153, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(0, 102, 153, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(51, 51, 102, 0.1) 0%, transparent 60%);
+            animation: bgPulse 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgPulse {
+            0% { opacity: 0.7; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* Header */
+        header {
+            padding: 2rem;
+            text-align: center;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Main container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+        }
+
+        /* Glass panel */
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-title::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 2px;
+        }
+
+        /* Controls */
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, input[type="number"]:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        select:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 0.75rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(153, 102, 255, 0.2);
+        }
+
+        /* Canvas container */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        #graphCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 1.5rem;
+        }
+
+        .legend-gradient {
+            height: 30px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, 
+                #1a1a6c, #4834d4, #9b59b6, #e74c3c, #f39c12, #f1c40f);
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Info panel */
+        .info-box {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .info-box h4 {
+            color: var(--accent-purple);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .stat-card {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Tooltip */
+        #tooltip {
+            position: fixed;
+            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        #tooltip.visible {
+            opacity: 1;
+        }
+
+        #tooltip .vertex-name {
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        #tooltip .vertex-rank {
+            color: var(--accent-purple);
+        }
+
+        /* Animation keyframes */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        @keyframes glow {
+            0%, 100% { filter: drop-shadow(0 0 5px currentColor); }
+            50% { filter: drop-shadow(0 0 15px currentColor); }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <header>
+        <h1>🏗️ Structure Tower ランク関数ヒートマップ</h1>
+        <p class="subtitle">有限グラフ上でランク関数を計算し、層の生成順序を可視化します</p>
+    </header>
+
+    <div class="container">
+        <aside class="panel">
+            <h2 class="panel-title">設定</h2>
+            
+            <div class="control-group">
+                <label>グラフの種類</label>
+                <select id="graphType">
+                    <option value="path">パスグラフ (一列)</option>
+                    <option value="cycle">サイクルグラフ (環)</option>
+                    <option value="complete">完全グラフ</option>
+                    <option value="star">スターグラフ</option>
+                    <option value="grid">格子グラフ</option>
+                    <option value="petersen">ペテルセングラフ</option>
+                    <option value="binary-tree">二分木</option>
+                    <option value="random">ランダムグラフ</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>頂点数</label>
+                <input type="number" id="vertexCount" value="10" min="3" max="30">
+            </div>
+
+            <div class="control-group">
+                <label>生成元の選択</label>
+                <select id="generatorMode">
+                    <option value="single">単一の生成元（頂点0）</option>
+                    <option value="multiple">複数の生成元</option>
+                    <option value="random">ランダムな生成元</option>
+                    <option value="antipodal">対極の生成元</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>アニメーション速度</label>
+                <select id="animSpeed">
+                    <option value="fast">高速</option>
+                    <option value="normal" selected>標準</option>
+                    <option value="slow">低速</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="generateAndVisualize()">
+                🎨 生成 & 可視化
+            </button>
+            <button class="btn btn-secondary" onclick="toggleAnimation()">
+                ⏯️ アニメーション切替
+            </button>
+            <button class="btn btn-secondary" onclick="stepAnimation()">
+                ➡️ 次の層を表示
+            </button>
+
+            <div class="legend">
+                <h3 class="panel-title">ランクカラー凡例</h3>
+                <div class="legend-gradient"></div>
+                <div class="legend-labels">
+                    <span>層 0 (基底)</span>
+                    <span>層 n (最深)</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="statVertices">0</div>
+                    <div class="stat-label">頂点数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statEdges">0</div>
+                    <div class="stat-label">辺数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statMaxRank">0</div>
+                    <div class="stat-label">最大ランク</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statGenerators">0</div>
+                    <div class="stat-label">生成元</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>📚 Structure Tower とは？</h4>
+                <p>
+                    各頂点のランクは、その頂点が生成層のどの段階で
+                    「到達可能」になるかを表します。生成元から始まり、
+                    隣接する頂点へ徐々に広がっていく様子を熱分布図のように表現します。
+                </p>
+            </div>
+        </aside>
+
+        <main class="panel">
+            <h2 class="panel-title">グラフ可視化</h2>
+            <div class="canvas-container">
+                <canvas id="graphCanvas"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <div id="tooltip">
+        <div class="vertex-name">頂点</div>
+        <div class="vertex-rank">ランク: 0</div>
+    </div>
+
+    <footer>
+        <p>Structure Tower Project | ランク関数の可視化実験</p>
+    </footer>
+
+    <script>
+        // ===== Graph Data Structures =====
+        class Graph {
+            constructor() {
+                this.vertices = [];
+                this.edges = [];
+                this.adjacency = new Map();
+            }
+
+            addVertex(id, x, y) {
+                this.vertices.push({ id, x, y, rank: -1 });
+                this.adjacency.set(id, []);
+            }
+
+            addEdge(v1, v2) {
+                this.edges.push([v1, v2]);
+                this.adjacency.get(v1).push(v2);
+                this.adjacency.get(v2).push(v1);
+            }
+
+            getNeighbors(v) {
+                return this.adjacency.get(v) || [];
+            }
+        }
+
+        // ===== Graph Generators =====
+        const GraphGenerators = {
+            path(n) {
+                const g = new Graph();
+                for (let i = 0; i < n; i++) {
+                    const angle = 0;
+                    const x = 0.15 + (0.7 * i / (n - 1));
+                    const y = 0.5 + Math.sin(i * 0.5) * 0.1;
+                    g.addVertex(i, x, y);
+                }
+                for (let i = 0; i < n - 1; i++) {
+                    g.addEdge(i, i + 1);
+                }
+                return g;
+            },
+
+            cycle(n) {
+                const g = new Graph();
+                for (let i = 0; i < n; i++) {
+                    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+                    const x = 0.5 + 0.35 * Math.cos(angle);
+                    const y = 0.5 + 0.35 * Math.sin(angle);
+                    g.addVertex(i, x, y);
+                }
+                for (let i = 0; i < n; i++) {
+                    g.addEdge(i, (i + 1) % n);
+                }
+                return g;
+            },
+
+            complete(n) {
+                const g = new Graph();
+                for (let i = 0; i < n; i++) {
+                    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+                    const x = 0.5 + 0.35 * Math.cos(angle);
+                    const y = 0.5 + 0.35 * Math.sin(angle);
+                    g.addVertex(i, x, y);
+                }
+                for (let i = 0; i < n; i++) {
+                    for (let j = i + 1; j < n; j++) {
+                        g.addEdge(i, j);
+                    }
+                }
+                return g;
+            },
+
+            star(n) {
+                const g = new Graph();
+                g.addVertex(0, 0.5, 0.5);
+                for (let i = 1; i < n; i++) {
+                    const angle = (2 * Math.PI * (i - 1) / (n - 1)) - Math.PI / 2;
+                    const x = 0.5 + 0.35 * Math.cos(angle);
+                    const y = 0.5 + 0.35 * Math.sin(angle);
+                    g.addVertex(i, x, y);
+                    g.addEdge(0, i);
+                }
+                return g;
+            },
+
+            grid(n) {
+                const g = new Graph();
+                const size = Math.ceil(Math.sqrt(n));
+                let id = 0;
+                for (let i = 0; i < size && id < n; i++) {
+                    for (let j = 0; j < size && id < n; j++) {
+                        const x = 0.15 + (0.7 * j / (size - 1 || 1));
+                        const y = 0.15 + (0.7 * i / (size - 1 || 1));
+                        g.addVertex(id++, x, y);
+                    }
+                }
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        const curr = i * size + j;
+                        if (curr >= n) continue;
+                        if (j + 1 < size && curr + 1 < n) g.addEdge(curr, curr + 1);
+                        if (i + 1 < size && curr + size < n) g.addEdge(curr, curr + size);
+                    }
+                }
+                return g;
+            },
+
+            petersen() {
+                const g = new Graph();
+                // Outer pentagon
+                for (let i = 0; i < 5; i++) {
+                    const angle = (2 * Math.PI * i / 5) - Math.PI / 2;
+                    const x = 0.5 + 0.35 * Math.cos(angle);
+                    const y = 0.5 + 0.35 * Math.sin(angle);
+                    g.addVertex(i, x, y);
+                }
+                // Inner pentagram
+                for (let i = 0; i < 5; i++) {
+                    const angle = (2 * Math.PI * i / 5) - Math.PI / 2;
+                    const x = 0.5 + 0.15 * Math.cos(angle);
+                    const y = 0.5 + 0.15 * Math.sin(angle);
+                    g.addVertex(i + 5, x, y);
+                }
+                // Outer edges
+                for (let i = 0; i < 5; i++) {
+                    g.addEdge(i, (i + 1) % 5);
+                    g.addEdge(i, i + 5);
+                }
+                // Inner edges (pentagram)
+                for (let i = 0; i < 5; i++) {
+                    g.addEdge(i + 5, ((i + 2) % 5) + 5);
+                }
+                return g;
+            },
+
+            'binary-tree'(n) {
+                const g = new Graph();
+                const levels = Math.ceil(Math.log2(n + 1));
+                let id = 0;
+                for (let level = 0; level < levels && id < n; level++) {
+                    const nodesInLevel = Math.min(Math.pow(2, level), n - id);
+                    const levelWidth = Math.pow(2, level);
+                    for (let i = 0; i < nodesInLevel && id < n; i++) {
+                        const x = 0.1 + (0.8 * (i + 0.5) / levelWidth);
+                        const y = 0.1 + (0.8 * level / (levels - 1 || 1));
+                        g.addVertex(id, x, y);
+                        if (id > 0) {
+                            g.addEdge(Math.floor((id - 1) / 2), id);
+                        }
+                        id++;
+                    }
+                }
+                return g;
+            },
+
+            random(n) {
+                const g = new Graph();
+                for (let i = 0; i < n; i++) {
+                    const angle = Math.random() * 2 * Math.PI;
+                    const r = 0.1 + Math.random() * 0.35;
+                    const x = 0.5 + r * Math.cos(angle);
+                    const y = 0.5 + r * Math.sin(angle);
+                    g.addVertex(i, x, y);
+                }
+                // Ensure connected graph
+                for (let i = 1; i < n; i++) {
+                    const target = Math.floor(Math.random() * i);
+                    g.addEdge(i, target);
+                }
+                // Add some extra edges
+                const extraEdges = Math.floor(n * 0.5);
+                for (let i = 0; i < extraEdges; i++) {
+                    const v1 = Math.floor(Math.random() * n);
+                    const v2 = Math.floor(Math.random() * n);
+                    if (v1 !== v2 && !g.getNeighbors(v1).includes(v2)) {
+                        g.addEdge(v1, v2);
+                    }
+                }
+                return g;
+            }
+        };
+
+        // ===== Rank Function Computation =====
+        function computeRanks(graph, generators) {
+            const ranks = new Map();
+            let currentRank = 0;
+            let frontier = [...generators];
+            
+            // Initialize generators with rank 0
+            for (const gen of generators) {
+                ranks.set(gen, 0);
+                graph.vertices[gen].rank = 0;
+            }
+
+            while (frontier.length > 0) {
+                const nextFrontier = [];
+                for (const v of frontier) {
+                    for (const neighbor of graph.getNeighbors(v)) {
+                        if (!ranks.has(neighbor)) {
+                            ranks.set(neighbor, currentRank + 1);
+                            graph.vertices[neighbor].rank = currentRank + 1;
+                            nextFrontier.push(neighbor);
+                        }
+                    }
+                }
+                frontier = nextFrontier;
+                currentRank++;
+            }
+
+            return Math.max(...ranks.values(), 0);
+        }
+
+        function selectGenerators(graph, mode, n) {
+            switch (mode) {
+                case 'single':
+                    return [0];
+                case 'multiple':
+                    const step = Math.max(1, Math.floor(n / 3));
+                    return [0, step, Math.min(2 * step, n - 1)].filter((v, i, a) => a.indexOf(v) === i);
+                case 'random':
+                    const count = Math.max(1, Math.floor(Math.random() * 3) + 1);
+                    const gens = new Set();
+                    while (gens.size < count) {
+                        gens.add(Math.floor(Math.random() * n));
+                    }
+                    return Array.from(gens);
+                case 'antipodal':
+                    return [0, Math.floor(n / 2)];
+                default:
+                    return [0];
+            }
+        }
+
+        // ===== Color Mapping =====
+        function rankToColor(rank, maxRank) {
+            if (rank < 0) return '#333';
+            
+            const t = maxRank === 0 ? 0 : rank / maxRank;
+            
+            // Vibrant gradient: deep blue -> purple -> red -> orange -> yellow
+            const colors = [
+                { r: 26, g: 26, b: 108 },   // Deep blue
+                { r: 72, g: 52, b: 212 },   // Purple-blue
+                { r: 155, g: 89, b: 182 },  // Purple
+                { r: 231, g: 76, b: 60 },   // Red
+                { r: 243, g: 156, b: 18 },  // Orange
+                { r: 241, g: 196, b: 15 }   // Yellow
+            ];
+            
+            const segment = t * (colors.length - 1);
+            const i = Math.floor(segment);
+            const f = segment - i;
+            
+            const c1 = colors[Math.min(i, colors.length - 1)];
+            const c2 = colors[Math.min(i + 1, colors.length - 1)];
+            
+            const r = Math.round(c1.r + (c2.r - c1.r) * f);
+            const g = Math.round(c1.g + (c2.g - c1.g) * f);
+            const b = Math.round(c1.b + (c2.b - c1.b) * f);
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function rankToGlow(rank, maxRank) {
+            if (rank < 0) return 'rgba(50, 50, 50, 0.5)';
+            const color = rankToColor(rank, maxRank);
+            return color.replace('rgb', 'rgba').replace(')', ', 0.6)');
+        }
+
+        // ===== Visualization =====
+        let currentGraph = null;
+        let currentGenerators = [];
+        let maxRank = 0;
+        let animationFrame = null;
+        let isAnimating = false;
+        let animationStep = -1;
+        let time = 0;
+
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('tooltip');
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = Math.min(container.clientWidth, container.clientHeight);
+            canvas.width = size * window.devicePixelRatio;
+            canvas.height = size * window.devicePixelRatio;
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function draw() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            if (!currentGraph) return;
+
+            time += 0.02;
+
+            // Draw edges
+            ctx.lineWidth = 2;
+            for (const [v1, v2] of currentGraph.edges) {
+                const vertex1 = currentGraph.vertices[v1];
+                const vertex2 = currentGraph.vertices[v2];
+                
+                const showV1 = animationStep < 0 || vertex1.rank <= animationStep;
+                const showV2 = animationStep < 0 || vertex2.rank <= animationStep;
+                
+                if (showV1 && showV2) {
+                    const alpha = Math.min(vertex1.rank, vertex2.rank) >= 0 ? 0.4 : 0.1;
+                    ctx.strokeStyle = `rgba(100, 100, 150, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.moveTo(vertex1.x * w, vertex1.y * h);
+                    ctx.lineTo(vertex2.x * w, vertex2.y * h);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw vertices
+            for (const vertex of currentGraph.vertices) {
+                if (animationStep >= 0 && vertex.rank > animationStep) continue;
+                
+                const x = vertex.x * w;
+                const y = vertex.y * h;
+                const isGenerator = currentGenerators.includes(vertex.id);
+                const baseRadius = isGenerator ? 18 : 12;
+                const pulseRadius = baseRadius + Math.sin(time * 2 + vertex.id) * 2;
+                
+                // Glow effect
+                const glow = ctx.createRadialGradient(x, y, 0, x, y, pulseRadius * 2);
+                glow.addColorStop(0, rankToGlow(vertex.rank, maxRank));
+                glow.addColorStop(1, 'transparent');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(x, y, pulseRadius * 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Main circle
+                ctx.fillStyle = rankToColor(vertex.rank, maxRank);
+                ctx.beginPath();
+                ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Border for generators
+                if (isGenerator) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+                
+                // Vertex label
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(vertex.id.toString(), x, y);
+            }
+
+            if (isAnimating) {
+                animationFrame = requestAnimationFrame(draw);
+            }
+        }
+
+        function generateAndVisualize() {
+            const graphType = document.getElementById('graphType').value;
+            const vertexCount = parseInt(document.getElementById('vertexCount').value) || 10;
+            const generatorMode = document.getElementById('generatorMode').value;
+            
+            // Generate graph
+            if (graphType === 'petersen') {
+                currentGraph = GraphGenerators.petersen();
+            } else {
+                const n = Math.max(3, Math.min(30, vertexCount));
+                currentGraph = GraphGenerators[graphType](n);
+            }
+            
+            // Select generators
+            currentGenerators = selectGenerators(currentGraph, generatorMode, currentGraph.vertices.length);
+            
+            // Compute ranks
+            maxRank = computeRanks(currentGraph, currentGenerators);
+            
+            // Update stats
+            document.getElementById('statVertices').textContent = currentGraph.vertices.length;
+            document.getElementById('statEdges').textContent = currentGraph.edges.length;
+            document.getElementById('statMaxRank').textContent = maxRank;
+            document.getElementById('statGenerators').textContent = currentGenerators.length;
+            
+            // Reset animation
+            animationStep = -1;
+            
+            // Start animation
+            resizeCanvas();
+            isAnimating = true;
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            draw();
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            if (isAnimating) {
+                animationStep = -1;
+                draw();
+            }
+        }
+
+        function stepAnimation() {
+            isAnimating = false;
+            if (animationStep < maxRank) {
+                animationStep++;
+            } else {
+                animationStep = 0;
+            }
+            draw();
+        }
+
+        // Mouse interaction
+        canvas.addEventListener('mousemove', (e) => {
+            if (!currentGraph) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            let hoveredVertex = null;
+            for (const vertex of currentGraph.vertices) {
+                const dx = vertex.x - x;
+                const dy = vertex.y - y;
+                if (Math.sqrt(dx * dx + dy * dy) < 0.05) {
+                    hoveredVertex = vertex;
+                    break;
+                }
+            }
+            
+            if (hoveredVertex) {
+                tooltip.classList.add('visible');
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY + 15) + 'px';
+                tooltip.querySelector('.vertex-name').textContent = 
+                    `頂点 ${hoveredVertex.id}` + 
+                    (currentGenerators.includes(hoveredVertex.id) ? ' (生成元)' : '');
+                tooltip.querySelector('.vertex-rank').textContent = 
+                    `ランク: ${hoveredVertex.rank}`;
+            } else {
+                tooltip.classList.remove('visible');
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+
+        // Initialize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (currentGraph) draw();
+        });
+
+        // Initial generation
+        resizeCanvas();
+        generateAndVisualize();
+    </script>
+</body>
+</html>
