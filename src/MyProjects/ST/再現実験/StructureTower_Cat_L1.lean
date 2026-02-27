@@ -114,7 +114,7 @@ theorem ext (f g : TowerHom S T) (h : f.mapFun = g.mapFun) : f = g := by
   cases f
   cases g
   simp only [mk.injEq]
-  sorry -- ★ h を用いて mapFun の等価性を示せ
+  exact h
 
 /-!
 ### 課題 1.2: 恒等射 (Identity Morphism)
@@ -134,7 +134,8 @@ Exercise 1.2: Identity Morphism
 def id (T : StructureTower ι α) : TowerHom T T where
   mapFun := _root_.id
   level_preserving := by
-    sorry -- ★ ∀ i, ∀ x ∈ T.level i, id x ∈ T.level i を示せ
+    intro i x hx
+    simpa using hx
 
 /-!
 ### 課題 1.3: 射の合成 (Composition)
@@ -157,7 +158,8 @@ Exercise 1.3: Composition of Morphisms
 def comp (g : TowerHom T U) (f : TowerHom S T) : TowerHom S U where
   mapFun := g.mapFun ∘ f.mapFun
   level_preserving := by
-    sorry -- ★ f.level_preserving と g.level_preserving を組み合わせよ
+    intro i x hx
+    exact g.level_preserving i (f.mapFun x) (f.level_preserving i x hx)
 
 /-!
 ## 第2節: 圏の公理の検証
@@ -189,7 +191,8 @@ variable {T' : StructureTower ι γ} {U' : StructureTower ι δ}
 theorem comp_assoc
     (f : TowerHom R S') (g : TowerHom S' T') (h : TowerHom T' U') :
     comp (comp h g) f = comp h (comp g f) := by
-  sorry -- ★ ext を用いて基礎写像の結合律に帰着せよ
+  apply TowerHom.ext
+  rfl
 
 /-!
 ### 課題 2.2: 左単位律 (Left Identity)
@@ -202,7 +205,8 @@ Exercise 2.2: Left Identity Law
 
 theorem id_comp (f : TowerHom S T) :
     comp (TowerHom.id T) f = f := by
-  sorry -- ★ ext を使い、id ∘ f.mapFun = f.mapFun を示せ
+  apply TowerHom.ext
+  rfl
 
 /-!
 ### 課題 2.3: 右単位律 (Right Identity)
@@ -215,7 +219,8 @@ Exercise 2.3: Right Identity Law
 
 theorem comp_id (f : TowerHom S T) :
     comp f (TowerHom.id S) = f := by
-  sorry -- ★ ext を使い、f.mapFun ∘ id = f.mapFun を示せ
+  apply TowerHom.ext
+  rfl
 
 end TowerHom
 
@@ -265,7 +270,12 @@ Exercise 3.1: Constructing a concrete morphism
 def inclusionHom : TowerHom natInitialSegments natDoubleSegments where
   mapFun := _root_.id
   level_preserving := by
-    sorry -- ★ k ≤ n → k ≤ 2 * n を示せ
+    intro i x hx
+    have hi : i ≤ 2 * i := by
+      calc
+        i = 1 * i := by simp
+        _ ≤ 2 * i := Nat.mul_le_mul_right i (by decide : 1 ≤ 2)
+    exact Nat.le_trans hx hi
 
 /-!
 ### 課題 3.2: 恒等射との合成
@@ -277,7 +287,7 @@ Exercise 3.2: Composition with identity
 
 example : TowerHom.comp inclusionHom (TowerHom.id natInitialSegments)
     = inclusionHom := by
-  sorry -- ★ comp_id を使うか、直接 ext で示せ
+  simpa using TowerHom.comp_id (f := inclusionHom)
 
 end ConcreteExample
 
