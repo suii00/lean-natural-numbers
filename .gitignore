@@ -30,4 +30,8 @@ node_modules/
 *.toc
 
 tmp_*
+tmp*.lean
+tmp*.txt
+_tmp*.lean
+_fa*.lean
 log_*.txt
