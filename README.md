@@ -174,7 +174,7 @@ lake build
 5. プルリクエストを作成
 
 ## ライセンス
-MIT License
+Apache License 2.0
 
 ## 連絡先
 プロジェクトに関する質問や提案は、Issueセクションでお願いします。
