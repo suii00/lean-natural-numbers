@@ -14,7 +14,6 @@ AI-assisted Lean 4 learning project — exploring formal mathematics with Mathli
 - `TeX/` 以下の文書にはAI生成の自然言語説明が含まれます。
 - Leanコードが型検査されることと、その自然言語説明が数学的に妥当であることは別です。
 - 数学的主張を引用・再利用する場合は、対応するLeanファイルの検証状態を確認してください。
-- 
 ---
 
 ## 概要
